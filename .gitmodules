@@ -1,6 +1,6 @@
 [submodule "libraries/fc"]
 	path = libraries/fc
-	url = git@github.com:cryptonomex/fc
+	url = git@git.syncad.com:/fc.git
   ignore = dirty
 [submodule "libraries/leveldb"]
 	path = libraries/leveldb

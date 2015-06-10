@@ -19,6 +19,7 @@
 
 #include <graphene/app/api.hpp>
 #include <graphene/chain/address.hpp>
+#include <graphene/utilities/key_conversion.hpp>
 
 using namespace graphene::app;
 using namespace graphene::chain;

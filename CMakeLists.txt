@@ -65,7 +65,7 @@ IF(NOT "${Boost_VERSION}" MATCHES "1.53(.*)")
    SET(Boost_LIBRARIES ${BOOST_LIBRARIES_TEMP} ${Boost_LIBRARIES})
 ENDIF()
 
-set( LEVEL_DB_DIR "${CMAKE_SOURCE_DIR}/libraries/leveldb" )
+set( LEVEL_DB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libraries/leveldb" )
 
 file( GLOB LEVEL_DB_SOURCES "${LEVEL_DB_DIR}/db/*.cc"
 			    "${LEVEL_DB_DIR}/helpers/memenv/memenv.cc"
@@ -115,7 +115,7 @@ if( WIN32 )
     SET(LEVELDB_PORT_FILE "${LEVEL_DB_DIR}/port/port_win.cc" )
     list(APPEND LEVELDB_BUILD_DEFINES OS_WINDOWS LEVELDB_PLATFORM_WINDOWS )
     list(APPEND LEVELDB_BUILD_LIBRARIES shlwapi.lib)
-    list(INSERT LEVELDB_BUILD_PRIVATE_INCLUDES 0 "${CMAKE_SOURCE_DIR}/libraries/leveldb-msvc/include")
+    list(INSERT LEVELDB_BUILD_PRIVATE_INCLUDES 0 "${CMAKE_CURRENT_SOURCE_DIR}/libraries/leveldb-msvc/include")
 else( WIN32 ) # Apple AND Linux
     SET(LEVELDB_PORT_FILE "${LEVEL_DB_DIR}/port/port_posix.cc" )
 
