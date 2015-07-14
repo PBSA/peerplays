@@ -19,6 +19,7 @@
 
 #include <graphene/witness/witness.hpp>
 #include <graphene/account_history/account_history_plugin.hpp>
+#include <graphene/market_history/market_history_plugin.hpp>
 
 #include <fc/thread/thread.hpp>
 #include <fc/interprocess/signals.hpp>
@@ -49,13 +50,20 @@ int main(int argc, char** argv) {
 
       auto witness_plug = node.register_plugin<witness_plugin::witness_plugin>();
       auto history_plug = node.register_plugin<account_history::account_history_plugin>();
+      auto market_history_plug = node.register_plugin<market_history::market_history_plugin>();
 
+      try
       {
          bpo::options_description cli, cfg;
          node.set_program_options(cli, cfg);
          app_options.add(cli);
          cfg_options.add(cfg);
          bpo::store(bpo::parse_command_line(argc, argv, app_options), options);
+      }
+      catch (const boost::program_options::error& e)
+      {
+        std::cerr << "Error parsing command line: " << e.what() << "\n";
+        return 1;
       }
 
       if( options.count("help") )
@@ -111,7 +119,7 @@ int main(int argc, char** argv) {
       node.startup_plugins();
 
       fc::promise<int>::ptr exit_promise = new fc::promise<int>("UNIX Signal Handler");
-#ifdef __unix__
+#if defined __APPLE__ || defined __unix__
       fc::set_signal_handler([&exit_promise](int signal) {
          exit_promise->set_value(signal);
       }, SIGINT);

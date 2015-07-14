@@ -23,12 +23,14 @@
 
 #include <fc/io/json.hpp>
 #include <fc/io/stdio.hpp>
+#include <fc/network/http/server.hpp>
 #include <fc/network/http/websocket.hpp>
 #include <fc/rpc/cli.hpp>
+#include <fc/rpc/http_api.hpp>
 #include <fc/rpc/websocket_api.hpp>
 
 #include <graphene/app/api.hpp>
-#include <graphene/chain/address.hpp>
+#include <graphene/chain/protocol/protocol.hpp>
 #include <graphene/utilities/key_conversion.hpp>
 #include <graphene/wallet/wallet.hpp>
 
@@ -65,6 +67,7 @@ int main( int argc, char** argv )
          ("rpc-endpoint,r", bpo::value<string>()->implicit_value("127.0.0.1:8091"), "Endpoint for wallet websocket RPC to listen on")
          ("rpc-tls-endpoint,t", bpo::value<string>()->implicit_value("127.0.0.1:8092"), "Endpoint for wallet websocket TLS RPC to listen on")
          ("rpc-tls-certificate,c", bpo::value<string>()->implicit_value("server.pem"), "PEM certificate for wallet websocket TLS RPC")
+         ("rpc-http-endpoint,h", bpo::value<string>()->implicit_value("127.0.0.1:8093"), "Endpoint for wallet HTTP RPC to listen on")
          ("daemon,d", "Run the wallet in daemon mode" )
          ("wallet-file,w", bpo::value<string>()->implicit_value("wallet.json"), "wallet to load");
 
@@ -88,7 +91,6 @@ int main( int argc, char** argv )
       ac.rotate               = true;
       ac.rotation_interval    = fc::hours( 1 );
       ac.rotation_limit       = fc::days( 1 );
-      ac.rotation_compression = false;
 
       std::cout << "Logging RPC to file: " << (data_dir / ac.filename).preferred_string() << "\n";
 
@@ -103,11 +105,13 @@ int main( int argc, char** argv )
 
       //fc::configure_logging( cfg );
 
-      fc::ecc::private_key genesis_private_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("genesis")));
+      fc::ecc::private_key committee_private_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("null_key")));
 
-      idump( (key_to_wif( genesis_private_key ) ) );
+      idump( (key_to_wif( committee_private_key ) ) );
 
       fc::ecc::private_key nathan_private_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+      public_key_type nathan_pub_key = nathan_private_key.get_public_key();
+      idump( (nathan_pub_key) );
       idump( (key_to_wif( nathan_private_key ) ) );
 
       //
@@ -146,9 +150,9 @@ int main( int argc, char** argv )
       for( auto& name_formatter : wapiptr->get_result_formatters() )
          wallet_cli->format_result( name_formatter.first, name_formatter.second );
 
-      boost::signals2::scoped_connection closed_connection = con->closed.connect([]{
+      boost::signals2::scoped_connection closed_connection(con->closed.connect([]{
          cerr << "Server has disconnected us.\n";
-      });
+      }));
       (void)(closed_connection);
 
       if( wapiptr->is_new() )
@@ -158,9 +162,9 @@ int main( int argc, char** argv )
       } else
          wallet_cli->set_prompt( "locked >>> " );
 
-      boost::signals2::scoped_connection locked_connection = wapiptr->lock_changed.connect([&](bool locked) {
+      boost::signals2::scoped_connection locked_connection(wapiptr->lock_changed.connect([&](bool locked) {
          wallet_cli->set_prompt(  locked ? "locked >>> " : "unlocked >>> " );
-      });
+      }));
 
       auto _websocket_server = std::make_shared<fc::http::websocket_server>();
       if( options.count("rpc-endpoint") )
@@ -194,6 +198,24 @@ int main( int argc, char** argv )
          _websocket_tls_server->start_accept();
       }
 
+      auto _http_server = std::make_shared<fc::http::server>();
+      if( options.count("rpc-http-endpoint" ) )
+      {
+         ilog( "Listening for incoming HTTP RPC requests on ${p}", ("p", options.at("rpc-http-endpoint").as<string>() ) );
+         _http_server->listen( fc::ip::endpoint::from_string( options.at( "rpc-http-endpoint" ).as<string>() ) );
+         //
+         // due to implementation, on_request() must come AFTER listen()
+         //
+         _http_server->on_request(
+            [&]( const fc::http::request& req, const fc::http::server::response& resp )
+            {
+               std::shared_ptr< fc::rpc::http_api_connection > conn =
+                  std::make_shared< fc::rpc::http_api_connection>();
+               conn->register_api( wapi );
+               conn->on_request( req, resp );
+            } );
+      }
+
       if( !options.count( "daemon" ) )
       {
          wallet_cli->register_api( wapi );
@@ -220,6 +242,7 @@ int main( int argc, char** argv )
    catch ( const fc::exception& e )
    {
       std::cout << e.to_detail_string() << "\n";
+      return -1;
    }
-   return -1;
+   return 0;
 }

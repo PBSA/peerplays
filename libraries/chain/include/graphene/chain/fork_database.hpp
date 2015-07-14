@@ -16,8 +16,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
-#include <graphene/chain/block.hpp>
-#include <graphene/chain/types.hpp>
+#include <graphene/chain/protocol/block.hpp>
 
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>
@@ -58,7 +57,7 @@ namespace graphene { namespace chain {
    class fork_database
    {
       public:
-         typedef vector<item_ptr>      branch_type;
+         typedef vector<item_ptr> branch_type;
 
          fork_database();
          void reset();
@@ -69,7 +68,7 @@ namespace graphene { namespace chain {
          bool                             is_known_block( const block_id_type& id )const;
          shared_ptr<fork_item>            fetch_block( const block_id_type& id )const;
          vector<item_ptr>                 fetch_block_by_number( uint32_t n )const;
-         shared_ptr<fork_item>            push_block( signed_block b );
+         shared_ptr<fork_item>            push_block(const signed_block& b );
          shared_ptr<fork_item>            head()const { return _head; }
          void                             pop_block();
 
@@ -81,8 +80,8 @@ namespace graphene { namespace chain {
          pair< branch_type, branch_type >  fetch_branch_from( block_id_type first,
                                                               block_id_type second )const;
 
-         struct block_id{};
-         struct block_num{};
+         struct block_id;
+         struct block_num;
          typedef multi_index_container<
             item_ptr,
             indexed_by<

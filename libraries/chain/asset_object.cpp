@@ -16,6 +16,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <graphene/chain/asset_object.hpp>
+#include <graphene/chain/database.hpp>
 
 #include <fc/uint128.hpp>
 
@@ -50,8 +51,10 @@ void graphene::chain::asset_bitasset_data_object::update_median_feeds(time_point
       }
    }
 
-   if( current_feeds.empty() )
+   // If there are no valid feeds, or the number available is less than the minimum to calculate a median...
+   if( current_feeds.size() < options.minimum_feeds )
    {
+      //... don't calculate a median, and set a null feed
       current_feed_publication_time = current_time;
       current_feed = price_feed();
       return;
@@ -79,40 +82,6 @@ void graphene::chain::asset_bitasset_data_object::update_median_feeds(time_point
    current_feed = median_feed;
 }
 
-void asset_object::asset_options::validate()const
-{
-   FC_ASSERT( max_supply > 0 );
-   FC_ASSERT( max_supply <= GRAPHENE_MAX_SHARE_SUPPLY );
-   FC_ASSERT( market_fee_percent <= GRAPHENE_100_PERCENT );
-   FC_ASSERT( max_market_fee >= 0 && max_market_fee <= GRAPHENE_MAX_SHARE_SUPPLY );
-   FC_ASSERT( min_market_fee >= 0 && min_market_fee <= GRAPHENE_MAX_SHARE_SUPPLY );
-   // There must be no high bits in permissions whose meaning is not known.
-   FC_ASSERT( !(issuer_permissions & ~ASSET_ISSUER_PERMISSION_MASK) );
-   // There must be no high bits in flags which are not also high in permissions.
-   FC_ASSERT( !(flags & ~issuer_permissions ) );
-   // The global_settle flag may never be set (this is a permission only)
-   FC_ASSERT( !(flags & global_settle) );
-   core_exchange_rate.validate();
-   FC_ASSERT( core_exchange_rate.base.asset_id.instance.value == 0 ||
-              core_exchange_rate.quote.asset_id.instance.value == 0 );
-
-   if(!whitelist_authorities.empty() || !blacklist_authorities.empty())
-      FC_ASSERT( flags & white_list );
-   for( auto item : whitelist_markets )
-   {
-      FC_ASSERT( blacklist_markets.find(item) == blacklist_markets.end() );
-   }
-   for( auto item : blacklist_markets )
-   {
-      FC_ASSERT( whitelist_markets.find(item) == whitelist_markets.end() );
-   }
-}
-
-void asset_object::bitasset_options::validate() const
-{
-   FC_ASSERT(force_settlement_offset_percent <= GRAPHENE_100_PERCENT);
-   FC_ASSERT(maximum_force_settlement_volume <= GRAPHENE_100_PERCENT);
-}
 
 
 asset asset_object::amount_from_string(string amount_string) const
@@ -142,7 +111,7 @@ asset asset_object::amount_from_string(string amount_string) const
    share_type satoshis = 0;
 
    share_type scaled_precision = 1;
-   for( short i = 0; i < precision; ++i )
+   for( uint8_t i = 0; i < precision; ++i )
       scaled_precision *= 10;
 
    const auto decimal_pos = amount_string.find( '.' );
@@ -164,7 +133,7 @@ asset asset_object::amount_from_string(string amount_string) const
          satoshis += std::stoll( rhs );
    }
 
-   FC_ASSERT( satoshis <= GRAPHENE_BLOCKCHAIN_MAX_SHARES );
+   FC_ASSERT( satoshis <= GRAPHENE_MAX_SHARE_SUPPLY );
 
    if( negative_found )
       satoshis *= -1;
@@ -175,7 +144,7 @@ asset asset_object::amount_from_string(string amount_string) const
 string asset_object::amount_to_string(share_type amount) const
 {
    share_type scaled_precision = 1;
-   for( short i = 0; i < precision; ++i )
+   for( uint8_t i = 0; i < precision; ++i )
       scaled_precision *= 10;
    assert(scaled_precision > 0);
 

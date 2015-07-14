@@ -17,19 +17,20 @@
  */
 #pragma once
 #include <graphene/chain/evaluator.hpp>
-#include <graphene/chain/block.hpp>
-#include <graphene/chain/asset.hpp>
 #include <graphene/chain/global_property_object.hpp>
+#include <graphene/chain/node_property_object.hpp>
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/fork_database.hpp>
+#include <graphene/chain/block_database.hpp>
+#include <graphene/chain/genesis_state.hpp>
 
 #include <graphene/db/object_database.hpp>
 #include <graphene/db/object.hpp>
-#include <graphene/db/level_map.hpp>
-#include <graphene/db/level_pod_map.hpp>
 #include <graphene/db/simple_index.hpp>
 #include <fc/signals.hpp>
+
+#include <graphene/chain/protocol/protocol.hpp>
 
 #include <fc/log/logger.hpp>
 
@@ -39,13 +40,36 @@ namespace graphene { namespace chain {
    using graphene::db::abstract_object;
    using graphene::db::object;
 
-   typedef vector<std::pair<fc::static_variant<address, public_key_type>, share_type >> genesis_allocation;
+   namespace detail
+   {
+      /**
+       * Class used to help the with_skip_flags implementation.
+       * It must be defined in this header because it must be
+       * available to the with_skip_flags implementation,
+       * which is a template and therefore must also be defined
+       * in this header.
+       */
+      struct skip_flags_restorer
+      {
+         skip_flags_restorer( node_property_object& npo, uint32_t old_skip_flags )
+            : _npo( npo ), _old_skip_flags( old_skip_flags )
+         {}
+
+         ~skip_flags_restorer()
+         {
+            _npo.skip_flags = _old_skip_flags;
+         }
+
+         node_property_object& _npo;
+         uint32_t _old_skip_flags;
+      };
+   }
 
    /**
     *   @class database
     *   @brief tracks the blockchain state in an extensible manner
     */
-   class database : public object_database
+   class database : public db::object_database
    {
       public:
          //////////////////// db_management.cpp ////////////////////
@@ -55,27 +79,40 @@ namespace graphene { namespace chain {
 
          enum validation_steps
          {
-            skip_nothing                = 0x00,
-            skip_delegate_signature     = 0x01,  ///< used while reindexing
-            skip_transaction_signatures = 0x02,  ///< used by non delegate nodes
-            skip_undo_block             = 0x04,  ///< used while reindexing
-            skip_undo_transaction       = 0x08,  ///< used while applying block
-            skip_transaction_dupe_check = 0x10,  ///< used while reindexing
-            skip_fork_db                = 0x20,  ///< used while reindexing
-            skip_block_size_check       = 0x40,  ///< used when applying locally generated transactions
-            skip_tapos_check            = 0x80,  ///< used while reindexing -- note this skips expiration check as well
-            skip_authority_check        = 0x100, ///< used while reindexing -- disables any checking of authority on transactions
-            skip_merkle_check           = 0x200  ///< used while reindexing
+            skip_nothing                = 0,
+            skip_witness_signature      = 1 << 0,  ///< used while reindexing
+            skip_transaction_signatures = 1 << 1,  ///< used by non-witness nodes
+            skip_undo_block             = 1 << 2,  ///< used while reindexing
+            skip_undo_transaction       = 1 << 3,  ///< used while applying block
+            skip_transaction_dupe_check = 1 << 4,  ///< used while reindexing
+            skip_fork_db                = 1 << 5,  ///< used while reindexing
+            skip_block_size_check       = 1 << 6,  ///< used when applying locally generated transactions
+            skip_tapos_check            = 1 << 7,  ///< used while reindexing -- note this skips expiration check as well
+            skip_authority_check        = 1 << 8, ///< used while reindexing -- disables any checking of authority on transactions
+            skip_merkle_check           = 1 << 9, ///< used while reindexing
+            skip_assert_evaluation      = 1 << 10  ///< used while reindexing
          };
 
-         void open(const fc::path& data_dir, const genesis_allocation& initial_allocation = genesis_allocation());
+         /**
+          * @brief Open a database, creating a new one if necessary
+          *
+          * Opens a database in the specified directory. If no initialized database is found, genesis_loader is called
+          * and its return value is used as the genesis state when initializing the new database
+          *
+          * genesis_loader will not be called if an existing database is found.
+          *
+          * @param data_dir Path to open or create database in
+          * @param genesis_loader A callable object which returns the genesis state to initialize new databases on
+          */
+         template<typename F>
+         void open(const fc::path& data_dir, F&& genesis_loader);
          /**
           * @brief Rebuild object graph from block history and open detabase
           *
           * This method may be called after or instead of @ref database::open, and will rebuild the object graph by
           * replaying blockchain history. When this method exits successfully, the database will be open.
           */
-         void reindex(fc::path data_dir, const genesis_allocation& initial_allocation = genesis_allocation());
+         void reindex(fc::path data_dir, const genesis_state_type& initial_allocation = genesis_state_type());
 
          /**
           * @brief wipe Delete database from disk, and potentially the raw chain as well.
@@ -99,8 +136,20 @@ namespace graphene { namespace chain {
          optional<signed_block>     fetch_block_by_number( uint32_t num )const;
          const signed_transaction&  get_recent_transaction( const transaction_id_type& trx_id )const;
 
+         /**
+          *  Calculate the percent of block production slots that were missed in the
+          *  past 128 blocks, not including the current block.
+          */
+         uint32_t witness_participation_rate()const;
+
+         void                              add_checkpoints( const flat_map<uint32_t,block_id_type>& checkpts );
+         const flat_map<uint32_t,block_id_type> get_checkpoints()const { return _checkpoints; }
+
          bool push_block( const signed_block& b, uint32_t skip = skip_nothing );
          processed_transaction push_transaction( const signed_transaction& trx, uint32_t skip = skip_nothing );
+         bool _push_block( const signed_block& b );
+         processed_transaction _push_transaction( const signed_transaction& trx );
+
          ///@throws fc::exception if the proposed transaction fails to apply.
          processed_transaction push_proposal( const proposal_object& proposal );
 
@@ -108,7 +157,12 @@ namespace graphene { namespace chain {
             const fc::time_point_sec when,
             witness_id_type witness_id,
             const fc::ecc::private_key& block_signing_private_key,
-            uint32_t skip = 0
+            uint32_t skip
+            );
+         signed_block _generate_block(
+            const fc::time_point_sec when,
+            witness_id_type witness_id,
+            const fc::ecc::private_key& block_signing_private_key
             );
 
          void pop_block();
@@ -127,6 +181,8 @@ namespace graphene { namespace chain {
          void      set_applied_operation_result( uint32_t op_id, const operation_result& r );
          const vector<operation_history_object>& get_applied_operations()const;
 
+         string to_pretty_string( const asset& a )const;
+
          /**
           *  This signal is emitted after all operations and virtual operation for a
           *  block have been applied but before the get_applied_operations() are cleared.
@@ -138,7 +194,7 @@ namespace graphene { namespace chain {
          fc::signal<void(const signed_block&)>           applied_block;
 
          /**
-          *  After a block has been applied and committed.  The callback
+          *  Emitted After a block has been applied and committed.  The callback
           *  should not yield and should execute quickly.
           */
          fc::signal<void(const vector<object_id_type>&)> changed_objects;
@@ -193,20 +249,41 @@ namespace graphene { namespace chain {
          const asset_object&                    get_core_asset()const;
          const global_property_object&          get_global_properties()const;
          const dynamic_global_property_object&  get_dynamic_global_properties()const;
-         const fee_schedule_type&               current_fee_schedule()const;
+         const node_property_object&            get_node_properties()const;
+         const fee_schedule&                    current_fee_schedule()const;
 
-         time_point_sec head_block_time()const;
-         uint32_t       head_block_num()const;
-         block_id_type  head_block_id()const;
+         time_point_sec   head_block_time()const;
+         uint32_t         head_block_num()const;
+         block_id_type    head_block_id()const;
+         witness_id_type  head_block_witness()const;
 
          decltype( chain_parameters::block_interval ) block_interval( )const;
+
+         node_property_object& node_properties();
+
+         /**
+          * Set the skip_flags to the given value, call callback,
+          * then reset skip_flags to their previous value after
+          * callback is done.
+          */
+         template< typename Lambda >
+         void with_skip_flags(
+            uint32_t skip_flags,
+            Lambda callback )
+         {
+            node_property_object& npo = node_properties();
+            detail::skip_flags_restorer restorer( npo, npo.skip_flags );
+            npo.skip_flags = skip_flags;
+            callback();
+            return;
+         }
 
          //////////////////// db_init.cpp ////////////////////
 
          void initialize_evaluators();
          /// Reset the object graph in-memory
          void initialize_indexes();
-         void init_genesis(const genesis_allocation& initial_allocation = genesis_allocation());
+         void init_genesis(const genesis_state_type& genesis_state = genesis_state_type());
 
          template<typename EvaluatorType>
          void register_evaluator()
@@ -234,8 +311,6 @@ namespace graphene { namespace chain {
          asset get_balance(account_id_type owner, asset_id_type asset_id)const;
          /// This is an overloaded method.
          asset get_balance(const account_object& owner, const asset_object& asset_obj)const;
-         /// This is an overloaded method.
-         asset get_balance(const account_object* owner, const asset_object* asset_obj)const;
 
          /**
           * @brief Adjust a particular account's balance in a given asset by a delta
@@ -245,8 +320,6 @@ namespace graphene { namespace chain {
          void adjust_balance(account_id_type account, asset delta);
          /// This is an overloaded method.
          void adjust_balance(const account_object& account, asset delta);
-         /// This is an overloaded method.
-         void adjust_balance(const account_object* account, asset delta);
 
          /**
           * If delta.asset_id is a core asset, adjusts account statistics
@@ -268,6 +341,16 @@ namespace graphene { namespace chain {
          void cancel_order(const limit_order_object& order, bool create_virtual_op = true);
 
          /**
+          * @brief Process a new limit order through the markets
+          * @param order The new order to process
+          * @return true if order was completely filled; false otherwise
+          *
+          * This function takes a new limit order, and runs the markets attempting to match it with existing orders
+          * already on the books.
+          */
+         bool apply_order(const limit_order_object& new_order_object, bool allow_black_swan = true);
+
+         /**
           * Matches the two orders,
           *
           * @return a bit field indicating which orders were filled (and thus removed)
@@ -281,7 +364,6 @@ namespace graphene { namespace chain {
          template<typename OrderType>
          int match( const limit_order_object& bid, const OrderType& ask, const price& match_price );
          int match( const limit_order_object& bid, const limit_order_object& ask, const price& trade_price );
-         int match( const limit_order_object& bid, const short_order_object& ask, const price& trade_price );
          /// @return the amount of asset settled
          asset match(const call_order_object& call,
                    const force_settlement_object& settle,
@@ -293,16 +375,14 @@ namespace graphene { namespace chain {
           * @return true if the order was completely filled and thus freed.
           */
          bool fill_order( const limit_order_object& order, const asset& pays, const asset& receives );
-         bool fill_order( const short_order_object& order, const asset& pays, const asset& receives );
          bool fill_order( const call_order_object& order, const asset& pays, const asset& receives );
          bool fill_order( const force_settlement_object& settle, const asset& pays, const asset& receives );
 
-         bool check_call_orders( const asset_object& mia );
+         bool check_call_orders( const asset_object& mia, bool enable_black_swan = true );
 
          // helpers to fill_order
          void pay_order( const account_object& receiver, const asset& receives, const asset& pays );
 
-         bool convert_fees( const asset_object& mia );
          asset calculate_market_fee(const asset_object& recv_asset, const asset& trade_amount);
          asset pay_market_fees( const asset_object& recv_asset, const asset& receives );
 
@@ -314,24 +394,28 @@ namespace graphene { namespace chain {
    protected:
          //Mark pop_undo() as protected -- we do not want outside calling pop_undo(); it should call pop_block() instead
          void pop_undo() { object_database::pop_undo(); }
+         void notify_changed_objects();
 
       private:
          optional<undo_database::session>       _pending_block_session;
          vector< unique_ptr<op_evaluator> >     _operation_evaluators;
 
-         template<class ObjectType>
-         vector<std::reference_wrapper<const ObjectType>> sort_votable_objects(size_t count)const;
+         template<class Index>
+         vector<std::reference_wrapper<const typename Index::object_type>> sort_votable_objects(size_t count)const;
 
          //////////////////// db_block.cpp ////////////////////
 
          void                  apply_block( const signed_block& next_block, uint32_t skip = skip_nothing );
          processed_transaction apply_transaction( const signed_transaction& trx, uint32_t skip = skip_nothing );
+         void                  _apply_block( const signed_block& next_block );
+         processed_transaction _apply_transaction( const signed_transaction& trx );
          operation_result      apply_operation( transaction_evaluation_state& eval_state, const operation& op );
 
          ///Steps involved in applying a new block
          ///@{
 
          const witness_object& validate_block_header( uint32_t skip, const signed_block& next_block )const;
+         const witness_object& _validate_block_header( const signed_block& next_block )const;
          void create_block_summary(const signed_block& next_block);
 
          //////////////////// db_update.cpp ////////////////////
@@ -345,7 +429,7 @@ namespace graphene { namespace chain {
          void update_withdraw_permissions();
 
          //////////////////// db_witness_schedule.cpp ////////////////////
-         void update_witness_schedule(signed_block next_block);    /// no-op except for scheduling blocks
+         void update_witness_schedule(const signed_block& next_block);    /// no-op except for scheduling blocks
 
          ///Steps performed only at maintenance intervals
          ///@{
@@ -357,7 +441,7 @@ namespace graphene { namespace chain {
          void pay_workers( share_type& budget );
          void perform_chain_maintenance(const signed_block& next_block, const global_property_object& global_props);
          void update_active_witnesses();
-         void update_active_delegates();
+         void update_active_committee_members();
 
          template<class... Types>
          void perform_account_maintenance(std::tuple<Types...> helpers);
@@ -376,7 +460,7 @@ namespace graphene { namespace chain {
           *  until the fork is resolved.  This should make maintaining
           *  the fork tree relatively simple.
           */
-         graphene::db::level_map<block_id_type, signed_block>   _block_id_to_block;
+         block_database   _block_id_to_block;
 
          /**
           * Contains the set of ops that are in the process of being applied from
@@ -395,6 +479,10 @@ namespace graphene { namespace chain {
          vector<uint64_t>                  _witness_count_histogram_buffer;
          vector<uint64_t>                  _committee_count_histogram_buffer;
          uint64_t                          _total_voting_stake;
+
+         flat_map<uint32_t,block_id_type>  _checkpoints;
+
+         node_property_object              _node_property_object;
    };
 
    namespace detail
@@ -415,12 +503,24 @@ namespace graphene { namespace chain {
            (void)l;
        }
    }
-   template<class... Types>
-   void database::perform_account_maintenance(std::tuple<Types...> helpers)
-   {
-      const auto& idx = get_index_type<account_index>().indices();
-      for( const account_object& a : idx )
-         detail::for_each(helpers, a, detail::gen_seq<sizeof...(Types)>());
-   }
+
+   template<typename F>
+   void database::open(const fc::path& data_dir, F&& genesis_loader)
+   { try {
+         object_database::open(data_dir);
+
+         _block_id_to_block.open(data_dir / "database" / "block_num_to_block");
+
+         if( !find(global_property_id_type()) )
+            init_genesis(genesis_loader());
+
+         _pending_block.previous  = head_block_id();
+         _pending_block.timestamp = head_block_time();
+
+         auto last_block= _block_id_to_block.last();
+         if( last_block.valid() )
+            _fork_db.start_block( *last_block );
+
+   } FC_CAPTURE_AND_RETHROW( (data_dir) ) }
 
 } }

@@ -19,12 +19,10 @@
 #include <boost/test/unit_test.hpp>
 
 #include <graphene/chain/database.hpp>
-#include <graphene/chain/operations.hpp>
+#include <graphene/chain/exceptions.hpp>
 
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/asset_object.hpp>
-#include <graphene/chain/delegate_object.hpp>
-#include <graphene/chain/key_object.hpp>
 
 #include <fc/crypto/digest.hpp>
 
@@ -50,7 +48,7 @@ BOOST_AUTO_TEST_CASE( create_advanced_uia )
       creator.common_options.core_exchange_rate = price({asset(2),asset(1,1)});
       creator.common_options.whitelist_authorities = creator.common_options.blacklist_authorities = {account_id_type()};
       trx.operations.push_back(std::move(creator));
-      db.push_transaction(trx, ~0);
+      PUSH_TX( db, trx, ~0 );
 
       const asset_object& test_asset = test_asset_id(db);
       BOOST_CHECK(test_asset.symbol == "ADVANCED");
@@ -70,6 +68,70 @@ BOOST_AUTO_TEST_CASE( create_advanced_uia )
    }
 }
 
+BOOST_AUTO_TEST_CASE( override_transfer_test )
+{ try {
+   ACTORS( (dan)(eric)(sam) );
+   const asset_object& advanced = create_user_issued_asset( "ADVANCED", sam, override_authority );
+   issue_uia( dan, advanced.amount( 1000 ) );
+   trx.validate();
+   db.push_transaction(trx, ~0);
+   trx.operations.clear();
+   BOOST_REQUIRE_EQUAL( get_balance( dan, advanced ), 1000 );
+
+   trx.operations.clear();
+   override_transfer_operation otrans;
+   otrans.issuer = advanced.issuer;
+   otrans.from = dan.id;
+   otrans.to   = eric.id;
+   otrans.amount = advanced.amount(100);
+   trx.operations.push_back(otrans);
+
+   BOOST_TEST_MESSAGE( "Require throwing without signature" );
+   GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, 0 ), tx_missing_active_auth );
+   BOOST_TEST_MESSAGE( "Require throwing with dan's signature" );
+   trx.sign( dan_private_key );
+   GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, 0 ), tx_missing_active_auth );
+   BOOST_TEST_MESSAGE( "Pass with issuer's signature" );
+   trx.signatures.clear();
+   trx.sign( sam_private_key );
+   PUSH_TX( db, trx, 0 );
+
+   BOOST_REQUIRE_EQUAL( get_balance( dan, advanced ), 900 );
+   BOOST_REQUIRE_EQUAL( get_balance( eric, advanced ), 100 );
+} FC_LOG_AND_RETHROW() }
+
+BOOST_AUTO_TEST_CASE( override_transfer_test2 )
+{ try {
+   ACTORS( (dan)(eric)(sam) );
+   const asset_object& advanced = create_user_issued_asset( "ADVANCED", sam, 0 );
+   issue_uia( dan, advanced.amount( 1000 ) );
+   trx.validate();
+   db.push_transaction(trx, ~0);
+   trx.operations.clear();
+   BOOST_REQUIRE_EQUAL( get_balance( dan, advanced ), 1000 );
+
+   trx.operations.clear();
+   override_transfer_operation otrans;
+   otrans.issuer = advanced.issuer;
+   otrans.from = dan.id;
+   otrans.to   = eric.id;
+   otrans.amount = advanced.amount(100);
+   trx.operations.push_back(otrans);
+
+   BOOST_TEST_MESSAGE( "Require throwing without signature" );
+   GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, 0 ), fc::exception);
+   BOOST_TEST_MESSAGE( "Require throwing with dan's signature" );
+   trx.sign( dan_private_key );
+   GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, 0 ), fc::exception);
+   BOOST_TEST_MESSAGE( "Fail because overide_authority flag is not set" );
+   trx.signatures.clear();
+   trx.sign( sam_private_key );
+   GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, 0 ), fc::exception );
+
+   BOOST_REQUIRE_EQUAL( get_balance( dan, advanced ), 1000 );
+   BOOST_REQUIRE_EQUAL( get_balance( eric, advanced ), 0 );
+} FC_LOG_AND_RETHROW() }
+
 BOOST_AUTO_TEST_CASE( issue_whitelist_uia )
 {
    try {
@@ -79,19 +141,25 @@ BOOST_AUTO_TEST_CASE( issue_whitelist_uia )
       upgrade_to_lifetime_member(nathan);
       trx.clear();
 
-      asset_issue_operation op({asset(), advanced.issuer, advanced.amount(1000), nathan.id});
+      asset_issue_operation op;
+      op.issuer = advanced.issuer;
+      op.asset_to_issue = advanced.amount(1000);
+      op.issue_to_account = nathan.id; //({asset(), advanced.issuer, advanced.amount(1000), nathan.id});
       trx.operations.emplace_back(op);
       //Fail because nathan is not whitelisted.
-      BOOST_REQUIRE_THROW(db.push_transaction(trx, ~0), fc::exception);
+      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc::exception);
 
-      account_whitelist_operation wop({asset(), account_id_type(), nathan.id, account_whitelist_operation::white_listed});
+      account_whitelist_operation wop;
+      wop.authorizing_account = account_id_type();
+      wop.account_to_list = nathan.id;
+      wop.new_listing = account_whitelist_operation::white_listed;
 
       trx.operations.back() = wop;
-      db.push_transaction(trx, ~0);
+      PUSH_TX( db, trx, ~0 );
 
       BOOST_CHECK(nathan.is_authorized_asset(advanced));
       trx.operations.back() = op;
-      db.push_transaction(trx, ~0);
+      PUSH_TX( db, trx, ~0 );
 
       BOOST_CHECK_EQUAL(get_balance(nathan, advanced), 1000);
    } catch(fc::exception& e) {
@@ -110,77 +178,108 @@ BOOST_AUTO_TEST_CASE( transfer_whitelist_uia )
       upgrade_to_lifetime_member(dan);
       trx.clear();
 
-      transfer_operation op({advanced.amount(0), nathan.id, dan.id, advanced.amount(100)});
+      BOOST_TEST_MESSAGE( "Atempting to transfer asset ADVANCED from nathan to dan when dan is not whitelisted, should fail" );
+      transfer_operation op;
+      op.fee = advanced.amount(0);
+      op.from = nathan.id;
+      op.to = dan.id;
+      op.amount = advanced.amount(100); //({advanced.amount(0), nathan.id, dan.id, advanced.amount(100)});
       trx.operations.push_back(op);
       //Fail because dan is not whitelisted.
-      BOOST_REQUIRE_THROW(db.push_transaction(trx, ~0), fc::exception);
+      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), transfer_to_account_not_whitelisted );
 
-      account_whitelist_operation wop({asset(), account_id_type(), dan.id, account_whitelist_operation::white_listed});
+      BOOST_TEST_MESSAGE( "Adding dan to whitelist for asset ADVANCED" );
+      account_whitelist_operation wop;
+      wop.authorizing_account = account_id_type();
+      wop.account_to_list = dan.id;
+      wop.new_listing = account_whitelist_operation::white_listed;
       trx.operations.back() = wop;
-      db.push_transaction(trx, ~0);
+      PUSH_TX( db, trx, ~0 );
+      BOOST_TEST_MESSAGE( "Attempting to trnsfer from nathan to dan after whitelisting dan, should succeed" );
       trx.operations.back() = op;
-      db.push_transaction(trx, ~0);
+      PUSH_TX( db, trx, ~0 );
 
       BOOST_CHECK_EQUAL(get_balance(nathan, advanced), 900);
       BOOST_CHECK_EQUAL(get_balance(dan, advanced), 100);
 
+      BOOST_TEST_MESSAGE( "Attempting to blacklist nathan" );
       wop.new_listing |= account_whitelist_operation::black_listed;
       wop.account_to_list = nathan.id;
       trx.operations.back() = wop;
-      db.push_transaction(trx, ~0);
+      PUSH_TX( db, trx, ~0 );
 
+      BOOST_TEST_MESSAGE( "Attempting to transfer from nathan after blacklisting, should fail" );
       op.amount = advanced.amount(50);
       trx.operations.back() = op;
       //Fail because nathan is blacklisted
-      BOOST_REQUIRE_THROW(db.push_transaction(trx, ~0), fc::exception);
+      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), transfer_from_account_not_whitelisted );
+
+
+      BOOST_TEST_MESSAGE( "Attempting to burn from nathan after blacklisting, should fail" );
+      asset_reserve_operation burn;
+      burn.payer = nathan.id;
+      burn.amount_to_reserve = advanced.amount(10);
+      trx.operations.back() = burn;
+      //Fail because nathan is blacklisted
+      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc::exception);
+      BOOST_TEST_MESSAGE( "Attempting transfer from dan back to nathan, should fail because nathan is blacklisted" );
       std::swap(op.from, op.to);
       trx.operations.back() = op;
       //Fail because nathan is blacklisted
-      BOOST_REQUIRE_THROW(db.push_transaction(trx, ~0), fc::exception);
+      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc::exception);
 
       {
+         BOOST_TEST_MESSAGE( "Changing the blacklist authority to dan" );
          asset_update_operation op;
          op.asset_to_update = advanced.id;
          op.new_options = advanced.options;
          op.new_options.blacklist_authorities.clear();
          op.new_options.blacklist_authorities.insert(dan.id);
          trx.operations.back() = op;
-         db.push_transaction(trx, ~0);
+         PUSH_TX( db, trx, ~0 );
          BOOST_CHECK(advanced.options.blacklist_authorities.find(dan.id) != advanced.options.blacklist_authorities.end());
       }
 
+      BOOST_TEST_MESSAGE( "Attempting to transfer from dan back to nathan" );
       trx.operations.back() = op;
-      db.push_transaction(trx, ~0);
+      PUSH_TX( db, trx, ~0 );
       BOOST_CHECK_EQUAL(get_balance(nathan, advanced), 950);
       BOOST_CHECK_EQUAL(get_balance(dan, advanced), 50);
 
+      BOOST_TEST_MESSAGE( "Blacklisting nathan by dan" );
       wop.authorizing_account = dan.id;
       wop.account_to_list = nathan.id;
       wop.new_listing = account_whitelist_operation::black_listed;
       trx.operations.back() = wop;
-      db.push_transaction(trx, ~0);
+      PUSH_TX( db, trx, ~0 );
 
       trx.operations.back() = op;
       //Fail because nathan is blacklisted
       BOOST_CHECK(!nathan.is_authorized_asset(advanced));
-      BOOST_REQUIRE_THROW(db.push_transaction(trx, ~0), fc::exception);
+      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc::exception);
 
-      //Remove nathan from genesis' whitelist, add him to dan's. This should not authorize him to hold ADVANCED.
+      //Remove nathan from committee's whitelist, add him to dan's. This should not authorize him to hold ADVANCED.
       wop.authorizing_account = account_id_type();
       wop.account_to_list = nathan.id;
       wop.new_listing = account_whitelist_operation::no_listing;
       trx.operations.back() = wop;
-      db.push_transaction(trx, ~0);
+      PUSH_TX( db, trx, ~0 );
       wop.authorizing_account = dan.id;
       wop.account_to_list = nathan.id;
       wop.new_listing = account_whitelist_operation::white_listed;
       trx.operations.back() = wop;
-      db.push_transaction(trx, ~0);
+      PUSH_TX( db, trx, ~0 );
 
       trx.operations.back() = op;
       //Fail because nathan is not whitelisted
       BOOST_CHECK(!nathan.is_authorized_asset(advanced));
-      BOOST_REQUIRE_THROW(db.push_transaction(trx, ~0), fc::exception);
+      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc::exception);
+
+      burn.payer = dan.id;
+      burn.amount_to_reserve = advanced.amount(10);
+      trx.operations.back() = burn;
+      PUSH_TX(db, trx, ~0);
+      BOOST_CHECK_EQUAL(get_balance(dan, advanced), 40);
    } catch(fc::exception& e) {
       edump((e.to_detail_string()));
       throw;

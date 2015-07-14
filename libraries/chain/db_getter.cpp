@@ -38,7 +38,7 @@ const dynamic_global_property_object&database::get_dynamic_global_properties() c
    return get( dynamic_global_property_id_type() );
 }
 
-const fee_schedule_type&  database::current_fee_schedule()const
+const fee_schedule&  database::current_fee_schedule()const
 {
    return get_global_properties().parameters.current_fees;
 }
@@ -61,6 +61,16 @@ block_id_type database::head_block_id()const
 decltype( chain_parameters::block_interval ) database::block_interval( )const
 {
    return get_global_properties().parameters.block_interval;
+}
+
+const node_property_object& database::get_node_properties()const
+{
+   return _node_property_object;
+}
+
+node_property_object& database::node_properties()
+{
+   return _node_property_object;
 }
 
 } }

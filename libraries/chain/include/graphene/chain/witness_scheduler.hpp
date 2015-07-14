@@ -40,6 +40,7 @@ class generic_witness_scheduler
    public:
       void check_invariant() const
       {
+#ifndef NDEBUG
          CountType tokens = _ineligible_no_turn.size() + _eligible.size();
          CountType turns = _eligible.size();
          for( const std::pair< WitnessID, bool >& item : _ineligible_waiting_for_token )
@@ -47,7 +48,7 @@ class generic_witness_scheduler
 
          assert( _tokens == tokens );
          assert( _turns == turns   );
-
+#endif
 
          flat_set< WitnessID > witness_set;
          // make sure each witness_id occurs only once among the three states
@@ -310,6 +311,40 @@ class generic_witness_scheduler
             return false;
          wit = _schedule[ offset ];
          return true;
+      }
+
+      /**
+       * Reset the schedule, then re-schedule the given witness as the
+       * first witness.
+       */
+      void reset_schedule( WitnessID first_witness )
+      {
+         _schedule.clear();
+         for( const WitnessID& wid : _ineligible_no_turn )
+         {
+            _eligible.push_back( wid );
+         }
+         _turns += _ineligible_no_turn.size();
+         _ineligible_no_turn.clear();
+         for( const auto& item : _ineligible_waiting_for_token )
+         {
+            _eligible.push_back( item.first );
+            _turns += (item.second ? 0 : 1);
+         }
+         _tokens += _ineligible_waiting_for_token.size();
+         _ineligible_waiting_for_token.clear();
+         if( debug ) check_invariant();
+
+         auto it = std::find( _eligible.begin(), _eligible.end(), first_witness );
+         assert( it != _eligible.end() );
+
+         _schedule.push_back( *it );
+         _ineligible_waiting_for_token.emplace_back( *it, false );
+         _eligible.erase( it );
+         _turns--;
+         _tokens--;
+         if( debug ) check_invariant();
+         return;
       }
 
       // keep track of total turns / tokens in existence

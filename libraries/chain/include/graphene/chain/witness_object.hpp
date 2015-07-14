@@ -16,8 +16,9 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
-#include <graphene/chain/asset.hpp>
+#include <graphene/chain/protocol/asset.hpp>
 #include <graphene/db/object.hpp>
+#include <graphene/db/generic_index.hpp>
 
 namespace graphene { namespace chain {
    using namespace graphene::db;
@@ -30,23 +31,37 @@ namespace graphene { namespace chain {
          static const uint8_t space_id = protocol_ids;
          static const uint8_t type_id = witness_object_type;
 
-         account_id_type                witness_account;
-         key_id_type                    signing_key;
-         secret_hash_type               next_secret;
-         secret_hash_type               last_secret;
-         share_type                     accumulated_income;
-         vote_id_type                   vote_id;
+         account_id_type  witness_account;
+         public_key_type  signing_key;
+         secret_hash_type next_secret_hash;
+         secret_hash_type previous_secret;
+         share_type       accumulated_income;
+         vote_id_type     vote_id;
+         string           url;
 
          witness_object() : vote_id(vote_id_type::witness) {}
    };
 
+   struct by_account;
+   using witness_multi_index_type = multi_index_container<
+      witness_object,
+      indexed_by<
+         hashed_unique< tag<by_id>,
+            member<object, object_id_type, &object::id>
+         >,
+         hashed_unique< tag<by_account>,
+            member<witness_object, account_id_type, &witness_object::witness_account>
+         >
+      >
+   >;
+   using witness_index = generic_index<witness_object, witness_multi_index_type>;
 } } // graphene::chain
 
 FC_REFLECT_DERIVED( graphene::chain::witness_object, (graphene::db::object),
                     (witness_account)
                     (signing_key)
-                    (next_secret)
-                    (last_secret)
+                    (next_secret_hash)
+                    (previous_secret)
                     (accumulated_income)
-                    (vote_id) )
-
+                    (vote_id)
+                    (url) )

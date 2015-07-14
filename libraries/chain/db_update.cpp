@@ -20,12 +20,12 @@
 
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/global_property_object.hpp>
-#include <graphene/chain/limit_order_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
-#include <graphene/chain/short_order_object.hpp>
 #include <graphene/chain/transaction_object.hpp>
+#include <graphene/chain/market_evaluator.hpp>
 #include <graphene/chain/withdraw_permission_object.hpp>
 #include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/protocol/fee_schedule.hpp>
 
 #include <fc/uint128.hpp>
 
@@ -65,8 +65,8 @@ void database::update_signing_witness(const witness_object& signing_witness, con
 
    modify( signing_witness, [&]( witness_object& _wit )
    {
-      _wit.last_secret = new_block.previous_secret;
-      _wit.next_secret = new_block.next_secret_hash;
+      _wit.previous_secret = new_block.previous_secret;
+      _wit.next_secret_hash = new_block.next_secret_hash;
       _wit.accumulated_income += witness_pay;
    } );
 }
@@ -102,7 +102,7 @@ void database::clear_expired_proposals()
       const proposal_object& proposal = *proposal_expiration_index.begin();
       processed_transaction result;
       try {
-         if( proposal.is_authorized_to_execute(this) )
+         if( proposal.is_authorized_to_execute(*this) )
          {
             result = push_proposal(proposal);
             //TODO: Do something with result so plugins can process it.
@@ -118,29 +118,22 @@ void database::clear_expired_proposals()
 
 void database::clear_expired_orders()
 {
-   transaction_evaluation_state cancel_context(this, true);
+   with_skip_flags(
+      get_node_properties().skip_flags | skip_authority_check, [&](){
+         transaction_evaluation_state cancel_context(this);
 
-   //Cancel expired limit orders
-   auto& limit_index = get_index_type<limit_order_index>().indices().get<by_expiration>();
-   while( !limit_index.empty() && limit_index.begin()->expiration <= head_block_time() )
-   {
-      limit_order_cancel_operation canceler;
-      const limit_order_object& order = *limit_index.begin();
-      canceler.fee_paying_account = order.seller;
-      canceler.order = order.id;
-      apply_operation(cancel_context, canceler);
-   }
+         //Cancel expired limit orders
+         auto& limit_index = get_index_type<limit_order_index>().indices().get<by_expiration>();
+         while( !limit_index.empty() && limit_index.begin()->expiration <= head_block_time() )
+         {
+            limit_order_cancel_operation canceler;
+            const limit_order_object& order = *limit_index.begin();
+            canceler.fee_paying_account = order.seller;
+            canceler.order = order.id;
+            apply_operation(cancel_context, canceler);
+         }
+     });
 
-   //Cancel expired short orders
-   auto& short_index = get_index_type<short_order_index>().indices().get<by_expiration>();
-   while( !short_index.empty() && short_index.begin()->expiration <= head_block_time() )
-   {
-      const short_order_object& order = *short_index.begin();
-      short_order_cancel_operation canceler;
-      canceler.fee_paying_account = order.seller;
-      canceler.order = order.id;
-      apply_operation(cancel_context, canceler);
-   }
 
    //Process expired force settlement orders
    auto& settlement_index = get_index_type<force_settlement_index>().indices().get<by_expiration>();
@@ -187,9 +180,11 @@ void database::clear_expired_orders()
             max_settlement_volume = mia_object.amount(mia.max_force_settlement_volume(mia_object.dynamic_data(*this).current_supply));
          if( mia.force_settled_volume >= max_settlement_volume.amount )
          {
+            /*
             ilog("Skipping force settlement in ${asset}; settled ${settled_volume} / ${max_volume}",
                  ("asset", mia_object.symbol)("settlement_price_null",mia.current_feed.settlement_price.is_null())
                  ("settled_volume", mia.force_settled_volume)("max_volume", max_settlement_volume));
+                 */
             if( next_asset() )
                continue;
             break;
@@ -224,12 +219,26 @@ void database::clear_expired_orders()
 
 void database::update_expired_feeds()
 {
-   auto& asset_idx = get_index_type<asset_bitasset_data_index>();
-   for( const asset_bitasset_data_object* b : asset_idx )
-      if( b->feed_is_expired(head_block_time()) )
-         modify(*b, [this](asset_bitasset_data_object& a) {
+   auto& asset_idx = get_index_type<asset_index>().indices();
+   for( const asset_object& a : asset_idx )
+   {
+      if( !a.is_market_issued() )
+         continue;
+
+      const asset_bitasset_data_object& b = a.bitasset_data(*this);
+      if( b.feed_is_expired(head_block_time()) )
+      {
+         modify(b, [this](asset_bitasset_data_object& a) {
             a.update_median_feeds(head_block_time());
          });
+         check_call_orders(b.current_feed.settlement_price.base.asset_id(*this));
+      }
+      if( !b.current_feed.core_exchange_rate.is_null() &&
+          a.options.core_exchange_rate != b.current_feed.core_exchange_rate )
+         modify(a, [&b](asset_object& a) {
+            a.options.core_exchange_rate = b.current_feed.core_exchange_rate;
+         });
+   }
 }
 
 void database::update_withdraw_permissions()

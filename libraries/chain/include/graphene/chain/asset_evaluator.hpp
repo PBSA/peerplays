@@ -16,8 +16,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
+#include <graphene/chain/protocol/operations.hpp>
 #include <graphene/chain/evaluator.hpp>
-#include <graphene/chain/operations.hpp>
 #include <graphene/chain/database.hpp>
 
 namespace graphene { namespace chain {
@@ -27,7 +27,7 @@ namespace graphene { namespace chain {
       public:
          typedef asset_create_operation operation_type;
 
-         object_id_type do_evaluate( const asset_create_operation& o );
+         void_result do_evaluate( const asset_create_operation& o );
          object_id_type do_apply( const asset_create_operation& o );
    };
 
@@ -42,12 +42,12 @@ namespace graphene { namespace chain {
          const account_object*            to_account = nullptr;
    };
 
-   class asset_burn_evaluator : public evaluator<asset_burn_evaluator>
+   class asset_reserve_evaluator : public evaluator<asset_reserve_evaluator>
    {
       public:
-         typedef asset_burn_operation operation_type;
-         void_result do_evaluate( const asset_burn_operation& o );
-         void_result do_apply( const asset_burn_operation& o );
+         typedef asset_reserve_operation operation_type;
+         void_result do_evaluate( const asset_reserve_operation& o );
+         void_result do_apply( const asset_reserve_operation& o );
 
          const asset_dynamic_data_object* asset_dyn_data = nullptr;
          const account_object*            from_account = nullptr;
@@ -113,8 +113,8 @@ namespace graphene { namespace chain {
       public:
          typedef asset_settle_operation operation_type;
 
-         object_id_type do_evaluate(const operation_type& op);
-         object_id_type do_apply(const operation_type& op);
+         void_result do_evaluate(const operation_type& op);
+         operation_result do_apply(const operation_type& op);
 
          const asset_object* asset_to_settle = nullptr;
    };

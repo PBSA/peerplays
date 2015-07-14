@@ -6,6 +6,11 @@ This is a quick introduction to get new developers up to speed on Graphene.
 Starting Graphene
 -----------------
 
+For Ubuntu 14.04 LTS users, see this link first:
+    https://github.com/cryptonomex/graphene/wiki/build-ubuntu
+
+and then proceed with:
+
     git clone https://github.com/cryptonomex/graphene.git
     cd graphene
     git submodule update --init --recursive
@@ -13,7 +18,9 @@ Starting Graphene
     make
     ./programs/witness_node/witness_node
 
-This will launch the witness node. If you would like to launch the command-line wallet, you must first specify a port for communication with the witness node. To do this, add text to `witness_node_data_dir/config.ini` as follows, then restart the node:
+This will launch the witness node. If you would like to launch the command-line wallet, you must first specify a port
+for communication with the witness node. To do this, add text to `witness_node_data_dir/config.ini` as follows, then
+restart the node:
 
     rpc-endpoint = 127.0.0.1:8090
 
@@ -26,14 +33,43 @@ To set your iniital password to 'password' use:
     >>> set_password password
     >>> unlock password
 
+To import your initial balance:
+
+    >>> import_balance nathan [5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3] true
+
 If you send private keys over this connection, `rpc-endpoint` should be bound to localhost for security.
 
-A list of CLI wallet commands is available [here](https://bitshares.github.io/doxygen/classgraphene_1_1wallet_1_1wallet__api.html).
+A list of CLI wallet commands is available
+[here](https://github.com/cryptonomex/graphene/blob/master/libraries/wallet/include/graphene/wallet/wallet.hpp).
 
 Code coverage testing
 ---------------------
 
-TODO:  Write something here
+Check how much code is covered by unit tests, using gcov/lcov (see http://ltp.sourceforge.net/coverage/lcov.php ).
+
+    cmake -D ENABLE_COVERAGE_TESTING=true -D CMAKE_BUILD_TYPE=Debug .
+    make
+    lcov --capture --initial --directory . --output-file base.info --no-external
+    libraries/fc/bloom_test
+    libraries/fc/task_cancel_test
+    libraries/fc/api
+    libraries/fc/blind
+    libraries/fc/ecc_test test
+    libraries/fc/real128_test
+    libraries/fc/lzma_test README.md
+    libraries/fc/ntp_test
+    tests/intense_test
+    tests/app_test
+    tests/chain_bench
+    tests/chain_test
+    tests/performance_test
+    lcov --capture --directory . --output-file test.info --no-external
+    lcov --add-tracefile base.info --add-tracefile test.info --output-file total.info
+    lcov -o interesting.info -r total.info libraries/fc/vendor/\* libraries/fc/tests/\* tests/\*
+    mkdir -p lcov
+    genhtml interesting.info --output-directory lcov --prefix `pwd`
+
+Now open `lcov/index.html` in a browser.
 
 Unit testing
 ------------
@@ -46,7 +82,9 @@ Witness node
 
 The role of the witness node is to broadcast transactions, download blocks, and optionally sign them.
 
-./witness_node --rpc-endpoint "127.0.0.1:8090" --enable-stale-production  -w \""1.7.0"\" \""1.7.1"\" \""1.7.2"\" \""1.7.3"\" \""1.7.4"\" --private-key "[\"1.2.0\",\"aeebad4a796fcc2e15dc4c6061b45ed9b373f26adfc798ca7d2d8cc58182718e\"]"
+```
+./witness_node --rpc-endpoint "127.0.0.1:8090" --enable-stale-production -w \""1.6.0"\" \""1.6.1"\" \""1.6.2"\" \""1.6.3"\" \""1.6.4"\"
+```
 
 Running specific tests
 ----------------------
@@ -61,32 +99,57 @@ When running `witness_node`, initially two API's are available:
 API 0 provides read-only access to the database, while API 1 is
 used to login and gain access to additional, restricted API's.
 
+TODO: the following examples use the old authority definition and thus do not work.  They need to be updated.
+
 Here is an example using `wscat` package from `npm` for websockets:
 
     $ npm install -g wscat
     $ wscat -c ws://127.0.0.1:8090
-    > {"id":1, "method":"call", "params":[0,"get_accounts",[["1.3.0"]]]}
-    < {"id":1,"result":[{"id":"1.3.0","annotations":[],"registrar":"1.3.0","referrer":"1.3.0","referrer_percent":0,"name":"genesis","owner":{"weight_threshold":1,"auths":[["1.2.0",1]]},"active":{"weight_threshold":1,"auths":[["1.2.0",1]]},"memo_key":"1.2.0","voting_account":"1.3.0","num_witness":0,"num_committee":0,"votes":[],"statistics":"2.7.0","whitelisting_accounts":[],"blacklisting_accounts":[]}]}
+    > {"id":1, "method":"call", "params":[0,"get_accounts",[["1.2.0"]]]}
+    < {"id":1,"result":[{"id":"1.2.0","annotations":[],"registrar":"1.2.0","referrer":"1.2.0","referrer_percent":0,"name":"genesis","owner":{"weight_threshold":1,"key_auths":[["PUBLIC_KEY",1]]},"active":{"weight_threshold":1,"key_auths":[["PUBLIC_KEY",1]]},"memo_key":"PUBLIC_KEY","voting_account":"1.2.0","num_witness":0,"num_committee":0,"votes":[],"statistics":"2.7.0","whitelisting_accounts":[],"blacklisting_accounts":[]}]}
     $
 
 We can do the same thing using an HTTP client such as `curl` for API's which do not require login or other session state:
 
-    $ curl --data '{"jsonrpc": "2.0", "method": "call", "params": [0, "get_accounts", [["1.3.0"]]], "id": 1}' http://127.0.0.1:8090/rpc
-    {"id":1,"result":[{"id":"1.3.0","annotations":[],"registrar":"1.3.0","referrer":"1.3.0","referrer_percent":0,"name":"genesis","owner":{"weight_threshold":1,"auths":[["1.2.0",1]]},"active":{"weight_threshold":1,"auths":[["1.2.0",1]]},"memo_key":"1.2.0","voting_account":"1.3.0","num_witness":0,"num_committee":0,"votes":[],"statistics":"2.7.0","whitelisting_accounts":[],"blacklisting_accounts":[]}]}    
+    $ curl --data '{"jsonrpc": "2.0", "method": "call", "params": [0, "get_accounts", [["1.2.0"]]], "id": 1}' http://127.0.0.1:8090/rpc
+    {"id":1,"result":[{"id":"1.2.0","annotations":[],"registrar":"1.2.0","referrer":"1.2.0","referrer_percent":0,"name":"genesis","owner":{"weight_threshold":1,"key_auths":[["PUBLIC_KEY",1]]},"active":{"weight_threshold":1,"key_auths":[["PUBLIC_KEY",1]]},"memo_key":"PUBLIC_KEY","voting_account":"1.2.0","num_witness":0,"num_committee":0,"votes":[],"statistics":"2.7.0","whitelisting_accounts":[],"blacklisting_accounts":[]}]}
 
 API 0 is accessible using regular JSON-RPC:
 
-    $ curl --data '{"jsonrpc": "2.0", "method": "get_accounts", "params": [["1.3.0"]], "id": 1}' http://127.0.0.1:8090/rpc
+    $ curl --data '{"jsonrpc": "2.0", "method": "get_accounts", "params": [["1.2.0"]], "id": 1}' http://127.0.0.1:8090/rpc
 
-You can use the login API to obtain `network`, `database` and `history` API's.  Here is an example of how to call `add_node` from the `network` API:
+Accessing restricted API's
+--------------------------
+
+You can restrict API's to particular users by specifying an `apiaccess` file in `config.ini`.  Here is an example `apiaccess` file which allows
+user `bytemaster` with password `supersecret` to access four different API's:
+
+    {
+       "permission_map" :
+       [
+          [
+             "bytemaster",
+             {
+                "password_hash_b64" : "9e9GF7ooXVb9k4BoSfNIPTelXeGOZ5DrgOYMj94elaY=",
+                "password_salt_b64" : "INDdM6iCi/8=",
+                "allowed_apis" : ["database_api", "network_broadcast_api", "history_api", "network_node_api"]
+             }
+          ]
+       ]
+    }
+
+Passwords are stored in `base64` as as salted `sha256` hashes.  A simple Python script, `saltpass.py` is avaliable to obtain hash and salt values from a password.
+A single asterisk `"*"` may be specified as username or password hash to accept any value.
+
+With the above configuration, here is an example of how to call `add_node` from the `network_node` API:
 
     {"id":1, "method":"call", "params":[1,"login",["bytemaster", "supersecret"]]}
-    {"id":2, "method":"call", "params":[1,"network",[]]}
+    {"id":2, "method":"call", "params":[1,"network_node",[]]}
     {"id":3, "method":"call", "params":[2,"add_node",["127.0.0.1:9090"]]}
 
-Note, the call to `network` is necessary to obtain the correct API identifier for the network API.  It is not guaranteed that the network API identifier will always be `2`.
+Note, the call to `network_node` is necessary to obtain the correct API identifier for the network API.  It is not guaranteed that the network API identifier will always be `2`.
 
-Since the `network` API requires login, it is only accessible over the websocket RPC.  Our `doxygen` documentation contains the most up-to-date information
+Since the `network_node` API requires login, it is only accessible over the websocket RPC.  Our `doxygen` documentation contains the most up-to-date information
 about API's for the [witness node](https://bitshares.github.io/doxygen/namespacegraphene_1_1app.html) and the
 [wallet](https://bitshares.github.io/doxygen/classgraphene_1_1wallet_1_1wallet__api.html).
 If you want information which is not available from an API, it might be available
@@ -109,16 +172,16 @@ witness just because it has the correct private key to do so.  There are
 ten witnesses at genesis of the testnet, block production can be
 enabled for all of them by specifying multiple times in `config.ini`:
 
-    witness-id = "1.7.0"
-    witness-id = "1.7.1"
-    witness-id = "1.7.2"
-    witness-id = "1.7.3"
-    witness-id = "1.7.4"
-    witness-id = "1.7.5"
-    witness-id = "1.7.6"
-    witness-id = "1.7.7"
-    witness-id = "1.7.8"
-    witness-id = "1.7.9"
+    witness-id = "1.6.0"
+    witness-id = "1.6.1"
+    witness-id = "1.6.2"
+    witness-id = "1.6.3"
+    witness-id = "1.6.4"
+    witness-id = "1.6.5"
+    witness-id = "1.6.6"
+    witness-id = "1.6.7"
+    witness-id = "1.6.8"
+    witness-id = "1.6.9"
 
 Questions
 ---------
@@ -126,7 +189,15 @@ Questions
 - Is there a way to generate help with parameter names and method descriptions?
 
     Yes. Documentation of the code base, including APIs, can be generated using Doxygen. Simply run `doxygen` in this directory.
-    We are thinking of integrating Doxygen's XML output format to provide a better `help` command to the CLI wallet.
+
+    If both Doxygen and perl are available in your build environment, the CLI wallet's `help` and `gethelp`
+    commands will display help generated from the doxygen documentation.
+
+    If your CLI wallet's `help` command displays descriptions without parameter names like
+        `signed_transaction transfer(string, string, string, string, string, bool)`
+    it means CMake was unable to find Doxygen or perl during configuration.  If found, the
+    output should look like this:
+        `signed_transaction transfer(string from, string to, string amount, string asset_symbol, string memo, bool broadcast)`
 
 - Is there a way to allow external program to drive `cli_wallet` via websocket, JSONRPC, or HTTP?
 
@@ -159,13 +230,13 @@ Questions
 
 - The answer to the previous question was really confusing.  Can you make it clearer?
 
-    All account ID's are of the form `1.3.x`.  If you were the 9735th account to be registered,
-    your account's ID will be `1.3.9735`.  Account `0` is special (it's the "genesis account,"
-    which is controlled by the delegates and has a few abilities and restrictions other accounts
+    All account ID's are of the form `1.2.x`.  If you were the 9735th account to be registered,
+    your account's ID will be `1.2.9735`.  Account `0` is special (it's the "committee account,"
+    which is controlled by the committee members and has a few abilities and restrictions other accounts
     do not).
 
-    All asset ID's are of the form `1.4.x`.  If you were the 29th asset to be registered,
-    your asset's ID will be `1.4.29`.  Asset `0` is special (it's BTS, which is considered the "core asset").
+    All asset ID's are of the form `1.3.x`.  If you were the 29th asset to be registered,
+    your asset's ID will be `1.3.29`.  Asset `0` is special (it's BTS, which is considered the "core asset").
 
-    The first and second number together identify the kind of thing you're talking about (`1.3` for accounts,
-    `1.4` for assets).  The third number identifies the particular thing.
+    The first and second number together identify the kind of thing you're talking about (`1.2` for accounts,
+    `1.3` for assets).  The third number identifies the particular thing.

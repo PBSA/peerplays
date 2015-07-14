@@ -17,8 +17,8 @@
  */
 #pragma once
 
+#include <graphene/chain/protocol/operations.hpp>
 #include <graphene/chain/evaluator.hpp>
-#include <graphene/chain/operations.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/transaction_evaluation_state.hpp>
 
@@ -29,7 +29,7 @@ namespace graphene { namespace chain {
       public:
          typedef proposal_create_operation operation_type;
 
-         object_id_type do_evaluate( const proposal_create_operation& o );
+         void_result do_evaluate( const proposal_create_operation& o );
          object_id_type do_apply( const proposal_create_operation& o );
 
          transaction _proposed_trx;

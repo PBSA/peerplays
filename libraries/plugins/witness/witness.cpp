@@ -17,8 +17,11 @@
  */
 #include <graphene/witness/witness.hpp>
 
+#include <graphene/chain/database.hpp>
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/time/time.hpp>
+
+#include <graphene/utilities/key_conversion.hpp>
 
 #include <fc/thread/thread.hpp>
 
@@ -26,17 +29,23 @@ using namespace graphene::witness_plugin;
 using std::string;
 using std::vector;
 
+namespace bpo = boost::program_options;
+
 void witness_plugin::plugin_set_program_options(
    boost::program_options::options_description& command_line_options,
    boost::program_options::options_description& config_file_options)
 {
+   auto default_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(std::string("nathan")));
+   string witness_id_example = fc::json::to_string(chain::witness_id_type());
    command_line_options.add_options()
-         ("enable-stale-production", bpo::bool_switch()->notifier([this](bool e){_production_enabled = e;}), "Enable block production, even if the chain is stale")
+         ("enable-stale-production", bpo::bool_switch()->notifier([this](bool e){_production_enabled = e;}), "Enable block production, even if the chain is stale.")
+         ("required-participation", bpo::bool_switch()->notifier([this](int e){_required_witness_participation = uint32_t(e*GRAPHENE_1_PERCENT);}), "Percent of witnesses (0-99) that must be participating in order to produce blocks")
+         ("allow-consecutive", bpo::bool_switch()->notifier([this](bool e){_consecutive_production_enabled = e;}), "Allow block production, even if the last block was produced by the same witness.")
          ("witness-id,w", bpo::value<vector<string>>()->composing()->multitoken(),
-          "ID of witness controlled by this node (e.g. \"1.7.0\", quotes are required, may specify multiple times)")
+          ("ID of witness controlled by this node (e.g. " + witness_id_example + ", quotes are required, may specify multiple times)").c_str())
          ("private-key", bpo::value<vector<string>>()->composing()->multitoken()->
-          DEFAULT_VALUE_VECTOR(std::make_pair(chain::key_id_type(), fc::ecc::private_key::regenerate(fc::sha256::hash(std::string("genesis"))))),
-          "Tuple of [key ID, private key] (may specify multiple times)")
+          DEFAULT_VALUE_VECTOR(std::make_pair(chain::public_key_type(default_priv_key.get_public_key()), graphene::utilities::key_to_wif(default_priv_key))),
+          "Tuple of [PublicKey, WIF private key] (may specify multiple times)")
          ;
    config_file_options.add(command_line_options);
 }
@@ -47,24 +56,76 @@ std::string witness_plugin::plugin_name()const
 }
 
 void witness_plugin::plugin_initialize(const boost::program_options::variables_map& options)
-{
+{ try {
    _options = &options;
    LOAD_VALUE_SET(options, "witness-id", _witnesses, chain::witness_id_type)
-   //Define a type T which doesn't have a comma, as I can't put a comma in a macro argument
-   using T = std::pair<chain::key_id_type,fc::ecc::private_key>;
-   LOAD_VALUE_SET(options, "private-key", _private_keys, T)
-}
+
+   if( options.count("private-key") )
+   {
+      const std::vector<std::string> key_id_to_wif_pair_strings = options["private-key"].as<std::vector<std::string>>();
+      for (const std::string& key_id_to_wif_pair_string : key_id_to_wif_pair_strings)
+      {
+         auto key_id_to_wif_pair = graphene::app::dejsonify<std::pair<chain::public_key_type, std::string> >(key_id_to_wif_pair_string);
+         idump((key_id_to_wif_pair));
+         fc::optional<fc::ecc::private_key> private_key = graphene::utilities::wif_to_key(key_id_to_wif_pair.second);
+         if (!private_key)
+         {
+            // the key isn't in WIF format; see if they are still passing the old native private key format.  This is
+            // just here to ease the transition, can be removed soon
+            try
+            {
+               private_key = fc::variant(key_id_to_wif_pair.second).as<fc::ecc::private_key>();
+            }
+            catch (const fc::exception&)
+            {
+               FC_THROW("Invalid WIF-format private key ${key_string}", ("key_string", key_id_to_wif_pair.second));
+            }
+         }
+         _private_keys[key_id_to_wif_pair.first] = *private_key;
+      }
+   }
+} FC_LOG_AND_RETHROW() }
 
 void witness_plugin::plugin_startup()
 { try {
-      std::set<chain::witness_id_type> bad_wits;
-      //Start NTP time client
-      graphene::time::now();
-      for( auto wit : _witnesses )
+   chain::database& d = database();
+   std::set<chain::witness_id_type> bad_wits;
+   //Start NTP time client
+   graphene::time::now();
+   for( auto wit : _witnesses )
    {
-      auto key = wit(database()).signing_key;
-      if( !_private_keys.count(key) )
+      if( d.find(wit) == nullptr )
       {
+         if( app().is_finished_syncing() )
+         {
+            elog("ERROR: Unable to find witness ${w}, even though syncing has finished. This witness will be ignored.",
+                 ("w", wit));
+            continue;
+         } else {
+            wlog("WARNING: Unable to find witness ${w}. Postponing initialization until syncing finishes.",
+                 ("w", wit));
+            app().syncing_finished.connect([this]{plugin_startup();});
+            return;
+         }
+      }
+
+      auto signing_key = wit(d).signing_key;
+      if( !_private_keys.count(signing_key) )
+      {
+         // Check if it's a duplicate key of one I do have
+         bool found_duplicate = false;
+         for( const auto& private_key : _private_keys )
+            if( chain::public_key_type(private_key.second.get_public_key()) == signing_key )
+            {
+               ilog("Found duplicate key: ${k1} matches ${k2}; using this key to sign for ${w}",
+                    ("k1", private_key.first)("k2", signing_key)("w", wit));
+               _private_keys[signing_key] = private_key.second;
+               found_duplicate = true;
+               break;
+            }
+         if( found_duplicate )
+            continue;
+
          elog("Unable to find key for witness ${w}. Removing it from my witnesses.", ("w", wit));
          bad_wits.insert(wit);
       }
@@ -76,7 +137,7 @@ void witness_plugin::plugin_startup()
    {
       ilog("Launching block production for ${n} witnesses.", ("n", _witnesses.size()));
       app().set_block_production(true);
-      schedule_next_production(database().get_global_properties().parameters);
+      schedule_next_production(d.get_global_properties().parameters);
    } else
       elog("No witnesses configured! Please add witness IDs and private keys to configuration.");
 } FC_CAPTURE_AND_RETHROW() }
@@ -89,7 +150,7 @@ void witness_plugin::plugin_shutdown()
 
 void witness_plugin::schedule_next_production(const graphene::chain::chain_parameters& global_parameters)
 {
-   //Get next production time for *any* delegate
+   //Get next production time for *any* witness
    auto block_interval = global_parameters.block_interval;
    fc::time_point next_block_time = fc::time_point_sec() +
          (graphene::time::now().sec_since_epoch() / block_interval + 1) * block_interval;
@@ -97,7 +158,7 @@ void witness_plugin::schedule_next_production(const graphene::chain::chain_param
    if( graphene::time::ntp_time().valid() )
       next_block_time -= graphene::time::ntp_error();
 
-   //Sleep until the next production time for *any* delegate
+   //Sleep until the next production time for *any* witness
    _block_production_task = fc::schedule([this]{block_production_loop();},
                                          next_block_time, "Witness Block Production");
 }
@@ -117,7 +178,7 @@ void witness_plugin::block_production_loop()
    graphene::chain::witness_id_type scheduled_witness = db.get_scheduled_witness( slot ).first;
    fc::time_point_sec scheduled_time = db.get_slot_time( slot );
    fc::time_point_sec now = graphene::time::now();
-   graphene::chain::key_id_type scheduled_key = scheduled_witness( db ).signing_key;
+   graphene::chain::public_key_type scheduled_key = scheduled_witness( db ).signing_key;
 
    auto is_scheduled = [&]()
    {
@@ -127,6 +188,14 @@ void witness_plugin::block_production_loop()
       if( !_production_enabled )
       {
          elog("Not producing block because production is disabled.");
+         return false;
+      }
+
+      uint32_t prate = db.witness_participation_rate();
+      if( prate < _required_witness_participation )
+      {
+         elog("Not producing block because node appers to be on a minority fork with only ${x}% witness participation",
+              ("x",uint32_t(100*uint64_t(prate) / GRAPHENE_1_PERCENT) ) );
          return false;
       }
 
@@ -152,10 +221,11 @@ void witness_plugin::block_production_loop()
 
       // the local clock must be within 500 milliseconds of
       // the scheduled production time.
-      if( llabs((scheduled_time - now).count()) > fc::milliseconds(500).count() ) {
-         elog("Not producing block because network time is not within 500ms of scheduled block time.");
+      if( llabs((scheduled_time - now).count()) > fc::milliseconds(250).count() ) {
+         elog("Not producing block because network time is not within 250ms of scheduled block time.");
          return false;
       }
+
 
       // we must know the private key corresponding to the witness's
       // published block production key.
@@ -173,10 +243,14 @@ void witness_plugin::block_production_loop()
       ilog("Witness ${id} production slot has arrived; generating a block now...", ("id", scheduled_witness));
       try
       {
+         FC_ASSERT( _consecutive_production_enabled || db.get_dynamic_global_properties().current_witness != scheduled_witness,
+                    "Last block was generated by the same witness, this node is probably disconnected from the network so block production"
+                    " has been disabled.  Disable this check with --allow-consecutive option." );
          auto block = db.generate_block(
             scheduled_time,
             scheduled_witness,
-            _private_keys[ scheduled_key ]
+            _private_keys[ scheduled_key ],
+            graphene::chain::database::skip_nothing
             );
          ilog("Generated block #${n} with timestamp ${t} at time ${c}",
               ("n", block.block_num())("t", block.timestamp)("c", now));

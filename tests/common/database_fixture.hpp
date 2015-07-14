@@ -19,9 +19,19 @@
 
 #include <graphene/app/application.hpp>
 #include <graphene/chain/database.hpp>
-#include <graphene/chain/key_object.hpp>
+#include <fc/io/json.hpp>
+
+#include <iostream>
 
 using namespace graphene::db;
+
+#define GRAPHENE_TESTING_GENESIS_TIMESTAMP (1431700000)
+
+#define PUSH_TX \
+   graphene::chain::test::_push_transaction
+
+#define PUSH_BLOCK \
+   graphene::chain::test::_push_block
 
 // See below
 #define REQUIRE_OP_VALIDATION_SUCCESS( op, field, value ) \
@@ -29,13 +39,6 @@ using namespace graphene::db;
    const auto temp = op.field; \
    op.field = value; \
    op.validate(); \
-   op.field = temp; \
-}
-#define REQUIRE_OP_VALIDATION_FAILURE( op, field, value ) \
-{ \
-   const auto temp = op.field; \
-   op.field = value; \
-   BOOST_REQUIRE_THROW( op.validate(), fc::exception ); \
    op.field = temp; \
 }
 #define REQUIRE_OP_EVALUATION_SUCCESS( op, field, value ) \
@@ -46,17 +49,65 @@ using namespace graphene::db;
    op.field = temp; \
    db.push_transaction( trx, ~0 ); \
 }
-///Shortcut to require an exception when processing a transaction with an operation containing an expected bad value
-/// Uses require insteach of check, because these transactions are expected to fail. If they don't, subsequent tests
-/// may spuriously succeed or fail due to unexpected database state.
-#define REQUIRE_THROW_WITH_VALUE(op, field, value) \
+
+#define GRAPHENE_REQUIRE_THROW( expr, exc_type )          \
+{                                                         \
+   std::string req_throw_info = fc::json::to_string(      \
+      fc::mutable_variant_object()                        \
+      ("source_file", __FILE__)                           \
+      ("source_lineno", __LINE__)                         \
+      ("expr", #expr)                                     \
+      ("exc_type", #exc_type)                             \
+      );                                                  \
+   if( fc::enable_record_assert_trip )                    \
+      std::cout << "GRAPHENE_REQUIRE_THROW begin "        \
+         << req_throw_info << std::endl;                  \
+   BOOST_REQUIRE_THROW( expr, exc_type );                 \
+   if( fc::enable_record_assert_trip )                    \
+      std::cout << "GRAPHENE_REQUIRE_THROW end "          \
+         << req_throw_info << std::endl;                  \
+}
+
+#define GRAPHENE_CHECK_THROW( expr, exc_type )            \
+{                                                         \
+   std::string req_throw_info = fc::json::to_string(      \
+      fc::mutable_variant_object()                        \
+      ("source_file", __FILE__)                           \
+      ("source_lineno", __LINE__)                         \
+      ("expr", #expr)                                     \
+      ("exc_type", #exc_type)                             \
+      );                                                  \
+   if( fc::enable_record_assert_trip )                    \
+      std::cout << "GRAPHENE_CHECK_THROW begin "          \
+         << req_throw_info << std::endl;                  \
+   BOOST_CHECK_THROW( expr, exc_type );                   \
+   if( fc::enable_record_assert_trip )                    \
+      std::cout << "GRAPHENE_CHECK_THROW end "            \
+         << req_throw_info << std::endl;                  \
+}
+
+#define REQUIRE_OP_VALIDATION_FAILURE_2( op, field, value, exc_type ) \
+{ \
+   const auto temp = op.field; \
+   op.field = value; \
+   GRAPHENE_REQUIRE_THROW( op.validate(), exc_type ); \
+   op.field = temp; \
+}
+#define REQUIRE_OP_VALIDATION_FAILURE( op, field, value ) \
+   REQUIRE_OP_VALIDATION_FAILURE_2( op, field, value, fc::exception )
+
+#define REQUIRE_THROW_WITH_VALUE_2(op, field, value, exc_type) \
 { \
    auto bak = op.field; \
    op.field = value; \
    trx.operations.back() = op; \
    op.field = bak; \
-   BOOST_REQUIRE_THROW(db.push_transaction(trx, ~0), fc::exception); \
+   GRAPHENE_REQUIRE_THROW(db.push_transaction(trx, ~0), exc_type); \
 }
+
+#define REQUIRE_THROW_WITH_VALUE( op, field, value ) \
+   REQUIRE_THROW_WITH_VALUE_2( op, field, value, fc::exception )
+
 ///This simply resets v back to its default-constructed value. Requires v to have a working assingment operator and
 /// default constructor.
 #define RESET(v) v = decltype(v)()
@@ -64,17 +115,19 @@ using namespace graphene::db;
 /// i.e. This allows a test on update_account to begin with the database at the end state of create_account.
 #define INVOKE(test) ((struct test*)this)->test_method(); trx.clear()
 
-#define PUSH_TX( tx, skip_flags ) \
-   _push_transaction( tx, skip_flags, __FILE__, __LINE__ )
+#define PREP_ACTOR(name) \
+   fc::ecc::private_key name ## _private_key = generate_private_key(BOOST_PP_STRINGIZE(name));
 
 #define ACTOR(name) \
-   fc::ecc::private_key name ## _private_key = generate_private_key(BOOST_PP_STRINGIZE(name)); \
-   key_id_type name ## _key_id = register_key(name ## _private_key.get_public_key()).get_id(); \
-   account_id_type name ## _id = create_account(BOOST_PP_STRINGIZE(name), name ## _key_id).id;
+   PREP_ACTOR(name) \
+   const auto& name = create_account(BOOST_PP_STRINGIZE(name), name ## _private_key.get_public_key()); \
+   account_id_type name ## _id = name.id; (void)name ## _id;
+
 #define GET_ACTOR(name) \
    fc::ecc::private_key name ## _private_key = generate_private_key(BOOST_PP_STRINGIZE(name)); \
-   account_id_type name ## _id = get_account(BOOST_PP_STRINGIZE(name)).id; \
-   key_id_type name ## _key_id = name ## _id(db).active.auths.begin()->first;
+   const account_object& name = get_account(BOOST_PP_STRINGIZE(name)); \
+   account_id_type name ## _id = name.id; \
+   (void)name ##_id
 
 #define ACTORS_IMPL(r, data, elem) ACTOR(elem)
 #define ACTORS(names) BOOST_PP_SEQ_FOR_EACH(ACTORS_IMPL, ~, names)
@@ -85,17 +138,15 @@ struct database_fixture {
    // the reason we use an app is to exercise the indexes of built-in
    //   plugins
    graphene::app::application app;
+   genesis_state_type genesis_state;
    chain::database &db;
    signed_transaction trx;
-   key_id_type genesis_key;
-   account_id_type genesis_account;
+   public_key_type committee_key;
+   account_id_type committee_account;
    fc::ecc::private_key private_key = fc::ecc::private_key::generate();
-   fc::ecc::private_key delegate_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("genesis")) );
-   fc::time_point_sec genesis_time = fc::time_point_sec( GRAPHENE_GENESIS_TIMESTAMP );
-   fc::time_point_sec now          = fc::time_point_sec( GRAPHENE_GENESIS_TIMESTAMP );
-   const key_object* key1= nullptr;
-   const key_object* key2= nullptr;
-   const key_object* key3= nullptr;
+   fc::ecc::private_key init_account_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("null_key")) );
+   public_key_type init_account_pub_key;
+
    optional<fc::temp_directory> data_dir;
    bool skip_key_index_test = false;
    uint32_t anon_acct_count;
@@ -105,29 +156,28 @@ struct database_fixture {
 
    static fc::ecc::private_key generate_private_key(string seed);
    string generate_anon_acct_name();
-   void _push_transaction( const signed_transaction& tx, uint32_t skip_flags, const char* file, int line );
-   void verify_asset_supplies( )const;
+   static void verify_asset_supplies( const database& db );
    void verify_account_history_plugin_index( )const;
    void open_database();
    signed_block generate_block(uint32_t skip = ~0,
-                               const fc::ecc::private_key& key = generate_private_key("genesis"),
+                               const fc::ecc::private_key& key = generate_private_key("null_key"),
                                int miss_blocks = 0);
 
    /**
     * @brief Generates block_count blocks
     * @param block_count number of blocks to generate
     */
-   void generate_blocks( uint32_t block_count );
+   void generate_blocks(uint32_t block_count);
 
    /**
     * @brief Generates blocks until the head block time matches or exceeds timestamp
     * @param timestamp target time to generate blocks until
     */
-   void generate_blocks( fc::time_point_sec timestamp );
+   void generate_blocks(fc::time_point_sec timestamp, bool miss_intermediate_blocks = true);
 
    account_create_operation make_account(
       const std::string& name = "nathan",
-      key_id_type key = key_id_type()
+      public_key_type = public_key_type()
       );
 
    account_create_operation make_account(
@@ -135,8 +185,25 @@ struct database_fixture {
       const account_object& registrar,
       const account_object& referrer,
       uint8_t referrer_percent = 100,
-      key_id_type key = key_id_type()
+      public_key_type key = public_key_type()
       );
+
+   void force_global_settle(const asset_object& what, const price& p);
+   void force_settle(account_id_type who, asset what)
+   { force_settle(who(db), what); }
+   void force_settle(const account_object& who, asset what);
+   void update_feed_producers(asset_id_type mia, flat_set<account_id_type> producers)
+   { update_feed_producers(mia(db), producers); }
+   void update_feed_producers(const asset_object& mia, flat_set<account_id_type> producers);
+   void publish_feed(asset_id_type mia, account_id_type by, const price_feed& f)
+   { publish_feed(mia(db), by(db), f); }
+   void publish_feed(const asset_object& mia, const account_object& by, const price_feed& f);
+   void borrow(account_id_type who, asset what, asset collateral)
+   { borrow(who(db), what, collateral); }
+   void borrow(const account_object& who, asset what, asset collateral);
+   void cover(account_id_type who, asset what, asset collateral_freed)
+   { cover(who(db), what, collateral_freed); }
+   void cover(const account_object& who, asset what, asset collateral_freed);
 
    const asset_object& get_asset( const string& symbol )const;
    const account_object& get_account( const string& name )const;
@@ -144,27 +211,20 @@ struct database_fixture {
                                        account_id_type issuer = account_id_type(1),
                                        uint16_t market_fee_percent = 100 /*1%*/,
                                        uint16_t flags = charge_market_fee);
+   const asset_object& create_prediction_market(const string& name,
+                                       account_id_type issuer = account_id_type(1),
+                                       uint16_t market_fee_percent = 100 /*1%*/,
+                                       uint16_t flags = charge_market_fee);
    const asset_object& create_user_issued_asset( const string& name );
+   const asset_object& create_user_issued_asset( const string& name,
+                                                 const account_object& issuer,
+                                                 uint16_t flags );
    void issue_uia( const account_object& recipient, asset amount );
 
-   const short_order_object* create_short(
-      account_id_type seller,
-      const asset& amount_to_sell,
-      const asset& collateral_provided,
-      uint16_t initial_collateral_ratio = 2000,
-      uint16_t maintenance_collateral_ratio = 1750
-      );
-   const short_order_object* create_short(
-      const account_object& seller,
-      const asset& amount_to_sell,
-      const asset& collateral_provided,
-      uint16_t initial_collateral_ratio = 2000,
-      uint16_t maintenance_collateral_ratio = 1750
-      );
 
    const account_object& create_account(
       const string& name,
-      const key_id_type& key = key_id_type()
+      const public_key_type& key = public_key_type()
       );
 
    const account_object& create_account(
@@ -172,7 +232,7 @@ struct database_fixture {
       const account_object& registrar,
       const account_object& referrer,
       uint8_t referrer_percent = 100,
-      const key_id_type& key = key_id_type()
+      const public_key_type& key = public_key_type()
       );
 
    const account_object& create_account(
@@ -183,36 +243,36 @@ struct database_fixture {
       uint8_t referrer_percent = 100
       );
 
-   const delegate_object& create_delegate( const account_object& owner );
+   const committee_member_object& create_committee_member( const account_object& owner );
    const witness_object& create_witness(account_id_type owner,
-                                        key_id_type signing_key = key_id_type(),
-                                        const fc::ecc::private_key& signing_private_key = generate_private_key("genesis"));
+                                        const fc::ecc::private_key& signing_private_key = generate_private_key("null_key"));
    const witness_object& create_witness(const account_object& owner,
-                                        key_id_type signing_key = key_id_type(),
-                                        const fc::ecc::private_key& signing_private_key = generate_private_key("genesis"));
-   const key_object& register_key( const public_key_type& key );
-   const key_object& register_address( const address& addr );
+                                        const fc::ecc::private_key& signing_private_key = generate_private_key("null_key"));
    uint64_t fund( const account_object& account, const asset& amount = asset(500000) );
-   void sign( signed_transaction& trx, key_id_type key_id, const fc::ecc::private_key& key );
+   void sign( signed_transaction& trx, const fc::ecc::private_key& key );
    const limit_order_object* create_sell_order( account_id_type user, const asset& amount, const asset& recv );
    const limit_order_object* create_sell_order( const account_object& user, const asset& amount, const asset& recv );
    asset cancel_limit_order( const limit_order_object& order );
-   asset cancel_short_order( const short_order_object& order );
    void transfer( account_id_type from, account_id_type to, const asset& amount, const asset& fee = asset() );
    void transfer( const account_object& from, const account_object& to, const asset& amount, const asset& fee = asset() );
    void fund_fee_pool( const account_object& from, const asset_object& asset_to_fund, const share_type amount );
-   void enable_fees( share_type fee = GRAPHENE_BLOCKCHAIN_PRECISION );
+   void enable_fees();
    void upgrade_to_lifetime_member( account_id_type account );
    void upgrade_to_lifetime_member( const account_object& account );
+   void upgrade_to_annual_member( account_id_type account );
+   void upgrade_to_annual_member( const account_object& account );
    void print_market( const string& syma, const string& symb )const;
    string pretty( const asset& a )const;
-   void print_short_order( const short_order_object& cur )const;
    void print_limit_order( const limit_order_object& cur )const;
    void print_call_orders( )const;
    void print_joint_market( const string& syma, const string& symb )const;
-   void print_short_market( const string& syma, const string& symb )const;
    int64_t get_balance( account_id_type account, asset_id_type a )const;
    int64_t get_balance( const account_object& account, const asset_object& a )const;
 };
+
+namespace test {
+bool _push_block( database& db, const signed_block& b, uint32_t skip_flags = 0 );
+processed_transaction _push_transaction( database& db, const signed_transaction& tx, uint32_t skip_flags = 0 );
+}
 
 } }

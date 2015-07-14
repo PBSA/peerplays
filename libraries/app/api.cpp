@@ -16,11 +16,11 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <graphene/app/api.hpp>
+#include <graphene/app/api_access.hpp>
 #include <graphene/app/application.hpp>
-#include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/utilities/key_conversion.hpp>
-#include <graphene/chain/operation_history_object.hpp>
+#include <graphene/chain/protocol/fee_schedule.hpp>
 
 #include <fc/crypto/hex.hpp>
 
@@ -61,6 +61,13 @@ namespace graphene { namespace app {
     {
        return _db.fetch_block_by_number(block_num);
     }
+    processed_transaction database_api::get_transaction(uint32_t block_num, uint32_t trx_num)const
+    {
+       auto opt_block = _db.fetch_block_by_number(block_num);
+       FC_ASSERT( opt_block );
+       FC_ASSERT( opt_block->transactions.size() > trx_num );
+       return opt_block->transactions[trx_num];
+    }
 
     vector<optional<account_object>> database_api::lookup_account_names(const vector<string>& account_names)const
     {
@@ -98,17 +105,6 @@ namespace graphene { namespace app {
        return _db.get(dynamic_global_property_id_type());
     }
 
-    vector<optional<key_object>> database_api::get_keys(const vector<key_id_type>& key_ids)const
-    {
-       vector<optional<key_object>> result; result.reserve(key_ids.size());
-       std::transform(key_ids.begin(), key_ids.end(), std::back_inserter(result),
-                      [this](key_id_type id) -> optional<key_object> {
-          if(auto o = _db.find(id))
-             return *o;
-          return {};
-       });
-       return result;
-    }
 
     vector<optional<account_object>> database_api::get_accounts(const vector<account_id_type>& account_ids)const
     {
@@ -167,7 +163,7 @@ namespace graphene { namespace app {
        else
        {
           result.reserve(assets.size());
-           
+
           std::transform(assets.begin(), assets.end(), std::back_inserter(result),
                          [this, acnt](asset_id_type id) { return _db.get_balance(acnt, id); });
        }
@@ -215,22 +211,6 @@ namespace graphene { namespace app {
        return result;
     }
 
-    vector<short_order_object> database_api::get_short_orders(asset_id_type a, uint32_t limit)const
-    {
-      const auto& short_order_idx = _db.get_index_type<short_order_index>();
-      const auto& sell_price_idx = short_order_idx.indices().get<by_price>();
-      const asset_object& mia = _db.get(a);
-
-      FC_ASSERT( mia.is_market_issued(), "must be a market issued asset" );
-
-      price index_price = price::min(mia.get_id(), mia.bitasset_data(_db).options.short_backing_asset);
-
-      auto short_itr = sell_price_idx.lower_bound(index_price.max());
-      auto short_end = sell_price_idx.upper_bound(index_price.min());
-
-      return vector<short_order_object>(short_itr, short_end);
-    }
-
     vector<call_order_object> database_api::get_call_orders(asset_id_type a, uint32_t limit)const
     {
        const auto& call_index = _db.get_index_type<call_order_index>().indices().get<by_price>();
@@ -258,7 +238,7 @@ namespace graphene { namespace app {
 
        auto itr = assets_by_symbol.lower_bound(lower_bound_symbol);
 
-       if( lower_bound_symbol == "" ) 
+       if( lower_bound_symbol == "" )
           itr = assets_by_symbol.begin();
 
        while(limit-- && itr != assets_by_symbol.end())
@@ -267,46 +247,213 @@ namespace graphene { namespace app {
        return result;
     }
 
+    fc::optional<committee_member_object> database_api::get_committee_member_by_account(account_id_type account) const
+    {
+       const auto& idx = _db.get_index_type<committee_member_index>().indices().get<by_account>();
+       auto itr = idx.find(account);
+       if( itr != idx.end() )
+          return *itr;
+       return {};
+    }
+
+    fc::optional<witness_object> database_api::get_witness_by_account(account_id_type account) const
+    {
+       const auto& idx = _db.get_index_type<witness_index>().indices().get<by_account>();
+       auto itr = idx.find(account);
+       if( itr != idx.end() )
+          return *itr;
+       return {};
+    }
+
+    uint64_t database_api::get_witness_count()const
+    {
+       return _db.get_index_type<witness_index>().indices().size();
+    }
+
+    map<string, witness_id_type> database_api::lookup_witness_accounts(const string& lower_bound_name, uint32_t limit)const
+    {
+       FC_ASSERT( limit <= 1000 );
+       const auto& witnesses_by_id = _db.get_index_type<witness_index>().indices().get<by_id>();
+
+       // we want to order witnesses by account name, but that name is in the account object
+       // so the witness_index doesn't have a quick way to access it.
+       // get all the names and look them all up, sort them, then figure out what
+       // records to return.  This could be optimized, but we expect the 
+       // number of witnesses to be few and the frequency of calls to be rare
+       std::map<std::string, witness_id_type> witnesses_by_account_name;
+       for (const witness_object& witness : witnesses_by_id)
+           if (auto account_iter = _db.find(witness.witness_account))
+               if (account_iter->name >= lower_bound_name) // we can ignore anything below lower_bound_name 
+                   witnesses_by_account_name.insert(std::make_pair(account_iter->name, witness.id));
+
+       auto end_iter = witnesses_by_account_name.begin();
+       while (end_iter != witnesses_by_account_name.end() && limit--)
+           ++end_iter;
+       witnesses_by_account_name.erase(end_iter, witnesses_by_account_name.end());
+       return witnesses_by_account_name;
+    }
+   
+    map<string, committee_member_id_type> database_api::lookup_committee_member_accounts(const string& lower_bound_name, uint32_t limit)const
+    {
+       FC_ASSERT( limit <= 1000 );
+       const auto& committee_members_by_id = _db.get_index_type<committee_member_index>().indices().get<by_id>();
+
+       // we want to order committee_members by account name, but that name is in the account object
+       // so the committee_member_index doesn't have a quick way to access it.
+       // get all the names and look them all up, sort them, then figure out what
+       // records to return.  This could be optimized, but we expect the 
+       // number of committee_members to be few and the frequency of calls to be rare
+       std::map<std::string, committee_member_id_type> committee_members_by_account_name;
+       for (const committee_member_object& committee_member : committee_members_by_id)
+           if (auto account_iter = _db.find(committee_member.committee_member_account))
+               if (account_iter->name >= lower_bound_name) // we can ignore anything below lower_bound_name 
+                   committee_members_by_account_name.insert(std::make_pair(account_iter->name, committee_member.id));
+
+       auto end_iter = committee_members_by_account_name.begin();
+       while (end_iter != committee_members_by_account_name.end() && limit--)
+           ++end_iter;
+       committee_members_by_account_name.erase(end_iter, committee_members_by_account_name.end());
+       return committee_members_by_account_name;
+    }
+   
+    vector<optional<witness_object>> database_api::get_witnesses(const vector<witness_id_type>& witness_ids)const
+    {
+       vector<optional<witness_object>> result; result.reserve(witness_ids.size());
+       std::transform(witness_ids.begin(), witness_ids.end(), std::back_inserter(result),
+                      [this](witness_id_type id) -> optional<witness_object> {
+          if(auto o = _db.find(id))
+             return *o;
+          return {};
+       });
+       return result;
+    }
+
+    vector<optional<committee_member_object>> database_api::get_committee_members(const vector<committee_member_id_type>& committee_member_ids)const
+    {
+       vector<optional<committee_member_object>> result; result.reserve(committee_member_ids.size());
+       std::transform(committee_member_ids.begin(), committee_member_ids.end(), std::back_inserter(result),
+                      [this](committee_member_id_type id) -> optional<committee_member_object> {
+          if(auto o = _db.find(id))
+             return *o;
+          return {};
+       });
+       return result;
+    }
+
     login_api::login_api(application& a)
     :_app(a)
     {
     }
+
     login_api::~login_api()
     {
     }
 
     bool login_api::login(const string& user, const string& password)
     {
-       auto db_api = std::make_shared<database_api>(std::ref(*_app.chain_database()));
-       auto net_api = std::make_shared<network_api>(std::ref(_app));
-       auto hist_api = std::make_shared<history_api>(_app);
-       _database_api = db_api;
-       _network_api = net_api;
-       _history_api = hist_api;
+       optional< api_access_info > acc = _app.get_api_access_info( user );
+       if( !acc.valid() )
+          return false;
+       if( acc->password_hash_b64 != "*" )
+       {
+          std::string password_salt = fc::base64_decode( acc->password_salt_b64 );
+          std::string acc_password_hash = fc::base64_decode( acc->password_hash_b64 );
+
+          fc::sha256 hash_obj = fc::sha256::hash( password + password_salt );
+          if( hash_obj.data_size() != acc_password_hash.length() )
+             return false;
+          if( memcmp( hash_obj.data(), acc_password_hash.c_str(), hash_obj.data_size() ) != 0 )
+             return false;
+       }
+
+       for( const std::string& api_name : acc->allowed_apis )
+          enable_api( api_name );
        return true;
     }
 
-    void network_api::add_node(const fc::ip::endpoint& ep)
+    void login_api::enable_api( const std::string& api_name )
     {
-       _app.p2p_node()->add_node(ep);
+       if( api_name == "database_api" )
+       {
+          _database_api = std::make_shared< database_api >( std::ref( *_app.chain_database() ) );
+       }
+       else if( api_name == "network_broadcast_api" )
+       {
+          _network_broadcast_api = std::make_shared< network_broadcast_api >( std::ref( _app ) );
+       }
+       else if( api_name == "history_api" )
+       {
+          _history_api = std::make_shared< history_api >( _app );
+       }
+       else if( api_name == "network_node_api" )
+       {
+          _network_node_api = std::make_shared< network_node_api >( std::ref(_app) );
+       }
+       return;
     }
 
-    void network_api::broadcast_transaction(const signed_transaction& trx)
+    network_broadcast_api::network_broadcast_api(application& a):_app(a)
+    {
+       _applied_block_connection = _app.chain_database()->applied_block.connect([this](const signed_block& b){ on_applied_block(b); });
+    }
+
+    void network_broadcast_api::on_applied_block( const signed_block& b )
+    {
+       if( _callbacks.size() )
+       {
+          for( uint32_t trx_num = 0; trx_num < b.transactions.size(); ++trx_num )
+          {
+             const auto& trx = b.transactions[trx_num];
+             auto id = trx.id();
+             auto itr = _callbacks.find(id);
+             auto block_num = b.block_num();
+             if( itr != _callbacks.end() )
+             {
+                fc::async( [=](){ itr->second( fc::variant(transaction_confirmation{ id, block_num, trx_num, trx}) ); } );
+             }
+          }
+       }
+    }
+
+    void network_broadcast_api::broadcast_transaction(const signed_transaction& trx)
     {
        trx.validate();
        _app.chain_database()->push_transaction(trx);
        _app.p2p_node()->broadcast_transaction(trx);
     }
 
-    std::vector<net::peer_status> network_api::get_connected_peers() const
+    void network_broadcast_api::broadcast_transaction_with_callback( confirmation_callback cb, const signed_transaction& trx)
+    {
+       trx.validate();
+       _callbacks[trx.id()] = cb;
+       _app.chain_database()->push_transaction(trx);
+       _app.p2p_node()->broadcast_transaction(trx);
+    }
+
+    network_node_api::network_node_api( application& a ) : _app( a )
+    {
+    }
+
+    void network_node_api::add_node(const fc::ip::endpoint& ep)
+    {
+       _app.p2p_node()->add_node(ep);
+    }
+
+    std::vector<net::peer_status> network_node_api::get_connected_peers() const
     {
       return _app.p2p_node()->get_connected_peers();
     }
 
-    fc::api<network_api> login_api::network()const
+    fc::api<network_broadcast_api> login_api::network_broadcast()const
     {
-       FC_ASSERT(_network_api);
-       return *_network_api;
+       FC_ASSERT(_network_broadcast_api);
+       return *_network_broadcast_api;
+    }
+
+    fc::api<network_node_api> login_api::network_node()const
+    {
+       FC_ASSERT(_network_node_api);
+       return *_network_node_api;
     }
 
     fc::api<database_api> login_api::database()const
@@ -336,6 +483,10 @@ namespace graphene { namespace app {
              {
                 _subscriptions[id](obj->to_variant());
              }
+             else
+             {
+                _subscriptions[id](fc::variant(id));
+             }
           }
        });
     }
@@ -358,15 +509,11 @@ namespace graphene { namespace app {
              case operation::tag<limit_order_create_operation>::value:
                 market = op.op.get<limit_order_create_operation>().get_market();
                 break;
-             case operation::tag<short_order_create_operation>::value:
-                market = op.op.get<limit_order_create_operation>().get_market();
-                break;
              case operation::tag<fill_order_operation>::value:
                 market = op.op.get<fill_order_operation>().get_market();
                 break;
                 /*
              case operation::tag<limit_order_cancel_operation>::value:
-             case operation::tag<short_order_cancel_operation>::value:
              */
              default: break;
           }
@@ -428,7 +575,7 @@ namespace graphene { namespace app {
        return fc::to_hex(fc::raw::pack(trx));
     }
 
-    vector<operation_history_object> history_api::get_account_history(account_id_type account, operation_history_id_type stop, int limit, operation_history_id_type start) const
+    vector<operation_history_object> history_api::get_account_history(account_id_type account, operation_history_id_type stop, unsigned limit, operation_history_id_type start) const
     {
        FC_ASSERT(_app.chain_database());
        const auto& db = *_app.chain_database();
@@ -449,5 +596,128 @@ namespace graphene { namespace app {
        }
        return result;
     }
+
+
+    flat_set<uint32_t> history_api::get_market_history_buckets()const
+    {
+       auto hist = _app.get_plugin<market_history_plugin>( "market_history" );
+       FC_ASSERT( hist );
+       return hist->tracked_buckets();
+    }
+
+    vector<bucket_object> history_api::get_market_history( asset_id_type a, asset_id_type b, 
+                                                           uint32_t bucket_seconds, fc::time_point_sec start, fc::time_point_sec end )const
+    { try {
+       FC_ASSERT(_app.chain_database());
+       const auto& db = *_app.chain_database();
+       vector<bucket_object> result;
+       result.reserve(100);
+
+       if( a > b ) std::swap(a,b);
+
+       const auto& bidx = db.get_index_type<bucket_index>();
+       const auto& by_key_idx = bidx.indices().get<by_key>();
+
+       auto itr = by_key_idx.lower_bound( bucket_key( a, b, bucket_seconds, start ) );
+       while( itr != by_key_idx.end() && itr->key.open <= end && result.size() < 100 )
+       {
+          if( !(itr->key.base == a && itr->key.quote == b && itr->key.seconds == bucket_seconds) )
+            return result;
+          result.push_back(*itr);
+          ++itr;
+       }
+       return result;
+    } FC_CAPTURE_AND_RETHROW( (a)(b)(bucket_seconds)(start)(end) ) }
+
+    /**
+     *  @return all accounts that referr to the key or account id in their owner or active authorities.
+     */
+    vector<account_id_type> database_api::get_account_references( account_id_type account_id )const
+    {
+       const auto& idx = _db.get_index_type<account_index>();
+       const auto& aidx = dynamic_cast<const primary_index<account_index>&>(idx);
+       const auto& refs = aidx.get_secondary_index<graphene::chain::account_member_index>();
+       auto itr = refs.account_to_account_memberships.find(account_id);
+       vector<account_id_type> result;
+
+       if( itr != refs.account_to_account_memberships.end() )
+       {
+          result.reserve( itr->second.size() );
+          for( auto item : itr->second ) result.push_back(item);
+       }
+       return result;
+    }
+    /**
+     *  @return all accounts that referr to the key or account id in their owner or active authorities.
+     */
+    vector<account_id_type> database_api::get_key_references( public_key_type key )const
+    {
+       const auto& idx = _db.get_index_type<account_index>();
+       const auto& aidx = dynamic_cast<const primary_index<account_index>&>(idx);
+       const auto& refs = aidx.get_secondary_index<graphene::chain::account_member_index>();
+       auto itr = refs.account_to_key_memberships.find(key);
+       vector<account_id_type> result;
+
+       if( itr != refs.account_to_key_memberships.end() )
+       {
+          result.reserve( itr->second.size() );
+          for( auto item : itr->second ) result.push_back(item);
+       }
+       return result;
+    }
+
+    /** TODO: add secondary index that will accelerate this process */
+    vector<proposal_object> database_api::get_proposed_transactions( account_id_type id )const
+    {
+       const auto& idx = _db.get_index_type<proposal_index>();
+       vector<proposal_object> result;
+
+       idx.inspect_all_objects( [&](const object& obj){
+               const proposal_object& p = static_cast<const proposal_object&>(obj);
+               if( p.required_active_approvals.find( id ) != p.required_active_approvals.end() )
+                  result.push_back(p);
+               else if ( p.required_owner_approvals.find( id ) != p.required_owner_approvals.end() )
+                  result.push_back(p);
+               else if ( p.available_active_approvals.find( id ) != p.available_active_approvals.end() )
+                  result.push_back(p);
+       });
+       return result;
+    }
+
+    vector<call_order_object> database_api::get_margin_positions( const account_id_type& id )const
+    { try {
+       const auto& idx = _db.get_index_type<call_order_index>();
+       const auto& aidx = idx.indices().get<by_account>();
+       auto start = aidx.lower_bound( boost::make_tuple( id, 0 ) );
+       auto end = aidx.lower_bound( boost::make_tuple( id+1, 0 ) );
+       vector<call_order_object> result;
+       while( start != end )
+       {
+          result.push_back(*start);
+          ++start;
+       }
+       return result;
+    } FC_CAPTURE_AND_RETHROW( (id) ) }
+
+
+    vector<balance_object>  database_api::get_balance_objects( const vector<address>& addrs )const
+    { try {
+         const auto& bal_idx = _db.get_index_type<balance_index>();
+         const auto& by_owner_idx = bal_idx.indices().get<by_owner>();
+
+         vector<balance_object> result;
+
+         for( const auto& owner : addrs )
+         {
+            auto itr = by_owner_idx.lower_bound( boost::make_tuple( owner, asset_id_type(0) ) );
+            while( itr != by_owner_idx.end() && itr->owner == owner )
+            {
+               result.push_back( *itr );
+               ++itr;
+            }
+         }
+         return result;
+    } FC_CAPTURE_AND_RETHROW( (addrs) ) }
+
 
 } } // graphene::app

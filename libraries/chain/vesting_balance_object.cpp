@@ -25,32 +25,40 @@ inline bool sum_below_max_shares(const asset& a, const asset& b)
    assert(GRAPHENE_MAX_SHARE_SUPPLY + GRAPHENE_MAX_SHARE_SUPPLY > GRAPHENE_MAX_SHARE_SUPPLY);
    return (a.amount              <= GRAPHENE_MAX_SHARE_SUPPLY)
        && (            b.amount  <= GRAPHENE_MAX_SHARE_SUPPLY)
-       && ((a.amount + b.amount) <= GRAPHENE_MAX_SHARE_SUPPLY)
-      ;
+       && ((a.amount + b.amount) <= GRAPHENE_MAX_SHARE_SUPPLY);
 }
 
-asset linear_vesting_policy::get_allowed_withdraw(const vesting_policy_context& ctx) const
+asset linear_vesting_policy::get_allowed_withdraw( const vesting_policy_context& ctx )const
 {
-   if(ctx.now <= begin_date)
-      return asset(0, ctx.balance.asset_id);
-   if(vesting_seconds == 0)
-      return ctx.balance;
+    share_type allowed_withdraw = 0;
 
-   int64_t elapsed_seconds = (ctx.now - begin_date).to_seconds();
+    if( ctx.now > begin_timestamp )
+    {
+        const auto elapsed_seconds = (ctx.now - begin_timestamp).to_seconds();
+        assert( elapsed_seconds > 0 );
 
-   // if elapsed_seconds <= 0, then ctx.now <= begin_date,
-   // and we should have returned above.
-   assert(elapsed_seconds > 0);
+        if( elapsed_seconds >= vesting_cliff_seconds )
+        {
+            share_type total_vested = 0;
+            if( elapsed_seconds < vesting_duration_seconds )
+            {
+                total_vested = (fc::uint128_t( begin_balance.value ) * elapsed_seconds / vesting_duration_seconds).to_uint64();
+            }
+            else
+            {
+                total_vested = begin_balance;
+            }
+            assert( total_vested >= 0 );
 
-   fc::uint128_t total_allowed = begin_balance.value;
-   total_allowed *= uint64_t(elapsed_seconds);
-   total_allowed /= vesting_seconds;
+            const share_type withdrawn_already = begin_balance - ctx.balance.amount;
+            assert( withdrawn_already >= 0 );
 
-   if(total_allowed <= total_withdrawn.value)
-      return asset(0, ctx.balance.asset_id);
-   total_allowed -= total_withdrawn.value;
-   FC_ASSERT(total_allowed <= GRAPHENE_MAX_SHARE_SUPPLY);
-   return asset(total_allowed.to_uint64(), ctx.balance.asset_id);
+            allowed_withdraw = total_vested - withdrawn_already;
+            assert( allowed_withdraw >= 0 );
+        }
+    }
+
+    return asset( allowed_withdraw, ctx.amount.asset_id );
 }
 
 void linear_vesting_policy::on_deposit(const vesting_policy_context& ctx)
@@ -65,12 +73,12 @@ bool linear_vesting_policy::is_deposit_allowed(const vesting_policy_context& ctx
 
 void linear_vesting_policy::on_withdraw(const vesting_policy_context& ctx)
 {
-   total_withdrawn += ctx.amount.amount;
 }
 
 bool linear_vesting_policy::is_withdraw_allowed(const vesting_policy_context& ctx)const
 {
-   return (ctx.amount <= get_allowed_withdraw(ctx));
+   return (ctx.amount.asset_id == ctx.balance.asset_id)
+          && (ctx.amount <= get_allowed_withdraw(ctx));
 }
 
 fc::uint128_t cdd_vesting_policy::compute_coin_seconds_earned(const vesting_policy_context& ctx)const
@@ -96,6 +104,8 @@ void cdd_vesting_policy::update_coin_seconds_earned(const vesting_policy_context
 
 asset cdd_vesting_policy::get_allowed_withdraw(const vesting_policy_context& ctx)const
 {
+   if(ctx.now <= start_claim)
+      return asset(0, ctx.balance.asset_id);
    fc::uint128_t cs_earned = compute_coin_seconds_earned(ctx);
    fc::uint128_t withdraw_available = cs_earned / vesting_seconds;
    assert(withdraw_available <= ctx.balance.amount.value);

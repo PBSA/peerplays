@@ -23,8 +23,8 @@
 
 namespace graphene { namespace chain {
 
-object_id_type vesting_balance_create_evaluator::do_evaluate( const vesting_balance_create_operation& op )
-{
+void_result vesting_balance_create_evaluator::do_evaluate( const vesting_balance_create_operation& op )
+{ try {
    const database& d = db();
 
    const account_object& creator_account = op.creator( d );
@@ -36,17 +36,48 @@ object_id_type vesting_balance_create_evaluator::do_evaluate( const vesting_bala
    FC_ASSERT( d.get_balance( creator_account.id, op.amount.asset_id ) >= op.amount );
    FC_ASSERT( !op.amount.asset_id(d).is_transfer_restricted() );
 
-   /** we cannot create vesting balances that are market issued due to black swans */
-   FC_ASSERT( !op.amount.asset_id(d).is_market_issued() );
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
 
-   return object_id_type();
-}
+struct init_policy_visitor
+{
+   typedef void result_type;
+
+   init_policy_visitor( vesting_policy& po,
+                        const share_type& begin_balance,
+                        const fc::time_point_sec& n ):p(po),init_balance(begin_balance),now(n){}
+
+   vesting_policy&    p;
+   share_type         init_balance;
+   fc::time_point_sec now;
+
+   void operator()( const linear_vesting_policy_initializer& i )const
+   {
+      linear_vesting_policy policy;
+      policy.begin_timestamp = i.begin_timestamp;
+      policy.vesting_cliff_seconds = i.vesting_cliff_seconds;
+      policy.vesting_duration_seconds = i.vesting_duration_seconds;
+      policy.begin_balance = init_balance;
+      p = policy;
+   }
+
+   void operator()( const cdd_vesting_policy_initializer& i )const
+   {
+      cdd_vesting_policy policy;
+      policy.vesting_seconds = i.vesting_seconds;
+      policy.start_claim = i.start_claim;
+      policy.coin_seconds_earned = 0;
+      policy.coin_seconds_earned_last_update = now;
+      p = policy;
+   }
+};
 
 object_id_type vesting_balance_create_evaluator::do_apply( const vesting_balance_create_operation& op )
-{
+{ try {
    database& d = db();
    const time_point_sec now = d.head_block_time();
 
+   FC_ASSERT( d.get_balance( op.creator, op.amount.asset_id ) >= op.amount );
    d.adjust_balance( op.creator, -op.amount );
 
    const vesting_balance_object& vbo = d.create< vesting_balance_object >( [&]( vesting_balance_object& obj )
@@ -55,22 +86,15 @@ object_id_type vesting_balance_create_evaluator::do_apply( const vesting_balance
       // If making changes to this logic, check if those changes should also be made there as well.
       obj.owner = op.owner;
       obj.balance = op.amount;
-
-      cdd_vesting_policy policy;
-      policy.vesting_seconds = op.vesting_seconds;
-      policy.coin_seconds_earned = 0;
-      policy.coin_seconds_earned_last_update = now;
-
-      obj.policy = policy;
+      op.policy.visit( init_policy_visitor( obj.policy, op.amount.amount, now ) );
    } );
 
-   FC_ASSERT( d.get_balance( op.creator, op.amount.asset_id ) >= op.amount );
 
    return vbo.id;
-}
+} FC_CAPTURE_AND_RETHROW( (op) ) }
 
 void_result vesting_balance_withdraw_evaluator::do_evaluate( const vesting_balance_withdraw_operation& op )
-{
+{ try {
    const database& d = db();
    const time_point_sec now = d.head_block_time();
 
@@ -82,10 +106,10 @@ void_result vesting_balance_withdraw_evaluator::do_evaluate( const vesting_balan
    /* const account_object& owner_account = */ op.owner( d );
    // TODO: Check asset authorizations and withdrawals
    return void_result();
-}
+} FC_CAPTURE_AND_RETHROW( (op) ) }
 
 void_result vesting_balance_withdraw_evaluator::do_apply( const vesting_balance_withdraw_operation& op )
-{
+{ try {
    database& d = db();
    const time_point_sec now = d.head_block_time();
 
@@ -104,6 +128,6 @@ void_result vesting_balance_withdraw_evaluator::do_apply( const vesting_balance_
 
    // TODO: Check asset authorizations and withdrawals
    return void_result();
-}
+} FC_CAPTURE_AND_RETHROW( (op) ) }
 
 } } // graphene::chain

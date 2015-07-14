@@ -16,20 +16,21 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
+#include <fc/uint128.hpp>
+
+#include <graphene/chain/protocol/chain_parameters.hpp>
 #include <graphene/chain/database.hpp>
-#include <graphene/chain/authority.hpp>
-#include <graphene/chain/asset.hpp>
 #include <graphene/db/object.hpp>
 
 namespace graphene { namespace chain {
 
    /**
     * @class global_property_object
-    * @brief Maintains global state information (delegate list, current fees)
+    * @brief Maintains global state information (committee_member list, current fees)
     * @ingroup object
     * @ingroup implementation
     *
-    * This is an implementation detail. The values here are set by delegates to tune the blockchain parameters.
+    * This is an implementation detail. The values here are set by committee_members to tune the blockchain parameters.
     */
    class global_property_object : public graphene::db::abstract_object<global_property_object>
    {
@@ -41,7 +42,7 @@ namespace graphene { namespace chain {
          optional<chain_parameters> pending_parameters;
 
          uint32_t                   next_available_vote_id = 0;
-         vector<delegate_id_type>   active_delegates; // updated once per maintenance interval
+         vector<committee_member_id_type>   active_committee_members; // updated once per maintenance interval
          flat_set<witness_id_type>  active_witnesses; // updated once per maintenance interval
          // n.b. witness scheduling is done by witness_schedule object
          flat_set<account_id_type>  witness_accounts; // updated once per maintenance interval
@@ -55,7 +56,7 @@ namespace graphene { namespace chain {
 
    /**
     * @class dynamic_global_property_object
-    * @brief Maintains global state information (delegate list, current fees)
+    * @brief Maintains global state information (committee_member list, current fees)
     * @ingroup object
     * @ingroup implementation
     *
@@ -76,9 +77,16 @@ namespace graphene { namespace chain {
          time_point_sec    next_maintenance_time;
          time_point_sec    last_budget_time;
          share_type        witness_budget;
+         uint32_t          accounts_registered_this_interval;
+         /** if the interval changes then how we calculate witness participation will
+          * also change.  Normally witness participation is defined as % of blocks
+          * produced in the last round which is calculated by dividing the delta
+          * time between block N and N-NUM_WITNESSES by the block interval to calculate
+          * the number of blocks produced.
+          */
+         uint32_t          first_maintenance_block_with_current_interval = 0;
    };
 }}
-
 
 FC_REFLECT_DERIVED( graphene::chain::dynamic_global_property_object, (graphene::db::object),
                     (random)
@@ -88,13 +96,15 @@ FC_REFLECT_DERIVED( graphene::chain::dynamic_global_property_object, (graphene::
                     (current_witness)
                     (next_maintenance_time)
                     (witness_budget)
+                    (accounts_registered_this_interval)
+                    (first_maintenance_block_with_current_interval)
                   )
 
 FC_REFLECT_DERIVED( graphene::chain::global_property_object, (graphene::db::object),
                     (parameters)
                     (pending_parameters)
                     (next_available_vote_id)
-                    (active_delegates)
+                    (active_committee_members)
                     (active_witnesses)
                     (chain_id)
                   )

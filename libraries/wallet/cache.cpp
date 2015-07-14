@@ -16,13 +16,11 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <graphene/chain/key_object.hpp>
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/asset_object.hpp>
-#include <graphene/chain/delegate_object.hpp>
+#include <graphene/chain/committee_member_object.hpp>
 #include <graphene/chain/witness_object.hpp>
-#include <graphene/chain/limit_order_object.hpp>
-#include <graphene/chain/short_order_object.hpp>
+#include <graphene/chain/market_evaluator.hpp>
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/operation_history_object.hpp>
 #include <graphene/chain/withdraw_permission_object.hpp>
@@ -58,22 +56,18 @@ object* create_object( const variant& v )
       case base_object_type:
          return create_object_of_type< base_object >( v );
       */
-      case key_object_type:
-         return create_object_of_type< key_object >( v );
       case account_object_type:
          return create_object_of_type< account_object >( v );
       case asset_object_type:
          return create_object_of_type< asset_object >( v );
       case force_settlement_object_type:
          return create_object_of_type< force_settlement_object >( v );
-      case delegate_object_type:
-         return create_object_of_type< delegate_object >( v );
+      case committee_member_object_type:
+         return create_object_of_type< committee_member_object >( v );
       case witness_object_type:
          return create_object_of_type< witness_object >( v );
       case limit_order_object_type:
          return create_object_of_type< limit_order_object >( v );
-      case short_order_object_type:
-         return create_object_of_type< short_order_object >( v );
       case call_order_object_type:
          return create_object_of_type< call_order_object >( v );
       /*

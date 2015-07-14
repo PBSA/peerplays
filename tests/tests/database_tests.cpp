@@ -19,10 +19,8 @@
 #include <boost/test/unit_test.hpp>
 
 #include <graphene/chain/database.hpp>
-#include <graphene/chain/operations.hpp>
 
 #include <graphene/chain/account_object.hpp>
-#include <graphene/chain/key_object.hpp>
 
 #include <fc/crypto/digest.hpp>
 

@@ -21,7 +21,7 @@
 #include <graphene/net/message.hpp>
 #include <graphene/net/peer_database.hpp>
 
-#include <graphene/chain/types.hpp>
+#include <graphene/chain/protocol/types.hpp>
 
 #include <list>
 
@@ -83,7 +83,7 @@ namespace graphene { namespace net {
                case trx_message_type:
                   return handle_transaction(message_to_process.as<trx_message>(), sync_mode);
                default:
-                  FC_ASSERT( !"Invalid Message Type" );
+                  FC_THROW( "Invalid Message Type" );
             };
          }
 

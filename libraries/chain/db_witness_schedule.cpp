@@ -23,9 +23,6 @@
 
 namespace graphene { namespace chain {
 
-static_assert((GRAPHENE_GENESIS_TIMESTAMP % GRAPHENE_DEFAULT_BLOCK_INTERVAL) == 0,
-              "GRAPHENE_GENESIS_TIMESTAMP must be aligned to a block interval.");
-
 pair<witness_id_type, bool> database::get_scheduled_witness(uint32_t slot_num)const
 {
    if( slot_num == 0 )
@@ -93,7 +90,7 @@ vector<witness_id_type> database::get_near_witness_schedule()const
    return result;
 }
 
-void database::update_witness_schedule(signed_block next_block)
+void database::update_witness_schedule(const signed_block& next_block)
 {
    const global_property_object& gpo = get_global_properties();
    const witness_schedule_object& wso = get(witness_schedule_id_type());
@@ -106,10 +103,13 @@ void database::update_witness_schedule(signed_block next_block)
    // triggering FC_ASSERT elsewhere
 
    assert( schedule_slot > 0 );
+   witness_id_type first_witness;
+   bool slot_is_near = wso.scheduler.get_slot( schedule_slot-1, first_witness );
 
    witness_id_type wit;
 
    const dynamic_global_property_object& dpo = get_dynamic_global_properties();
+   
    assert( dpo.random.data_size() == witness_scheduler_rng::seed_length );
    assert( witness_scheduler_rng::seed_length == wso.rng_seed.size() );
 
@@ -118,14 +118,22 @@ void database::update_witness_schedule(signed_block next_block)
       _wso.slots_since_genesis += schedule_slot;
       witness_scheduler_rng rng(wso.rng_seed.data, _wso.slots_since_genesis);
 
-      _wso.scheduler._min_token_count = gpo.active_witnesses.size() / 2;
-      uint32_t drain = schedule_slot;
-      while( drain > 0 )
+      _wso.scheduler._min_token_count = std::max(int(gpo.active_witnesses.size()) / 2, 1);
+
+      if( slot_is_near )
       {
-         if( _wso.scheduler.size() == 0 )
-            break;
-         _wso.scheduler.consume_schedule();
-         --drain;
+         uint32_t drain = schedule_slot;
+         while( drain > 0 )
+         {
+            if( _wso.scheduler.size() == 0 )
+               break;
+            _wso.scheduler.consume_schedule();
+            --drain;
+         }
+      }
+      else
+      {
+         _wso.scheduler.reset_schedule( first_witness );
       }
       while( !_wso.scheduler.get_slot(schedule_needs_filled, wit) )
       {
@@ -133,6 +141,16 @@ void database::update_witness_schedule(signed_block next_block)
             memcpy(_wso.rng_seed.begin(), dpo.random.data(), dpo.random.data_size());
       }
       _wso.last_scheduling_block = next_block.block_num();
+      _wso.recent_slots_filled = (
+           (_wso.recent_slots_filled << 1)
+           + 1) << (schedule_slot - 1);
    });
 }
+
+uint32_t database::witness_participation_rate()const
+{
+   const witness_schedule_object& wso = get(witness_schedule_id_type());
+   return uint64_t(GRAPHENE_100_PERCENT) * wso.recent_slots_filled.popcount() / 128;
+}
+
 } }

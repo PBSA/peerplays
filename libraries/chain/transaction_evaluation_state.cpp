@@ -18,80 +18,108 @@
 #include <graphene/chain/transaction_evaluation_state.hpp>
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/asset_object.hpp>
-#include <graphene/chain/delegate_object.hpp>
+#include <graphene/chain/committee_member_object.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/exceptions.hpp>
 
 namespace graphene { namespace chain {
    bool transaction_evaluation_state::check_authority( const account_object& account, authority::classification auth_class, int depth )
    {
-      if( _skip_authority_check || approved_by.find(make_pair(account.id, auth_class)) != approved_by.end() )
+      if( (!_is_proposed_trx) && (_db->get_node_properties().skip_flags & database::skip_authority_check)  )
+         return true;
+      if( (!_is_proposed_trx) && (_db->get_node_properties().skip_flags & database::skip_transaction_signatures)  )
+         return true;
+      if( account.get_id() == GRAPHENE_TEMP_ACCOUNT ||
+          approved_by.find(make_pair(account.id, auth_class)) != approved_by.end() )
          return true;
 
-      FC_ASSERT( account.id.instance() != 0 || _is_proposed_trx );
+      FC_ASSERT( account.id.instance() != 0 || _is_proposed_trx, "", ("account",account)("is_proposed",_is_proposed_trx) );
 
-      const authority* au = nullptr;
+      bool valid = false;
       switch( auth_class )
       {
          case authority::owner:
-            au = &account.owner;
+            valid = check_authority( account.owner, auth_class, depth );
             break;
          case authority::active:
-            au = &account.active;
+            valid = check_authority( account.active, auth_class, depth );
             break;
          default:
             FC_ASSERT( false, "Invalid Account Auth Class" );
       };
+      if( valid )
+         approved_by.insert( std::make_pair(account.id, auth_class) );
+      return valid;
+   }
+
+   bool transaction_evaluation_state::check_authority( const authority& au, authority::classification auth_class, int depth )
+   { try {
+      if( (!_is_proposed_trx) && (_db->get_node_properties().skip_flags & database::skip_authority_check)  )
+         return true;
+      if( (!_is_proposed_trx) && (_db->get_node_properties().skip_flags & database::skip_transaction_signatures)  )
+         return true;
 
       uint32_t total_weight = 0;
-      for( const auto& auth : au->auths )
+
+      for( const auto& key : au.key_auths )
       {
-         if( approved_by.find( std::make_pair(auth.first,auth_class) ) != approved_by.end() )
-            total_weight += auth.second;
-         else
+         if( signed_by( key.first ) )
          {
-            const object& auth_item = _db->get_object( auth.first );
-            switch( auth_item.id.type() )
-            {
-               case account_object_type:
-               {
-                  if( depth == GRAPHENE_MAX_SIG_CHECK_DEPTH )
-                  {
-                     elog("Failing authority verification due to recursion depth.");
-                     return false;
-                  }
-                  if( check_authority( *dynamic_cast<const account_object*>( &auth_item ), auth_class, depth + 1 ) )
-                  {
-                     approved_by.insert( std::make_pair(auth_item.id,auth_class) );
-                     total_weight += auth.second;
-                  }
-                  break;
-               }
-               case key_object_type:
-               {
-                  if( signed_by( auth.first ) )
-                  {
-                     approved_by.insert( std::make_pair(auth_item.id,authority::key) );
-                     total_weight += auth.second;
-                  }
-                  break;
-               }
-               default:
-                  FC_ASSERT( !"Invalid Auth Object Type", "type:${type}", ("type",auth_item.id.type()) );
-            }
-         }
-         if( total_weight >= au->weight_threshold )
-         {
-            approved_by.insert( std::make_pair(account.id, auth_class) );
-            return true;
+            total_weight += key.second;
+            if( total_weight >= au.weight_threshold )
+               return true;
          }
       }
-      return false;
-   }
-   bool transaction_evaluation_state::signed_by( key_id_type id )const
+      for( const auto& key : au.address_auths )
+      {
+         if( signed_by( key.first ) )
+         {
+            total_weight += key.second;
+            if( total_weight >= au.weight_threshold )
+               return true;
+         }
+      }
+
+      for( const auto& auth : au.account_auths )
+      {
+         if( approved_by.find( std::make_pair(auth.first,auth_class) ) != approved_by.end() )
+         {
+            total_weight += auth.second;
+            if( total_weight >= au.weight_threshold )
+               return true;
+         }
+         else
+         {
+            if( depth == GRAPHENE_MAX_SIG_CHECK_DEPTH )
+            {
+               //elog("Failing authority verification due to recursion depth.");
+               return false;
+            }
+            const account_object& acnt = auth.first(*_db);
+            if( check_authority( acnt, auth_class, depth + 1 ) )
+            {
+               approved_by.insert( std::make_pair(acnt.id,auth_class) );
+               total_weight += auth.second;
+               if( total_weight >= au.weight_threshold )
+                  return true;
+            }
+         }
+      }
+
+      return total_weight >= au.weight_threshold;
+   } FC_CAPTURE_AND_RETHROW( (au)(auth_class)(depth) ) }
+
+   bool transaction_evaluation_state::signed_by(const public_key_type& k)
    {
-      assert(_trx);
-      return _trx->signatures.find(id) != _trx->signatures.end();
+      auto itr = _sigs.find(k);
+      return itr != _sigs.end() && (itr->second = true);
+   }
+
+   bool transaction_evaluation_state::signed_by(const address& k)
+   {
+      for( auto itr = _sigs.begin(); itr != _sigs.end(); ++itr )
+         if( itr->first == k ) return itr->second = true;
+      return false;
    }
 
 } } // namespace graphene::chain

@@ -20,8 +20,7 @@
 
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/asset_object.hpp>
-#include <graphene/chain/limit_order_object.hpp>
-#include <graphene/chain/short_order_object.hpp>
+#include <graphene/chain/market_evaluator.hpp>
 #include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/witness_object.hpp>
 
@@ -60,13 +59,6 @@ void database::debug_dump()
       if( for_sale.asset_id == asset_id_type() ) core_in_orders += for_sale.amount;
       total_balances[for_sale.asset_id] += for_sale.amount;
    }
-   for( const short_order_object& o : db.get_index_type<short_order_index>().indices() )
-   {
-      idump(("short_order")(o));
-      auto col = o.get_collateral();
-      if( col.asset_id == asset_id_type() ) core_in_orders += col.amount;
-      total_balances[col.asset_id] += col.amount;
-   }
    for( const call_order_object& o : db.get_index_type<call_order_index>().indices() )
    {
       idump(("call_order")(o));
@@ -80,7 +72,7 @@ void database::debug_dump()
       total_balances[asset_obj.id] += asset_obj.dynamic_asset_data_id(db).accumulated_fees;
       total_balances[asset_id_type()] += asset_obj.dynamic_asset_data_id(db).fee_pool;
    }
-   for( const witness_object& witness_obj : db.get_index_type<simple_index<witness_object>>() )
+   for( const witness_object& witness_obj : db.get_index_type<witness_index>().indices() )
    {
       //idump((witness_obj));
       total_balances[asset_id_type()] += witness_obj.accumulated_income;
@@ -89,7 +81,12 @@ void database::debug_dump()
    {
       edump( (total_balances[asset_id_type()].value)(core_asset_data.current_supply.value ));
    }
-   // TODO:  Add vesting_balance_object to this method
+
+   const auto& vbidx = db.get_index_type<simple_index<vesting_balance_object>>();
+   for( const auto& s : vbidx )
+   {
+      idump(("vesting_balance")(s));
+   }
 }
 
 } }

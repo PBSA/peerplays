@@ -15,20 +15,24 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include <graphene/app/api.hpp>
+#include <graphene/app/api_access.hpp>
 #include <graphene/app/application.hpp>
 #include <graphene/app/plugin.hpp>
-#include <graphene/app/api.hpp>
 
 #include <graphene/net/core_messages.hpp>
 
 #include <graphene/time/time.hpp>
 
 #include <graphene/utilities/key_conversion.hpp>
+#include <graphene/chain/protocol/fee_schedule.hpp>
+#include <fc/smart_ref_impl.hpp>
 
 #include <fc/rpc/api_connection.hpp>
 #include <fc/rpc/websocket_api.hpp>
 
 #include <boost/filesystem/path.hpp>
+#include <boost/signals2.hpp>
 
 #include <iostream>
 
@@ -50,7 +54,36 @@ using chain::block_id_type;
 
 using std::vector;
 
+namespace bpo = boost::program_options;
+
 namespace detail {
+
+   genesis_state_type create_example_genesis() {
+      auto nathan_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+      dlog("Allocating all stake to ${key}", ("key", utilities::key_to_wif(nathan_key)));
+      genesis_state_type initial_state;
+      initial_state.initial_parameters.current_fees = fee_schedule::get_default();//->set_all_fees(GRAPHENE_BLOCKCHAIN_PRECISION);
+      initial_state.initial_active_witnesses = 10;
+      initial_state.initial_timestamp = time_point_sec(time_point::now().sec_since_epoch() /
+            initial_state.initial_parameters.block_interval *
+            initial_state.initial_parameters.block_interval);
+      for( int i = 0; i < initial_state.initial_active_witnesses; ++i )
+      {
+         auto name = "init"+fc::to_string(i);
+         initial_state.initial_accounts.emplace_back(name,
+                                                     nathan_key.get_public_key(),
+                                                     nathan_key.get_public_key(),
+                                                     true);
+         initial_state.initial_committee_candidates.push_back({name});
+         initial_state.initial_witness_candidates.push_back({name, nathan_key.get_public_key()});
+      }
+
+      initial_state.initial_accounts.emplace_back("nathan", nathan_key.get_public_key());
+      initial_state.initial_balances.push_back({nathan_key.get_public_key(),
+                                                GRAPHENE_SYMBOL,
+                                                GRAPHENE_MAX_SHARE_SUPPLY});
+      return initial_state;
+   }
 
    class application_impl : public net::node_delegate
    {
@@ -105,6 +138,7 @@ namespace detail {
             wsc->register_api(fc::api<graphene::app::login_api>(login));
             c->set_session_data( wsc );
          });
+         ilog("Configured websocket rpc to listen on ${ip}", ("ip",_options->at("rpc-endpoint").as<string>()));
          _websocket_server->listen( fc::ip::endpoint::from_string(_options->at("rpc-endpoint").as<string>()) );
          _websocket_server->start_accept();
       } FC_CAPTURE_AND_RETHROW() }
@@ -115,7 +149,10 @@ namespace detail {
          if( !_options->count("rpc-tls-endpoint") )
             return;
          if( !_options->count("server-pem") )
+         {
+            wlog( "Please specify a server-pem to use rpc-tls-endpoint" );
             return;
+         }
 
          string password = _options->count("server-pem-password") ? _options->at("server-pem-password").as<string>() : "";
          _websocket_tls_server = std::make_shared<fc::http::websocket_tls_server>( _options->at("server-pem").as<string>(), password );
@@ -128,6 +165,7 @@ namespace detail {
             wsc->register_api(fc::api<graphene::app::login_api>(login));
             c->set_session_data( wsc );
          });
+         ilog("Configured websocket TLS rpc to listen on ${ip}", ("ip",_options->at("rpc-tls-endpoint").as<string>()));
          _websocket_tls_server->listen( fc::ip::endpoint::from_string(_options->at("rpc-tls-endpoint").as<string>()) );
          _websocket_tls_server->start_accept();
       } FC_CAPTURE_AND_RETHROW() }
@@ -148,25 +186,58 @@ namespace detail {
          bool clean = !fc::exists(_data_dir / "blockchain/dblock");
          fc::create_directories(_data_dir / "blockchain/dblock");
 
-         auto nathan_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
-         genesis_allocation initial_allocation = {{graphene::chain::public_key_type(nathan_key.get_public_key()), 1}};
-         if( _options->count("genesis-json") )
-            initial_allocation = fc::json::from_file(_options->at("genesis-json").as<boost::filesystem::path>()).as<genesis_allocation>();
-         else
-            dlog("Allocating all stake to ${key}", ("key", utilities::key_to_wif(nathan_key)));
+         auto initial_state = [&] {
+            ilog("Initializing database...");
+            if( _options->count("genesis-json") )
+               return fc::json::from_file(_options->at("genesis-json").as<boost::filesystem::path>())
+                     .as<genesis_state_type>();
+            else
+               return create_example_genesis();
+         };
 
          if( _options->count("resync-blockchain") )
             _chain_db->wipe(_data_dir / "blockchain", true);
 
+         if( _options->count("checkpoint") )
+         {
+            auto cps = _options->at("checkpoint").as<vector<string>>();
+            flat_map<uint32_t,block_id_type> loaded_checkpoints;
+            loaded_checkpoints.reserve( cps.size() );
+            for( auto cp : cps )
+            {
+               auto item = fc::json::from_string(cp).as<std::pair<uint32_t,block_id_type> >();
+               loaded_checkpoints[item.first] = item.second;
+            }
+            _chain_db->add_checkpoints( loaded_checkpoints );
+         }
+
+
          if( _options->count("replay-blockchain") )
          {
             ilog("Replaying blockchain on user request.");
-            _chain_db->reindex(_data_dir/"blockchain", initial_allocation);
+            _chain_db->reindex(_data_dir/"blockchain", initial_state());
          } else if( clean )
-            _chain_db->open(_data_dir / "blockchain", initial_allocation);
+            _chain_db->open(_data_dir / "blockchain", initial_state);
          else {
             wlog("Detected unclean shutdown. Replaying blockchain...");
-            _chain_db->reindex(_data_dir / "blockchain", initial_allocation);
+            _chain_db->reindex(_data_dir / "blockchain", initial_state());
+         }
+
+         if( _options->count("apiaccess") )
+            _apiaccess = fc::json::from_file( _options->at("apiaccess").as<boost::filesystem::path>() )
+               .as<api_access>();
+         else
+         {
+            // TODO:  Remove this generous default access policy
+            // when the UI logs in properly
+            _apiaccess = api_access();
+            api_access_info wild_access;
+            wild_access.password_hash_b64 = "*";
+            wild_access.password_salt_b64 = "*";
+            wild_access.allowed_apis.push_back( "database_api" );
+            wild_access.allowed_apis.push_back( "network_broadcast_api" );
+            wild_access.allowed_apis.push_back( "history_api" );
+            _apiaccess.permission_map["*"] = wild_access;
          }
 
          reset_p2p_node(_data_dir);
@@ -174,20 +245,33 @@ namespace detail {
          reset_websocket_tls_server();
       } FC_CAPTURE_AND_RETHROW() }
 
+      optional< api_access_info > get_api_access_info(const string& username)const
+      {
+         optional< api_access_info > result;
+         auto it = _apiaccess.permission_map.find(username);
+         if( it == _apiaccess.permission_map.end() )
+         {
+            it = _apiaccess.permission_map.find("*");
+            if( it == _apiaccess.permission_map.end() )
+               return result;
+         }
+         return it->second;
+      }
+
       /**
        * If delegate has the item, the network has no need to fetch it.
        */
-      virtual bool has_item( const net::item_id& id ) override
-      { try {
-          if( id.item_type == graphene::net::block_message_type )
-          {
-             return _chain_db->is_known_block( id.item_hash );
-          }
-          else
-          {
-             return _chain_db->is_known_transaction( id.item_hash );
-          }
-      } FC_CAPTURE_AND_RETHROW( (id) ) }
+      virtual bool has_item(const net::item_id& id) override
+      {
+         try
+         {
+            if( id.item_type == graphene::net::block_message_type )
+               return _chain_db->is_known_block(id.item_hash);
+            else
+               return _chain_db->is_known_transaction(id.item_hash);
+         }
+         FC_CAPTURE_AND_RETHROW( (id) )
+      }
 
       /**
        * @brief allows the application to validate an item prior to broadcasting to peers.
@@ -197,18 +281,24 @@ namespace detail {
        *
        * @throws exception if error validating the item, otherwise the item is safe to broadcast on.
        */
-      virtual bool handle_block( const graphene::net::block_message& blk_msg, bool sync_mode ) override
+      virtual bool handle_block(const graphene::net::block_message& blk_msg, bool sync_mode) override
       { try {
          ilog("Got block #${n} from network", ("n", blk_msg.block.block_num()));
          try {
-            return _chain_db->push_block( blk_msg.block, _is_block_producer? database::skip_nothing : database::skip_transaction_signatures );
+            return _chain_db->push_block(blk_msg.block, _is_block_producer? database::skip_nothing : database::skip_transaction_signatures);
          } catch( const fc::exception& e ) {
             elog("Error when pushing block:\n${e}", ("e", e.to_detail_string()));
             throw;
          }
+
+         if( !_is_finished_syncing && !sync_mode )
+         {
+            _is_finished_syncing = true;
+            _self->syncing_finished();
+         }
       } FC_CAPTURE_AND_RETHROW( (blk_msg)(sync_mode) ) }
 
-      virtual bool handle_transaction( const graphene::net::trx_message& trx_msg, bool sync_mode ) override
+      virtual bool handle_transaction(const graphene::net::trx_message& trx_msg, bool sync_mode) override
       { try {
          ilog("Got transaction from network");
          _chain_db->push_transaction( trx_msg.trx );
@@ -227,7 +317,7 @@ namespace detail {
       virtual std::vector<item_hash_t> get_item_ids(uint32_t item_type,
                                                     const std::vector<item_hash_t>& blockchain_synopsis,
                                                     uint32_t& remaining_item_count,
-                                                    uint32_t limit ) override
+                                                    uint32_t limit) override
       { try {
          FC_ASSERT( item_type == graphene::net::block_message_type );
          vector<block_id_type>  result;
@@ -240,7 +330,7 @@ namespace detail {
          auto itr = blockchain_synopsis.rbegin();
          while( itr != blockchain_synopsis.rend() )
          {
-            if( _chain_db->is_known_block( *itr ) || *itr == block_id_type() )
+            if( _chain_db->is_known_block(*itr) || *itr == block_id_type() )
             {
                last_known_block_id = *itr;
                break;
@@ -257,25 +347,24 @@ namespace detail {
          if( block_header::num_from_id(result.back()) < _chain_db->head_block_num() )
             remaining_item_count = _chain_db->head_block_num() - block_header::num_from_id(result.back());
 
-         idump((blockchain_synopsis)(limit)(result)(remaining_item_count));
          return result;
       } FC_CAPTURE_AND_RETHROW( (blockchain_synopsis)(remaining_item_count)(limit) ) }
 
       /**
        * Given the hash of the requested data, fetch the body.
        */
-      virtual message get_item( const item_id& id ) override
+      virtual message get_item(const item_id& id) override
       { try {
          ilog("Request for item ${id}", ("id", id));
          if( id.item_type == graphene::net::block_message_type )
          {
-            auto opt_block = _chain_db->fetch_block_by_id( id.item_hash );
+            auto opt_block = _chain_db->fetch_block_by_id(id.item_hash);
             if( !opt_block )
                elog("Couldn't find block ${id} -- corresponding ID in our chain is ${id2}",
                     ("id", id.item_hash)("id2", _chain_db->get_block_id_for_num(block_header::num_from_id(id.item_hash))));
             FC_ASSERT( opt_block.valid() );
             ilog("Serving up block #${num}", ("num", opt_block->block_num()));
-            return block_message( std::move(*opt_block) );
+            return block_message(std::move(*opt_block));
          }
          return trx_message( _chain_db->get_recent_transaction( id.item_hash ) );
       } FC_CAPTURE_AND_RETHROW( (id) ) }
@@ -300,18 +389,18 @@ namespace detail {
        *     &c.
        *   the last item in the list will be the hash of the most recent block on our preferred chain
        */
-      virtual std::vector<item_hash_t> get_blockchain_synopsis( uint32_t item_type,
-                                                                const graphene::net::item_hash_t& reference_point,
-                                                                uint32_t number_of_blocks_after_reference_point ) override
+      virtual std::vector<item_hash_t> get_blockchain_synopsis(uint32_t item_type,
+                                                               const graphene::net::item_hash_t& reference_point,
+                                                               uint32_t number_of_blocks_after_reference_point) override
       { try {
          std::vector<item_hash_t> result;
          result.reserve(30);
          auto head_block_num = _chain_db->head_block_num();
-         result.push_back( _chain_db->head_block_id() );
+         result.push_back(_chain_db->head_block_id());
          auto current = 1;
          while( current < head_block_num )
          {
-            result.push_back( _chain_db->get_block_id_for_num( head_block_num - current ) );
+            result.push_back(_chain_db->get_block_id_for_num(head_block_num - current));
             current = current*2;
          }
          std::reverse( result.begin(), result.end() );
@@ -326,7 +415,7 @@ namespace detail {
        * @param item_count the number of items known to the node that haven't been sent to handle_item() yet.
        *                   After `item_count` more calls to handle_item(), the node will be in sync
        */
-      virtual void     sync_status( uint32_t item_type, uint32_t item_count ) override
+      virtual void sync_status(uint32_t item_type, uint32_t item_count) override
       {
          // any status reports to GUI go here
       }
@@ -334,7 +423,7 @@ namespace detail {
       /**
        * Call any time the number of connected peers changes.
        */
-      virtual void     connection_count_changed( uint32_t c ) override
+      virtual void connection_count_changed(uint32_t c) override
       {
         // any status reports to GUI go here
       }
@@ -380,6 +469,7 @@ namespace detail {
 
       fc::path _data_dir;
       const bpo::variables_map* _options = nullptr;
+      api_access _apiaccess;
 
       std::shared_ptr<graphene::chain::database>            _chain_db;
       std::shared_ptr<graphene::net::node>                  _p2p_network;
@@ -387,6 +477,8 @@ namespace detail {
       std::shared_ptr<fc::http::websocket_tls_server>  _websocket_tls_server;
 
       std::map<string, std::shared_ptr<abstract_plugin>> _plugins;
+
+      bool _is_finished_syncing = false;
    };
 
 }
@@ -399,13 +491,11 @@ application::~application()
 {
    if( my->_p2p_network )
    {
-      ilog("Closing p2p node");
       my->_p2p_network->close();
       my->_p2p_network.reset();
    }
    if( my->_chain_db )
    {
-      ilog("Closing chain database");
       my->_chain_db->close();
    }
 }
@@ -416,14 +506,20 @@ void application::set_program_options(boost::program_options::options_descriptio
    configuration_file_options.add_options()
          ("p2p-endpoint", bpo::value<string>(), "Endpoint for P2P node to listen on")
          ("seed-node,s", bpo::value<vector<string>>()->composing(), "P2P nodes to connect to on startup (may specify multiple times)")
+         ("checkpoint,c", bpo::value<vector<string>>()->composing(), "Pairs of [BLOCK_NUM,BLOCK_ID] that should be enforced as checkpoints.")
          ("rpc-endpoint", bpo::value<string>()->implicit_value("127.0.0.1:8090"), "Endpoint for websocket RPC to listen on")
          ("rpc-tls-endpoint", bpo::value<string>()->implicit_value("127.0.0.1:8089"), "Endpoint for TLS websocket RPC to listen on")
          ("server-pem,p", bpo::value<string>()->implicit_value("server.pem"), "The TLS certificate file for this server")
          ("server-pem-password,P", bpo::value<string>()->implicit_value(""), "Password for this certificate")
          ("genesis-json", bpo::value<boost::filesystem::path>(), "File to read Genesis State from")
+         ("api-access", bpo::value<boost::filesystem::path>(), "JSON file specifying API permissions")
          ;
    command_line_options.add(configuration_file_options);
    command_line_options.add_options()
+         ("create-genesis-json", bpo::value<boost::filesystem::path>(),
+          "Path to create a Genesis State at. If a well-formed JSON file exists at the path, it will be parsed and any "
+          "missing fields in a Genesis State will be added, and any unknown fields will be removed. If no file or an "
+          "invalid file is found, it will be replaced with an example Genesis State.")
          ("replay-blockchain", "Rebuild object graph by replaying all blocks")
          ("resync-blockchain", "Delete all blocks and re-sync with network from scratch")
          ;
@@ -435,6 +531,31 @@ void application::initialize(const fc::path& data_dir, const boost::program_opti
 {
    my->_data_dir = data_dir;
    my->_options = &options;
+
+   if( options.count("create-genesis-json") )
+   {
+      fc::path genesis_out = options.at("create-genesis-json").as<boost::filesystem::path>();
+      genesis_state_type genesis_state = detail::create_example_genesis();
+      if( fc::exists(genesis_out) )
+      {
+         try {
+            genesis_state = fc::json::from_file(genesis_out).as<genesis_state_type>();
+         } catch(const fc::exception& e) {
+            std::cerr << "Unable to parse existing genesis file:\n" << e.to_string()
+                      << "\nWould you like to replace it? [y/N] ";
+            char response = std::cin.get();
+            if( toupper(response) != 'Y' )
+               return;
+         }
+
+         std::cerr << "Updating genesis state in file " << genesis_out.generic_string() << "\n";
+      } else {
+         std::cerr << "Creating example genesis state in file " << genesis_out.generic_string() << "\n";
+      }
+      fc::json::save_to_file(genesis_state, genesis_out);
+
+      std::exit(EXIT_SUCCESS);
+   }
 }
 
 void application::startup()
@@ -460,6 +581,16 @@ std::shared_ptr<chain::database> application::chain_database() const
 void application::set_block_production(bool producing_blocks)
 {
    my->_is_block_producer = producing_blocks;
+}
+
+optional< api_access_info > application::get_api_access_info( const string& username )const
+{
+   return my->get_api_access_info( username );
+}
+
+bool application::is_finished_syncing() const
+{
+   return my->_is_finished_syncing;
 }
 
 void graphene::app::application::add_plugin(const string& name, std::shared_ptr<graphene::app::abstract_plugin> p)

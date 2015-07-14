@@ -17,10 +17,16 @@
  */
 #pragma once
 #include <graphene/db/object.hpp>
-#include <graphene/db/level_map.hpp>
+#include <graphene/db/type_serializer.hpp>
+#include <fc/interprocess/file_mapping.hpp>
+#include <fc/io/raw.hpp>
+#include <fc/io/json.hpp>
+#include <fc/crypto/sha256.hpp>
+#include <fstream>
 
 namespace graphene { namespace db {
    class object_database;
+   using fc::path;
 
    /**
     * @class index_observer
@@ -80,9 +86,12 @@ namespace graphene { namespace db {
          virtual const object&  create( const std::function<void(object&)>& constructor ) = 0;
 
          /**
-          *  Opens the index loading objects from a level_db database
+          *  Opens the index loading objects from a file
           */
-         virtual void open( const shared_ptr<graphene::db::level_map<object_id_type, vector<char> >>& db ){}
+         virtual void open( const fc::path& db ) = 0;
+         virtual void save( const fc::path& db ) = 0;
+
+
 
          /** @return the object with id or nullptr if not found */
          virtual const object*      find( object_id_type id )const = 0;
@@ -117,6 +126,16 @@ namespace graphene { namespace db {
 
    };
 
+   class secondary_index
+   {
+      public:
+         virtual ~secondary_index(){};
+         virtual void object_inserted( const object& obj ){};
+         virtual void object_removed( const object& obj ){};
+         virtual void about_to_modify( const object& before ){};
+         virtual void object_modified( const object& after  ){};
+   };
+
    /**
     *   Defines the common implementation
     */
@@ -137,12 +156,31 @@ namespace graphene { namespace db {
          /** called just after obj is modified */
          void on_modify( const object& obj );
 
+         template<typename T>
+         void add_secondary_index()
+         {
+            _sindex.emplace_back( new T() );
+         }
+
+         template<typename T>
+         const T& get_secondary_index()const
+         {
+            for( const auto& item : _sindex )
+            {
+               const T* result = dynamic_cast<const T*>(item.get());
+               if( result != nullptr ) return *result;
+            }
+            FC_THROW_EXCEPTION( fc::assert_exception, "invalid index type" );
+         }
+
       protected:
-         vector< shared_ptr<index_observer> > _observers;
+         vector< shared_ptr<index_observer> >   _observers;
+         vector< unique_ptr<secondary_index> >  _sindex;
 
       private:
          object_database& _db;
    };
+
 
    /**
     * @class primary_index
@@ -170,31 +208,70 @@ namespace graphene { namespace db {
          virtual void           use_next_id()override                    { ++_next_id.number;  }
          virtual void           set_next_id( object_id_type id )override { _next_id = id;      }
 
-         virtual const object&  load( const std::vector<char>& data )override
+         fc::sha256 get_object_version()const
          {
-            return DerivedIndex::insert( fc::raw::unpack<object_type>( data ) );
+            std::string desc = "1.0";//get_type_description<object_type>();
+            return fc::sha256::hash(desc);
          }
 
-         virtual void open( const shared_ptr<graphene::db::level_map<object_id_type, vector<char> >>& db )override
-         {
-            auto first = object_id_type( DerivedIndex::object_type::space_id, DerivedIndex::object_type::type_id, 0 );
-            auto last = object_id_type( DerivedIndex::object_type::space_id, DerivedIndex::object_type::type_id+1, 0 );
-            auto itr = db->lower_bound( first );
-            while( itr.valid() && itr.key() < last )
-            {
-               load( itr.value() );
-               ++itr;
-            }
+         virtual void open( const path& db )override
+         { 
+            if( !fc::exists( db ) ) return;
+            fc::file_mapping fm( db.generic_string().c_str(), fc::read_only );
+            fc::mapped_region mr( fm, fc::read_only, 0, fc::file_size(db) );
+            fc::datastream<const char*> ds( (const char*)mr.get_address(), mr.get_size() );
+            fc::sha256 open_ver;
+
+            fc::raw::unpack(ds, _next_id);
+            fc::raw::unpack(ds, open_ver);
+            FC_ASSERT( open_ver == get_object_version(), "Incompatible Version, the serialization of objects in this index has changed" );
+            try {
+               vector<char> tmp;
+               while( true ) 
+               {
+                  fc::raw::unpack( ds, tmp );
+                  load( tmp );
+               }
+            } catch ( const fc::exception&  ){}
          }
+
+         virtual void save( const path& db ) override 
+         {
+            std::ofstream out( db.generic_string(), 
+                               std::ofstream::binary | std::ofstream::out | std::ofstream::trunc );
+            FC_ASSERT( out );
+            auto ver  = get_object_version();
+            fc::raw::pack( out, _next_id );
+            fc::raw::pack( out, ver );
+            this->inspect_all_objects( [&]( const object& o ) {
+                auto vec = fc::raw::pack( static_cast<const object_type&>(o) );
+                auto packed_vec = fc::raw::pack( vec );
+                out.write( packed_vec.data(), packed_vec.size() );
+            });
+         }
+
+         virtual const object&  load( const std::vector<char>& data )override
+         {
+            const auto& result = DerivedIndex::insert( fc::raw::unpack<object_type>( data ) );
+            for( const auto& item : _sindex )
+               item->object_inserted( result );
+            return result;
+         }
+
+
          virtual const object&  create(const std::function<void(object&)>& constructor )override
          {
             const auto& result = DerivedIndex::create( constructor );
+            for( const auto& item : _sindex )
+               item->object_inserted( result );
             on_add( result );
             return result;
          }
 
          virtual void  remove( const object& obj ) override
          {
+            for( const auto& item : _sindex )
+               item->object_removed( obj );
             on_remove(obj);
             DerivedIndex::remove(obj);
          }
@@ -202,7 +279,11 @@ namespace graphene { namespace db {
          virtual void modify( const object& obj, const std::function<void(object&)>& m )override
          {
             save_undo( obj );
+            for( const auto& item : _sindex )
+               item->about_to_modify( obj );
             DerivedIndex::modify( obj, m );
+            for( const auto& item : _sindex )
+               item->object_modified( obj );
             on_modify( obj );
          }
 

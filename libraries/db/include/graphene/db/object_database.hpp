@@ -20,9 +20,6 @@
 #include <graphene/db/index.hpp>
 #include <graphene/db/undo_database.hpp>
 
-#include <graphene/db/level_map.hpp>
-#include <graphene/db/level_pod_map.hpp>
-
 #include <fc/log/logger.hpp>
 
 #include <map>
@@ -91,6 +88,19 @@ namespace graphene { namespace db {
          ///@}
 
          template<typename T>
+         static const T& cast( const object& obj )
+         {
+            assert( nullptr != dynamic_cast<const T*>(&obj) );
+            return static_cast<const T&>(obj);
+         }
+         template<typename T>
+         static T& cast( object& obj )
+         {
+            assert( nullptr != dynamic_cast<T*>(&obj) );
+            return static_cast<T&>(obj);
+         }
+
+         template<typename T>
          const T& get( object_id_type id )const
          {
             const object& obj = get_object( id );
@@ -112,7 +122,7 @@ namespace graphene { namespace db {
          const T& get( object_id<SpaceID,TypeID,T> id )const { return get<T>(id); }
 
          template<typename IndexType>
-         const IndexType* add_index()
+         IndexType* add_index()
          {
             typedef typename IndexType::object_type ObjectType;
             if( _index[ObjectType::space_id].size() <= ObjectType::type_id  )
@@ -120,7 +130,7 @@ namespace graphene { namespace db {
             assert(!_index[ObjectType::space_id][ObjectType::type_id]);
             unique_ptr<index> indexptr( new IndexType(*this) );
             _index[ObjectType::space_id][ObjectType::type_id] = std::move(indexptr);
-            return static_cast<const IndexType*>(_index[ObjectType::space_id][ObjectType::type_id].get());
+            return static_cast<IndexType*>(_index[ObjectType::space_id][ObjectType::type_id].get());
          }
 
          void pop_undo();
@@ -150,7 +160,6 @@ namespace graphene { namespace db {
 
          fc::path                                                  _data_dir;
          vector< vector< unique_ptr<index> > >                     _index;
-         shared_ptr<db::level_map<object_id_type, vector<char> >>  _object_id_to_object;
    };
 
 } } // graphene::db

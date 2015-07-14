@@ -38,10 +38,9 @@ asset database::get_balance(const account_object& owner, const asset_object& ass
    return get_balance(owner.get_id(), asset_obj.get_id());
 }
 
-// TODO: this method should be removed
-asset database::get_balance( const account_object* owner, const asset_object* asset_obj )const
+string database::to_pretty_string( const asset& a )const
 {
-   return get_balance(*owner, *asset_obj);
+   return a.asset_id(*this).amount_to_pretty_string(a.amount);
 }
 
 void database::adjust_balance(account_id_type account, asset delta )
@@ -53,14 +52,18 @@ void database::adjust_balance(account_id_type account, asset delta )
    auto itr = index.find(boost::make_tuple(account, delta.asset_id));
    if(itr == index.end())
    {
-      FC_ASSERT(delta.amount > 0);
+      FC_ASSERT( delta.amount > 0, "Insufficient Balance: ${a}'s balance of ${b} is less than required ${r}", 
+                 ("a",account(*this).name)
+                 ("b",to_pretty_string(asset(0,delta.asset_id)))
+                 ("r",to_pretty_string(-delta)));
       create<account_balance_object>([account,&delta](account_balance_object& b) {
          b.owner = account;
          b.asset_type = delta.asset_id;
          b.balance = delta.amount.value;
       });
    } else {
-      FC_ASSERT(delta.amount > 0 || itr->get_balance() >= -delta);
+      if( delta.amount < 0 )
+         FC_ASSERT( itr->get_balance() >= -delta, "Insufficient Balance: ${a}'s balance of ${b} is less than required ${r}", ("a",account(*this).name)("b",to_pretty_string(itr->get_balance()))("r",to_pretty_string(-delta)));
       modify(*itr, [delta](account_balance_object& b) {
          b.adjust_balance(delta);
       });
@@ -71,12 +74,6 @@ void database::adjust_balance(account_id_type account, asset delta )
 void database::adjust_balance(const account_object& account, asset delta )
 {
    adjust_balance( account.id, delta);
-}
-
-// TODO:  This method should be removed
-void database::adjust_balance(const account_object* account, asset delta)
-{
-   adjust_balance(*account, delta);
 }
 
 void database::adjust_core_in_orders( const account_object& acnt, asset delta )
@@ -96,6 +93,17 @@ void database::deposit_cashback(const account_object& acct, share_type amount, b
 
    if( amount == 0 )
       return;
+
+   if( acct.get_id() == GRAPHENE_COMMITTEE_ACCOUNT || acct.get_id() == GRAPHENE_WITNESS_ACCOUNT ||
+       acct.get_id() == GRAPHENE_RELAXED_COMMITTEE_ACCOUNT || acct.get_id() == GRAPHENE_NULL_ACCOUNT ||
+       acct.get_id() == GRAPHENE_TEMP_ACCOUNT )
+   {
+      // The blockchain's accounts do not get cashback; it simply goes to the reserve pool.
+      modify(get(asset_id_type()).dynamic_asset_data_id(*this), [amount](asset_dynamic_data_object& d) {
+         d.current_supply -= amount;
+      });
+      return;
+   }
 
    uint32_t global_vesting_seconds = get_global_properties().parameters.cashback_vesting_period_seconds;
    fc::time_point_sec now = head_block_time();

@@ -9,6 +9,10 @@ compile_commands.json
 
 libraries/utilities/git_revision.cpp
 
+libraries/wallet/Doxyfile
+libraries/wallet/api_documentation.cpp
+libraries/wallet/doxygen
+
 programs/cli_wallet/cli_wallet
 programs/js_operation_serializer/js_operation_serializer
 programs/witness_node/witness_node
@@ -23,3 +27,12 @@ doxygen
 
 wallet.json
 witness_node_data_dir
+
+*.wallet
+
+programs/witness_node/object_database/*
+
+object_database/*
+
+*.pyc
+*.pyo

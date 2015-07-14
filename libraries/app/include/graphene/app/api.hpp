@@ -16,19 +16,25 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
-#include <graphene/chain/types.hpp>
+#include <graphene/chain/protocol/types.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/operation_history_object.hpp>
 #include <graphene/chain/asset_object.hpp>
-#include <graphene/chain/limit_order_object.hpp>
-#include <graphene/chain/short_order_object.hpp>
-#include <graphene/chain/key_object.hpp>
+#include <graphene/chain/market_evaluator.hpp>
+#include <graphene/chain/committee_member_object.hpp>
+#include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/proposal_object.hpp>
+#include <graphene/chain/balance_object.hpp>
 #include <graphene/net/node.hpp>
+
+#include <graphene/market_history/market_history_plugin.hpp>
+
 #include <fc/api.hpp>
 
 namespace graphene { namespace app {
    using namespace graphene::chain;
+   using namespace graphene::market_history;
 
    class application;
 
@@ -37,7 +43,7 @@ namespace graphene { namespace app {
     *
     * This API exposes accessors on the database which query state tracked by a blockchain validating node. This API is
     * read-only; all modifications to the database must be performed via transactions. Transactions are broadcast via
-    * the @ref network_api.
+    * the @ref network_broadcast_api.
     */
    class database_api
    {
@@ -64,6 +70,12 @@ namespace graphene { namespace app {
           * @return the referenced block, or null if no matching block was found
           */
          optional<signed_block>            get_block(uint32_t block_num)const;
+
+         /** 
+          * @brief used to fetch an individual transaction.
+          */
+         processed_transaction   get_transaction( uint32_t block_num, uint32_t trx_in_block )const;
+
          /**
           * @brief Retrieve the current @ref global_property_object
           */
@@ -72,14 +84,6 @@ namespace graphene { namespace app {
           * @brief Retrieve the current @ref dynamic_global_property_object
           */
          dynamic_global_property_object get_dynamic_global_properties()const;
-         /**
-          * @brief Get a list of keys by ID
-          * @param key_ids IDs of the keys to retrieve
-          * @return The keys corresponding to the provided IDs
-          *
-          * This function has semantics identical to @ref get_objects
-          */
-         vector<optional<key_object>> get_keys(const vector<key_id_type>& key_ids)const;
          /**
           * @brief Get a list of accounts by ID
           * @param account_ids IDs of the accounts to retrieve
@@ -143,13 +147,6 @@ namespace graphene { namespace app {
           */
          vector<limit_order_object> get_limit_orders(asset_id_type a, asset_id_type b, uint32_t limit)const;
          /**
-          * @brief Get short orders in a given asset
-          * @param a ID of asset being sold
-          * @param limit Maximum number of orders to retrieve
-          * @return The short orders, ordered from least price to greatest
-          */
-         vector<short_order_object> get_short_orders(asset_id_type a, uint32_t limit)const;
-         /**
           * @brief Get call orders in a given asset
           * @param a ID of asset being called
           * @param limit Maximum number of orders to retrieve
@@ -171,6 +168,58 @@ namespace graphene { namespace app {
           * @return The assets found
           */
          vector<asset_object> list_assets(const string& lower_bound_symbol, uint32_t limit)const;
+
+         /**
+          * @brief Get the committee_member owned by a given account
+          * @param account The ID of the account whose committee_member should be retrieved
+          * @return The committee_member object, or null if the account does not have a committee_member
+          */
+         fc::optional<committee_member_object> get_committee_member_by_account(account_id_type account)const;
+         /**
+          * @brief Get the witness owned by a given account
+          * @param account The ID of the account whose witness should be retrieved
+          * @return The witness object, or null if the account does not have a witness
+          */
+         fc::optional<witness_object> get_witness_by_account(account_id_type account)const;
+
+         /**
+          * @brief Get the total number of witnesses registered with the blockchain
+          */
+         uint64_t get_witness_count()const;
+
+         /**
+          * @brief Get names and IDs for registered witnesses
+          * @param lower_bound_name Lower bound of the first name to return
+          * @param limit Maximum number of results to return -- must not exceed 1000
+          * @return Map of witness names to corresponding IDs
+          */
+         map<string, witness_id_type> lookup_witness_accounts(const string& lower_bound_name, uint32_t limit)const;
+         
+         /**
+          * @brief Get names and IDs for registered committee_members
+          * @param lower_bound_name Lower bound of the first name to return
+          * @param limit Maximum number of results to return -- must not exceed 1000
+          * @return Map of committee_member names to corresponding IDs
+          */
+         map<string, committee_member_id_type> lookup_committee_member_accounts(const string& lower_bound_name, uint32_t limit)const;
+         
+         /**
+          * @brief Get a list of witnesses by ID
+          * @param witness_ids IDs of the witnesses to retrieve
+          * @return The witnesses corresponding to the provided IDs
+          *
+          * This function has semantics identical to @ref get_objects
+          */
+         vector<optional<witness_object>> get_witnesses(const vector<witness_id_type>& witness_ids)const;
+
+         /**
+          * @brief Get a list of committee_members by ID
+          * @param committee_member_ids IDs of the committee_members to retrieve
+          * @return The committee_members corresponding to the provided IDs
+          *
+          * This function has semantics identical to @ref get_objects
+          */
+         vector<optional<committee_member_object>> get_committee_members(const vector<committee_member_id_type>& committee_member_ids)const;
 
          /**
           * @group Push Notification Methods
@@ -217,6 +266,26 @@ namespace graphene { namespace app {
 
          /// @brief Get a hexdump of the serialized binary form of a transaction
          std::string get_transaction_hex(const signed_transaction& trx)const;
+
+         /**
+          *  @return the set of proposed transactions relevant to the specified account id.
+          */
+         vector<proposal_object> get_proposed_transactions( account_id_type id )const;
+
+         /**
+          *  @return all accounts that referr to the key or account id in their owner or active authorities.
+          */
+         vector<account_id_type> get_account_references( account_id_type account_id )const;
+         vector<account_id_type> get_key_references( public_key_type account_id )const;
+
+         /**
+          *  @return all open margin positions for a given account id.
+          */
+         vector<call_order_object> get_margin_positions( const account_id_type& id )const;
+
+         /** @return all unclaimed balance objects for a set of addresses */
+         vector<balance_object>  get_balance_objects( const vector<address>& addrs )const;
+
       private:
          /** called every time a block is applied to report the objects that were changed */
          void on_objects_changed(const vector<object_id_type>& ids);
@@ -237,35 +306,46 @@ namespace graphene { namespace app {
     */
    class history_api
    {
-   public:
-      history_api(application& app):_app(app){}
+      public:
+         history_api(application& app):_app(app){}
 
-      /**
-       * @brief Get operations relevant to the specificed account
-       * @param account The account whose history should be queried
-       * @param stop ID of the earliest operation to retrieve
-       * @param limit Maximum number of operations to retrieve (must not exceed 100)
-       * @param start ID of the most recent operation to retrieve
-       * @return A list of operations performed by account, ordered from most recent to oldest.
-       */
-      vector<operation_history_object> get_account_history(account_id_type account,
-                                                           operation_history_id_type stop = operation_history_id_type(),
-                                                           int limit = 100,
-                                                           operation_history_id_type start = operation_history_id_type())const;
+         /**
+          * @brief Get operations relevant to the specificed account
+          * @param account The account whose history should be queried
+          * @param stop ID of the earliest operation to retrieve
+          * @param limit Maximum number of operations to retrieve (must not exceed 100)
+          * @param start ID of the most recent operation to retrieve
+          * @return A list of operations performed by account, ordered from most recent to oldest.
+          */
+         vector<operation_history_object> get_account_history(account_id_type account,
+                                                              operation_history_id_type stop = operation_history_id_type(),
+                                                              unsigned limit = 100,
+                                                              operation_history_id_type start = operation_history_id_type())const;
 
-   private:
-        application&              _app;
+         vector<bucket_object> get_market_history( asset_id_type a, asset_id_type b, uint32_t bucket_seconds, 
+                                                   fc::time_point_sec start, fc::time_point_sec end )const;
+         flat_set<uint32_t>    get_market_history_buckets()const;
+      private:
+           application&              _app;
    };
 
    /**
-    * @brief The network_api class implements the RPC API for the network
-    *
-    * This API has methods to query the network status, connect to new peers, and send transactions.
+    * @brief The network_broadcast_api class allows broadcasting of transactions.
     */
-   class network_api
+   class network_broadcast_api
    {
       public:
-         network_api(application& a):_app(a){}
+         network_broadcast_api(application& a);
+
+         struct transaction_confirmation
+         {
+            transaction_id_type   id;
+            uint32_t              block_num;
+            uint32_t              trx_num;
+            processed_transaction trx;
+         };
+
+         typedef std::function<void(variant/*transaction_confirmation*/)> confirmation_callback;
 
          /**
           * @brief Broadcast a transaction to the network
@@ -275,18 +355,55 @@ namespace graphene { namespace app {
           * apply locally, an error will be thrown and the transaction will not be broadcast.
           */
          void broadcast_transaction(const signed_transaction& trx);
+
+         /** this version of broadcast transaction registers a callback method that will be called when the transaction is
+          * included into a block.  The callback method includes the transaction id, block number, and transaction number in the
+          * block.
+          */
+         void broadcast_transaction_with_callback( confirmation_callback cb, const signed_transaction& trx);
+
+         /**
+          * @brief Not reflected, thus not accessible to API clients.
+          *
+          * This function is registered to receive the applied_block
+          * signal from the chain database when a block is received.
+          * It then dispatches callbacks to clients who have requested
+          * to be notified when a particular txid is included in a block.
+          */
+         void on_applied_block( const signed_block& b );
+      private:
+         boost::signals2::scoped_connection             _applied_block_connection;
+         map<transaction_id_type,confirmation_callback> _callbacks;
+         application&                                   _app;
+   };
+
+   /**
+    * @brief The network_node_api class allows maintenance of p2p connections.
+    */
+   class network_node_api
+   {
+      public:
+         network_node_api(application& a);
+
          /**
           * @brief add_node Connect to a new peer
           * @param ep The IP/Port of the peer to connect to
           */
          void add_node(const fc::ip::endpoint& ep);
+
          /**
           * @brief Get status of all current connections to peers
-          */
+          * @brief Not reflected, thus not accessible to API clients.
+          *
+          * This function is registered to receive the applied_block
+          * signal from the chain database when a block is received.
+          * It then dispatches callbacks to clients who have requested
+          * to be notified when a particular txid is included in a block.
+           */
          std::vector<net::peer_status> get_connected_peers() const;
 
       private:
-         application&              _app;
+         application&                                   _app;
    };
 
    /**
@@ -310,29 +427,38 @@ namespace graphene { namespace app {
           * has sucessfully authenticated.
           */
          bool login(const string& user, const string& password);
-         /// @brief Retrieve the network API
-         fc::api<network_api> network()const;
+         /// @brief Retrieve the network broadcast API
+         fc::api<network_broadcast_api> network_broadcast()const;
          /// @brief Retrieve the database API
          fc::api<database_api> database()const;
          /// @brief Retrieve the history API
          fc::api<history_api> history()const;
+         /// @brief Retrieve the network node API
+         fc::api<network_node_api> network_node()const;
 
       private:
+         /// @brief Called to enable an API, not reflected.
+         void enable_api( const string& api_name );
+
          application&                      _app;
          optional< fc::api<database_api> > _database_api;
-         optional< fc::api<network_api> >  _network_api;
+         optional< fc::api<network_broadcast_api> > _network_broadcast_api;
+         optional< fc::api<network_node_api> > _network_node_api;
          optional< fc::api<history_api> >  _history_api;
    };
 
 }}  // graphene::app
 
+FC_REFLECT( graphene::app::network_broadcast_api::transaction_confirmation,
+        (id)(block_num)(trx_num)(trx) )
+
 FC_API(graphene::app::database_api,
        (get_objects)
        (get_block_header)
        (get_block)
+       (get_transaction)
        (get_global_properties)
        (get_dynamic_global_properties)
-       (get_keys)
        (get_accounts)
        (get_assets)
        (lookup_account_names)
@@ -342,22 +468,45 @@ FC_API(graphene::app::database_api,
        (get_named_account_balances)
        (lookup_asset_symbols)
        (get_limit_orders)
-       (get_short_orders)
        (get_call_orders)
        (get_settle_orders)
        (list_assets)
+       (get_committee_member_by_account)
+       (get_witnesses)
+       (get_committee_members)
+       (get_witness_by_account)
+       (get_witness_count)
+       (lookup_witness_accounts)
+       (lookup_committee_member_accounts)
        (subscribe_to_objects)
        (unsubscribe_from_objects)
        (subscribe_to_market)
        (unsubscribe_from_market)
        (cancel_all_subscriptions)
        (get_transaction_hex)
+       (get_proposed_transactions)
+       (get_account_references)
+       (get_key_references)
+       (get_margin_positions)
+       (get_balance_objects)
      )
-FC_API(graphene::app::history_api, (get_account_history))
-FC_API(graphene::app::network_api, (broadcast_transaction)(add_node)(get_connected_peers))
+FC_API(graphene::app::history_api,
+       (get_account_history)
+       (get_market_history)
+       (get_market_history_buckets)
+     )
+FC_API(graphene::app::network_broadcast_api,
+       (broadcast_transaction)
+       (broadcast_transaction_with_callback)
+     )
+FC_API(graphene::app::network_node_api,
+       (add_node)
+       (get_connected_peers)
+     )
 FC_API(graphene::app::login_api,
        (login)
-       (network)
+       (network_broadcast)
        (database)
        (history)
+       (network_node)
      )

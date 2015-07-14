@@ -19,9 +19,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include <graphene/chain/database.hpp>
-#include <graphene/chain/operations.hpp>
 
-#include <graphene/chain/key_object.hpp>
 
 #include <fc/crypto/digest.hpp>
 #include <fc/reflect/variant.hpp>
@@ -63,9 +61,7 @@ BOOST_AUTO_TEST_CASE( json_tests )
 {
    try {
    auto var = fc::json::variants_from_string( "10.6 " );
-   wdump((var));
    var = fc::json::variants_from_string( "10.5" );
-   wdump((var));
    } catch ( const fc::exception& e )
    {
       edump((e.to_detail_string()));
