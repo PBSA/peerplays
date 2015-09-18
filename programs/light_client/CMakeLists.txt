@@ -13,11 +13,33 @@ find_package(Qt5Quick)
 
 file(GLOB QML qml/*)
 
-qt5_add_resources(QML_QRC qml/qml.qrc)
+# Skip building QRC in debug mode, since we access the QML files directly on disk in debug mode
+if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+    qt5_add_resources(QML_QRC qml/qml.qrc)
+endif()
 
-add_executable(light_client ClientDataModel.cpp ClientDataModel.hpp main.cpp ${QML_QRC} ${QML})
+add_executable(light_client 
+        Wallet.cpp 
+        ChainDataModel.cpp 
+        Operations.cpp 
+        GrapheneApplication.cpp 
+        GrapheneObject.cpp 
+        Asset.cpp 
+        Account.cpp 
+        Balance.cpp 
+        Transaction.cpp
+        main.cpp ${QML_QRC} ${QML})
+
 if (CMAKE_VERSION VERSION_LESS 3.0)
     add_dependencies(light_client gen_qrc)
 endif()
 
-target_link_libraries(light_client PRIVATE Qt5::Core Qt5::Widgets Qt5::Quick graphene_chain graphene_utilities fc graphene_app )
+target_link_libraries(light_client PRIVATE Qt5::Core Qt5::Widgets Qt5::Quick graphene_chain graphene_egenesis_brief graphene_utilities fc graphene_app )
+
+install( TARGETS
+   light_client
+
+   RUNTIME DESTINATION bin
+   LIBRARY DESTINATION lib
+   ARCHIVE DESTINATION lib
+)

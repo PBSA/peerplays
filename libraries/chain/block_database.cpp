@@ -18,6 +18,7 @@
 #include <graphene/chain/block_database.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <fc/io/raw.hpp>
+#include <fc/smart_ref_impl.hpp>
 
 namespace graphene { namespace chain {
 
@@ -67,8 +68,14 @@ void block_database::flush()
   _block_num_to_pos.flush();
 }
 
-void block_database::store( const block_id_type& id, const signed_block& b )
+void block_database::store( const block_id_type& _id, const signed_block& b )
 {
+   block_id_type id = _id;
+   if( id == block_id_type() )
+   {
+      id = b.id();
+      elog( "id argument of block_database::store() was not initialized for block ${id}", ("id", id) );
+   }
    auto num = block_header::num_from_id(id);
    _block_num_to_pos.seekp( sizeof( index_entry ) * num );
    index_entry e;
@@ -102,6 +109,9 @@ void block_database::remove( const block_id_type& id )
 
 bool block_database::contains( const block_id_type& id )const
 {
+   if( id == block_id_type() )
+      return false;
+
    index_entry e;
    auto index_pos = sizeof(e)*block_header::num_from_id(id);
    _block_num_to_pos.seekg( 0, _block_num_to_pos.end );
@@ -110,11 +120,12 @@ bool block_database::contains( const block_id_type& id )const
    _block_num_to_pos.seekg( index_pos );
    _block_num_to_pos.read( (char*)&e, sizeof(e) );
 
-   return e.block_id == id;
+   return e.block_id == id && e.block_size > 0;
 }
 
 block_id_type block_database::fetch_block_id( uint32_t block_num )const
 {
+   assert( block_num != 0 );
    index_entry e;
    auto index_pos = sizeof(e)*block_num;
    _block_num_to_pos.seekg( 0, _block_num_to_pos.end );
@@ -124,6 +135,7 @@ block_id_type block_database::fetch_block_id( uint32_t block_num )const
    _block_num_to_pos.seekg( index_pos );
    _block_num_to_pos.read( (char*)&e, sizeof(e) );
 
+   FC_ASSERT( e.block_id != block_id_type(), "Empty block_id in block_database (maybe corrupt on disk?)" );
    return e.block_id;
 }
 
@@ -144,7 +156,8 @@ optional<signed_block> block_database::fetch_optional( const block_id_type& id )
 
       vector<char> data( e.block_size );
       _blocks.seekg( e.block_pos );
-      _blocks.read( data.data(), e.block_size );
+      if (e.block_size)
+         _blocks.read( data.data(), e.block_size );
       auto result = fc::raw::unpack<signed_block>(data);
       FC_ASSERT( result.id() == e.block_id );
       return result;
@@ -199,9 +212,11 @@ optional<signed_block> block_database::last()const
 
       _block_num_to_pos.seekg( -sizeof(index_entry), _block_num_to_pos.end );
       _block_num_to_pos.read( (char*)&e, sizeof(e) );
-      while( e.block_size == 0 && _blocks.tellg() > 0 )
+      uint64_t pos = _block_num_to_pos.tellg();
+      while( e.block_size == 0 && pos > 0 )
       {
-         _block_num_to_pos.seekg( -sizeof(index_entry), _block_num_to_pos.cur );
+         pos -= sizeof(index_entry);
+         _block_num_to_pos.seekg( pos );
          _block_num_to_pos.read( (char*)&e, sizeof(e) );
       }
 
@@ -222,4 +237,40 @@ optional<signed_block> block_database::last()const
    }
    return optional<signed_block>();
 }
+
+optional<block_id_type> block_database::last_id()const
+{
+   try
+   {
+      index_entry e;
+      _block_num_to_pos.seekg( 0, _block_num_to_pos.end );
+
+      if( _block_num_to_pos.tellp() < sizeof(index_entry) )
+         return optional<block_id_type>();
+
+      _block_num_to_pos.seekg( -sizeof(index_entry), _block_num_to_pos.end );
+      _block_num_to_pos.read( (char*)&e, sizeof(e) );
+      uint64_t pos = _block_num_to_pos.tellg();
+      while( e.block_size == 0 && pos > 0 )
+      {
+         pos -= sizeof(index_entry);
+         _block_num_to_pos.seekg( pos );
+         _block_num_to_pos.read( (char*)&e, sizeof(e) );
+      }
+
+      if( e.block_size == 0 )
+         return optional<block_id_type>();
+
+      return e.block_id;
+   }
+   catch (const fc::exception&)
+   {
+   }
+   catch (const std::exception&)
+   {
+   }
+   return optional<block_id_type>();
+}
+
+
 } }

@@ -14,6 +14,7 @@
 #include <graphene/chain/protocol/withdraw_permission.hpp>
 #include <graphene/chain/protocol/witness.hpp>
 #include <graphene/chain/protocol/worker.hpp>
+#include <graphene/chain/protocol/confidential.hpp>
 
 namespace graphene { namespace chain {
 
@@ -27,7 +28,7 @@ namespace graphene { namespace chain {
             limit_order_create_operation,
             limit_order_cancel_operation,
             call_order_update_operation,
-            fill_order_operation,
+            fill_order_operation,           // VIRTUAL
             account_create_operation,
             account_update_operation,
             account_whitelist_operation,
@@ -44,7 +45,7 @@ namespace graphene { namespace chain {
             asset_global_settle_operation,
             asset_publish_feed_operation,
             witness_create_operation,
-            witness_withdraw_pay_operation,
+            witness_update_operation,
             proposal_create_operation,
             proposal_update_operation,
             proposal_delete_operation,
@@ -53,6 +54,7 @@ namespace graphene { namespace chain {
             withdraw_permission_claim_operation,
             withdraw_permission_delete_operation,
             committee_member_create_operation,
+            committee_member_update_operation,
             committee_member_update_global_parameters_operation,
             vesting_balance_create_operation,
             vesting_balance_withdraw_operation,
@@ -60,7 +62,12 @@ namespace graphene { namespace chain {
             custom_operation,
             assert_operation,
             balance_claim_operation,
-            override_transfer_operation
+            override_transfer_operation,
+            transfer_to_blind_operation,
+            blind_transfer_operation,
+            transfer_from_blind_operation,
+
+            asset_settle_cancel_operation  // VIRTUAL
          > operation;
 
    /// @} // operations group
@@ -76,24 +83,7 @@ namespace graphene { namespace chain {
                                             flat_set<account_id_type>& owner,
                                             vector<authority>&  other );
 
-   void operation_get_impacted_accounts( const operation& op,
-                                         flat_set<account_id_type>& accounts );
-
    void operation_validate( const operation& op );
-
-   /**
-    *  Used to track the result of applying an operation and when it was applied.
-    *
-    *  TODO: this doesn't belong here.
-    */
-   struct applied_operation
-   {
-      operation        op;
-      operation_result result;
-      uint32_t         block_num;
-      uint16_t         transaction_num;
-      uint16_t         op_num;
-   };
 
    /**
     *  @brief necessary to support nested operations inside the proposal_create_operation
@@ -109,9 +99,3 @@ namespace graphene { namespace chain {
 
 FC_REFLECT_TYPENAME( graphene::chain::operation )
 FC_REFLECT( graphene::chain::op_wrapper, (op) )
-
-
-
-
-
-

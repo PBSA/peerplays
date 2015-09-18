@@ -28,6 +28,7 @@
 namespace graphene { namespace net {
 
   using fc::variant_object;
+  using graphene::chain::chain_id_type;
 
   namespace detail
   {
@@ -62,8 +63,7 @@ namespace graphene { namespace net {
          virtual bool has_item( const net::item_id& id ) = 0;
 
          /**
-          *  @brief allows the application to validate an item prior to
-          *         broadcasting to peers.
+          *  @brief Called when a new block comes in from the network
           *
           *  @param sync_mode true if the message was fetched through the sync process, false during normal operation
           *  @returns true if this message caused the blockchain to switch forks, false if it did not
@@ -71,21 +71,26 @@ namespace graphene { namespace net {
           *  @throws exception if error validating the item, otherwise the item is
           *          safe to broadcast on.
           */
-         virtual bool handle_block( const graphene::net::block_message& blk_msg, bool syncmode ) = 0;
-         virtual bool handle_transaction( const graphene::net::trx_message& trx_msg, bool syncmode  ) = 0;
+         virtual bool handle_block( const graphene::net::block_message& blk_msg, bool sync_mode, 
+                                    std::vector<fc::uint160_t>& contained_transaction_message_ids ) = 0;
+         
+         /**
+          *  @brief Called when a new transaction comes in from the network
+          *
+          *  @throws exception if error validating the item, otherwise the item is
+          *          safe to broadcast on.
+          */
+         virtual void handle_transaction( const graphene::net::trx_message& trx_msg ) = 0;
 
-         virtual bool handle_message( const message& message_to_process, bool sync_mode )
-         {
-            switch( message_to_process.msg_type )
-            {
-               case block_message_type:
-                  return handle_block(message_to_process.as<block_message>(), sync_mode);
-               case trx_message_type:
-                  return handle_transaction(message_to_process.as<trx_message>(), sync_mode);
-               default:
-                  FC_THROW( "Invalid Message Type" );
-            };
-         }
+         /**
+          *  @brief Called when a new message comes in from the network other than a
+          *         block or a transaction.  Currently there are no other possible 
+          *         messages, so this should never be called.
+          *
+          *  @throws exception if error validating the item, otherwise the item is
+          *          safe to broadcast on.
+          */
+         virtual void handle_message( const message& message_to_process ) = 0;
 
          /**
           *  Assuming all data elements are ordered in some way, this method should
@@ -94,17 +99,16 @@ namespace graphene { namespace net {
           *  in our blockchain after the last item returned in the result,
           *  or 0 if the result contains the last item in the blockchain
           */
-         virtual std::vector<item_hash_t> get_item_ids(uint32_t item_type,
-                                                       const std::vector<item_hash_t>& blockchain_synopsis,
-                                                       uint32_t& remaining_item_count,
-                                                       uint32_t limit = 2000) = 0;
+         virtual std::vector<item_hash_t> get_block_ids(const std::vector<item_hash_t>& blockchain_synopsis,
+                                                        uint32_t& remaining_item_count,
+                                                        uint32_t limit = 2000) = 0;
 
          /**
           *  Given the hash of the requested data, fetch the body.
           */
          virtual message get_item( const item_id& id ) = 0;
 
-         virtual fc::sha256 get_chain_id()const = 0;
+         virtual chain_id_type get_chain_id()const = 0;
 
          /**
           * Returns a synopsis of the blockchain used for syncing.
@@ -114,14 +118,17 @@ namespace graphene { namespace net {
           * If the blockchain is empty, it will return the empty list.
           * If the blockchain has one block, it will return a list containing just that block.
           * If it contains more than one block:
-          *   the first element in the list will be the hash of the genesis block
-          *   the second element will be the hash of an item at the half way point in the blockchain
-          *   the third will be ~3/4 of the way through the block chain
+          *   the first element in the list will be the hash of the highest numbered block that
+          *       we cannot undo
+          *   the second element will be the hash of an item at the half way point in the undoable
+          *       segment of the blockchain
+          *   the third will be ~3/4 of the way through the undoable segment of the block chain
           *   the fourth will be at ~7/8...
           *     &c.
           *   the last item in the list will be the hash of the most recent block on our preferred chain
           */
-         virtual std::vector<item_hash_t> get_blockchain_synopsis(uint32_t item_type, const graphene::net::item_hash_t& reference_point = graphene::net::item_hash_t(), uint32_t number_of_blocks_after_reference_point = 0) = 0;
+         virtual std::vector<item_hash_t> get_blockchain_synopsis(const item_hash_t& reference_point, 
+                                                                  uint32_t number_of_blocks_after_reference_point) = 0;
 
          /**
           *  Call this after the call to handle_message succeeds.
@@ -153,6 +160,8 @@ namespace graphene { namespace net {
          virtual uint32_t estimate_last_known_fork_from_git_revision_timestamp(uint32_t unix_timestamp) const = 0;
 
          virtual void error_encountered(const std::string& message, const fc::oexception& error) = 0;
+         virtual uint8_t get_current_block_interval_in_seconds() const = 0;
+
    };
 
    /**

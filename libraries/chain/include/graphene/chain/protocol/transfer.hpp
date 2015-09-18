@@ -2,7 +2,7 @@
 #include <graphene/chain/protocol/base.hpp>
 #include <graphene/chain/protocol/memo.hpp>
 
-namespace graphene { namespace chain { 
+namespace graphene { namespace chain {
 
    /**
     * @ingroup operations
@@ -20,9 +20,9 @@ namespace graphene { namespace chain {
     */
    struct transfer_operation : public base_operation
    {
-      struct fee_parameters_type { 
-         uint64_t fee       = 20 * GRAPHENE_BLOCKCHAIN_PRECISION; 
-         uint32_t price_per_kbyte = 10; /// only required for large memos.
+      struct fee_parameters_type {
+         uint64_t fee       = 20 * GRAPHENE_BLOCKCHAIN_PRECISION;
+         uint32_t price_per_kbyte = 10 * GRAPHENE_BLOCKCHAIN_PRECISION; /// only required for large memos.
       };
 
       asset            fee;
@@ -40,8 +40,6 @@ namespace graphene { namespace chain {
       account_id_type fee_payer()const { return from; }
       void            validate()const;
       share_type      calculate_fee(const fee_parameters_type& k)const;
-      void            get_impacted_accounts( flat_set<account_id_type>& i )const
-      { i.insert(to); }
    };
 
    /**
@@ -54,7 +52,7 @@ namespace graphene { namespace chain {
     */
    struct override_transfer_operation : public base_operation
    {
-      struct fee_parameters_type { 
+      struct fee_parameters_type {
          uint64_t fee       = 20 * GRAPHENE_BLOCKCHAIN_PRECISION;
          uint32_t price_per_kbyte = 10; /// only required for large memos.
       };
@@ -75,12 +73,6 @@ namespace graphene { namespace chain {
       account_id_type fee_payer()const { return issuer; }
       void            validate()const;
       share_type      calculate_fee(const fee_parameters_type& k)const;
-      void            get_impacted_accounts( flat_set<account_id_type>& i )const
-      { 
-         i.insert(to);
-         i.insert(from);
-         i.insert(issuer);
-      }
    };
 
 }} // graphene::chain
@@ -90,4 +82,3 @@ FC_REFLECT( graphene::chain::override_transfer_operation::fee_parameters_type, (
 
 FC_REFLECT( graphene::chain::override_transfer_operation, (fee)(issuer)(from)(to)(amount)(memo)(extensions) )
 FC_REFLECT( graphene::chain::transfer_operation, (fee)(from)(to)(amount)(memo)(extensions) )
-

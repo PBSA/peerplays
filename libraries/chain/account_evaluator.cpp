@@ -15,11 +15,31 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <fc/smart_ref_impl.hpp>
 #include <graphene/chain/database.hpp>
+#include <graphene/chain/exceptions.hpp>
+#include <graphene/chain/internal_exceptions.hpp>
 #include <graphene/chain/account_evaluator.hpp>
 #include <algorithm>
 
 namespace graphene { namespace chain {
+
+void verify_authority_accounts( const database& db, const authority& a )
+{
+   const auto& chain_params = db.get_global_properties().parameters;
+   GRAPHENE_ASSERT(
+      a.num_auths() <= chain_params.maximum_authority_membership,
+      internal_verify_auth_max_auth_exceeded,
+      "Maximum authority membership exceeded" );
+   for( const auto& acnt : a.account_auths )
+   {
+      GRAPHENE_ASSERT( db.find_object( acnt.first ) != nullptr,
+         internal_verify_auth_account_not_found,
+         "Account ${a} specified in authority does not exist",
+         ("a", acnt.first) );
+   }
+}
 
 void_result account_create_evaluator::do_evaluate( const account_create_operation& op )
 { try {
@@ -31,8 +51,13 @@ void_result account_create_evaluator::do_evaluate( const account_create_operatio
    const auto& global_props = d.get_global_properties();
    const auto& chain_params = global_props.parameters;
 
-   verify_authority_accounts( op.owner );
-   verify_authority_accounts( op.active );
+   try
+   {
+      verify_authority_accounts( d, op.owner );
+      verify_authority_accounts( d, op.active );
+   }
+   GRAPHENE_RECODE_EXC( internal_verify_auth_max_auth_exceeded, account_create_max_auth_exceeded )
+   GRAPHENE_RECODE_EXC( internal_verify_auth_account_not_found, account_create_auth_account_not_found )
 
    uint32_t max_vote_id = global_props.next_available_vote_id;
    FC_ASSERT( op.options.num_witness <= chain_params.maximum_witness_count );
@@ -62,9 +87,6 @@ void_result account_create_evaluator::do_evaluate( const account_create_operatio
 
 object_id_type account_create_evaluator::do_apply( const account_create_operation& o )
 { try {
-   const auto& stats_obj = db().create<account_statistics_object>( [&]( account_statistics_object& ){
-   });
-
    const auto& new_acnt_object = db().create<account_object>( [&]( account_object& obj ){
          obj.registrar = o.registrar;
          obj.referrer = o.referrer;
@@ -78,8 +100,8 @@ object_id_type account_create_evaluator::do_apply( const account_create_operatio
          obj.name             = o.name;
          obj.owner            = o.owner;
          obj.active           = o.active;
-         obj.statistics       = stats_obj.id;
          obj.options          = o.options;
+         obj.statistics = db().create<account_statistics_object>([&](account_statistics_object& s){s.owner = obj.id;}).id;
    });
 
    const auto& dynamic_properties = db().get_dynamic_global_properties();
@@ -87,13 +109,12 @@ object_id_type account_create_evaluator::do_apply( const account_create_operatio
       ++p.accounts_registered_this_interval;
    });
 
-   /** TODO: update fee scaling for account creation...
+   const auto& global_properties = db().get_global_properties();
    if( dynamic_properties.accounts_registered_this_interval %
        global_properties.parameters.accounts_per_fee_scale == 0 )
       db().modify(global_properties, [&dynamic_properties](global_property_object& p) {
-         p.parameters.current_fees.account_create_fee <<= p.parameters.account_fee_scale_bitshifts;
+         p.parameters.current_fees->get<account_create_operation>().basic_fee <<= p.parameters.account_fee_scale_bitshifts;
       });
-   */
 
    return new_acnt_object.id;
 } FC_CAPTURE_AND_RETHROW((o)) }
@@ -103,10 +124,15 @@ void_result account_update_evaluator::do_evaluate( const account_update_operatio
 { try {
    database& d = db();
 
-   const auto& chain_params = db().get_global_properties().parameters;
+   const auto& chain_params = d.get_global_properties().parameters;
 
-   if( o.owner )  verify_authority_accounts( *o.owner );
-   if( o.active ) verify_authority_accounts( *o.active );
+   try
+   {
+      if( o.owner )  verify_authority_accounts( d, *o.owner );
+      if( o.active ) verify_authority_accounts( d, *o.active );
+   }
+   GRAPHENE_RECODE_EXC( internal_verify_auth_max_auth_exceeded, account_update_max_auth_exceeded )
+   GRAPHENE_RECODE_EXC( internal_verify_auth_account_not_found, account_update_auth_account_not_found )
 
    acnt = &o.account(d);
 

@@ -21,6 +21,8 @@
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <graphene/chain/exceptions.hpp>
 
+#include <fc/smart_ref_impl.hpp>
+
 namespace graphene { namespace chain {
 
 void_result proposal_create_evaluator::do_evaluate(const proposal_create_operation& o)
@@ -45,7 +47,7 @@ void_result proposal_create_evaluator::do_evaluate(const proposal_create_operati
 
       FC_ASSERT( other.size() == 0 ); // TODO: what about other??? 
 
-      if( auths.find(account_id_type()) != auths.end() )
+      if( auths.find(GRAPHENE_COMMITTEE_ACCOUNT) != auths.end() )
       {
          GRAPHENE_ASSERT(
             o.review_period_seconds.valid(),
@@ -56,7 +58,7 @@ void_result proposal_create_evaluator::do_evaluate(const proposal_create_operati
          GRAPHENE_ASSERT(
             *o.review_period_seconds >= global_parameters.committee_proposal_review_period,
             proposal_create_review_period_insufficient,
-            "Review period of ${t} required, but at least ${min} required",
+            "Review period of ${t} specified, but at least ${min} required",
             ("t", *o.review_period_seconds)
             ("min", global_parameters.committee_proposal_review_period)
          );
@@ -75,6 +77,7 @@ object_id_type proposal_create_evaluator::do_apply(const proposal_create_operati
    database& d = db();
 
    const proposal_object& proposal = d.create<proposal_object>([&](proposal_object& proposal) {
+      _proposed_trx.expiration = o.expiration_time;
       proposal.proposed_transaction = _proposed_trx;
       proposal.expiration_time = o.expiration_time;
       if( o.review_period_seconds )
@@ -119,8 +122,7 @@ void_result proposal_update_evaluator::do_evaluate(const proposal_update_operati
                  "", ("id", id)("available", _proposal->available_owner_approvals) );
    }
 
-   /*  All authority checks happen outside of evaluators, TODO: verify this is checked elsewhere
-   */
+   /*  All authority checks happen outside of evaluators
    if( (d.get_node_properties().skip_flags & database::skip_authority_check) == 0 )
    {
       for( const auto& id : o.key_approvals_to_add )
@@ -132,6 +134,7 @@ void_result proposal_update_evaluator::do_evaluate(const proposal_update_operati
          FC_ASSERT( trx_state->signed_by(id) );
       }
    }
+   */
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (o) ) }

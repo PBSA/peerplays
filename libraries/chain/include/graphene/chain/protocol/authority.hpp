@@ -54,6 +54,14 @@ namespace graphene { namespace chain {
       {
          account_auths[k] = w;
       }
+      bool is_impossible()const
+      {
+         uint64_t auth_weights = 0;
+         for( const auto& item : account_auths ) auth_weights += item.second;
+         for( const auto& item : key_auths ) auth_weights += item.second;
+         for( const auto& item : address_auths ) auth_weights += item.second;
+         return auth_weights < weight_threshold;
+      }
 
       template<typename AuthType>
       void add_authorities(AuthType k, weight_type w)
@@ -75,7 +83,15 @@ namespace graphene { namespace chain {
             result.push_back(k.first);
          return result;
       }
-      uint32_t num_auths()const { return account_auths.size() + key_auths.size(); }
+
+      friend bool operator == ( const authority& a, const authority& b )
+      {
+         return (a.weight_threshold == b.weight_threshold) &&
+                (a.account_auths == b.account_auths) &&
+                (a.key_auths == b.key_auths) &&
+                (a.address_auths == b.address_auths); 
+      }
+      uint32_t num_auths()const { return account_auths.size() + key_auths.size() + address_auths.size(); }
       void     clear() { account_auths.clear(); key_auths.clear(); }
 
       uint32_t                              weight_threshold = 0;
@@ -84,6 +100,14 @@ namespace graphene { namespace chain {
       /** needed for backward compatibility only */
       flat_map<address,weight_type>         address_auths;
    };
+
+/**
+ * Add all account members of the given authority to the given flat_set.
+ */
+void add_authority_accounts(
+   flat_set<account_id_type>& result,
+   const authority& a
+   );
 
 } } // namespace graphene::chain
 

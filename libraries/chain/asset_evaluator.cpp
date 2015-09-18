@@ -144,7 +144,12 @@ void_result asset_reserve_evaluator::do_evaluate( const asset_reserve_operation&
    database& d   = db();
 
    const asset_object& a = o.amount_to_reserve.asset_id(d);
-   FC_ASSERT( !a.is_market_issued() );
+   GRAPHENE_ASSERT(
+      !a.is_market_issued(),
+      asset_reserve_invalid_on_mia,
+      "Cannot reserve ${sym} because it is a market-issued asset",
+      ("sym", a.symbol)
+   );
 
    from_account = &o.payer(d);
 
@@ -218,9 +223,13 @@ void_result asset_update_evaluator::do_evaluate(const asset_update_operation& o)
       }
    }
 
-   //There must be no bits set in o.permissions which are unset in a.issuer_permissions.
+   // new issuer_permissions must be subset of old issuer permissions
    FC_ASSERT(!(o.new_options.issuer_permissions & ~a.options.issuer_permissions),
              "Cannot reinstate previously revoked issuer permissions on an asset.");
+
+   // changed flags must be subset of old issuer permissions
+   FC_ASSERT(!((o.new_options.flags ^ a.options.flags) & ~a.options.issuer_permissions),
+             "Flag change is forbidden by issuer permissions");
 
    asset_to_update = &a;
    FC_ASSERT( o.issuer == a.issuer, "", ("o.issuer", o.issuer)("a.issuer", a.issuer) );
@@ -448,7 +457,7 @@ void_result asset_publish_feeds_evaluator::do_evaluate(const asset_publish_feed_
    FC_ASSERT( !bitasset.has_settlement(), "No further feeds may be published after a settlement event" );
    FC_ASSERT(o.feed.settlement_price.quote.asset_id == bitasset.options.short_backing_asset);
    //Verify that the publisher is authoritative to publish a feed
-   if( base.issuer == account_id_type() )
+   if( base.issuer == GRAPHENE_COMMITTEE_ACCOUNT )
    {
       //It's a committee_member-fed asset. Verify that publisher is an active committee_member or witness.
       FC_ASSERT(d.get(GRAPHENE_COMMITTEE_ACCOUNT).active.account_auths.count(o.publisher) ||

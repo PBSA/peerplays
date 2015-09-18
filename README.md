@@ -83,7 +83,7 @@ Witness node
 The role of the witness node is to broadcast transactions, download blocks, and optionally sign them.
 
 ```
-./witness_node --rpc-endpoint "127.0.0.1:8090" --enable-stale-production -w \""1.6.0"\" \""1.6.1"\" \""1.6.2"\" \""1.6.3"\" \""1.6.4"\"
+./witness_node --rpc-endpoint 127.0.0.1:8090 --enable-stale-production -w '"1.6.0"' '"1.6.1"' '"1.6.2"' '"1.6.3"' '"1.6.4"' '"1.6.5"' '"1.6.6"' '"1.6.7"' '"1.6.8"' '"1.6.9"' '"1.6.10"' '"1.6.11"' '"1.6.12"' '"1.6.13"' '"1.6.14"' '"1.6.15"' '"1.6.16"' '"1.6.17"' '"1.6.18"' '"1.6.19"' '"1.6.20"' '"1.6.21"' '"1.6.22"' '"1.6.23"' '"1.6.24"' '"1.6.25"' '"1.6.26"' '"1.6.27"' '"1.6.28"' '"1.6.29"' '"1.6.30"' '"1.6.31"' '"1.6.32"' '"1.6.33"' '"1.6.34"' '"1.6.35"' '"1.6.36"' '"1.6.37"' '"1.6.38"' '"1.6.39"' '"1.6.40"' '"1.6.41"' '"1.6.42"' '"1.6.43"' '"1.6.44"' '"1.6.45"' '"1.6.46"' '"1.6.47"' '"1.6.48"' '"1.6.49"' '"1.6.50"' '"1.6.51"' '"1.6.52"' '"1.6.53"' '"1.6.54"' '"1.6.55"' '"1.6.56"' '"1.6.57"' '"1.6.58"' '"1.6.59"' '"1.6.60"' '"1.6.61"' '"1.6.62"' '"1.6.63"' '"1.6.64"' '"1.6.65"' '"1.6.66"' '"1.6.67"' '"1.6.68"' '"1.6.69"' '"1.6.70"' '"1.6.71"' '"1.6.72"' '"1.6.73"' '"1.6.74"' '"1.6.75"' '"1.6.76"' '"1.6.77"' '"1.6.78"' '"1.6.79"' '"1.6.80"' '"1.6.81"' '"1.6.82"' '"1.6.83"' '"1.6.84"' '"1.6.85"' '"1.6.86"' '"1.6.87"' '"1.6.88"' '"1.6.89"' '"1.6.90"' '"1.6.91"' '"1.6.92"' '"1.6.93"' '"1.6.94"' '"1.6.95"' '"1.6.96"' '"1.6.97"' '"1.6.98"' '"1.6.99"' '"1.6.100"'
 ```
 
 Running specific tests
@@ -99,20 +99,17 @@ When running `witness_node`, initially two API's are available:
 API 0 provides read-only access to the database, while API 1 is
 used to login and gain access to additional, restricted API's.
 
-TODO: the following examples use the old authority definition and thus do not work.  They need to be updated.
-
 Here is an example using `wscat` package from `npm` for websockets:
 
     $ npm install -g wscat
     $ wscat -c ws://127.0.0.1:8090
     > {"id":1, "method":"call", "params":[0,"get_accounts",[["1.2.0"]]]}
-    < {"id":1,"result":[{"id":"1.2.0","annotations":[],"registrar":"1.2.0","referrer":"1.2.0","referrer_percent":0,"name":"genesis","owner":{"weight_threshold":1,"key_auths":[["PUBLIC_KEY",1]]},"active":{"weight_threshold":1,"key_auths":[["PUBLIC_KEY",1]]},"memo_key":"PUBLIC_KEY","voting_account":"1.2.0","num_witness":0,"num_committee":0,"votes":[],"statistics":"2.7.0","whitelisting_accounts":[],"blacklisting_accounts":[]}]}
-    $
+    < {"id":1,"result":[{"id":"1.2.0","annotations":[],"membership_expiration_date":"1969-12-31T23:59:59","registrar":"1.2.0","referrer":"1.2.0","lifetime_referrer":"1.2.0","network_fee_percentage":2000,"lifetime_referrer_fee_percentage":8000,"referrer_rewards_percentage":0,"name":"committee-account","owner":{"weight_threshold":1,"account_auths":[],"key_auths":[],"address_auths":[]},"active":{"weight_threshold":6,"account_auths":[["1.2.5",1],["1.2.6",1],["1.2.7",1],["1.2.8",1],["1.2.9",1],["1.2.10",1],["1.2.11",1],["1.2.12",1],["1.2.13",1],["1.2.14",1]],"key_auths":[],"address_auths":[]},"options":{"memo_key":"GPH1111111111111111111111111111111114T1Anm","voting_account":"1.2.0","num_witness":0,"num_committee":0,"votes":[],"extensions":[]},"statistics":"2.7.0","whitelisting_accounts":[],"blacklisting_accounts":[]}]}
 
 We can do the same thing using an HTTP client such as `curl` for API's which do not require login or other session state:
 
     $ curl --data '{"jsonrpc": "2.0", "method": "call", "params": [0, "get_accounts", [["1.2.0"]]], "id": 1}' http://127.0.0.1:8090/rpc
-    {"id":1,"result":[{"id":"1.2.0","annotations":[],"registrar":"1.2.0","referrer":"1.2.0","referrer_percent":0,"name":"genesis","owner":{"weight_threshold":1,"key_auths":[["PUBLIC_KEY",1]]},"active":{"weight_threshold":1,"key_auths":[["PUBLIC_KEY",1]]},"memo_key":"PUBLIC_KEY","voting_account":"1.2.0","num_witness":0,"num_committee":0,"votes":[],"statistics":"2.7.0","whitelisting_accounts":[],"blacklisting_accounts":[]}]}
+    {"id":1,"result":[{"id":"1.2.0","annotations":[],"membership_expiration_date":"1969-12-31T23:59:59","registrar":"1.2.0","referrer":"1.2.0","lifetime_referrer":"1.2.0","network_fee_percentage":2000,"lifetime_referrer_fee_percentage":8000,"referrer_rewards_percentage":0,"name":"committee-account","owner":{"weight_threshold":1,"account_auths":[],"key_auths":[],"address_auths":[]},"active":{"weight_threshold":6,"account_auths":[["1.2.5",1],["1.2.6",1],["1.2.7",1],["1.2.8",1],["1.2.9",1],["1.2.10",1],["1.2.11",1],["1.2.12",1],["1.2.13",1],["1.2.14",1]],"key_auths":[],"address_auths":[]},"options":{"memo_key":"GPH1111111111111111111111111111111114T1Anm","voting_account":"1.2.0","num_witness":0,"num_committee":0,"votes":[],"extensions":[]},"statistics":"2.7.0","whitelisting_accounts":[],"blacklisting_accounts":[]}]}
 
 API 0 is accessible using regular JSON-RPC:
 
@@ -122,7 +119,8 @@ Accessing restricted API's
 --------------------------
 
 You can restrict API's to particular users by specifying an `apiaccess` file in `config.ini`.  Here is an example `apiaccess` file which allows
-user `bytemaster` with password `supersecret` to access four different API's:
+user `bytemaster` with password `supersecret` to access four different API's, while allowing any other user to access the three public API's
+necessary to use the wallet:
 
     {
        "permission_map" :
@@ -133,6 +131,14 @@ user `bytemaster` with password `supersecret` to access four different API's:
                 "password_hash_b64" : "9e9GF7ooXVb9k4BoSfNIPTelXeGOZ5DrgOYMj94elaY=",
                 "password_salt_b64" : "INDdM6iCi/8=",
                 "allowed_apis" : ["database_api", "network_broadcast_api", "history_api", "network_node_api"]
+             }
+          ],
+          [
+             "*",
+             {
+                "password_hash_b64" : "*",
+                "password_salt_b64" : "*",
+                "allowed_apis" : ["database_api", "network_broadcast_api", "history_api"]
              }
           ]
        ]
@@ -159,29 +165,7 @@ it is fairly simple to write API methods to expose database methods.
 Running private testnet
 -----------------------
 
-Normally `witness_node` assumes it won't be producing blocks from
-genesis, or against very old chain state.  We need to get `witness_node`
-to discard this assumption if we actually want to start a new chain,
-so we will need to specify in `config.ini`:
-
-    enable-stale-production = true
-
-We also need to specify which witnesses will produce blocks locally;
-`witness_node` does not assume that it should produce blocks for a given
-witness just because it has the correct private key to do so.  There are
-ten witnesses at genesis of the testnet, block production can be
-enabled for all of them by specifying multiple times in `config.ini`:
-
-    witness-id = "1.6.0"
-    witness-id = "1.6.1"
-    witness-id = "1.6.2"
-    witness-id = "1.6.3"
-    witness-id = "1.6.4"
-    witness-id = "1.6.5"
-    witness-id = "1.6.6"
-    witness-id = "1.6.7"
-    witness-id = "1.6.8"
-    witness-id = "1.6.9"
+See the [documentation](https://github.com/cryptonomex/graphene/wiki/private-testnet) if you want to run a private testnet.
 
 Questions
 ---------
@@ -223,7 +207,7 @@ Questions
 
     The second number specifies the *type*.  The type of the object determines what fields it has.  For a
     complete list of type ID's, see `enum object_type` and `enum impl_object_type` in
-    [types.hpp](https://github.com/cryptonomex/graphene/blob/master/libraries/chain/include/graphene/chain/types.hpp).
+    [types.hpp](https://github.com/cryptonomex/graphene/blob/master/libraries/chain/include/graphene/chain/protocol/types.hpp).
 
     The third number specifies the *instance*.  The instance of the object is different for each individual
     object.
@@ -240,3 +224,16 @@ Questions
 
     The first and second number together identify the kind of thing you're talking about (`1.2` for accounts,
     `1.3` for assets).  The third number identifies the particular thing.
+
+- How do I get the `network_add_nodes` command to work?  Why is it so complicated?
+
+    You need to follow the instructions in the "Accessing restricted API's" section to
+    allow a username/password access to the `network_node` API.  Then you need
+    to pass the username/password to the `cli_wallet` on the command line or in a config file.
+
+    It's set up this way so that the default configuration is secure even if the RPC port is
+    publicly accessible.  It's fine if your `witness_node` allows the general public to query
+    the database or broadcast transactions (in fact, this is how the hosted web UI works).  It's
+    less fine if your `witness_node` allows the general public to control which p2p nodes it's
+    connecting to.  Therefore the API to add p2p connections needs to be set up with proper access
+    controls.

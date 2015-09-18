@@ -155,14 +155,23 @@ namespace graphene { namespace chain {
           */
          void withdraw(const fc::time_point_sec& now, const asset& amount);
          bool is_withdraw_allowed(const fc::time_point_sec& now, const asset& amount)const;
+
+         /**
+          * Get amount of allowed withdrawal.
+          */
+         asset get_allowed_withdraw(const time_point_sec& now)const;
    };
    /**
     * @ingroup object_index
     */
+   struct by_account;
    typedef multi_index_container<
       vesting_balance_object,
       indexed_by<
-         hashed_unique< tag<by_id>, member< object, object_id_type, &object::id > >
+         hashed_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
+         ordered_non_unique< tag<by_account>,
+            member<vesting_balance_object, account_id_type, &vesting_balance_object::owner>
+         >
       >
    > vesting_balance_multi_index_type;
    /**

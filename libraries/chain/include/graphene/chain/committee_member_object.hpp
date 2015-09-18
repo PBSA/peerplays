@@ -44,10 +44,12 @@ namespace graphene { namespace chain {
 
          account_id_type  committee_member_account;
          vote_id_type     vote_id;
+         uint64_t         total_votes = 0;
          string           url;
    };
 
    struct by_account;
+   struct by_vote_id;
    using committee_member_multi_index_type = multi_index_container<
       committee_member_object,
       indexed_by<
@@ -56,6 +58,9 @@ namespace graphene { namespace chain {
          >,
          hashed_unique< tag<by_account>,
             member<committee_member_object, account_id_type, &committee_member_object::committee_member_account>
+         >,
+         hashed_unique< tag<by_vote_id>,
+            member<committee_member_object, vote_id_type, &committee_member_object::vote_id>
          >
       >
    >;
@@ -63,4 +68,4 @@ namespace graphene { namespace chain {
 } } // graphene::chain
 
 FC_REFLECT_DERIVED( graphene::chain::committee_member_object, (graphene::db::object),
-                    (committee_member_account)(vote_id)(url) )
+                    (committee_member_account)(vote_id)(total_votes)(url) )

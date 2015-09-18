@@ -24,6 +24,8 @@
 #include <graphene/chain/market_evaluator.hpp>
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/balance_object.hpp>
+#include <graphene/chain/committee_member_object.hpp>
+#include <fc/smart_ref_impl.hpp>
 #include <iostream>
 
 using namespace graphene::chain;
@@ -365,7 +367,7 @@ int main( int argc, char** argv )
     operation op;
 
     std::cout << "ChainTypes.operations=\n";
-    for( uint32_t i = 0; i < op.count(); ++i )
+    for( int i = 0; i < op.count(); ++i )
     {
        op.set_which(i);
        op.visit( detail_ns::serialize_type_visitor(i) );

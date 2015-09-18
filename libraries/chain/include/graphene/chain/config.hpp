@@ -20,7 +20,7 @@
 #define GRAPHENE_SYMBOL "CORE"
 #define GRAPHENE_ADDRESS_PREFIX "GPH"
 
-#define GRAPHENE_MIN_ACCOUNT_NAME_LENGTH 1
+#define GRAPHENE_MIN_ACCOUNT_NAME_LENGTH 3
 #define GRAPHENE_MAX_ACCOUNT_NAME_LENGTH 63
 
 #define GRAPHENE_MIN_ASSET_SYMBOL_LENGTH 3
@@ -31,8 +31,6 @@
 #define GRAPHENE_MAX_SHARE_SUPPLY int64_t(1000000000000000ll)
 #define GRAPHENE_MAX_PAY_RATE 10000 /* 100% */
 #define GRAPHENE_MAX_SIG_CHECK_DEPTH 2
-#define GRAPHENE_MIN_WITNESS_COUNT 10
-#define GRAPHENE_MIN_COMMITTEE_MEMBER_COUNT 10
 /**
  * Don't allow the committee_members to publish a limit that would
  * make the network unable to operate.
@@ -46,12 +44,14 @@
 #define GRAPHENE_DEFAULT_MAX_BLOCK_SIZE  (GRAPHENE_DEFAULT_MAX_TRANSACTION_SIZE*GRAPHENE_DEFAULT_BLOCK_INTERVAL*200000)
 #define GRAPHENE_DEFAULT_MAX_TIME_UNTIL_EXPIRATION (60*60*24) // seconds,  aka: 1 day
 #define GRAPHENE_DEFAULT_MAINTENANCE_INTERVAL  (60*60*24) // seconds, aka: 1 day
-#define GRAPHENE_DEFAULT_MAX_UNDO_HISTORY 1024
+#define GRAPHENE_DEFAULT_MAINTENANCE_SKIP_SLOTS 3  // number of slots to skip for maintenance interval
+
+#define GRAPHENE_MIN_UNDO_HISTORY 10
+#define GRAPHENE_MAX_UNDO_HISTORY 1000
 
 #define GRAPHENE_MIN_BLOCK_SIZE_LIMIT (GRAPHENE_MIN_TRANSACTION_SIZE_LIMIT*5) // 5 transactions per block
 #define GRAPHENE_MIN_TRANSACTION_EXPIRATION_LIMIT (GRAPHENE_MAX_BLOCK_INTERVAL * 5) // 5 transactions per block
 #define GRAPHENE_BLOCKCHAIN_PRECISION                           uint64_t( 100000 )
-#define CORE                                                    GRAPHENE_BLOCKCHAIN_PRECISION
 
 #define GRAPHENE_BLOCKCHAIN_PRECISION_DIGITS                    5
 #define GRAPHENE_DEFAULT_TRANSFER_FEE                           (1*GRAPHENE_BLOCKCHAIN_PRECISION)
@@ -84,8 +84,8 @@
 ///@}
 #define GRAPHENE_DEFAULT_MARGIN_PERIOD_SEC              (30*60*60*24)
 
-#define GRAPHENE_DEFAULT_NUM_WITNESSES                        (101)
-#define GRAPHENE_DEFAULT_NUM_COMMITTEE                        (11)
+#define GRAPHENE_DEFAULT_MIN_WITNESS_COUNT                    (11)
+#define GRAPHENE_DEFAULT_MIN_COMMITTEE_MEMBER_COUNT           (11)
 #define GRAPHENE_DEFAULT_MAX_WITNESSES                        (1001) // SHOULD BE ODD
 #define GRAPHENE_DEFAULT_MAX_COMMITTEE                        (1001) // SHOULD BE ODD
 #define GRAPHENE_DEFAULT_MAX_PROPOSAL_LIFETIME_SEC            (60*60*24*7*4) // Four weeks
@@ -121,10 +121,6 @@
                                                          | (uint64_t( 0x84ca ) << 0x10)    \
                                                          | (uint64_t( 0xa73b )        ) )
 
-// counter used to determine bits of entropy
-// must be less than or equal to secret_hash_type::data_length()
-#define GRAPHENE_RNG_SEED_LENGTH (160 / 8)
-
 /**
  * every second, the fraction of burned core asset which cycles is
  * GRAPHENE_CORE_ASSET_CYCLE_RATE / (1 << GRAPHENE_CORE_ASSET_CYCLE_RATE_BITS)
@@ -133,9 +129,13 @@
 #define GRAPHENE_CORE_ASSET_CYCLE_RATE_BITS                   32
 
 #define GRAPHENE_DEFAULT_WITNESS_PAY_PER_BLOCK            (GRAPHENE_BLOCKCHAIN_PRECISION * int64_t( 10) )
+#define GRAPHENE_DEFAULT_WITNESS_PAY_VESTING_SECONDS      (60*60*24)
 #define GRAPHENE_DEFAULT_WORKER_BUDGET_PER_DAY            (GRAPHENE_BLOCKCHAIN_PRECISION * int64_t(500) * 1000 )
 
 #define GRAPHENE_MAX_INTEREST_APR                            uint16_t( 10000 )
+
+#define GRAPHENE_RECENTLY_MISSED_COUNT_INCREMENT             4
+#define GRAPHENE_RECENTLY_MISSED_COUNT_DECREMENT             3
 
 /**
  *  Reserved Account IDs with special meaning
@@ -151,4 +151,8 @@
 #define GRAPHENE_NULL_ACCOUNT (graphene::chain::account_id_type(3))
 /// Represents the canonical account with WILDCARD authority (anybody can access funds in temp account)
 #define GRAPHENE_TEMP_ACCOUNT (graphene::chain::account_id_type(4))
+/// Represents the canonical account for specifying you will vote directly (as opposed to a proxy)
+#define GRAPHENE_PROXY_TO_SELF_ACCOUNT (graphene::chain::account_id_type(5))
+/// Sentinel value used in the scheduler.
+#define GRAPHENE_NULL_WITNESS (graphene::chain::witness_id_type(0))
 ///@}

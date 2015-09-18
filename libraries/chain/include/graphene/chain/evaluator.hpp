@@ -16,6 +16,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #pragma once
+#include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/protocol/operations.hpp>
 
 namespace graphene { namespace chain {
@@ -84,7 +85,7 @@ namespace graphene { namespace chain {
 
       database& db()const;
 
-      void check_required_authorities(const operation& op);
+      //void check_required_authorities(const operation& op);
    protected:
       /**
        * @brief Fetch objects relevant to fee payer and set pointer members
@@ -98,10 +99,7 @@ namespace graphene { namespace chain {
       /// Pays the fee and returns the number of CORE asset that were paid.
       void pay_fee();
 
-      bool verify_authority(const account_object&, authority::classification);
       object_id_type get_relative_id( object_id_type rel_id )const;
-
-      void verify_authority_accounts( const authority& a )const;
 
       asset                            fee_from_account;
       share_type                       core_fee_paid;
@@ -193,7 +191,8 @@ namespace graphene { namespace chain {
          const auto& op = o.get<typename DerivedEvaluator::operation_type>();
 
          prepare_fee(op.fee_payer(), op.fee);
-         FC_ASSERT( core_fee_paid >= db().current_fee_schedule().calculate_fee( op ).amount,
+         GRAPHENE_ASSERT( core_fee_paid >= db().current_fee_schedule().calculate_fee( op ).amount,
+                    insufficient_fee,
                     "Insufficient Fee Paid",
                     ("core_fee_paid",core_fee_paid)("required",db().current_fee_schedule().calculate_fee( op ).amount) );
 

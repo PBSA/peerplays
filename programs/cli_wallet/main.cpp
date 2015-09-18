@@ -28,13 +28,13 @@
 #include <fc/rpc/cli.hpp>
 #include <fc/rpc/http_api.hpp>
 #include <fc/rpc/websocket_api.hpp>
+#include <fc/smart_ref_impl.hpp>
 
 #include <graphene/app/api.hpp>
 #include <graphene/chain/protocol/protocol.hpp>
+#include <graphene/egenesis/egenesis.hpp>
 #include <graphene/utilities/key_conversion.hpp>
 #include <graphene/wallet/wallet.hpp>
-
-#include <fc/rpc/websocket_api.hpp>
 
 #include <fc/interprocess/signals.hpp>
 #include <boost/program_options.hpp>
@@ -43,8 +43,11 @@
 #include <fc/log/file_appender.hpp>
 #include <fc/log/logger.hpp>
 #include <fc/log/logger_config.hpp>
-#ifndef WIN32
-#include <csignal>
+
+#ifdef WIN32
+# include <signal.h>
+#else
+# include <csignal>
 #endif
 
 using namespace graphene::app;
@@ -67,9 +70,10 @@ int main( int argc, char** argv )
          ("rpc-endpoint,r", bpo::value<string>()->implicit_value("127.0.0.1:8091"), "Endpoint for wallet websocket RPC to listen on")
          ("rpc-tls-endpoint,t", bpo::value<string>()->implicit_value("127.0.0.1:8092"), "Endpoint for wallet websocket TLS RPC to listen on")
          ("rpc-tls-certificate,c", bpo::value<string>()->implicit_value("server.pem"), "PEM certificate for wallet websocket TLS RPC")
-         ("rpc-http-endpoint,h", bpo::value<string>()->implicit_value("127.0.0.1:8093"), "Endpoint for wallet HTTP RPC to listen on")
+         ("rpc-http-endpoint,H", bpo::value<string>()->implicit_value("127.0.0.1:8093"), "Endpoint for wallet HTTP RPC to listen on")
          ("daemon,d", "Run the wallet in daemon mode" )
-         ("wallet-file,w", bpo::value<string>()->implicit_value("wallet.json"), "wallet to load");
+         ("wallet-file,w", bpo::value<string>()->implicit_value("wallet.json"), "wallet to load")
+         ("chain-id", bpo::value<string>(), "chain ID to connect to");
 
       bpo::variables_map options;
 
@@ -124,8 +128,33 @@ int main( int argc, char** argv )
 
       fc::path wallet_file( options.count("wallet-file") ? options.at("wallet-file").as<string>() : "wallet.json");
       if( fc::exists( wallet_file ) )
-          wdata = fc::json::from_file( wallet_file ).as<wallet_data>();
+      {
+         wdata = fc::json::from_file( wallet_file ).as<wallet_data>();
+         if( options.count("chain-id") )
+         {
+            // the --chain-id on the CLI must match the chain ID embedded in the wallet file
+            if( chain_id_type(options.at("chain-id").as<std::string>()) != wdata.chain_id )
+            {
+               std::cout << "Chain ID in wallet file does not match specified chain ID\n";
+               return 1;
+            }
+         }
+      }
+      else
+      {
+         if( options.count("chain-id") )
+         {
+            wdata.chain_id = chain_id_type(options.at("chain-id").as<std::string>());
+            std::cout << "Starting a new wallet with chain ID " << wdata.chain_id.str() << " (from CLI)\n";
+         }
+         else
+         {
+            wdata.chain_id = graphene::egenesis::get_egenesis_chain_id();
+            std::cout << "Starting a new wallet with chain ID " << wdata.chain_id.str() << " (from egenesis)\n";
+         }
+      }
 
+      // but allow CLI to override
       if( options.count("server-rpc-endpoint") )
          wdata.ws_server = options.at("server-rpc-endpoint").as<std::string>();
       if( options.count("server-rpc-user") )
@@ -134,13 +163,16 @@ int main( int argc, char** argv )
          wdata.ws_password = options.at("server-rpc-password").as<std::string>();
 
       fc::http::websocket_client client;
+      idump((wdata.ws_server));
       auto con  = client.connect( wdata.ws_server );
       auto apic = std::make_shared<fc::rpc::websocket_api_connection>(*con);
 
       auto remote_api = apic->get_remote_api< login_api >(1);
+      edump((wdata.ws_user)(wdata.ws_password) );
+      // TODO:  Error message here
       FC_ASSERT( remote_api->login( wdata.ws_user, wdata.ws_password ) );
 
-      auto wapiptr = std::make_shared<wallet_api>(remote_api);
+      auto wapiptr = std::make_shared<wallet_api>( wdata, remote_api );
       wapiptr->set_wallet_filename( wallet_file.generic_string() );
       wapiptr->load_wallet_file();
 
@@ -150,8 +182,9 @@ int main( int argc, char** argv )
       for( auto& name_formatter : wapiptr->get_result_formatters() )
          wallet_cli->format_result( name_formatter.first, name_formatter.second );
 
-      boost::signals2::scoped_connection closed_connection(con->closed.connect([]{
+      boost::signals2::scoped_connection closed_connection(con->closed.connect([=]{
          cerr << "Server has disconnected us.\n";
+         wallet_cli->stop();
       }));
       (void)(closed_connection);
 
@@ -225,11 +258,9 @@ int main( int argc, char** argv )
       else
       {
         fc::promise<int>::ptr exit_promise = new fc::promise<int>("UNIX Signal Handler");
-#ifdef __unix__
         fc::set_signal_handler([&exit_promise](int signal) {
            exit_promise->set_value(signal);
         }, SIGINT);
-#endif
 
         ilog( "Entering Daemon Mode, ^C to exit" );
         exit_promise->wait();

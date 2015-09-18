@@ -29,6 +29,7 @@
 #include "../common/database_fixture.hpp"
 
 using namespace graphene::chain;
+using namespace graphene::chain::test;
 
 BOOST_FIXTURE_TEST_SUITE( uia_tests, database_fixture )
 
@@ -72,13 +73,11 @@ BOOST_AUTO_TEST_CASE( override_transfer_test )
 { try {
    ACTORS( (dan)(eric)(sam) );
    const asset_object& advanced = create_user_issued_asset( "ADVANCED", sam, override_authority );
+   BOOST_TEST_MESSAGE( "Issuing 1000 ADVANCED to dan" );
    issue_uia( dan, advanced.amount( 1000 ) );
-   trx.validate();
-   db.push_transaction(trx, ~0);
-   trx.operations.clear();
+   BOOST_TEST_MESSAGE( "Checking dan's balance" );
    BOOST_REQUIRE_EQUAL( get_balance( dan, advanced ), 1000 );
 
-   trx.operations.clear();
    override_transfer_operation otrans;
    otrans.issuer = advanced.issuer;
    otrans.from = dan.id;
@@ -89,11 +88,11 @@ BOOST_AUTO_TEST_CASE( override_transfer_test )
    BOOST_TEST_MESSAGE( "Require throwing without signature" );
    GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, 0 ), tx_missing_active_auth );
    BOOST_TEST_MESSAGE( "Require throwing with dan's signature" );
-   trx.sign( dan_private_key );
+   sign( trx,  dan_private_key  );
    GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, 0 ), tx_missing_active_auth );
    BOOST_TEST_MESSAGE( "Pass with issuer's signature" );
    trx.signatures.clear();
-   trx.sign( sam_private_key );
+   sign( trx,  sam_private_key  );
    PUSH_TX( db, trx, 0 );
 
    BOOST_REQUIRE_EQUAL( get_balance( dan, advanced ), 900 );
@@ -105,9 +104,6 @@ BOOST_AUTO_TEST_CASE( override_transfer_test2 )
    ACTORS( (dan)(eric)(sam) );
    const asset_object& advanced = create_user_issued_asset( "ADVANCED", sam, 0 );
    issue_uia( dan, advanced.amount( 1000 ) );
-   trx.validate();
-   db.push_transaction(trx, ~0);
-   trx.operations.clear();
    BOOST_REQUIRE_EQUAL( get_balance( dan, advanced ), 1000 );
 
    trx.operations.clear();
@@ -121,11 +117,11 @@ BOOST_AUTO_TEST_CASE( override_transfer_test2 )
    BOOST_TEST_MESSAGE( "Require throwing without signature" );
    GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, 0 ), fc::exception);
    BOOST_TEST_MESSAGE( "Require throwing with dan's signature" );
-   trx.sign( dan_private_key );
+   sign( trx,  dan_private_key  );
    GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, 0 ), fc::exception);
    BOOST_TEST_MESSAGE( "Fail because overide_authority flag is not set" );
    trx.signatures.clear();
-   trx.sign( sam_private_key );
+   sign( trx,  sam_private_key  );
    GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, 0 ), fc::exception );
 
    BOOST_REQUIRE_EQUAL( get_balance( dan, advanced ), 1000 );
@@ -286,23 +282,76 @@ BOOST_AUTO_TEST_CASE( transfer_whitelist_uia )
    }
 }
 
-
 /**
  * verify that issuers can halt transfers
  */
-BOOST_AUTO_TEST_CASE_EXPECTED_FAILURES( unimp_halt_transfers_flag_test, 1 )
-BOOST_AUTO_TEST_CASE( unimp_halt_transfers_flag_test )
+BOOST_AUTO_TEST_CASE( transfer_restricted_test )
 {
-   BOOST_FAIL( "not implemented" );
+   try
+   {
+      ACTORS( (sam)(alice)(bob) );
+
+      BOOST_TEST_MESSAGE( "Issuing 1000 UIA to Alice" );
+
+      auto _issue_uia = [&]( const account_object& recipient, asset amount )
+      {
+         asset_issue_operation op;
+         op.issuer = amount.asset_id(db).issuer;
+         op.asset_to_issue = amount;
+         op.issue_to_account = recipient.id;
+         transaction tx;
+         tx.operations.push_back( op );
+         set_expiration( db, tx );
+         PUSH_TX( db, tx, database::skip_authority_check | database::skip_tapos_check | database::skip_transaction_signatures );
+      } ;
+
+      const asset_object& uia = create_user_issued_asset( "TXRX", sam, transfer_restricted );
+      _issue_uia( alice, uia.amount( 1000 ) );
+
+      auto _restrict_xfer = [&]( bool xfer_flag )
+      {
+         asset_update_operation op;
+         op.issuer = sam_id;
+         op.asset_to_update = uia.id;
+         op.new_options = uia.options;
+         if( xfer_flag )
+            op.new_options.flags |= transfer_restricted;
+         else
+            op.new_options.flags &= ~transfer_restricted;
+         transaction tx;
+         tx.operations.push_back( op );
+         set_expiration( db, tx );
+         PUSH_TX( db, tx, database::skip_authority_check | database::skip_tapos_check | database::skip_transaction_signatures );
+      } ;
+
+      BOOST_TEST_MESSAGE( "Enable transfer_restricted, send fails" );
+
+      transfer_operation xfer_op;
+      xfer_op.from = alice_id;
+      xfer_op.to = bob_id;
+      xfer_op.amount = uia.amount(100);
+      signed_transaction xfer_tx;
+      xfer_tx.operations.push_back( xfer_op );
+      set_expiration( db, xfer_tx );
+      sign( xfer_tx, alice_private_key );
+
+      _restrict_xfer( true );
+      GRAPHENE_REQUIRE_THROW( PUSH_TX( db, xfer_tx ), transfer_restricted_transfer_asset );
+
+      BOOST_TEST_MESSAGE( "Disable transfer_restricted, send succeeds" );
+
+      _restrict_xfer( false );
+      PUSH_TX( db, xfer_tx );
+
+      xfer_op.amount = uia.amount(101);
+
+   }
+   catch(fc::exception& e)
+   {
+      edump((e.to_detail_string()));
+      throw;
+   }
 }
 
-/**
- * verify that issuers can retract funds
- */
-BOOST_AUTO_TEST_CASE_EXPECTED_FAILURES( unimp_fund_retraction_test, 1 )
-BOOST_AUTO_TEST_CASE( unimp_fund_retraction_test )
-{
-   BOOST_FAIL( "not implemented" );
-}
 
 BOOST_AUTO_TEST_SUITE_END()

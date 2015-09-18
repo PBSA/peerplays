@@ -20,6 +20,7 @@
 #include <graphene/chain/committee_member_object.hpp>
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/database.hpp>
+#include <graphene/chain/protocol/vote.hpp>
 
 namespace graphene { namespace chain {
 
@@ -33,43 +34,37 @@ object_id_type witness_create_evaluator::do_apply( const witness_create_operatio
 { try {
    vote_id_type vote_id;
    db().modify(db().get_global_properties(), [&vote_id](global_property_object& p) {
-      vote_id = p.get_next_vote_id(vote_id_type::witness);
+      vote_id = get_next_vote_id(p, vote_id_type::witness);
    });
 
    const auto& new_witness_object = db().create<witness_object>( [&]( witness_object& obj ){
          obj.witness_account  = op.witness_account;
          obj.signing_key      = op.block_signing_key;
-         obj.next_secret_hash = op.initial_secret;
          obj.vote_id          = vote_id;
          obj.url              = op.url;
    });
    return new_witness_object.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
-void_result witness_withdraw_pay_evaluator::do_evaluate(const witness_withdraw_pay_evaluator::operation_type& o)
+void_result witness_update_evaluator::do_evaluate( const witness_update_operation& op )
 { try {
-   database& d = db();
-
-   witness = &d.get(o.from_witness);
-   FC_ASSERT( o.to_account == witness->witness_account );
-   FC_ASSERT( o.amount <= witness->accumulated_income, "Attempting to withdraw ${w}, but witness has only earned ${e}.",
-              ("w", o.amount)("e", witness->accumulated_income) );
-   to_account = &d.get(o.to_account);
-
+   FC_ASSERT(db().get(op.witness).witness_account == op.witness_account);
    return void_result();
-} FC_CAPTURE_AND_RETHROW( (o) ) }
+} FC_CAPTURE_AND_RETHROW( (op) ) }
 
-void_result witness_withdraw_pay_evaluator::do_apply(const witness_withdraw_pay_evaluator::operation_type& o)
+void_result witness_update_evaluator::do_apply( const witness_update_operation& op )
 { try {
-   database& d = db();
-
-   d.adjust_balance(o.to_account, asset(o.amount));
-
-   d.modify(*witness, [&o](witness_object& w) {
-      w.accumulated_income -= o.amount;
-   });
-
+   database& _db = db();
+   _db.modify(
+      _db.get(op.witness),
+      [&]( witness_object& wit )
+      {
+         if( op.new_url.valid() )
+            wit.url = *op.new_url;
+         if( op.new_signing_key.valid() )
+            wit.signing_key = *op.new_signing_key;
+      });
    return void_result();
-} FC_CAPTURE_AND_RETHROW( (o) ) }
+} FC_CAPTURE_AND_RETHROW( (op) ) }
 
 } } // graphene::chain

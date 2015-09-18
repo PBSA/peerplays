@@ -17,6 +17,7 @@
  */
 #pragma once
 #include <graphene/chain/protocol/operations.hpp>
+#include <graphene/chain/protocol/types.hpp>
 
 #include <numeric>
 
@@ -34,20 +35,8 @@ namespace graphene { namespace chain {
     * hours with a 1 second interval.
     *
     * All transactions must expire so that the network does not have to maintain a permanent record of all transactions
-    * ever published. There are two accepted ways to specify the transaction's expiration time. The first is to choose
-    * a reference block, which is generally the most recent block the wallet is aware of when it signs the transaction,
-    * and specify a number of block intervals after the reference block until the transaction expires. The second
-    * expiration mechanism is to explicitly specify a timestamp of expiration.
-    *
-    * Note: The number of block intervals is different than the number of blocks. In effect the maximum period that a
-    * transaction is theoretically valid is 18 hours (1 sec interval) to 3.5 days (5 sec interval) if the reference
-    * block was the most recent block.
-    *
-    * If a transaction is to expire after a number of block intervals from a reference block, the reference block
-    * should be identified in the transaction header using the @ref ref_block_num, @ref ref_block_prefix, and @ref
-    * relative_expiration fields. If the transaction is instead to expire at an absolute timestamp, @ref
-    * ref_block_prefix should be treated as a 32-bit timestamp of the expiration time, and @ref ref_block_num and @ref
-    * relative_expiration must both be set to zero.
+    * ever published.  A transaction may not have an expiration date too far in the future because this would require
+    * keeping too much transaction history in memory.
     *
     * The block prefix is the first 4 bytes of the block hash of the reference block number, which is the second 4
     * bytes of the @ref block_id_type (the first 4 bytes of the block ID are the block number)
@@ -58,7 +47,7 @@ namespace graphene { namespace chain {
     * probably have a longer re-org window to ensure their transaction can still go through in the event of a momentary
     * disruption in service.
     *
-    * @note It is not recommended to set the @ref ref_block_num, @ref ref_block_prefix, and @ref relative_expiration
+    * @note It is not recommended to set the @ref ref_block_num, @ref ref_block_prefix, and @ref expiration
     * fields manually. Call the appropriate overload of @ref set_expiration instead.
     *
     * @{
@@ -80,45 +69,44 @@ namespace graphene { namespace chain {
        * @ref block_id_type
        */
       uint32_t           ref_block_prefix = 0;
+
       /**
-       * This field specifies the number of block intervals after the reference block until this transaction becomes
-       * invalid. If this field is set to zero, the @ref ref_block_prefix is interpreted as an absolute timestamp of
-       * the time the transaction becomes invalid.
+       * This field specifies the absolute expiration for this transaction.
        */
-      uint16_t           relative_expiration = 1;
+      fc::time_point_sec expiration;
+
       vector<operation>  operations;
       extensions_type    extensions;
 
-      /// Calculate the digest for a transaction with a reference block
-      /// @param ref_block_id Full block ID of the reference block
-      digest_type digest(const block_id_type& ref_block_id)const;
-      /// Calculate the digest for a transaction with an absolute expiration time
-      digest_type digest()const;
+      /// Calculate the digest for a transaction
+      digest_type         digest()const;
       transaction_id_type id()const;
-      void validate() const;
+      void                validate() const;
+      /// Calculate the digest used for signature validation
+      digest_type         sig_digest( const chain_id_type& chain_id )const;
 
       void set_expiration( fc::time_point_sec expiration_time );
-      void set_expiration( const block_id_type& reference_block, unsigned_int lifetime_intervals = 3 );
+      void set_reference_block( const block_id_type& reference_block );
 
       /// visit all operations
       template<typename Visitor>
-      void visit( Visitor&& visitor )
+      vector<typename Visitor::result_type> visit( Visitor&& visitor )
       {
+         vector<typename Visitor::result_type> results;
          for( auto& op : operations )
-            op.visit( std::forward<Visitor>( visitor ) );
+            results.push_back(op.visit( std::forward<Visitor>( visitor ) ));
+         return results;
       }
       template<typename Visitor>
-      void visit( Visitor&& visitor )const
+      vector<typename Visitor::result_type> visit( Visitor&& visitor )const
       {
+         vector<typename Visitor::result_type> results;
          for( auto& op : operations )
-            op.visit( std::forward<Visitor>( visitor ) );
+            results.push_back(op.visit( std::forward<Visitor>( visitor ) ));
+         return results;
       }
 
       void get_required_authorities( flat_set<account_id_type>& active, flat_set<account_id_type>& owner, vector<authority>& other )const;
-
-   protected:
-      // Intentionally unreflected: does not go on wire
-      optional<block_id_type> block_id_cache;
    };
 
    /**
@@ -130,28 +118,62 @@ namespace graphene { namespace chain {
          : transaction(trx){}
 
       /** signs and appends to signatures */
-      const signature_type& sign( const private_key_type& key );
+      const signature_type& sign( const private_key_type& key, const chain_id_type& chain_id );
 
       /** returns signature but does not append */
-      signature_type sign( const private_key_type& key )const;
+      signature_type sign( const private_key_type& key, const chain_id_type& chain_id )const;
 
       /**
-       *  Given a set of private keys sign this transaction with a minimial subset of required keys.
-       *
-       *  @pram get_auth   - used to fetch the active authority required for an account referenced by another authority
+       *  The purpose of this method is to identify some subset of
+       *  @ref available_keys that will produce sufficient signatures
+       *  for a transaction.  The result is not always a minimal set of
+       *  signatures, but any non-minimal result will still pass
+       *  validation.
        */
-      void sign( const vector<private_key_type>& keys, 
-                 const std::function<const authority*(account_id_type)>& get_active,
-                 const std::function<const authority*(account_id_type)>& get_owner  );
-      
-      bool verify( const std::function<const authority*(account_id_type)>& get_active,
-                   const std::function<const authority*(account_id_type)>& get_owner  )const;
+      set<public_key_type> get_required_signatures(
+         const chain_id_type& chain_id,
+         const flat_set<public_key_type>& available_keys,
+         const std::function<const authority*(account_id_type)>& get_active,
+         const std::function<const authority*(account_id_type)>& get_owner,
+         uint32_t max_recursion = GRAPHENE_MAX_SIG_CHECK_DEPTH
+         )const;
+
+      void verify_authority(
+         const chain_id_type& chain_id,
+         const std::function<const authority*(account_id_type)>& get_active,
+         const std::function<const authority*(account_id_type)>& get_owner,
+         uint32_t max_recursion = GRAPHENE_MAX_SIG_CHECK_DEPTH )const;
+
+      /**
+       * This is a slower replacement for get_required_signatures()
+       * which returns a minimal set in all cases, including
+       * some cases where get_required_signatures() returns a
+       * non-minimal set.
+       */
+
+      set<public_key_type> minimize_required_signatures(
+         const chain_id_type& chain_id,
+         const flat_set<public_key_type>& available_keys,
+         const std::function<const authority*(account_id_type)>& get_active,
+         const std::function<const authority*(account_id_type)>& get_owner,
+         uint32_t max_recursion = GRAPHENE_MAX_SIG_CHECK_DEPTH
+         ) const;
+
+      flat_set<public_key_type> get_signature_keys( const chain_id_type& chain_id )const;
 
       vector<signature_type> signatures;
 
       /// Removes all operations and signatures
       void clear() { operations.clear(); signatures.clear(); }
    };
+
+   void verify_authority( const vector<operation>& ops, const flat_set<public_key_type>& sigs,
+                          const std::function<const authority*(account_id_type)>& get_active,
+                          const std::function<const authority*(account_id_type)>& get_owner,
+                          uint32_t max_recursion = GRAPHENE_MAX_SIG_CHECK_DEPTH,
+                          bool allow_committe = false,
+                          const flat_set<account_id_type>& active_aprovals = flat_set<account_id_type>(),
+                          const flat_set<account_id_type>& owner_approvals = flat_set<account_id_type>());
 
    /**
     *  @brief captures the result of evaluating the operations contained in the transaction
@@ -178,9 +200,8 @@ namespace graphene { namespace chain {
 
    /// @} transactions group
 
+} } // graphene::chain
 
-} }
-
-FC_REFLECT( graphene::chain::transaction, (ref_block_num)(ref_block_prefix)(relative_expiration)(operations)(extensions) )
+FC_REFLECT( graphene::chain::transaction, (ref_block_num)(ref_block_prefix)(expiration)(operations)(extensions) )
 FC_REFLECT_DERIVED( graphene::chain::signed_transaction, (graphene::chain::transaction), (signatures) )
 FC_REFLECT_DERIVED( graphene::chain::processed_transaction, (graphene::chain::signed_transaction), (operation_results) )

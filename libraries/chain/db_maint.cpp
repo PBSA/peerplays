@@ -16,6 +16,11 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <boost/multiprecision/integer.hpp>
+
+#include <fc/smart_ref_impl.hpp>
+#include <fc/uint128.hpp>
+
 #include <graphene/chain/database.hpp>
 
 #include <graphene/chain/account_object.hpp>
@@ -24,10 +29,7 @@
 #include <graphene/chain/global_property_object.hpp>
 #include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/witness_object.hpp>
-#include <graphene/chain/witness_schedule_object.hpp>
 #include <graphene/chain/worker_evaluator.hpp>
-
-#include <fc/uint128.hpp>
 
 namespace graphene { namespace chain {
 
@@ -81,6 +83,19 @@ struct worker_pay_visitor
          worker.pay_worker(pay, db);
       }
 };
+void database::update_worker_votes()
+{
+   auto& idx = get_index_type<worker_index>();
+   auto itr = idx.indices().get<by_account>().begin();
+   while( itr != idx.indices().get<by_account>().end() )
+   {
+      modify( *itr, [&]( worker_object& obj ){
+         obj.total_votes_for = _vote_tally_buffer[obj.vote_for];
+         obj.total_votes_against = _vote_tally_buffer[obj.vote_against];
+      });
+      ++itr;
+   }
+}
 
 void database::pay_workers( share_type& budget )
 {
@@ -88,7 +103,7 @@ void database::pay_workers( share_type& budget )
    vector<std::reference_wrapper<const worker_object>> active_workers;
    get_index_type<worker_index>().inspect_all_objects([this, &active_workers](const object& o) {
       const worker_object& w = static_cast<const worker_object&>(o);
-      auto now = _pending_block.timestamp;
+      auto now = head_block_time();
       if( w.is_active(now) && w.approving_stake(_vote_tally_buffer) > 0 )
          active_workers.emplace_back(w);
    });
@@ -103,14 +118,14 @@ void database::pay_workers( share_type& budget )
       return wa.id < wb.id;
    });
 
-   for( int i = 0; i < active_workers.size() && budget > 0; ++i )
+   for( uint32_t i = 0; i < active_workers.size() && budget > 0; ++i )
    {
       const worker_object& active_worker = active_workers[i];
       share_type requested_pay = active_worker.daily_pay;
-      if( _pending_block.timestamp - get_dynamic_global_properties().last_budget_time != fc::days(1) )
+      if( head_block_time() - get_dynamic_global_properties().last_budget_time != fc::days(1) )
       {
          fc::uint128 pay(requested_pay.value);
-         pay *= (_pending_block.timestamp - get_dynamic_global_properties().last_budget_time).count();
+         pay *= (head_block_time() - get_dynamic_global_properties().last_budget_time).count();
          pay /= fc::days(1).count();
          requested_pay = pay.to_uint64();
       }
@@ -136,8 +151,16 @@ void database::update_active_witnesses()
              && (stake_tally <= stake_target) )
          stake_tally += _witness_count_histogram_buffer[++witness_count];
 
-   auto wits = sort_votable_objects<witness_index>(std::max(witness_count*2+1, (size_t)GRAPHENE_MIN_WITNESS_COUNT));
+   const chain_property_object& cpo = get_chain_properties();
+   auto wits = sort_votable_objects<witness_index>(std::max(witness_count*2+1, (size_t)cpo.immutable_parameters.min_witness_count));
    const global_property_object& gpo = get_global_properties();
+
+   for( const witness_object& wit : wits )
+   {
+      modify( wit, [&]( witness_object& obj ){
+              obj.total_votes = _vote_tally_buffer[wit.vote_id];
+              });
+   }
 
    // Update witness authority
    modify( get(GRAPHENE_WITNESS_ACCOUNT), [&]( account_object& a ) {
@@ -184,11 +207,6 @@ void database::update_active_witnesses()
       });
    });
 
-   const witness_schedule_object& wso = witness_schedule_id_type()(*this);
-   modify(wso, [&](witness_schedule_object& _wso)
-   {
-      _wso.scheduler.update(gpo.active_witnesses);
-   });
 } FC_CAPTURE_AND_RETHROW() }
 
 void database::update_active_committee_members()
@@ -202,7 +220,15 @@ void database::update_active_committee_members()
              && (stake_tally <= stake_target) )
          stake_tally += _committee_count_histogram_buffer[++committee_member_count];
 
-   auto committee_members = sort_votable_objects<committee_member_index>(std::max(committee_member_count*2+1, (size_t)GRAPHENE_MIN_COMMITTEE_MEMBER_COUNT));
+   const chain_property_object& cpo = get_chain_properties();
+   auto committee_members = sort_votable_objects<committee_member_index>(std::max(committee_member_count*2+1, (size_t)cpo.immutable_parameters.min_committee_member_count));
+
+   for( const committee_member_object& del : committee_members )
+   {
+      modify( del, [&]( committee_member_object& obj ){
+              obj.total_votes = _vote_tally_buffer[del.vote_id];
+              });
+   }
 
    // Update committee authorities
    if( !committee_members.empty() )
@@ -296,7 +322,7 @@ void database::process_budget()
       const dynamic_global_property_object& dpo = get_dynamic_global_properties();
       const asset_dynamic_data_object& core =
          asset_id_type(0)(*this).dynamic_asset_data_id(*this);
-      fc::time_point_sec now = _pending_block.timestamp;
+      fc::time_point_sec now = head_block_time();
 
       int64_t time_to_maint = (dpo.next_maintenance_time - now).to_seconds();
       //
@@ -389,7 +415,7 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
             // specifying the opinions.
             const account_object& opinion_account =
                   (stake_account.options.voting_account ==
-                   account_id_type())? stake_account
+                   GRAPHENE_PROXY_TO_SELF_ACCOUNT)? stake_account
                                      : d.get(stake_account.options.voting_account);
 
             const auto& stats = stake_account.statistics(d);
@@ -458,15 +484,13 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
 
    update_active_witnesses();
    update_active_committee_members();
+   update_worker_votes();
 
    modify(gpo, [this](global_property_object& p) {
       // Remove scaling of account registration fee
-     /*
-      /// TODO reimplement this 
       const auto& dgpo = get_dynamic_global_properties();
-      p.parameters.current_fees.account_create_fee >>= p.parameters.account_fee_scale_bitshifts *
+      p.parameters.current_fees->get<account_create_operation>().basic_fee >>= p.parameters.account_fee_scale_bitshifts *
             (dgpo.accounts_registered_this_interval / p.parameters.accounts_per_fee_scale);
-     */
 
       if( p.pending_parameters )
       {
@@ -474,19 +498,6 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
          p.pending_parameters.reset();
       }
    });
-
-   auto new_block_interval = global_props.parameters.block_interval;
-
-   // if block interval CHANGED during this block *THEN* we cannot simply
-   // add the interval if we want to maintain the invariant that all timestamps are a multiple
-   // of the interval.
-   _pending_block.timestamp = next_block.timestamp + fc::seconds(new_block_interval);
-   uint32_t r = _pending_block.timestamp.sec_since_epoch()%new_block_interval;
-   if( !r )
-   {
-      _pending_block.timestamp -=  r;
-      assert( (_pending_block.timestamp.sec_since_epoch() % new_block_interval) == 0 );
-   }
 
    auto next_maintenance_time = get<dynamic_global_property_object>(dynamic_global_property_id_type()).next_maintenance_time;
    auto maintenance_interval = gpo.parameters.maintenance_interval;
@@ -497,10 +508,25 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
          next_maintenance_time = time_point_sec() +
                (((next_block.timestamp.sec_since_epoch() / maintenance_interval) + 1) * maintenance_interval);
       else
-         // It's possible we have missed blocks for at least a maintenance interval.
-         // In this case, we'll need to bump the next maintenance time more than once.
-         do next_maintenance_time += maintenance_interval;
-         while( next_maintenance_time < head_block_time() );
+      {
+         // We want to find the smallest k such that next_maintenance_time + k * maintenance_interval > head_block_time()
+         //  This implies k > ( head_block_time() - next_maintenance_time ) / maintenance_interval
+         //
+         // Let y be the right-hand side of this inequality, i.e.
+         // y = ( head_block_time() - next_maintenance_time ) / maintenance_interval
+         //
+         // and let the fractional part f be y-floor(y).  Clearly 0 <= f < 1.
+         // We can rewrite f = y-floor(y) as floor(y) = y-f.
+         //
+         // Clearly k = floor(y)+1 has k > y as desired.  Now we must
+         // show that this is the least such k, i.e. k-1 <= y.
+         //
+         // But k-1 = floor(y)+1-1 = floor(y) = y-f <= y.
+         // So this k suffices.
+         //
+         auto y = (head_block_time() - next_maintenance_time).to_seconds() / maintenance_interval;
+         next_maintenance_time += (y+1) * maintenance_interval;
+      }
    }
 
    modify(get_dynamic_global_properties(), [next_maintenance_time](dynamic_global_property_object& d) {

@@ -1,5 +1,6 @@
 #pragma once
 #include <graphene/chain/protocol/base.hpp>
+#include <graphene/chain/protocol/vote.hpp>
 
 namespace graphene { namespace chain { 
 
@@ -13,9 +14,10 @@ namespace graphene { namespace chain {
       /// validated account activities. This field is here to prevent confusion if the active authority has zero or
       /// multiple keys in it.
       public_key_type  memo_key;
-      /// If this field is set to an account ID other than 0, this account's votes will be ignored and its stake
+      /// If this field is set to an account ID other than GRAPHENE_PROXY_TO_SELF_ACCOUNT,
+      /// then this account's votes will be ignored; its stake
       /// will be counted as voting for the referenced account's selected votes instead.
-      account_id_type voting_account;
+      account_id_type voting_account = GRAPHENE_PROXY_TO_SELF_ACCOUNT;
 
       /// The number of active witnesses this account votes the blockchain should appoint
       /// Must not exceed the actual number of witnesses voted for in @ref votes
@@ -62,14 +64,6 @@ namespace graphene { namespace chain {
       account_id_type fee_payer()const { return registrar; }
       void            validate()const;
       share_type      calculate_fee(const fee_parameters_type& )const;
-
-      void            get_impacted_accounts( flat_set<account_id_type>& i )const
-      { 
-         i.insert(registrar); 
-         i.insert(referrer);
-         add_authority_accounts( i, owner );
-         add_authority_accounts( i, active );
-      }
    };
 
    /**
@@ -92,7 +86,7 @@ namespace graphene { namespace chain {
 
       /// New owner authority. If set, this operation requires owner authority to execute.
       optional<authority> owner;
-      /// New active authority. If set, this operation requires owner authority to execute: TODO: why?
+      /// New active authority. If set, this operation requires owner authority to execute.
       optional<authority> active;
 
       /// New account options
@@ -104,16 +98,11 @@ namespace graphene { namespace chain {
       share_type calculate_fee( const fee_parameters_type& k )const;
 
       void get_required_owner_authorities( flat_set<account_id_type>& a )const
-      { if( owner || active ) a.insert( account ); }
+      { if( owner ) a.insert( account ); }
 
-      void       get_impacted_accounts( flat_set<account_id_type>& i )const
-      { 
-         i.insert(account);
-         if( owner ) add_authority_accounts( i, *owner );
-         if( active ) add_authority_accounts( i, *active );
-      }
+      void get_required_active_authorities( flat_set<account_id_type>& a )const
+      { if( !owner ) a.insert( account ); }
    };
-
 
    /**
     * @brief This operation is used to whitelist and blacklist accounts, primarily for transacting in whitelisted assets
@@ -157,12 +146,7 @@ namespace graphene { namespace chain {
 
       account_id_type fee_payer()const { return authorizing_account; }
       void validate()const { FC_ASSERT( fee.amount >= 0 ); FC_ASSERT(new_listing < 0x4); }
-
-      void       get_impacted_accounts( flat_set<account_id_type>& i )const
-      { i.insert(account_to_list); }
-
    };
-
 
    /**
     * @brief Manage an account's membership status
@@ -220,15 +204,10 @@ namespace graphene { namespace chain {
 
       account_id_type fee_payer()const { return account_id; }
       void        validate()const;
-
-      void       get_impacted_accounts( flat_set<account_id_type>& i )const
-      { 
-         i.insert(new_owner);
-      }
-
    };
 
-} }
+} } // graphene::chain
+
 FC_REFLECT(graphene::chain::account_options, (memo_key)(voting_account)(num_witness)(num_committee)(votes)(extensions))
 FC_REFLECT_TYPENAME( graphene::chain::account_whitelist_operation::account_listing)
 FC_REFLECT_ENUM( graphene::chain::account_whitelist_operation::account_listing,

@@ -32,17 +32,20 @@ namespace graphene { namespace chain {
          static const uint8_t type_id = witness_object_type;
 
          account_id_type  witness_account;
+         uint64_t         last_aslot = 0;
          public_key_type  signing_key;
-         secret_hash_type next_secret_hash;
-         secret_hash_type previous_secret;
-         share_type       accumulated_income;
+         optional< vesting_balance_id_type > pay_vb;
          vote_id_type     vote_id;
+         uint64_t         total_votes = 0;
          string           url;
+         int64_t          total_missed = 0;     
 
          witness_object() : vote_id(vote_id_type::witness) {}
    };
 
    struct by_account;
+   struct by_vote_id;
+   struct by_last_block;
    using witness_multi_index_type = multi_index_container<
       witness_object,
       indexed_by<
@@ -51,6 +54,9 @@ namespace graphene { namespace chain {
          >,
          hashed_unique< tag<by_account>,
             member<witness_object, account_id_type, &witness_object::witness_account>
+         >,
+         hashed_unique< tag<by_vote_id>,
+            member<witness_object, vote_id_type, &witness_object::vote_id>
          >
       >
    >;
@@ -59,9 +65,11 @@ namespace graphene { namespace chain {
 
 FC_REFLECT_DERIVED( graphene::chain::witness_object, (graphene::db::object),
                     (witness_account)
+                    (last_aslot)
                     (signing_key)
-                    (next_secret_hash)
-                    (previous_secret)
-                    (accumulated_income)
+                    (pay_vb)
                     (vote_id)
-                    (url) )
+                    (total_votes)
+                    (url) 
+                    (total_missed)
+                  )

@@ -29,31 +29,45 @@ Rectangle {
 
       var form = formType.createObject(formContainer, params)
       formContainer.data = [form]
-      form.finished.connect(function(){state = "HIDDEN"})
+      form.canceled.connect(function(){state = "HIDDEN"; internal.callbackArgs = []})
+      form.completed.connect(function(){state = "HIDDEN"; internal.callbackArgs = arguments})
       if (closedCallback instanceof Function)
          internal.callback = closedCallback
+      // Notify the form that it's about to go live
+      form.display({})
       state = "SHOWN"
    }
 
-   MouseArea {
-      id: mouseTrap
+   FocusScope {
+      id: scope
       anchors.fill: parent
-      onClicked: {
-         mouse.accepted = true
-         greySheet.state = "HIDDEN"
+
+      // Do not let focus leave this scope while form is open
+      onFocusChanged: if (enabled && !focus) forceActiveFocus()
+
+      Keys.onEscapePressed: greySheet.state = "HIDDEN"
+
+      MouseArea {
+         id: mouseTrap
+         anchors.fill: parent
+         onClicked: {
+            mouse.accepted = true
+            greySheet.state = "HIDDEN"
+         }
+         acceptedButtons: Qt.AllButtons
       }
-      acceptedButtons: Qt.AllButtons
-   }
-   MouseArea {
-      anchors.fill: formContainer
-      acceptedButtons: Qt.AllButtons
-      onClicked: mouse.accepted = true
-   }
-   Item {
-      id: formContainer
-      anchors.centerIn: parent
-      width: parent.width / 2
-      height: parent.height / 2
+      MouseArea {
+         // This mouse area blocks clicks inside the form from reaching the mouseTrap
+         anchors.fill: formContainer
+         acceptedButtons: Qt.AllButtons
+         onClicked: mouse.accepted = true
+      }
+      Item {
+         id: formContainer
+         anchors.centerIn: parent
+         width: parent.width / 2
+         height: parent.height / 2
+      }
    }
 
    states: [
@@ -73,12 +87,12 @@ Rectangle {
          StateChangeScript {
             name: "postHidden"
             script: {
-               console.log("Post")
                greySheet.closed()
                formContainer.data = []
                if (internal.callback instanceof Function)
-                  internal.callback()
+                  internal.callback.apply(this, internal.callbackArgs)
                internal.callback = undefined
+               internal.callbackArgs = []
             }
          }
       },
@@ -135,5 +149,6 @@ Rectangle {
    QtObject {
       id: internal
       property var callback
+      property var callbackArgs
    }
 }

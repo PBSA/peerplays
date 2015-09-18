@@ -55,8 +55,96 @@ struct brain_key_info
    public_key_type pub_key;
 };
 
+
+/**
+ *  Contains the confirmation receipt the sender must give the receiver and
+ *  the meta data about the receipt that helps the sender identify which receipt is
+ *  for the receiver and which is for the change address.
+ */
+struct blind_confirmation 
+{
+   struct output
+   {
+      string                          label;
+      public_key_type                 pub_key;
+      stealth_confirmation::memo_data decrypted_memo;
+      stealth_confirmation            confirmation;
+      authority                       auth;
+      string                          confirmation_receipt;
+   };
+
+   signed_transaction     trx;
+   vector<output>         outputs;
+};
+
+struct blind_balance
+{
+   asset                     amount;
+   public_key_type           from; ///< the account this balance came from
+   public_key_type           to; ///< the account this balance is logically associated with
+   public_key_type           one_time_key; ///< used to derive the authority key and blinding factor
+   fc::sha256                blinding_factor;
+   fc::ecc::commitment_type  commitment;
+   bool                      used = false;
+};
+
+struct blind_receipt
+{
+   std::pair<public_key_type,fc::time_point>        from_date()const { return std::make_pair(from_key,date); }
+   std::pair<public_key_type,fc::time_point>        to_date()const   { return std::make_pair(to_key,date);   }
+   std::tuple<public_key_type,asset_id_type,bool>   to_asset_used()const   { return std::make_tuple(to_key,amount.asset_id,used);   }
+   const commitment_type& commitment()const        { return data.commitment; }
+
+   fc::time_point                  date;
+   public_key_type                 from_key;
+   string                          from_label;
+   public_key_type                 to_key;
+   string                          to_label;
+   asset                           amount;
+   string                          memo;
+   authority                       control_authority;
+   stealth_confirmation::memo_data data;
+   bool                            used = false;
+   stealth_confirmation            conf;
+};
+
+struct by_from;
+struct by_to;
+struct by_to_asset_used;
+struct by_commitment;
+
+typedef multi_index_container< blind_receipt,
+   indexed_by<
+      ordered_unique< tag<by_commitment>, const_mem_fun< blind_receipt, const commitment_type&, &blind_receipt::commitment > >,
+      ordered_unique< tag<by_to>, const_mem_fun< blind_receipt, std::pair<public_key_type,fc::time_point>, &blind_receipt::to_date > >,
+      ordered_non_unique< tag<by_to_asset_used>, const_mem_fun< blind_receipt, std::tuple<public_key_type,asset_id_type,bool>, &blind_receipt::to_asset_used > >,
+      ordered_unique< tag<by_from>, const_mem_fun< blind_receipt, std::pair<public_key_type,fc::time_point>, &blind_receipt::from_date > >
+   >
+> blind_receipt_index_type;
+
+
+struct key_label
+{
+   string          label;
+   public_key_type key;
+};
+
+
+struct by_label;
+struct by_key;
+typedef multi_index_container<
+   key_label,
+   indexed_by<
+      ordered_unique< tag<by_label>, member< key_label, string, &key_label::label > >,
+      ordered_unique< tag<by_key>, member< key_label, public_key_type, &key_label::key > >
+   >
+> key_label_index_type;
+
+
 struct wallet_data
 {
+   /** Chain ID this wallet is used with */
+   chain_id_type chain_id;
    account_multi_index_type my_accounts;
    /// @return IDs of all accounts in @ref my_accounts
    vector<object_id_type> my_account_ids()const
@@ -94,14 +182,71 @@ struct wallet_data
    map<string, vector<string> > pending_account_registrations;
    map<string, string> pending_witness_registrations;
 
+   key_label_index_type                                              labeled_keys;
+   blind_receipt_index_type                                          blind_receipts;
+
    string                    ws_server = "ws://localhost:8090";
    string                    ws_user;
    string                    ws_password;
 };
 
+struct exported_account_keys
+{
+    string account_name;
+    vector<vector<char>> encrypted_private_keys;
+    vector<public_key_type> public_keys;
+};
+
+struct exported_keys
+{
+    fc::sha512 password_checksum;
+    vector<exported_account_keys> account_keys;
+};
+
+struct approval_delta
+{
+   vector<string> active_approvals_to_add;
+   vector<string> active_approvals_to_remove;
+   vector<string> owner_approvals_to_add;
+   vector<string> owner_approvals_to_remove;
+   vector<string> key_approvals_to_add;
+   vector<string> key_approvals_to_remove;
+};
+
+struct signed_block_with_info : public signed_block
+{
+   signed_block_with_info( const signed_block& block );
+   signed_block_with_info( const signed_block_with_info& block ) = default;
+
+   block_id_type block_id;
+   public_key_type signing_key;
+};
+
+struct vesting_balance_object_with_info : public vesting_balance_object
+{
+   vesting_balance_object_with_info( const vesting_balance_object& vbo, fc::time_point_sec now );
+   vesting_balance_object_with_info( const vesting_balance_object_with_info& vbo ) = default;
+
+   /**
+    * How much is allowed to be withdrawn.
+    */
+   asset allowed_withdraw;
+
+   /**
+    * The time at which allowed_withdrawal was calculated.
+    */
+   fc::time_point_sec allowed_withdraw_time;
+};
+
 namespace detail {
 class wallet_api_impl;
 }
+
+struct operation_detail {
+   string                   memo;
+   string                   description;
+   operation_history_object op;
+};
 
 /**
  * This wallet assumes it is connected to the database server with a high-bandwidth, low-latency connection and
@@ -110,7 +255,7 @@ class wallet_api_impl;
 class wallet_api
 {
    public:
-      wallet_api(fc::api<login_api> rapi);
+      wallet_api( const wallet_data& initial_data, fc::api<login_api> rapi );
       virtual ~wallet_api();
 
       bool copy_wallet_file( string destination_filename );
@@ -118,7 +263,7 @@ class wallet_api
       fc::ecc::private_key derive_private_key(const std::string& prefix_string, int sequence_number) const;
 
       variant                           info();
-      optional<signed_block>            get_block( uint32_t num );
+      optional<signed_block_with_info>    get_block( uint32_t num );
       /** Returns the number of accounts registered on the blockchain
        * @returns the number of registered accounts
        */
@@ -171,7 +316,7 @@ class wallet_api
        * @param limit the number of entries to return (starting from the most recent) (max 100)
        * @returns a list of \c operation_history_objects
        */
-      vector<operation_history_object>  get_account_history(string name, int limit)const;
+      vector<operation_detail>  get_account_history(string name, int limit)const;
 
 
       vector<bucket_object>             get_market_history(string symbol, string symbol2, uint32_t bucket)const;
@@ -251,6 +396,12 @@ class wallet_api
        * @return the wallet filename
        */
       string                            get_wallet_filename() const;
+
+      /**
+       * Get the WIF private key corresponding to a public key.  The
+       * private key must already be in the wallet.
+       */
+      string                            get_private_key( public_key_type pubkey )const;
 
       /**
        * @ingroup Transaction Builder API
@@ -419,6 +570,10 @@ class wallet_api
        */
       bool import_key(string account_name_or_id, string wif_key);
 
+      map<string, bool> import_accounts( string filename, string password );
+
+      bool import_account_keys( string filename, string password, string src_account_name, string dest_account_name );
+
       /**
        * This call will construct a transaction that will claim all balances controled
        * by wif_keys and deposit them into the given account.
@@ -520,6 +675,82 @@ class wallet_api
                                   string asset_symbol,
                                   string memo,
                                   bool broadcast = false);
+
+
+
+      /** These methods are used for stealth transfers */
+      ///@{
+      /**
+       *  This method can be used to set the label for a public key
+       *
+       *  @note No two keys can have the same label.
+       *
+       *  @return true if the label was set, otherwise false
+       */
+      bool                        set_key_label( public_key_type, string label );
+      string                      get_key_label( public_key_type )const;
+
+      /**
+       *  Generates a new blind account for the given brain key and assigns it the given label.
+       */
+      public_key_type             create_blind_account( string label, string brain_key  );
+
+      /**
+       * @return the total balance of all blinded commitments that can be claimed by the
+       * given account key or label
+       */
+      vector<asset>                get_blind_balances( string key_or_label );
+      /** @return all blind accounts */
+      map<string,public_key_type> get_blind_accounts()const;
+      /** @return all blind accounts for which this wallet has the private key */
+      map<string,public_key_type> get_my_blind_accounts()const;
+      /** @return the public key associated with the given label */
+      public_key_type             get_public_key( string label )const;
+      ///@}
+
+      /**
+       * @return all blind receipts to/form a particular account
+       */
+      vector<blind_receipt> blind_history( string key_or_account );
+
+      /**
+       *  Given a confirmation receipt, this method will parse it for a blinded balance and confirm
+       *  that it exists in the blockchain.  If it exists then it will report the amount received and
+       *  who sent it.
+       *
+       *  @param opt_from - if not empty and the sender is a unknown public key, then the unknown public key will be given the label opt_from
+       *  @param confirmation_receipt - a base58 encoded stealth confirmation 
+       */
+      blind_receipt receive_blind_transfer( string confirmation_receipt, string opt_from, string opt_memo );
+
+      /**
+       *  Transfers a public balance from @from to one or more blinded balances using a
+       *  stealth transfer.
+       */
+      blind_confirmation transfer_to_blind( string from_account_id_or_name, 
+                                            string asset_symbol,
+                                            /** map from key or label to amount */
+                                            map<string, string> to_amounts, 
+                                            bool broadcast = false );
+
+      /**
+       * Transfers funds from a set of blinded balances to a public account balance.
+       */
+      blind_confirmation transfer_from_blind( 
+                                            string from_blind_account_key_or_label,
+                                            string to_account_id_or_name, 
+                                            string amount,
+                                            string asset_symbol,
+                                            bool broadcast = false );
+
+      /**
+       *  Used to transfer from one set of blinded balances to another
+       */
+      blind_confirmation blind_transfer( string from_key_or_label,
+                                         string to_key_or_label,
+                                         string amount,
+                                         string symbol,
+                                         bool broadcast = false );
 
       /** Place a limit order attempting to sell one asset for another.
        *
@@ -877,6 +1108,40 @@ class wallet_api
                                         string url,
                                         bool broadcast = false);
 
+      /**
+       * Update a witness object owned by the given account.
+       *
+       * @param witness The name of the witness's owner account.  Also accepts the ID of the owner account or the ID of the witness.
+       * @param url Same as for create_witness.  The empty string makes it remain the same.
+       * @param block_signing_key The new block signing public key.  The empty string makes it remain the same.
+       * @param broadcast true if you wish to broadcast the transaction.
+       */
+      signed_transaction update_witness(string witness_name,
+                                        string url,
+                                        string block_signing_key,
+                                        bool broadcast = false);
+
+      /**
+       * Get information about a vesting balance object.
+       *
+       * @param account_name An account name, account ID, or vesting balance object ID.
+       */
+      vector< vesting_balance_object_with_info > get_vesting_balances( string account_name );
+
+      /**
+       * Withdraw a vesting balance.
+       *
+       * @param witness_name The account name of the witness, also accepts account ID or vesting balance ID type.
+       * @param amount The amount to withdraw.
+       * @param asset_symbol The symbol of the asset to withdraw.
+       * @param broadcast true if you wish to broadcast the transaction
+       */
+      signed_transaction withdraw_vesting(
+         string witness_name,
+         string amount,
+         string asset_symbol,
+         bool broadcast = false);
+
       /** Vote for a given committee_member.
        *
        * An account can publish a list of all committee_memberes they approve of.  This 
@@ -996,12 +1261,65 @@ class wallet_api
        */
       operation get_prototype_operation(string operation_type);
 
+      /** Creates a transaction to propose a parameter change.
+       *
+       * Multiple parameters can be specified if an atomic change is
+       * desired.
+       *
+       * @param proposing_account The account paying the fee to propose the tx
+       * @param changed_values The values to change; all other chain parameters are filled in with default values
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed version of the transaction
+       */
+      signed_transaction propose_parameter_change(
+         const string& proposing_account,
+         const variant_object& changed_values,
+         bool broadcast = false);
+
+      /** Propose a fee change.
+       * 
+       * Not implemented.
+       * 
+       */
+      signed_transaction propose_fee_change(
+         const string& proposing_account,
+         const variant_object& changed_values,
+         bool broadcast = false);
+
+      /** Approve or disapprove a proposal.
+       *
+       * @param fee_paying_account The account paying the fee for the op.
+       * @param proposal_id The proposal to modify.
+       * @param delta Members contain approvals to create or remove.  In JSON you can leave empty members undefined.
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed version of the transaction
+       */
+      signed_transaction approve_proposal(
+         const string& fee_paying_account,
+         const string& proposal_id,
+         const approval_delta& delta,
+         bool broadcast /* = false */
+         );
+
       void dbg_make_uia(string creator, string symbol);
       void dbg_make_mia(string creator, string symbol);
       void flood_network(string prefix, uint32_t number_of_transactions);
 
-      std::map<string,std::function<string(fc::variant,const fc::variants&)>> get_result_formatters() const;
+      void network_add_nodes( const vector<string>& nodes );
+      vector< variant > network_get_connected_peers();
 
+      /**
+       *  Used to transfer from one set of blinded balances to another
+       */
+      blind_confirmation blind_transfer_help( string from_key_or_label,
+                                         string to_key_or_label,
+                                         string amount,
+                                         string symbol,
+                                         bool broadcast = false,
+                                         bool to_temp = false );
+
+
+      std::map<string,std::function<string(fc::variant,const fc::variants&)>> get_result_formatters() const;
 
       fc::signal<void(bool)> lock_changed;
       std::shared_ptr<detail::wallet_api_impl> my;
@@ -1010,13 +1328,21 @@ class wallet_api
 
 } }
 
+FC_REFLECT( graphene::wallet::key_label, (label)(key) )
+FC_REFLECT( graphene::wallet::blind_balance, (amount)(from)(to)(one_time_key)(blinding_factor)(commitment)(used) )
+FC_REFLECT( graphene::wallet::blind_confirmation::output, (label)(pub_key)(decrypted_memo)(confirmation)(auth)(confirmation_receipt) )
+FC_REFLECT( graphene::wallet::blind_confirmation, (trx)(outputs) )
+
 FC_REFLECT( graphene::wallet::plain_keys, (keys)(checksum) )
 
 FC_REFLECT( graphene::wallet::wallet_data,
+            (chain_id)
             (my_accounts)
             (cipher_keys)
             (extra_keys)
             (pending_account_registrations)(pending_witness_registrations)
+            (labeled_keys)
+            (blind_receipts)
             (ws_server)
             (ws_user)
             (ws_password)
@@ -1027,6 +1353,31 @@ FC_REFLECT( graphene::wallet::brain_key_info,
             (wif_priv_key)
             (pub_key)
           );
+
+FC_REFLECT( graphene::wallet::exported_account_keys, (account_name)(encrypted_private_keys)(public_keys) )
+
+FC_REFLECT( graphene::wallet::exported_keys, (password_checksum)(account_keys) )
+
+FC_REFLECT( graphene::wallet::blind_receipt,
+            (date)(from_key)(from_label)(to_key)(to_label)(amount)(memo)(control_authority)(data)(used)(conf) )
+
+FC_REFLECT( graphene::wallet::approval_delta,
+   (active_approvals_to_add)
+   (active_approvals_to_remove)
+   (owner_approvals_to_add)
+   (owner_approvals_to_remove)
+   (key_approvals_to_add)
+   (key_approvals_to_remove)
+)
+
+FC_REFLECT_DERIVED( graphene::wallet::signed_block_with_info, (graphene::chain::signed_block),
+   (block_id)(signing_key) )
+
+FC_REFLECT_DERIVED( graphene::wallet::vesting_balance_object_with_info, (graphene::chain::vesting_balance_object),
+   (allowed_withdraw)(allowed_withdraw_time) )
+
+FC_REFLECT( graphene::wallet::operation_detail, 
+            (memo)(description)(op) )
 
 FC_API( graphene::wallet::wallet_api,
         (help)
@@ -1049,6 +1400,8 @@ FC_API( graphene::wallet::wallet_api,
         (list_account_balances)
         (list_assets)
         (import_key)
+        (import_accounts)
+        (import_account_keys)
         (import_balance)
         (suggest_brain_key)
         (register_account)
@@ -1076,6 +1429,9 @@ FC_API( graphene::wallet::wallet_api,
         (list_witnesses)
         (list_committee_members)
         (create_witness)
+        (update_witness)
+        (get_vesting_balances)
+        (withdraw_vesting)
         (vote_for_committee_member)
         (vote_for_witness)
         (set_voting_proxy)
@@ -1089,6 +1445,7 @@ FC_API( graphene::wallet::wallet_api,
         (get_global_properties)
         (get_dynamic_global_properties)
         (get_object)
+        (get_private_key)
         (load_wallet_file)
         (normalize_brain_key)
         (get_limit_orders)
@@ -1098,7 +1455,24 @@ FC_API( graphene::wallet::wallet_api,
         (serialize_transaction)
         (sign_transaction)
         (get_prototype_operation)
+        (propose_parameter_change)
+        (propose_fee_change)
+        (approve_proposal)
         (dbg_make_uia)
         (dbg_make_mia)
         (flood_network)
+        (network_add_nodes)
+        (network_get_connected_peers)
+        (set_key_label)
+        (get_key_label)
+        (get_public_key)
+        (get_blind_accounts)
+        (get_my_blind_accounts)
+        (get_blind_balances)
+        (create_blind_account)
+        (transfer_to_blind)
+        (transfer_from_blind)
+        (blind_transfer)
+        (blind_history)
+        (receive_blind_transfer)
       )

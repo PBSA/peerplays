@@ -17,6 +17,7 @@
  */
 
 #include <graphene/chain/database.hpp>
+#include <graphene/chain/db_with.hpp>
 
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/global_property_object.hpp>
@@ -36,25 +37,64 @@ void database::update_global_dynamic_data( const signed_block& b )
    const dynamic_global_property_object& _dgp =
       dynamic_global_property_id_type(0)(*this);
 
-   //
+   uint32_t missed_blocks = get_slot_at_time( b.timestamp );
+   assert( missed_blocks != 0 );
+   missed_blocks--;
+   for( uint32_t i = 0; i < missed_blocks; ++i ) {
+      const auto& witness_missed = get_scheduled_witness( i+1 )(*this);
+      if(  witness_missed.id != b.witness ) {
+         const auto& witness_account = witness_missed.witness_account(*this); 
+         /*
+         if( (fc::time_point::now() - b.timestamp) < fc::seconds(30) )
+            wlog( "Witness ${name} missed block ${n} around ${t}", ("name",witness_account.name)("n",b.block_num())("t",b.timestamp) );
+            */
+
+         modify( witness_missed, [&]( witness_object& w ) {
+           w.total_missed++;
+         });
+      } 
+   }
+
    // dynamic global properties updating
-   //
    modify( _dgp, [&]( dynamic_global_property_object& dgp ){
-      secret_hash_type::encoder enc;
-      fc::raw::pack( enc, dgp.random );
-      fc::raw::pack( enc, b.previous_secret );
-      dgp.random = enc.result();
+      if( BOOST_UNLIKELY( b.block_num() == 1 ) )
+         dgp.recently_missed_count = 0;
+         else if( _checkpoints.size() && _checkpoints.rbegin()->first >= b.block_num() )
+         dgp.recently_missed_count = 0;
+      else if( missed_blocks )
+         dgp.recently_missed_count += GRAPHENE_RECENTLY_MISSED_COUNT_INCREMENT*missed_blocks;
+      else if( dgp.recently_missed_count > GRAPHENE_RECENTLY_MISSED_COUNT_INCREMENT )
+         dgp.recently_missed_count -= GRAPHENE_RECENTLY_MISSED_COUNT_DECREMENT;
+      else if( dgp.recently_missed_count > 0 )
+         dgp.recently_missed_count--;
+
       dgp.head_block_number = b.block_num();
       dgp.head_block_id = b.id();
       dgp.time = b.timestamp;
       dgp.current_witness = b.witness;
+      dgp.recent_slots_filled = (
+           (dgp.recent_slots_filled << 1)
+           + 1) << missed_blocks;
+      dgp.current_aslot += missed_blocks+1;
    });
+
+   if( !(get_node_properties().skip_flags & skip_undo_history_check) )
+   {
+      GRAPHENE_ASSERT( _dgp.recently_missed_count < GRAPHENE_MAX_UNDO_HISTORY, undo_database_exception,
+                 "The database does not have enough undo history to support a blockchain with so many missed blocks. "
+                 "Please add a checkpoint if you would like to continue applying blocks beyond this point.",
+                 ("recently_missed",_dgp.recently_missed_count)("max_undo",GRAPHENE_MAX_UNDO_HISTORY) );
+   }
+
+   _undo_db.set_max_size( _dgp.recently_missed_count + GRAPHENE_MIN_UNDO_HISTORY );
+   _fork_db.set_max_size( _dgp.recently_missed_count + GRAPHENE_MIN_UNDO_HISTORY );
 }
 
 void database::update_signing_witness(const witness_object& signing_witness, const signed_block& new_block)
 {
    const global_property_object& gpo = get_global_properties();
    const dynamic_global_property_object& dpo = get_dynamic_global_properties();
+   uint64_t new_block_aslot = dpo.current_aslot + get_slot_at_time( new_block.timestamp );
 
    share_type witness_pay = std::min( gpo.parameters.witness_pay_per_block, dpo.witness_budget );
 
@@ -63,22 +103,12 @@ void database::update_signing_witness(const witness_object& signing_witness, con
       _dpo.witness_budget -= witness_pay;
    } );
 
+   deposit_witness_pay( signing_witness, witness_pay );
+
    modify( signing_witness, [&]( witness_object& _wit )
    {
-      _wit.previous_secret = new_block.previous_secret;
-      _wit.next_secret_hash = new_block.next_secret_hash;
-      _wit.accumulated_income += witness_pay;
+      _wit.last_aslot = new_block_aslot;
    } );
-}
-
-void database::update_pending_block(const signed_block& next_block, uint8_t current_block_interval)
-{
-   _pending_block.timestamp = next_block.timestamp + current_block_interval;
-   _pending_block.previous = next_block.id();
-   auto old_pending_trx = std::move(_pending_block.transactions);
-   _pending_block.transactions.clear();
-   for( auto old_trx : old_pending_trx )
-      push_transaction( old_trx );
 }
 
 void database::clear_expired_transactions()
@@ -87,10 +117,7 @@ void database::clear_expired_transactions()
    //Transactions must have expired by at least two forking windows in order to be removed.
    auto& transaction_idx = static_cast<transaction_index&>(get_mutable_index(implementation_ids, impl_transaction_object_type));
    const auto& dedupe_index = transaction_idx.indices().get<by_expiration>();
-   const auto& global_parameters = get_global_properties().parameters;
-   auto forking_window_time = global_parameters.maximum_undo_history * global_parameters.block_interval;
-   while( !dedupe_index.empty()
-          && head_block_time() - dedupe_index.rbegin()->expiration >= fc::seconds(forking_window_time) )
+   while( (!dedupe_index.empty()) && (head_block_time() > dedupe_index.rbegin()->trx.expiration) )
       transaction_idx.remove(*dedupe_index.rbegin());
 }
 
@@ -118,7 +145,7 @@ void database::clear_expired_proposals()
 
 void database::clear_expired_orders()
 {
-   with_skip_flags(
+   detail::with_skip_flags( *this,
       get_node_properties().skip_flags | skip_authority_check, [&](){
          transaction_evaluation_state cancel_context(this);
 
@@ -133,7 +160,6 @@ void database::clear_expired_orders()
             apply_operation(cancel_context, canceler);
          }
      });
-
 
    //Process expired force settlement orders
    auto& settlement_index = get_index_type<force_settlement_index>().indices().get<by_expiration>();
@@ -239,6 +265,18 @@ void database::update_expired_feeds()
             a.options.core_exchange_rate = b.current_feed.core_exchange_rate;
          });
    }
+}
+
+void database::update_maintenance_flag( bool new_maintenance_flag )
+{
+   modify( get_dynamic_global_properties(), [&]( dynamic_global_property_object& dpo )
+   {
+      auto maintenance_flag = dynamic_global_property_object::maintenance_flag;
+      dpo.dynamic_flags =
+           (dpo.dynamic_flags & ~maintenance_flag)
+         | (new_maintenance_flag ? maintenance_flag : 0);
+   } );
+   return;
 }
 
 void database::update_withdraw_permissions()

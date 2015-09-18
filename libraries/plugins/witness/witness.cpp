@@ -23,7 +23,10 @@
 
 #include <graphene/utilities/key_conversion.hpp>
 
+#include <fc/smart_ref_impl.hpp>
 #include <fc/thread/thread.hpp>
+
+#include <iostream>
 
 using namespace graphene::witness_plugin;
 using std::string;
@@ -31,16 +34,36 @@ using std::vector;
 
 namespace bpo = boost::program_options;
 
+void new_chain_banner( const graphene::chain::database& db )
+{
+   std::cerr << "\n"
+      "********************************\n"
+      "*                              *\n"
+      "*   ------- NEW CHAIN ------   *\n"
+      "*   - Welcome to Graphene! -   *\n"
+      "*   ------------------------   *\n"
+      "*                              *\n"
+      "********************************\n"
+      "\n";
+   if( db.get_slot_at_time( graphene::time::now() ) > 200 )
+   {
+      std::cerr << "Your genesis seems to have an old timestamp\n"
+         "Please consider using the --genesis-timestamp option to give your genesis a recent timestamp\n"
+         "\n"
+         ;
+   }
+   return;
+}
+
 void witness_plugin::plugin_set_program_options(
    boost::program_options::options_description& command_line_options,
    boost::program_options::options_description& config_file_options)
 {
    auto default_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(std::string("nathan")));
-   string witness_id_example = fc::json::to_string(chain::witness_id_type());
+   string witness_id_example = fc::json::to_string(chain::witness_id_type(5));
    command_line_options.add_options()
          ("enable-stale-production", bpo::bool_switch()->notifier([this](bool e){_production_enabled = e;}), "Enable block production, even if the chain is stale.")
          ("required-participation", bpo::bool_switch()->notifier([this](int e){_required_witness_participation = uint32_t(e*GRAPHENE_1_PERCENT);}), "Percent of witnesses (0-99) that must be participating in order to produce blocks")
-         ("allow-consecutive", bpo::bool_switch()->notifier([this](bool e){_consecutive_production_enabled = e;}), "Allow block production, even if the last block was produced by the same witness.")
          ("witness-id,w", bpo::value<vector<string>>()->composing()->multitoken(),
           ("ID of witness controlled by this node (e.g. " + witness_id_example + ", quotes are required, may specify multiple times)").c_str())
          ("private-key", bpo::value<vector<string>>()->composing()->multitoken()->
@@ -57,6 +80,7 @@ std::string witness_plugin::plugin_name()const
 
 void witness_plugin::plugin_initialize(const boost::program_options::variables_map& options)
 { try {
+   ilog("witness plugin:  plugin_initialize() begin");
    _options = &options;
    LOAD_VALUE_SET(options, "witness-id", _witnesses, chain::witness_id_type)
 
@@ -84,62 +108,30 @@ void witness_plugin::plugin_initialize(const boost::program_options::variables_m
          _private_keys[key_id_to_wif_pair.first] = *private_key;
       }
    }
+   ilog("witness plugin:  plugin_initialize() end");
 } FC_LOG_AND_RETHROW() }
 
 void witness_plugin::plugin_startup()
 { try {
+   ilog("witness plugin:  plugin_startup() begin");
    chain::database& d = database();
-   std::set<chain::witness_id_type> bad_wits;
    //Start NTP time client
    graphene::time::now();
-   for( auto wit : _witnesses )
-   {
-      if( d.find(wit) == nullptr )
-      {
-         if( app().is_finished_syncing() )
-         {
-            elog("ERROR: Unable to find witness ${w}, even though syncing has finished. This witness will be ignored.",
-                 ("w", wit));
-            continue;
-         } else {
-            wlog("WARNING: Unable to find witness ${w}. Postponing initialization until syncing finishes.",
-                 ("w", wit));
-            app().syncing_finished.connect([this]{plugin_startup();});
-            return;
-         }
-      }
-
-      auto signing_key = wit(d).signing_key;
-      if( !_private_keys.count(signing_key) )
-      {
-         // Check if it's a duplicate key of one I do have
-         bool found_duplicate = false;
-         for( const auto& private_key : _private_keys )
-            if( chain::public_key_type(private_key.second.get_public_key()) == signing_key )
-            {
-               ilog("Found duplicate key: ${k1} matches ${k2}; using this key to sign for ${w}",
-                    ("k1", private_key.first)("k2", signing_key)("w", wit));
-               _private_keys[signing_key] = private_key.second;
-               found_duplicate = true;
-               break;
-            }
-         if( found_duplicate )
-            continue;
-
-         elog("Unable to find key for witness ${w}. Removing it from my witnesses.", ("w", wit));
-         bad_wits.insert(wit);
-      }
-   }
-   for( auto wit : bad_wits )
-      _witnesses.erase(wit);
 
    if( !_witnesses.empty() )
    {
       ilog("Launching block production for ${n} witnesses.", ("n", _witnesses.size()));
       app().set_block_production(true);
-      schedule_next_production(d.get_global_properties().parameters);
+      if( _production_enabled )
+      {
+         if( d.head_block_num() == 0 )
+            new_chain_banner(d);
+         _production_skip_flags |= graphene::chain::database::skip_undo_history_check;
+      }
+      schedule_production_loop();
    } else
       elog("No witnesses configured! Please add witness IDs and private keys to configuration.");
+   ilog("witness plugin:  plugin_startup() end");
 } FC_CAPTURE_AND_RETHROW() }
 
 void witness_plugin::plugin_shutdown()
@@ -148,124 +140,142 @@ void witness_plugin::plugin_shutdown()
    return;
 }
 
-void witness_plugin::schedule_next_production(const graphene::chain::chain_parameters& global_parameters)
+void witness_plugin::schedule_production_loop()
 {
-   //Get next production time for *any* witness
-   auto block_interval = global_parameters.block_interval;
-   fc::time_point next_block_time = fc::time_point_sec() +
-         (graphene::time::now().sec_since_epoch() / block_interval + 1) * block_interval;
-
-   if( graphene::time::ntp_time().valid() )
-      next_block_time -= graphene::time::ntp_error();
-
-   //Sleep until the next production time for *any* witness
+   //Schedule for the next second's tick regardless of chain state
+   // If we would wait less than 200ms, wait for the whole second.
+   fc::time_point now = graphene::time::now();
+   fc::time_point_sec next_second( now + fc::microseconds( 1200000 ) );
+   //wdump( (now.time_since_epoch().count())(next_second) );
    _block_production_task = fc::schedule([this]{block_production_loop();},
-                                         next_block_time, "Witness Block Production");
+                                         next_second, "Witness Block Production");
 }
 
-void witness_plugin::block_production_loop()
+block_production_condition::block_production_condition_enum witness_plugin::block_production_loop()
 {
-   chain::database& db = database();
-   const auto& global_parameters = db.get_global_properties().parameters;
-
-   // Is there a head block within a block interval of now? If so, we're synced and can begin production.
-   if( !_production_enabled &&
-       llabs((db.head_block_time() - graphene::time::now()).to_seconds()) <= global_parameters.block_interval )
-      _production_enabled = true;
-
-   // is anyone scheduled to produce now or one second in the future?
-   uint32_t slot = db.get_slot_at_time( graphene::time::now() + fc::seconds(1) );
-   graphene::chain::witness_id_type scheduled_witness = db.get_scheduled_witness( slot ).first;
-   fc::time_point_sec scheduled_time = db.get_slot_time( slot );
-   fc::time_point_sec now = graphene::time::now();
-   graphene::chain::public_key_type scheduled_key = scheduled_witness( db ).signing_key;
-
-   auto is_scheduled = [&]()
+   block_production_condition::block_production_condition_enum result;
+   fc::mutable_variant_object capture;
+   try
    {
-      // conditions needed to produce a block:
-
-      // block production must be enabled (i.e. witness must be synced)
-      if( !_production_enabled )
-      {
-         elog("Not producing block because production is disabled.");
-         return false;
-      }
-
-      uint32_t prate = db.witness_participation_rate();
-      if( prate < _required_witness_participation )
-      {
-         elog("Not producing block because node appers to be on a minority fork with only ${x}% witness participation",
-              ("x",uint32_t(100*uint64_t(prate) / GRAPHENE_1_PERCENT) ) );
-         return false;
-      }
-
-      // the next block must be scheduled after the head block.
-      // if this check fails, the local clock has not advanced far
-      // enough from the head block.
-      if( slot == 0 ) {
-         elog("Not producing block because head block time is in the future (is the system clock set correctly?).");
-         return false;
-      }
-
-      // we must control the witness scheduled to produce the next block.
-      if( _witnesses.find( scheduled_witness ) == _witnesses.end() ) {
-         return false;
-      }
-
-      // the local clock must be at least 1 second ahead of
-      // head_block_time.
-      if( (now - db.head_block_time()).to_seconds() <= 1 ) {
-         elog("Not producing block because head block is less than a second old.");
-         return false;
-      }
-
-      // the local clock must be within 500 milliseconds of
-      // the scheduled production time.
-      if( llabs((scheduled_time - now).count()) > fc::milliseconds(250).count() ) {
-         elog("Not producing block because network time is not within 250ms of scheduled block time.");
-         return false;
-      }
-
-
-      // we must know the private key corresponding to the witness's
-      // published block production key.
-      if( _private_keys.find( scheduled_key ) == _private_keys.end() ) {
-         elog("Not producing block because I don't have the private key for ${id}.", ("id", scheduled_key));
-         return false;
-      }
-
-      return true;
-   };
-
-   wdump((slot)(scheduled_witness)(scheduled_time)(now));
-   if( is_scheduled() )
+      result = maybe_produce_block(capture);
+   }
+   catch( const fc::canceled_exception& )
    {
-      ilog("Witness ${id} production slot has arrived; generating a block now...", ("id", scheduled_witness));
-      try
-      {
-         FC_ASSERT( _consecutive_production_enabled || db.get_dynamic_global_properties().current_witness != scheduled_witness,
-                    "Last block was generated by the same witness, this node is probably disconnected from the network so block production"
-                    " has been disabled.  Disable this check with --allow-consecutive option." );
-         auto block = db.generate_block(
-            scheduled_time,
-            scheduled_witness,
-            _private_keys[ scheduled_key ],
-            graphene::chain::database::skip_nothing
-            );
-         ilog("Generated block #${n} with timestamp ${t} at time ${c}",
-              ("n", block.block_num())("t", block.timestamp)("c", now));
-         p2p_node().broadcast(net::block_message(block));
-      }
-      catch( const fc::canceled_exception& )
-      {
-         //We're trying to exit. Go ahead and let this one out.
-         throw;
-      }
-      catch( const fc::exception& e )
-      {
-         elog("Got exception while generating block:\n${e}", ("e", e.to_detail_string()));
-      }
+      //We're trying to exit. Go ahead and let this one out.
+      throw;
+   }
+   catch( const fc::exception& e )
+   {
+      elog("Got exception while generating block:\n${e}", ("e", e.to_detail_string()));
+      result = block_production_condition::exception_producing_block;
    }
 
-   schedule_next_production(global_parameters);
+   switch( result )
+   {
+      case block_production_condition::produced:
+         ilog("Generated block #${n} with timestamp ${t} at time ${c}", (capture));
+         break;
+      case block_production_condition::not_synced:
+         ilog("Not producing block because production is disabled until we receive a recent block (see: --enable-stale-production)");
+         break;
+      case block_production_condition::not_my_turn:
+         ilog("Not producing block because it isn't my turn");
+         break;
+      case block_production_condition::not_time_yet:
+         // ilog("Not producing block because slot has not yet arrived");
+         break;
+      case block_production_condition::no_private_key:
+         ilog("Not producing block because I don't have the private key for ${scheduled_key}", (capture) );
+         break;
+      case block_production_condition::low_participation:
+         elog("Not producing block because node appears to be on a minority fork with only ${pct}% witness participation", (capture) );
+         break;
+      case block_production_condition::lag:
+         elog("Not producing block because node didn't wake up within 500ms of the slot time.");
+         break;
+      case block_production_condition::consecutive:
+         elog("Not producing block because the last block was generated by the same witness.\nThis node is probably disconnected from the network so block production has been disabled.\nDisable this check with --allow-consecutive option.");
+         break;
+      case block_production_condition::exception_producing_block:
+         break;
+   }
+
+   schedule_production_loop();
+   return result;
+}
+
+block_production_condition::block_production_condition_enum witness_plugin::maybe_produce_block( fc::mutable_variant_object& capture )
+{
+   chain::database& db = database();
+   fc::time_point now_fine = graphene::time::now();
+   fc::time_point_sec now = now_fine + fc::microseconds( 500000 );
+
+   // If the next block production opportunity is in the present or future, we're synced.
+   if( !_production_enabled )
+   {
+      if( db.get_slot_time(1) >= now )
+         _production_enabled = true;
+      else
+         return block_production_condition::not_synced;
+   }
+
+   // is anyone scheduled to produce now or one second in the future?
+   uint32_t slot = db.get_slot_at_time( now );
+   if( slot == 0 )
+   {
+      capture("next_time", db.get_slot_time(1));
+      return block_production_condition::not_time_yet;
+   }
+
+   //
+   // this assert should not fail, because now <= db.head_block_time()
+   // should have resulted in slot == 0.
+   //
+   // if this assert triggers, there is a serious bug in get_slot_at_time()
+   // which would result in allowing a later block to have a timestamp
+   // less than or equal to the previous block
+   //
+   assert( now > db.head_block_time() );
+
+   graphene::chain::witness_id_type scheduled_witness = db.get_scheduled_witness( slot );
+   // we must control the witness scheduled to produce the next block.
+   if( _witnesses.find( scheduled_witness ) == _witnesses.end() )
+   {
+      capture("scheduled_witness", scheduled_witness);
+      return block_production_condition::not_my_turn;
+   }
+
+   fc::time_point_sec scheduled_time = db.get_slot_time( slot );
+   graphene::chain::public_key_type scheduled_key = scheduled_witness( db ).signing_key;
+   auto private_key_itr = _private_keys.find( scheduled_key );
+
+   if( private_key_itr == _private_keys.end() )
+   {
+      capture("scheduled_key", scheduled_key);
+      return block_production_condition::no_private_key;
+   }
+
+   uint32_t prate = db.witness_participation_rate();
+   if( prate < _required_witness_participation )
+   {
+      capture("pct", uint32_t(100*uint64_t(prate) / GRAPHENE_1_PERCENT));
+      return block_production_condition::low_participation;
+   }
+
+   if( llabs((scheduled_time - now).count()) > fc::milliseconds( 500 ).count() )
+   {
+      capture("scheduled_time", scheduled_time)("now", now);
+      return block_production_condition::lag;
+   }
+
+   auto block = db.generate_block(
+      scheduled_time,
+      scheduled_witness,
+      private_key_itr->second,
+      _production_skip_flags
+      );
+   capture("n", block.block_num())("t", block.timestamp)("c", now);
+   fc::async( [this,block](){ p2p_node().broadcast(net::block_message(block)); } );
+
+   return block_production_condition::produced;
 }

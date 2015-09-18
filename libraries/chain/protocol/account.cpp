@@ -34,6 +34,10 @@ namespace graphene { namespace chain {
  */
 bool is_valid_name( const string& name )
 {
+#if GRAPHENE_MIN_ACCOUNT_NAME_LENGTH < 3
+#error This is_valid_name implementation implicitly enforces minimum name length of 3.
+#endif
+
     const size_t len = name.size();
     if( len < GRAPHENE_MIN_ACCOUNT_NAME_LENGTH )
         return false;
@@ -139,9 +143,10 @@ void account_create_operation::validate()const
    FC_ASSERT( referrer_percent <= GRAPHENE_100_PERCENT );
    FC_ASSERT( owner.num_auths() != 0 );
    FC_ASSERT( owner.address_auths.size() == 0 );
-   // TODO: this asset causes many tests to fail, those tests should probably be updated
-   //FC_ASSERT( active.num_auths() != 0 );
+   FC_ASSERT( active.num_auths() != 0 );
    FC_ASSERT( active.address_auths.size() == 0 );
+   FC_ASSERT( !owner.is_impossible(), "cannot create an account with an imposible owner authority threshold" );
+   FC_ASSERT( !active.is_impossible(), "cannot create an account with an imposible active authority threshold" );
    options.validate();
 }
 
@@ -158,6 +163,7 @@ share_type account_update_operation::calculate_fee( const fee_parameters_type& k
 
 void account_update_operation::validate()const
 {
+   FC_ASSERT( account != GRAPHENE_TEMP_ACCOUNT );
    FC_ASSERT( fee.amount >= 0 );
    FC_ASSERT( account != account_id_type() );
    FC_ASSERT( owner || active || new_options );
@@ -165,11 +171,13 @@ void account_update_operation::validate()const
    {
       FC_ASSERT( owner->num_auths() != 0 );
       FC_ASSERT( owner->address_auths.size() == 0 );
+      FC_ASSERT( !owner->is_impossible(), "cannot update an account with an imposible owner authority threshold" );
    }
    if( active )
    {
       FC_ASSERT( active->num_auths() != 0 );
       FC_ASSERT( active->address_auths.size() == 0 );
+      FC_ASSERT( !active->is_impossible(), "cannot update an account with an imposible active authority threshold" );
    }
 
    if( new_options )

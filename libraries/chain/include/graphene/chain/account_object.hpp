@@ -38,6 +38,8 @@ namespace graphene { namespace chain {
          static const uint8_t space_id = implementation_ids;
          static const uint8_t type_id  = impl_account_statistics_object_type;
 
+         account_id_type  owner;
+
          /**
           * Keep the most recent operation as a root pointer to a linked list of the transaction history. This field is
           * not required by core validation and could in theory be made an annotation on the account object, but
@@ -74,8 +76,6 @@ namespace graphene { namespace chain {
           */
          share_type pending_vested_fees;
 
-         /// @brief Calculate the percentage discount this user receives on his fees
-         uint16_t calculate_bulk_discount_percent(const chain_parameters& params)const;
          /// @brief Split up and pay out @ref pending_fees and @ref pending_vested_fees
          void process_fees(const account_object& a, database& d) const;
    };
@@ -250,14 +250,18 @@ namespace graphene { namespace chain {
          /** given an account or key, map it to the set of accounts that reference it in an active or owner authority */
          map< account_id_type, set<account_id_type> > account_to_account_memberships;
          map< public_key_type, set<account_id_type> > account_to_key_memberships;
+         /** some accounts use address authorities in the genesis block */
+         map< address, set<account_id_type> >         account_to_address_memberships;
 
 
       protected:
          set<account_id_type>  get_account_members( const account_object& a )const;
          set<public_key_type>  get_key_members( const account_object& a )const;
+         set<address>          get_address_members( const account_object& a )const;
 
          set<account_id_type>  before_account_members;
          set<public_key_type>  before_key_members;
+         set<address>          before_address_members;
    };
 
    /**
@@ -337,6 +341,7 @@ FC_REFLECT_DERIVED( graphene::chain::meta_account_object,
                     (memo_key)(committee_member_id) )
 
 FC_REFLECT_DERIVED( graphene::chain::account_statistics_object, (graphene::chain::object),
+                    (owner)
                     (most_recent_op)
                     (total_core_in_orders)
                     (lifetime_fees_paid)
