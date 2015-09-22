@@ -3639,11 +3639,21 @@ vector<blind_receipt> wallet_api::blind_history( string key_or_account )
    return result;
 }
 
+// default ctor necessary for FC_REFLECT
+signed_block_with_info::signed_block_with_info()
+{
+}
+
 signed_block_with_info::signed_block_with_info( const signed_block& block )
    : signed_block( block )
 {
    block_id = id();
    signing_key = signee();
+}
+
+vesting_balance_object_with_info::vesting_balance_object_with_info()
+   : vesting_balance_object()
+{
 }
 
 vesting_balance_object_with_info::vesting_balance_object_with_info( const vesting_balance_object& vbo, fc::time_point_sec now )

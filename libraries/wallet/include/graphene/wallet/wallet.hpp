@@ -215,6 +215,7 @@ struct approval_delta
 
 struct signed_block_with_info : public signed_block
 {
+   signed_block_with_info();
    signed_block_with_info( const signed_block& block );
    signed_block_with_info( const signed_block_with_info& block ) = default;
 
@@ -224,6 +225,7 @@ struct signed_block_with_info : public signed_block
 
 struct vesting_balance_object_with_info : public vesting_balance_object
 {
+   vesting_balance_object_with_info();
    vesting_balance_object_with_info( const vesting_balance_object& vbo, fc::time_point_sec now );
    vesting_balance_object_with_info( const vesting_balance_object_with_info& vbo ) = default;
 
