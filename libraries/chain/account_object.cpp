@@ -55,8 +55,6 @@ void account_statistics_object::process_fees(const account_object& a, database& 
 {
    if( pending_fees > 0 || pending_vested_fees > 0 )
    {
-      const auto& props = d.get_global_properties();
-
       auto pay_out_fees = [&](const account_object& account, share_type core_fee_total, bool require_vesting)
       {
          // Check the referrer -- if he's no longer a member, pay to the lifetime referrer instead.
@@ -70,6 +68,8 @@ void account_statistics_object::process_fees(const account_object& a, database& 
          assert( network_cut <= core_fee_total );
 
 #ifndef NDEBUG
+         const auto& props = d.get_global_properties();
+
          share_type reserveed = cut_fee(network_cut, props.parameters.reserve_percent_of_fee);
          share_type accumulated = network_cut - reserveed;
          assert( accumulated + reserveed == network_cut );
