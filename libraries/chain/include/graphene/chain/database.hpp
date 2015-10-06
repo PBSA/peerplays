@@ -40,6 +40,8 @@ namespace graphene { namespace chain {
    using graphene::db::abstract_object;
    using graphene::db::object;
 
+   struct budget_record;
+
    /**
     *   @class database
     *   @brief tracks the blockchain state in an extensible manner
@@ -122,6 +124,7 @@ namespace graphene { namespace chain {
 
          void                              add_checkpoints( const flat_map<uint32_t,block_id_type>& checkpts );
          const flat_map<uint32_t,block_id_type> get_checkpoints()const { return _checkpoints; }
+         bool before_last_checkpoint()const;
 
          bool push_block( const signed_block& b, uint32_t skip = skip_nothing );
          processed_transaction push_transaction( const signed_transaction& trx, uint32_t skip = skip_nothing );
@@ -140,8 +143,7 @@ namespace graphene { namespace chain {
          signed_block _generate_block(
             const fc::time_point_sec when,
             witness_id_type witness_id,
-            const fc::ecc::private_key& block_signing_private_key,
-            bool retry_on_failure
+            const fc::ecc::private_key& block_signing_private_key
             );
 
          void pop_block();
@@ -420,19 +422,21 @@ namespace graphene { namespace chain {
          //////////////////// db_update.cpp ////////////////////
          void update_global_dynamic_data( const signed_block& b );
          void update_signing_witness(const witness_object& signing_witness, const signed_block& new_block);
+         void update_last_irreversible_block();
          void clear_expired_transactions();
          void clear_expired_proposals();
          void clear_expired_orders();
          void update_expired_feeds();
          void update_maintenance_flag( bool new_maintenance_flag );
          void update_withdraw_permissions();
+         bool check_for_blackswan( const asset_object& mia, bool enable_black_swan = true );
 
          ///Steps performed only at maintenance intervals
          ///@{
 
          //////////////////// db_maint.cpp ////////////////////
 
-         share_type get_max_budget( fc::time_point_sec now )const;
+         void initialize_budget_record( fc::time_point_sec now, budget_record& rec )const;
          void process_budget();
          void pay_workers( share_type& budget );
          void perform_chain_maintenance(const signed_block& next_block, const global_property_object& global_props);

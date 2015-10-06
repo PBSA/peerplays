@@ -1,19 +1,6 @@
 /*
  * Copyright (c) 2015, Cryptonomex, Inc.
  * All rights reserved.
- *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
- *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <boost/multiprecision/integer.hpp>
@@ -143,19 +130,32 @@ void database::pay_workers( share_type& budget )
 void database::update_active_witnesses()
 { try {
    assert( _witness_count_histogram_buffer.size() > 0 );
-   share_type stake_target = _total_voting_stake / 2;
-   share_type stake_tally = _witness_count_histogram_buffer[0];
+   share_type stake_target = (_total_voting_stake-_witness_count_histogram_buffer[0]) / 2;
+
+   /// accounts that vote for 0 or 1 witness do not get to express an opinion on
+   /// the number of witnesses to have (they abstain and are non-voting accounts)
+
+   share_type stake_tally = 0; 
+
    size_t witness_count = 0;
    if( stake_target > 0 )
+   {
       while( (witness_count < _witness_count_histogram_buffer.size() - 1)
              && (stake_tally <= stake_target) )
+      {
          stake_tally += _witness_count_histogram_buffer[++witness_count];
+      }
+   }
 
    const chain_property_object& cpo = get_chain_properties();
    auto wits = sort_votable_objects<witness_index>(std::max(witness_count*2+1, (size_t)cpo.immutable_parameters.min_witness_count));
+
+   edump((wits.size())(witness_count*2+1));
    const global_property_object& gpo = get_global_properties();
 
-   for( const witness_object& wit : wits )
+   const auto& all_witnesses = get_index_type<witness_index>().indices();
+
+   for( const witness_object& wit : all_witnesses )
    {
       modify( wit, [&]( witness_object& obj ){
               obj.total_votes = _vote_tally_buffer[wit.vote_id];
@@ -212,8 +212,11 @@ void database::update_active_witnesses()
 void database::update_active_committee_members()
 { try {
    assert( _committee_count_histogram_buffer.size() > 0 );
-   uint64_t stake_target = _total_voting_stake / 2;
-   uint64_t stake_tally = _committee_count_histogram_buffer[0];
+   share_type stake_target = (_total_voting_stake-_witness_count_histogram_buffer[0]) / 2;
+
+   /// accounts that vote for 0 or 1 witness do not get to express an opinion on
+   /// the number of witnesses to have (they abstain and are non-voting accounts)
+   uint64_t stake_tally = 0; // _committee_count_histogram_buffer[0];
    size_t committee_member_count = 0;
    if( stake_target > 0 )
       while( (committee_member_count < _committee_count_histogram_buffer.size() - 1)
@@ -271,17 +274,25 @@ void database::update_active_committee_members()
    });
 } FC_CAPTURE_AND_RETHROW() }
 
-share_type database::get_max_budget( fc::time_point_sec now )const
+void database::initialize_budget_record( fc::time_point_sec now, budget_record& rec )const
 {
    const dynamic_global_property_object& dpo = get_dynamic_global_properties();
    const asset_object& core = asset_id_type(0)(*this);
    const asset_dynamic_data_object& core_dd = core.dynamic_asset_data_id(*this);
 
+   rec.from_initial_reserve = core.reserved(*this);
+   rec.from_accumulated_fees = core_dd.accumulated_fees;
+   rec.from_unused_witness_budget = dpo.witness_budget;
+
    if(    (dpo.last_budget_time == fc::time_point_sec())
        || (now <= dpo.last_budget_time) )
-      return share_type(0);
+   {
+      rec.time_since_last_budget = 0;
+      return;
+   }
 
    int64_t dt = (now - dpo.last_budget_time).to_seconds();
+   rec.time_since_last_budget = uint64_t( dt );
 
    // We'll consider accumulated_fees to be reserved at the BEGINNING
    // of the maintenance interval.  However, for speed we only
@@ -289,7 +300,7 @@ share_type database::get_max_budget( fc::time_point_sec now )const
    // end of the maintenance interval.  Thus the accumulated_fees
    // are available for the budget at this point, but not included
    // in core.reserved().
-   share_type reserve = core.reserved(*this) + core_dd.accumulated_fees;
+   share_type reserve = rec.from_initial_reserve + core_dd.accumulated_fees;
    // Similarly, we consider leftover witness_budget to be burned
    // at the BEGINNING of the maintenance interval.
    reserve += dpo.witness_budget;
@@ -304,11 +315,11 @@ share_type database::get_max_budget( fc::time_point_sec now )const
    budget_u128 >>= GRAPHENE_CORE_ASSET_CYCLE_RATE_BITS;
    share_type budget;
    if( budget_u128 < reserve.value )
-      budget = share_type(budget_u128.to_uint64());
+      rec.total_budget = share_type(budget_u128.to_uint64());
    else
-      budget = reserve;
+      rec.total_budget = reserve;
 
-   return budget;
+   return;
 }
 
 /**
@@ -342,10 +353,14 @@ void database::process_budget()
       // blocks_to_maint > 0 because time_to_maint > 0,
       // which means numerator is at least equal to block_interval
 
-      share_type available_funds = get_max_budget(now);
+      budget_record rec;
+      initialize_budget_record( now, rec );
+      share_type available_funds = rec.total_budget;
 
       share_type witness_budget = gpo.parameters.witness_pay_per_block.value * blocks_to_maint;
+      rec.requested_witness_budget = witness_budget;
       witness_budget = std::min(witness_budget, available_funds);
+      rec.witness_budget = witness_budget;
       available_funds -= witness_budget;
 
       fc::uint128_t worker_budget_u128 = gpo.parameters.worker_budget_per_day.value;
@@ -357,24 +372,34 @@ void database::process_budget()
          worker_budget = available_funds;
       else
          worker_budget = worker_budget_u128.to_uint64();
+      rec.worker_budget = worker_budget;
       available_funds -= worker_budget;
 
       share_type leftover_worker_funds = worker_budget;
       pay_workers(leftover_worker_funds);
+      rec.leftover_worker_funds = leftover_worker_funds;
       available_funds += leftover_worker_funds;
 
-      share_type unused_prev_witness_budget = dpo.witness_budget;
+      rec.supply_delta = rec.witness_budget
+         + rec.worker_budget
+         - rec.leftover_worker_funds
+         - rec.from_accumulated_fees
+         - rec.from_unused_witness_budget;
+
       modify(core, [&]( asset_dynamic_data_object& _core )
       {
-         _core.current_supply = (_core.current_supply
-                                 + witness_budget
+         _core.current_supply = (_core.current_supply + rec.supply_delta );
+
+         assert( rec.supply_delta ==
+                                   witness_budget
                                  + worker_budget
                                  - leftover_worker_funds
                                  - _core.accumulated_fees
-                                 - unused_prev_witness_budget
+                                 - dpo.witness_budget
                                 );
          _core.accumulated_fees = 0;
       });
+
       modify(dpo, [&]( dynamic_global_property_object& _dpo )
       {
          // Since initial witness_budget was rolled into
@@ -382,6 +407,12 @@ void database::process_budget()
          // instead of adding it.
          _dpo.witness_budget = witness_budget;
          _dpo.last_budget_time = now;
+      });
+
+      create< budget_record_object >( [&]( budget_record_object& _rec )
+      {
+         _rec.time = head_block_time();
+         _rec.record = rec;
       });
 
       // available_funds is money we could spend, but don't want to.

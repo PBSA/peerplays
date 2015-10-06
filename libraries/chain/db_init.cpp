@@ -22,6 +22,7 @@
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/balance_object.hpp>
 #include <graphene/chain/block_summary_object.hpp>
+#include <graphene/chain/budget_record_object.hpp>
 #include <graphene/chain/chain_property_object.hpp>
 #include <graphene/chain/committee_member_object.hpp>
 #include <graphene/chain/global_property_object.hpp>
@@ -194,6 +195,7 @@ void database::initialize_indexes()
    add_index< primary_index<flat_index<  block_summary_object            >> >();
    add_index< primary_index<simple_index<chain_property_object          > > >();
    add_index< primary_index<simple_index<witness_schedule_object        > > >();
+   add_index< primary_index<simple_index<budget_record_object           > > >();
 }
 
 void database::init_genesis(const genesis_state_type& genesis_state)
@@ -458,6 +460,10 @@ void database::init_genesis(const genesis_state_type& genesis_state)
             cop.active = cop.owner;
             account_id_type owner_account_id = apply_operation(genesis_eval_state, cop).get<object_id_type>();
 
+            modify( owner_account_id(*this).statistics(*this), [&]( account_statistics_object& o ) {
+                    o.total_core_in_orders = collateral_rec.collateral;
+                    });
+
             create<call_order_object>([&](call_order_object& c) {
                c.borrower = owner_account_id;
                c.collateral = collateral_rec.collateral;
@@ -608,6 +614,8 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       for( const witness_id_type& wid : get_global_properties().active_witnesses )
          wso.current_shuffled_witnesses.push_back( wid );
    });
+
+   debug_dump();
 
    _undo_db.enable();
 } FC_CAPTURE_AND_RETHROW() }

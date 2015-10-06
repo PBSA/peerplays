@@ -41,11 +41,7 @@ namespace graphene { namespace chain {
          account_id_type  owner;
 
          /**
-          * Keep the most recent operation as a root pointer to a linked list of the transaction history. This field is
-          * not required by core validation and could in theory be made an annotation on the account object, but
-          * because transaction history is so common and this object is already cached in the undo buffer (because it
-          * likely affected the balances of this account) it is convienent to simply track this data here. Account
-          * balance objects don't currenty inherit from annotated object.
+          * Keep the most recent operation as a root pointer to a linked list of the transaction history.
           */
          account_transaction_history_id_type most_recent_op;
 
@@ -110,7 +106,7 @@ namespace graphene { namespace chain {
     * Accounts are the primary unit of authority on the graphene system. Users must have an account in order to use
     * assets, trade in the markets, vote for committee_members, etc.
     */
-   class account_object : public graphene::db::annotated_object<account_object>
+   class account_object : public graphene::db::abstract_object<account_object>
    {
       public:
          static const uint8_t space_id = protocol_ids;
@@ -134,7 +130,7 @@ namespace graphene { namespace chain {
          account_id_type lifetime_referrer;
 
          /// Percentage of fee which should go to network.
-         uint16_t network_fee_percentage;
+         uint16_t network_fee_percentage = GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE;
          /// Percentage of fee which should go to lifetime referrer.
          uint16_t lifetime_referrer_fee_percentage = 0;
          /// Percentage of referral rewards (leftover fee after paying network and lifetime referrer) which should go
@@ -169,6 +165,21 @@ namespace graphene { namespace chain {
           * accounts may add or remove their IDs from this set.
           */
          flat_set<account_id_type> whitelisting_accounts;
+
+         /**
+          * Optionally track all of the accounts this account has whitelisted or blacklisted, these should
+          * be made Immutable so that when the account object is cloned no deep copy is required.  This state is
+          * tracked for GUI display purposes.
+          *
+          * TODO: move white list tracking to its own multi-index container rather than having 4 fields on an
+          * account.   This will scale better because under the current design if you whitelist 2000 accounts,
+          * then every time someone fetches this account object they will get the full list of 2000 accounts.
+          */
+         ///@{
+         set<account_id_type> whitelisted_accounts;
+         set<account_id_type> blacklisted_accounts;
+         ///@}
+
 
          /**
           * This is a set of all accounts which have 'blacklisted' this account. Blacklisting is only used in core
@@ -221,20 +232,6 @@ namespace graphene { namespace chain {
    };
 
    /**
-    *  This object is attached as the meta annotation on the account object, this information is not relevant to
-    *  validation.
-    */
-   class meta_account_object : public graphene::db::abstract_object<meta_account_object>
-   {
-      public:
-         static const uint8_t space_id = implementation_ids;
-         static const uint8_t type_id  = meta_account_object_type;
-
-         public_key_type     memo_key;
-         committee_member_id_type    committee_member_id; // optional
-   };
-
-   /**
     *  @brief This secondary index will allow a reverse lookup of all accounts that a particular key or account
     *  is an potential signing authority.
     */
@@ -263,6 +260,7 @@ namespace graphene { namespace chain {
          set<public_key_type>  before_key_members;
          set<address>          before_address_members;
    };
+
 
    /**
     *  @brief This secondary index will allow a reverse lookup of all accounts that have been referred by
@@ -326,21 +324,19 @@ namespace graphene { namespace chain {
 }}
 
 FC_REFLECT_DERIVED( graphene::chain::account_object,
-                    (graphene::db::annotated_object<graphene::chain::account_object>),
+                    (graphene::db::object),
                     (membership_expiration_date)(registrar)(referrer)(lifetime_referrer)
                     (network_fee_percentage)(lifetime_referrer_fee_percentage)(referrer_rewards_percentage)
                     (name)(owner)(active)(options)(statistics)(whitelisting_accounts)(blacklisting_accounts)
+                    (whitelisting_accounts)(blacklisted_accounts)
                     (cashback_vb) )
 
 FC_REFLECT_DERIVED( graphene::chain::account_balance_object,
                     (graphene::db::object),
                     (owner)(asset_type)(balance) )
 
-FC_REFLECT_DERIVED( graphene::chain::meta_account_object,
-                    (graphene::db::object),
-                    (memo_key)(committee_member_id) )
-
-FC_REFLECT_DERIVED( graphene::chain::account_statistics_object, (graphene::chain::object),
+FC_REFLECT_DERIVED( graphene::chain::account_statistics_object,
+                    (graphene::chain::object),
                     (owner)
                     (most_recent_op)
                     (total_core_in_orders)

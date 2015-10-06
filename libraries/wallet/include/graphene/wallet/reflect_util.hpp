@@ -17,30 +17,64 @@
  */
 #pragma once
 
-#include <graphene/app/plugin.hpp>
+// This file contains various reflection methods that are used to
+// support the wallet, e.g. allow specifying operations by name
+// instead of ID.
 
-namespace graphene { namespace delayed_node {
-namespace detail { struct delayed_node_plugin_impl; }
+namespace graphene { namespace wallet {
 
-class delayed_node_plugin : public graphene::app::plugin
+struct static_variant_map
 {
-   std::unique_ptr<detail::delayed_node_plugin_impl> my;
-public:
-   delayed_node_plugin();
-   virtual ~delayed_node_plugin();
-
-   std::string plugin_name()const override { return "delayed_node"; }
-   virtual void plugin_set_program_options(boost::program_options::options_description&,
-                                           boost::program_options::options_description& cfg) override;
-   virtual void plugin_initialize(const boost::program_options::variables_map& options) override;
-   virtual void plugin_startup() override;
-   void mainloop();
-
-protected:
-   void connection_failed();
-   void connect();
-   void sync_with_trusted_node();
+   flat_map< string, int > name_to_which;
+   vector< string > which_to_name;
 };
 
-} } //graphene::account_history
+namespace impl {
 
+struct static_variant_map_visitor
+{
+   static_variant_map_visitor() {}
+
+   typedef void result_type;
+
+   template< typename T >
+   result_type operator()( const T& dummy )
+   {
+      assert( which == m.which_to_name.size() );
+      std::string name = js_name<T>::name();
+      m.name_to_which[ name ] = which;
+      m.which_to_name.push_back( name );
+   }
+
+   static_variant_map m;
+   int which;
+};
+
+} // namespace impl
+
+template< typename T >
+T from_which_variant( int which, const variant& v )
+{
+   // Parse a variant for a known which()
+   T result;
+   result.set_which( which );
+   from_variant( v, result );
+   return result;
+}
+
+template<typename T>
+static_variant_map create_static_variant_map()
+{
+   T dummy;
+   int n = dummy.count();
+   impl::static_variant_map_visitor vtor;
+   for( int i=0; i<n; i++ )
+   {
+      dummy.set_which(i);
+      vtor.which = i;
+      dummy.visit( vtor );
+   }
+   return vtor.m;
+}
+
+} } // namespace graphene::wallet

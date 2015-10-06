@@ -107,7 +107,8 @@ struct operation_process_fill_order
           auto itr = by_key_idx.find( key );
           if( itr == by_key_idx.end() )
           { // create new bucket
-            const auto& obj = db.create<bucket_object>( [&]( bucket_object& b ){
+            /* const auto& obj = */
+            db.create<bucket_object>( [&]( bucket_object& b ){
                  b.key = key;
                  b.quote_volume += trade_price.quote.amount;
                  b.base_volume += trade_price.base.amount;
@@ -120,7 +121,7 @@ struct operation_process_fill_order
                  b.low_base = b.close_base;
                  b.low_quote = b.close_quote;
             });
-            wlog( "    creating bucket ${b}", ("b",obj) );
+            //wlog( "    creating bucket ${b}", ("b",obj) );
           }
           else
           { // update existing bucket

@@ -132,7 +132,7 @@ namespace graphene { namespace chain {
    {
       impl_global_property_object_type,
       impl_dynamic_global_property_object_type,
-      impl_index_meta_object_type,
+      impl_reserved0_object_type,      // formerly index_meta_object_type, TODO: delete me
       impl_asset_dynamic_data_type,
       impl_asset_bitasset_data_type,
       impl_account_balance_object_type,
@@ -142,13 +142,8 @@ namespace graphene { namespace chain {
       impl_account_transaction_history_object_type,
       impl_blinded_balance_object_type,
       impl_chain_property_object_type,
-      impl_witness_schedule_object_type
-   };
-
-   enum meta_info_object_type
-   {
-      meta_asset_object_type,
-      meta_account_object_type
+      impl_witness_schedule_object_type,
+      impl_budget_record_object_type
    };
 
    //typedef fc::unsigned_int            object_id_type;
@@ -186,7 +181,6 @@ namespace graphene { namespace chain {
    // implementation types
    class global_property_object;
    class dynamic_global_property_object;
-   class index_meta_object;
    class asset_dynamic_data_object;
    class asset_bitasset_data_object;
    class account_balance_object;
@@ -196,6 +190,7 @@ namespace graphene { namespace chain {
    class account_transaction_history_object;
    class chain_property_object;
    class witness_schedule_object;
+   class budget_record_object;
 
    typedef object_id< implementation_ids, impl_global_property_object_type,  global_property_object>                    global_property_id_type;
    typedef object_id< implementation_ids, impl_dynamic_global_property_object_type,  dynamic_global_property_object>    dynamic_global_property_id_type;
@@ -211,6 +206,7 @@ namespace graphene { namespace chain {
                       account_transaction_history_object>       account_transaction_history_id_type;
    typedef object_id< implementation_ids, impl_chain_property_object_type,   chain_property_object>                     chain_property_id_type;
    typedef object_id< implementation_ids, impl_witness_schedule_object_type, witness_schedule_object>                   witness_schedule_id_type;
+   typedef object_id< implementation_ids, impl_budget_record_object_type, budget_record_object >                        budget_record_id_type;
 
    typedef fc::array<char, GRAPHENE_MAX_ASSET_SYMBOL_LENGTH>    symbol_type;
    typedef fc::ripemd160                                        block_id_type;
@@ -225,8 +221,8 @@ namespace graphene { namespace chain {
    {
        struct binary_key
        {
-          binary_key():check(0){}
-          uint32_t                 check;
+          binary_key() {}
+          uint32_t                 check = 0;
           fc::ecc::public_key_data data;
        };
        fc::ecc::public_key_data key_data;
@@ -277,7 +273,7 @@ FC_REFLECT_ENUM( graphene::chain::object_type,
 FC_REFLECT_ENUM( graphene::chain::impl_object_type,
                  (impl_global_property_object_type)
                  (impl_dynamic_global_property_object_type)
-                 (impl_index_meta_object_type)
+                 (impl_reserved0_object_type)
                  (impl_asset_dynamic_data_type)
                  (impl_asset_bitasset_data_type)
                  (impl_account_balance_object_type)
@@ -288,9 +284,8 @@ FC_REFLECT_ENUM( graphene::chain::impl_object_type,
                  (impl_blinded_balance_object_type)
                  (impl_chain_property_object_type)
                  (impl_witness_schedule_object_type)
+                 (impl_budget_record_object_type)
                )
-
-FC_REFLECT_ENUM( graphene::chain::meta_info_object_type, (meta_account_object_type)(meta_asset_object_type) )
 
 FC_REFLECT_TYPENAME( graphene::chain::share_type )
 
@@ -316,6 +311,7 @@ FC_REFLECT_TYPENAME( graphene::chain::account_statistics_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::transaction_obj_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::block_summary_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::account_transaction_history_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::budget_record_id_type )
 FC_REFLECT( graphene::chain::void_t, )
 
 FC_REFLECT_ENUM( graphene::chain::asset_issuer_permission_flags, (charge_market_fee)(white_list)(transfer_restricted)(override_authority)(disable_force_settle)(global_settle)(disable_confidential) )

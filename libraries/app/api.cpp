@@ -260,7 +260,7 @@ namespace graphene { namespace app {
           {
                  case impl_global_property_object_type:{
                } case impl_dynamic_global_property_object_type:{
-               } case impl_index_meta_object_type:{
+               } case impl_reserved0_object_type:{
                } case impl_asset_dynamic_data_type:{
                } case impl_asset_bitasset_data_type:{
                   break;
@@ -293,6 +293,7 @@ namespace graphene { namespace app {
                } case impl_account_transaction_history_object_type:{
                } case impl_chain_property_object_type: {
                } case impl_witness_schedule_object_type: {
+               } case impl_budget_record_object_type: {
                }
           }
        }
