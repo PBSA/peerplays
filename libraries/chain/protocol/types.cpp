@@ -49,6 +49,15 @@ namespace graphene { namespace chain {
        {
        }
 
+       try
+       {
+           if( is_valid_muse( base58str ) )
+               prefix = std::string( "MUSE" );
+       }
+       catch( ... )
+       {
+       }
+
        const size_t prefix_len = prefix.size();
        FC_ASSERT( base58str.size() > prefix_len );
        FC_ASSERT( base58str.substr( 0, prefix_len ) ==  prefix , "", ("base58str", base58str) );
@@ -57,6 +66,20 @@ namespace graphene { namespace chain {
        key_data = bin_key.data;
        FC_ASSERT( fc::ripemd160::hash( key_data.data, key_data.size() )._hash[0] == bin_key.check );
     };
+
+    bool public_key_type::is_valid_muse( const std::string& base58str )
+    {
+       std::string prefix( "MUSE" );
+
+       const size_t prefix_len = prefix.size();
+       FC_ASSERT( base58str.size() > prefix_len );
+       FC_ASSERT( base58str.substr( 0, prefix_len ) ==  prefix , "", ("base58str", base58str) );
+       auto bin = fc::from_base58( base58str.substr( prefix_len ) );
+       auto bin_key = fc::raw::unpack<binary_key>(bin);
+       key_data = bin_key.data;
+       FC_ASSERT( fc::ripemd160::hash( key_data.data, key_data.size() )._hash[0] == bin_key.check );
+       return true;
+    }
 
     // TODO: This is temporary for testing
     bool public_key_type::is_valid_v1( const std::string& base58str )
