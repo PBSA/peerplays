@@ -1,19 +1,25 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #pragma once
 
@@ -52,7 +58,7 @@ struct bucket_key
 
    friend bool operator < ( const bucket_key& a, const bucket_key& b )
    {
-      return std::tie( a.base, a.quote, b.seconds, a.open ) < std::tie( b.base, b.quote, b.seconds, b.open );
+      return std::tie( a.base, a.quote, a.seconds, a.open ) < std::tie( b.base, b.quote, b.seconds, b.open );
    }
    friend bool operator == ( const bucket_key& a, const bucket_key& b )
    {
@@ -81,6 +87,25 @@ struct bucket_object : public abstract_object<bucket_object>
    share_type          quote_volume;
 };
 
+struct history_key {
+  asset_id_type        base;
+  asset_id_type        quote;
+  int64_t              sequence = 0;
+
+  friend bool operator < ( const history_key& a, const history_key& b ) {
+    return std::tie( a.base, a.quote, a.sequence ) < std::tie( b.base, b.quote, b.sequence );
+  }
+  friend bool operator == ( const history_key& a, const history_key& b ) {
+    return std::tie( a.base, a.quote, a.sequence ) == std::tie( b.base, b.quote, b.sequence );
+  }
+};
+struct order_history_object : public abstract_object<order_history_object>
+{
+  history_key          key; 
+  fc::time_point_sec   time;
+  fill_order_operation op;
+};
+
 struct by_key;
 typedef multi_index_container<
    bucket_object,
@@ -90,7 +115,17 @@ typedef multi_index_container<
    >
 > bucket_object_multi_index_type;
 
+typedef multi_index_container<
+   order_history_object,
+   indexed_by<
+      hashed_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
+      ordered_unique< tag<by_key>, member< order_history_object, history_key, &order_history_object::key > >
+   >
+> order_history_multi_index_type;
+
+
 typedef generic_index<bucket_object, bucket_object_multi_index_type> bucket_index;
+typedef generic_index<order_history_object, order_history_multi_index_type> history_index;
 
 
 namespace detail
@@ -127,6 +162,8 @@ class market_history_plugin : public graphene::app::plugin
 
 } } //graphene::market_history
 
+FC_REFLECT( graphene::market_history::history_key, (base)(quote)(sequence) )
+FC_REFLECT_DERIVED( graphene::market_history::order_history_object, (graphene::db::object), (key)(time)(op) )
 FC_REFLECT( graphene::market_history::bucket_key, (base)(quote)(seconds)(open) )
 FC_REFLECT_DERIVED( graphene::market_history::bucket_object, (graphene::db::object), 
                     (key)

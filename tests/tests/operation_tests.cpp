@@ -1,30 +1,37 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #include <boost/test/unit_test.hpp>
 
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/exceptions.hpp>
+#include <graphene/chain/hardfork.hpp>
 
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/committee_member_object.hpp>
-#include <graphene/chain/market_evaluator.hpp>
+#include <graphene/chain/market_object.hpp>
 #include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/withdraw_permission_object.hpp>
 #include <graphene/chain/witness_object.hpp>
@@ -41,8 +48,8 @@ BOOST_FIXTURE_TEST_SUITE( operation_tests, database_fixture )
 BOOST_AUTO_TEST_CASE( feed_limit_logic_test )
 {
    try {
-      asset usd(1000,1);
-      asset core(1000,0);
+      asset usd(1000,asset_id_type(1));
+      asset core(1000,asset_id_type(0));
       price_feed feed;
       feed.settlement_price = usd / core;
 
@@ -72,7 +79,7 @@ BOOST_AUTO_TEST_CASE( call_order_update_test )
 {
    try {
       ACTORS((dan)(sam));
-      const auto& bitusd = create_bitasset("BITUSD", sam.id);
+      const auto& bitusd = create_bitasset("USDBIT", sam.id);
       const auto& core   = asset_id_type()(db);
 
       transfer(committee_account, dan_id, asset(10000000));
@@ -160,7 +167,7 @@ BOOST_AUTO_TEST_CASE( margin_call_limit_test )
 { try {
       ACTORS((buyer)(seller)(borrower)(borrower2)(feedproducer));
 
-      const auto& bitusd = create_bitasset("BITUSD", feedproducer_id);
+      const auto& bitusd = create_bitasset("USDBIT", feedproducer_id);
       const auto& core   = asset_id_type()(db);
 
       int64_t init_balance(1000000);
@@ -180,23 +187,34 @@ BOOST_AUTO_TEST_CASE( margin_call_limit_test )
       borrow( borrower, bitusd.amount(1000), asset(2000));
       borrow( borrower2, bitusd.amount(1000), asset(4000) );
 
-      BOOST_REQUIRE_EQUAL( get_balance( borrower, bitusd ), 1000 );
-      BOOST_REQUIRE_EQUAL( get_balance( borrower2, bitusd ), 1000 );
-      BOOST_REQUIRE_EQUAL( get_balance( borrower , core ), init_balance - 2000 );
-      BOOST_REQUIRE_EQUAL( get_balance( borrower2, core ), init_balance - 4000 );
+      BOOST_CHECK_EQUAL( get_balance( borrower, bitusd ), 1000 );
+      BOOST_CHECK_EQUAL( get_balance( borrower2, bitusd ), 1000 );
+      BOOST_CHECK_EQUAL( get_balance( borrower , core ), init_balance - 2000 );
+      BOOST_CHECK_EQUAL( get_balance( borrower2, core ), init_balance - 4000 );
 
       // this should trigger margin call that is below the call limit, but above the
       // protection threshold.
       BOOST_TEST_MESSAGE( "Creating a margin call that is NOT protected by the max short squeeze price" );
       auto order = create_sell_order( borrower2, bitusd.amount(1000), core.amount(1400) );
-      BOOST_REQUIRE( order == nullptr );
+      if( db.head_block_time() <= HARDFORK_436_TIME )
+      {
+         BOOST_CHECK( order == nullptr );
 
-      BOOST_REQUIRE_EQUAL( get_balance( borrower2, core ), init_balance - 4000 + 1400 );
-      BOOST_REQUIRE_EQUAL( get_balance( borrower2, bitusd ), 0 );
+         BOOST_CHECK_EQUAL( get_balance( borrower2, core ), init_balance - 4000 + 1400 );
+         BOOST_CHECK_EQUAL( get_balance( borrower2, bitusd ), 0 );
 
-      BOOST_REQUIRE_EQUAL( get_balance( borrower, core ), init_balance - 2000 + 600 );
-      BOOST_REQUIRE_EQUAL( get_balance( borrower, bitusd ), 1000 );
+         BOOST_CHECK_EQUAL( get_balance( borrower, core ), init_balance - 2000 + 600 );
+         BOOST_CHECK_EQUAL( get_balance( borrower, bitusd ), 1000 );
+      }
+      else
+      {
+         BOOST_CHECK( order != nullptr );
 
+         BOOST_CHECK_EQUAL( get_balance( borrower, bitusd ), 1000 );
+         BOOST_CHECK_EQUAL( get_balance( borrower2, bitusd ), 0 );
+         BOOST_CHECK_EQUAL( get_balance( borrower , core ), init_balance - 2000 );
+         BOOST_CHECK_EQUAL( get_balance( borrower2, core ), init_balance - 4000 );
+      }
 
       BOOST_TEST_MESSAGE( "Creating a margin call that is protected by the max short squeeze price" );
       borrow( borrower, bitusd.amount(1000), asset(2000) );
@@ -204,7 +222,7 @@ BOOST_AUTO_TEST_CASE( margin_call_limit_test )
 
       // this should trigger margin call without protection from the price feed.
       order = create_sell_order( borrower2, bitusd.amount(1000), core.amount(1800) );
-      BOOST_REQUIRE( order != nullptr );
+      BOOST_CHECK( order != nullptr );
    } catch( const fc::exception& e) {
       edump((e.to_detail_string()));
       throw;
@@ -219,7 +237,7 @@ BOOST_AUTO_TEST_CASE( black_swan )
 { try {
       ACTORS((buyer)(seller)(borrower)(borrower2)(feedproducer));
 
-      const auto& bitusd = create_bitasset("BITUSD", feedproducer_id);
+      const auto& bitusd = create_bitasset("USDBIT", feedproducer_id);
       const auto& core   = asset_id_type()(db);
 
       int64_t init_balance(1000000);
@@ -291,7 +309,7 @@ BOOST_AUTO_TEST_CASE( black_swan_issue_346 )
 
       auto setup_asset = [&]() -> const asset_object&
       {
-         const asset_object& bitusd = create_bitasset("BITUSD"+fc::to_string(trial), feeder_id);
+         const asset_object& bitusd = create_bitasset("USDBIT"+fc::to_string(trial)+"X", feeder_id);
          update_feed_producers( bitusd, {feeder.id} );
          BOOST_CHECK( !bitusd.bitasset_data(db).has_settlement() );
          trial++;
@@ -316,6 +334,7 @@ BOOST_AUTO_TEST_CASE( black_swan_issue_346 )
       {
          price_feed feed;
          feed.settlement_price = settlement_price;
+         feed.core_exchange_rate = settlement_price;
          wdump( (feed.max_short_squeeze_price()) );
          publish_feed( bitusd, feeder, feed );
       };
@@ -362,7 +381,11 @@ BOOST_AUTO_TEST_CASE( black_swan_issue_346 )
          limit_order_id_type oid_019 = create_sell_order( seller, bitusd.amount(39), core.amount(2000) )->id;   // this order is at $0.019, we should not be able to match against it
          limit_order_id_type oid_020 = create_sell_order( seller, bitusd.amount(40), core.amount(2000) )->id;   // this order is at $0.020, we should be able to match against it
          set_price( bitusd, bitusd.amount(21) / core.amount(1000) ); // $0.021
-         BOOST_CHECK( !bitusd.bitasset_data(db).has_settlement() );
+         //
+         // We attempt to match against $0.019 order and black swan,
+         // and this is intended behavior.  See discussion in ticket.
+         //
+         BOOST_CHECK( bitusd.bitasset_data(db).has_settlement() );
          BOOST_CHECK( db.find_object( oid_019 ) != nullptr );
          BOOST_CHECK( db.find_object( oid_020 ) == nullptr );
       }
@@ -592,11 +615,11 @@ BOOST_AUTO_TEST_CASE( create_committee_member )
 BOOST_AUTO_TEST_CASE( create_mia )
 {
    try {
-      const asset_object& bitusd = create_bitasset( "BITUSD" );
-      BOOST_CHECK(bitusd.symbol == "BITUSD");
+      const asset_object& bitusd = create_bitasset( "USDBIT" );
+      BOOST_CHECK(bitusd.symbol == "USDBIT");
       BOOST_CHECK(bitusd.bitasset_data(db).options.short_backing_asset == asset_id_type());
       BOOST_CHECK(bitusd.dynamic_asset_data_id(db).current_supply == 0);
-      GRAPHENE_REQUIRE_THROW( create_bitasset("BITUSD"), fc::exception);
+      GRAPHENE_REQUIRE_THROW( create_bitasset("USDBIT"), fc::exception);
    } catch ( const fc::exception& e ) {
       elog( "${e}", ("e", e.to_detail_string() ) );
       throw;
@@ -608,7 +631,7 @@ BOOST_AUTO_TEST_CASE( update_mia )
    try {
       INVOKE(create_mia);
       generate_block();
-      const asset_object& bit_usd = get_asset("BITUSD");
+      const asset_object& bit_usd = get_asset("USDBIT");
 
       asset_update_operation op;
       op.issuer = bit_usd.issuer;
@@ -628,11 +651,11 @@ BOOST_AUTO_TEST_CASE( update_mia )
          pop.asset_id = bit_usd.get_id();
          pop.publisher = get_account("init0").get_id();
          price_feed feed;
-         feed.settlement_price = price(bit_usd.amount(5), bit_usd.amount(5));
+         feed.settlement_price = feed.core_exchange_rate = price(bit_usd.amount(5), bit_usd.amount(5));
          REQUIRE_THROW_WITH_VALUE(pop, feed, feed);
-         feed.settlement_price = ~price(bit_usd.amount(5), asset(5));
+         feed.settlement_price = feed.core_exchange_rate = ~price(bit_usd.amount(5), asset(5));
          REQUIRE_THROW_WITH_VALUE(pop, feed, feed);
-         feed.settlement_price = price(bit_usd.amount(5), asset(5));
+         feed.settlement_price = feed.core_exchange_rate = price(bit_usd.amount(5), asset(5));
          pop.feed = feed;
          REQUIRE_THROW_WITH_VALUE(pop, feed.maintenance_collateral_ratio, 0);
          trx.operations.back() = pop;
@@ -672,14 +695,14 @@ BOOST_AUTO_TEST_CASE( create_uia )
       creator.common_options.market_fee_percent = GRAPHENE_MAX_MARKET_FEE_PERCENT/100; /*1%*/
       creator.common_options.issuer_permissions = UIA_ASSET_ISSUER_PERMISSION_MASK;
       creator.common_options.flags = charge_market_fee;
-      creator.common_options.core_exchange_rate = price({asset(2),asset(1,1)});
+      creator.common_options.core_exchange_rate = price({asset(2),asset(1,asset_id_type(1))});
       trx.operations.push_back(std::move(creator));
       PUSH_TX( db, trx, ~0 );
 
       const asset_object& test_asset = test_asset_id(db);
       BOOST_CHECK(test_asset.symbol == "TEST");
       BOOST_CHECK(asset(1, test_asset_id) * test_asset.options.core_exchange_rate == asset(2));
-      BOOST_CHECK(!test_asset.enforce_white_list());
+      BOOST_CHECK((test_asset.options.flags & white_list) == 0);
       BOOST_CHECK(test_asset.options.max_supply == 100000000);
       BOOST_CHECK(!test_asset.bitasset_data_id.valid());
       BOOST_CHECK(test_asset.options.market_fee_percent == GRAPHENE_MAX_MARKET_FEE_PERCENT/100);
@@ -1116,7 +1139,7 @@ BOOST_AUTO_TEST_CASE( witness_feeds )
    try {
       INVOKE( create_mia );
       {
-         auto& current = get_asset( "BITUSD" );
+         auto& current = get_asset( "USDBIT" );
          asset_update_operation uop;
          uop.issuer =  current.issuer;
          uop.asset_to_update = current.id;
@@ -1127,16 +1150,17 @@ BOOST_AUTO_TEST_CASE( witness_feeds )
          trx.clear();
       }
       generate_block();
-      const asset_object& bit_usd = get_asset("BITUSD");
+      const asset_object& bit_usd = get_asset("USDBIT");
       auto& global_props = db.get_global_properties();
-      const vector<account_id_type> active_witnesses(global_props.witness_accounts.begin(),
-                                                      global_props.witness_accounts.end());
+      vector<account_id_type> active_witnesses;
+      for( const witness_id_type& wit_id : global_props.active_witnesses )
+         active_witnesses.push_back( wit_id(db).witness_account );
       BOOST_REQUIRE_EQUAL(active_witnesses.size(), 10);
 
       asset_publish_feed_operation op;
       op.publisher = active_witnesses[0];
       op.asset_id = bit_usd.get_id();
-      op.feed.settlement_price = ~price(asset(GRAPHENE_BLOCKCHAIN_PRECISION),bit_usd.amount(30));
+      op.feed.settlement_price = op.feed.core_exchange_rate = ~price(asset(GRAPHENE_BLOCKCHAIN_PRECISION),bit_usd.amount(30));
       // Accept defaults for required collateral
       trx.operations.emplace_back(op);
       PUSH_TX( db, trx, ~0 );
@@ -1146,7 +1170,7 @@ BOOST_AUTO_TEST_CASE( witness_feeds )
       BOOST_CHECK(bitasset.current_feed.maintenance_collateral_ratio == GRAPHENE_DEFAULT_MAINTENANCE_COLLATERAL_RATIO);
 
       op.publisher = active_witnesses[1];
-      op.feed.settlement_price = ~price(asset(GRAPHENE_BLOCKCHAIN_PRECISION),bit_usd.amount(25));
+      op.feed.settlement_price = op.feed.core_exchange_rate = ~price(asset(GRAPHENE_BLOCKCHAIN_PRECISION),bit_usd.amount(25));
       trx.operations.back() = op;
       PUSH_TX( db, trx, ~0 );
 
@@ -1154,7 +1178,7 @@ BOOST_AUTO_TEST_CASE( witness_feeds )
       BOOST_CHECK(bitasset.current_feed.maintenance_collateral_ratio == GRAPHENE_DEFAULT_MAINTENANCE_COLLATERAL_RATIO);
 
       op.publisher = active_witnesses[2];
-      op.feed.settlement_price = ~price(asset(GRAPHENE_BLOCKCHAIN_PRECISION),bit_usd.amount(40));
+      op.feed.settlement_price = op.feed.core_exchange_rate = ~price(asset(GRAPHENE_BLOCKCHAIN_PRECISION),bit_usd.amount(40));
       // But this witness is an idiot.
       op.feed.maintenance_collateral_ratio = 1001;
       trx.operations.back() = op;
@@ -1362,7 +1386,7 @@ BOOST_AUTO_TEST_CASE( reserve_asset_test )
    try
    {
       ACTORS((alice)(bob)(sam)(judge));
-      const auto& basset = create_bitasset("BITUSD", judge_id);
+      const auto& basset = create_bitasset("USDBIT", judge_id);
       const auto& uasset = create_user_issued_asset("TEST");
       const auto& passet = create_prediction_market("PMARK", judge_id);
       const auto& casset = asset_id_type()(db);
@@ -1447,7 +1471,7 @@ BOOST_AUTO_TEST_CASE( cover_with_collateral_test )
    try
    {
       ACTORS((alice)(bob)(sam));
-      const auto& bitusd = create_bitasset("BITUSD", sam_id);
+      const auto& bitusd = create_bitasset("USDBIT", sam_id);
       const auto& core   = asset_id_type()(db);
 
       BOOST_TEST_MESSAGE( "Setting price feed to $0.02 / 100" );

@@ -1,19 +1,25 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #pragma once
 
@@ -31,6 +37,22 @@ struct static_variant_map
 
 namespace impl {
 
+std::string clean_name( const std::string& name )
+{
+   std::string result;
+   const static std::string prefix = "graphene::chain::";
+   const static std::string suffix = "_operation";
+   // graphene::chain::.*_operation
+   if(    (name.size() >= prefix.size() + suffix.size())
+       && (name.substr( 0, prefix.size() ) == prefix)
+       && (name.substr( name.size()-suffix.size(), suffix.size() ) == suffix )
+     )
+        return name.substr( prefix.size(), name.size() - prefix.size() - suffix.size() );
+
+   wlog( "don't know how to clean name: ${name}", ("name", name) );
+   return name;
+}
+
 struct static_variant_map_visitor
 {
    static_variant_map_visitor() {}
@@ -41,7 +63,7 @@ struct static_variant_map_visitor
    result_type operator()( const T& dummy )
    {
       assert( which == m.which_to_name.size() );
-      std::string name = js_name<T>::name();
+      std::string name = clean_name( fc::get_typename<T>::name() );
       m.name_to_which[ name ] = which;
       m.which_to_name.push_back( name );
    }
@@ -50,16 +72,34 @@ struct static_variant_map_visitor
    int which;
 };
 
+template< typename StaticVariant >
+struct from_which_visitor
+{
+   typedef StaticVariant result_type;
+
+   template< typename Member >   // Member is member of static_variant
+   result_type operator()( const Member& dummy )
+   {
+      Member result;
+      from_variant( v, result );
+      return result;    // converted from StaticVariant to Result automatically due to return type
+   }
+
+   const variant& v;
+
+   from_which_visitor( const variant& _v ) : v(_v) {}
+};
+
 } // namespace impl
 
 template< typename T >
 T from_which_variant( int which, const variant& v )
 {
    // Parse a variant for a known which()
-   T result;
-   result.set_which( which );
-   from_variant( v, result );
-   return result;
+   T dummy;
+   dummy.set_which( which );
+   impl::from_which_visitor< T > vtor(v);
+   return dummy.visit( vtor );
 }
 
 template<typename T>

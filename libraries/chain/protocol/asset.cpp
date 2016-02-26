@@ -1,33 +1,41 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #include <graphene/chain/protocol/asset.hpp>
-#include <fc/uint128.hpp>
 #include <boost/rational.hpp>
+#include <boost/multiprecision/cpp_int.hpp>
 
 namespace graphene { namespace chain {
+      typedef boost::multiprecision::uint128_t uint128_t;
+      typedef boost::multiprecision::int128_t  int128_t;
 
       bool operator == ( const price& a, const price& b )
       {
          if( std::tie( a.base.asset_id, a.quote.asset_id ) != std::tie( b.base.asset_id, b.quote.asset_id ) )
              return false;
 
-         const auto amult = fc::uint128( b.quote.amount.value ) * a.base.amount.value;
-         const auto bmult = fc::uint128( a.quote.amount.value ) * b.base.amount.value;
+         const auto amult = uint128_t( b.quote.amount.value ) * a.base.amount.value;
+         const auto bmult = uint128_t( a.quote.amount.value ) * b.base.amount.value;
 
          return amult == bmult;
       }
@@ -39,8 +47,8 @@ namespace graphene { namespace chain {
          if( a.quote.asset_id < b.quote.asset_id ) return true;
          if( a.quote.asset_id > b.quote.asset_id ) return false;
 
-         const auto amult = fc::uint128( b.quote.amount.value ) * a.base.amount.value;
-         const auto bmult = fc::uint128( a.quote.amount.value ) * b.base.amount.value;
+         const auto amult = uint128_t( b.quote.amount.value ) * a.base.amount.value;
+         const auto bmult = uint128_t( a.quote.amount.value ) * b.base.amount.value;
 
          return amult < bmult;
       }
@@ -70,16 +78,16 @@ namespace graphene { namespace chain {
          if( a.asset_id == b.base.asset_id )
          {
             FC_ASSERT( b.base.amount.value > 0 );
-            auto result = (fc::uint128(a.amount.value) * b.quote.amount.value)/b.base.amount.value;
+            uint128_t result = (uint128_t(a.amount.value) * b.quote.amount.value)/b.base.amount.value;
             FC_ASSERT( result <= GRAPHENE_MAX_SHARE_SUPPLY );
-            return asset( result.to_uint64(), b.quote.asset_id );
+            return asset( result.convert_to<int64_t>(), b.quote.asset_id );
          }
          else if( a.asset_id == b.quote.asset_id )
          {
             FC_ASSERT( b.quote.amount.value > 0 );
-            auto result = (fc::uint128(a.amount.value) * b.base.amount.value)/b.quote.amount.value;
+            uint128_t result = (uint128_t(a.amount.value) * b.base.amount.value)/b.quote.amount.value;
             FC_ASSERT( result <= GRAPHENE_MAX_SHARE_SUPPLY );
-            return asset( result.to_uint64(), b.base.asset_id );
+            return asset( result.convert_to<int64_t>(), b.base.asset_id );
          }
          FC_THROW_EXCEPTION( fc::assert_exception, "invalid asset * price", ("asset",a)("price",b) );
       }
@@ -112,10 +120,14 @@ namespace graphene { namespace chain {
       price price::call_price( const asset& debt, const asset& collateral, uint16_t collateral_ratio)
       { try {
          //wdump((debt)(collateral)(collateral_ratio));
-         boost::rational<uint64_t> swan(debt.amount.value,collateral.amount.value);
-         boost::rational<uint64_t> ratio( collateral_ratio, GRAPHENE_COLLATERAL_RATIO_DENOM );
+         boost::rational<int128_t> swan(debt.amount.value,collateral.amount.value);
+         boost::rational<int128_t> ratio( collateral_ratio, GRAPHENE_COLLATERAL_RATIO_DENOM );
          auto cp = swan * ratio;
-         return ~(asset( cp.numerator(), debt.asset_id ) / asset( cp.denominator(), collateral.asset_id ));
+
+         while( cp.numerator() > GRAPHENE_MAX_SHARE_SUPPLY || cp.denominator() > GRAPHENE_MAX_SHARE_SUPPLY )
+            cp = boost::rational<int128_t>( (cp.numerator() >> 1)+1, (cp.denominator() >> 1)+1 );
+
+         return ~(asset( cp.numerator().convert_to<int64_t>(), debt.asset_id ) / asset( cp.denominator().convert_to<int64_t>(), collateral.asset_id ));
       } FC_CAPTURE_AND_RETHROW( (debt)(collateral)(collateral_ratio) ) }
 
       bool price::is_null() const { return *this == price(); }
@@ -135,15 +147,35 @@ namespace graphene { namespace chain {
          FC_ASSERT( maximum_short_squeeze_ratio <= GRAPHENE_MAX_COLLATERAL_RATIO );
          FC_ASSERT( maintenance_collateral_ratio >= GRAPHENE_MIN_COLLATERAL_RATIO );
          FC_ASSERT( maintenance_collateral_ratio <= GRAPHENE_MAX_COLLATERAL_RATIO );
+         max_short_squeeze_price(); // make sure that it doesn't overflow
+
          //FC_ASSERT( maintenance_collateral_ratio >= maximum_short_squeeze_ratio );
       } FC_CAPTURE_AND_RETHROW( (*this) ) }
 
+      bool price_feed::is_for( asset_id_type asset_id ) const
+      {
+         try
+         {
+            if( !settlement_price.is_null() )
+               return (settlement_price.base.asset_id == asset_id);
+            if( !core_exchange_rate.is_null() )
+               return (core_exchange_rate.base.asset_id == asset_id);
+            // (null, null) is valid for any feed
+            return true;
+         }
+         FC_CAPTURE_AND_RETHROW( (*this) )
+      }
+
       price price_feed::max_short_squeeze_price()const
       {
-         boost::rational<uint64_t> sp( settlement_price.base.amount.value, settlement_price.quote.amount.value ); //debt.amount.value,collateral.amount.value);
-         boost::rational<uint64_t> ratio( GRAPHENE_COLLATERAL_RATIO_DENOM, maximum_short_squeeze_ratio );
+         boost::rational<int128_t> sp( settlement_price.base.amount.value, settlement_price.quote.amount.value ); //debt.amount.value,collateral.amount.value);
+         boost::rational<int128_t> ratio( GRAPHENE_COLLATERAL_RATIO_DENOM, maximum_short_squeeze_ratio );
          auto cp = sp * ratio;
-         return (asset( cp.numerator(), settlement_price.base.asset_id ) / asset( cp.denominator(), settlement_price.quote.asset_id ));
+
+         while( cp.numerator() > GRAPHENE_MAX_SHARE_SUPPLY || cp.denominator() > GRAPHENE_MAX_SHARE_SUPPLY )
+            cp = boost::rational<int128_t>( (cp.numerator() >> 1)+(cp.numerator()&1), (cp.denominator() >> 1)+(cp.denominator()&1) );
+
+         return (asset( cp.numerator().convert_to<int64_t>(), settlement_price.base.asset_id ) / asset( cp.denominator().convert_to<int64_t>(), settlement_price.quote.asset_id ));
       }
 
 // compile-time table of powers of 10 using template metaprogramming

@@ -1,19 +1,25 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #include <graphene/app/api.hpp>
 #include <graphene/app/api_access.hpp>
@@ -36,6 +42,7 @@
 
 #include <fc/smart_ref_impl.hpp>
 
+#include <fc/io/fstream.hpp>
 #include <fc/rpc/api_connection.hpp>
 #include <fc/rpc/websocket_api.hpp>
 #include <fc/network/resolve.hpp>
@@ -94,6 +101,7 @@ namespace detail {
       initial_state.initial_balances.push_back({nathan_key.get_public_key(),
                                                 GRAPHENE_SYMBOL,
                                                 GRAPHENE_MAX_SHARE_SUPPLY});
+      initial_state.initial_chain_id = fc::sha256::hash( "BOGUS" );
 
       return initial_state;
    }
@@ -103,10 +111,11 @@ namespace detail {
    public:
       fc::optional<fc::temp_file> _lock_file;
       bool _is_block_producer = false;
+      bool _force_validate = false;
 
       void reset_p2p_node(const fc::path& data_dir)
       { try {
-         _p2p_network = std::make_shared<net::node>("Graphene Reference Implementation");
+         _p2p_network = std::make_shared<net::node>("BitShares Reference Implementation");
 
          _p2p_network->load_configuration(data_dir / "p2p");
          _p2p_network->set_node_delegate(this);
@@ -122,6 +131,50 @@ namespace detail {
                   ilog("Adding seed node ${endpoint}", ("endpoint", endpoint));
                   _p2p_network->add_node(endpoint);
                   _p2p_network->connect_to_endpoint(endpoint);
+               }
+            }
+         }
+
+         if( _options->count("seed-nodes") )
+         {
+            auto seeds_str = _options->at("seed-nodes").as<string>();
+            auto seeds = fc::json::from_string(seeds_str).as<vector<string>>();
+            for( const string& endpoint_string : seeds )
+            {
+               std::vector<fc::ip::endpoint> endpoints = resolve_string_to_ip_endpoints(endpoint_string);
+               for (const fc::ip::endpoint& endpoint : endpoints)
+               {
+                  ilog("Adding seed node ${endpoint}", ("endpoint", endpoint));
+                  _p2p_network->add_node(endpoint);
+               }
+            }
+         }
+         else
+         {
+            vector<string> seeds = {
+               "faucet.bitshares.org:1776",
+               "bitshares.openledger.info:1776",
+               "114.92.254.159:62015",
+               "seed.blocktrades.us:1776",
+               "seed04.bitsharesnodes.com:1776", // thom
+               "seed05.bitsharesnodes.com:1776", // thom
+               "seed06.bitsharesnodes.com:1776", // thom
+               "seed07.bitsharesnodes.com:1776", // thom
+               "128.199.131.4:1777", // cube 
+               "54.85.252.77:39705", // lafona
+               "104.236.144.84:1777", // puppies
+               "40.127.190.171:1777", // betax
+               "185.25.22.21:1776", // liondani (greece)
+               "23.95.43.126:50696", // iHashFury
+               "109.73.172.144:50696" // iHashFury
+            };
+            for( const string& endpoint_string : seeds )
+            {
+               std::vector<fc::ip::endpoint> endpoints = resolve_string_to_ip_endpoints(endpoint_string);
+               for (const fc::ip::endpoint& endpoint : endpoints)
+               {
+                  ilog("Adding seed node ${endpoint}", ("endpoint", endpoint));
+                  _p2p_network->add_node(endpoint);
                }
             }
          }
@@ -242,7 +295,9 @@ namespace detail {
             ilog("Initializing database...");
             if( _options->count("genesis-json") )
             {
-               genesis_state_type genesis = fc::json::from_file(_options->at("genesis-json").as<boost::filesystem::path>()).as<genesis_state_type>();
+               std::string genesis_str;
+               fc::read_file_contents( _options->at("genesis-json").as<boost::filesystem::path>(), genesis_str );
+               genesis_state_type genesis = fc::json::from_string( genesis_str ).as<genesis_state_type>();
                bool modified_genesis = false;
                if( _options->count("genesis-timestamp") )
                {
@@ -262,7 +317,11 @@ namespace detail {
                if( modified_genesis )
                {
                   std::cerr << "WARNING:  GENESIS WAS MODIFIED, YOUR CHAIN ID MAY BE DIFFERENT\n";
+                  genesis_str += "BOGUS";
+                  genesis.initial_chain_id = fc::sha256::hash( genesis_str );
                }
+               else
+                  genesis.initial_chain_id = fc::sha256::hash( genesis_str );
                return genesis;
             }
             else
@@ -271,7 +330,9 @@ namespace detail {
                graphene::egenesis::compute_egenesis_json( egenesis_json );
                FC_ASSERT( egenesis_json != "" );
                FC_ASSERT( graphene::egenesis::get_egenesis_json_hash() == fc::sha256::hash( egenesis_json ) );
-               return fc::json::from_string( egenesis_json ).as<genesis_state_type>();
+               auto genesis = fc::json::from_string( egenesis_json ).as<genesis_state_type>();
+               genesis.initial_chain_id = fc::sha256::hash( egenesis_json );
+               return genesis;
             }
          };
 
@@ -295,9 +356,63 @@ namespace detail {
          {
             ilog("Replaying blockchain on user request.");
             _chain_db->reindex(_data_dir/"blockchain", initial_state());
-         } else if( clean )
-            _chain_db->open(_data_dir / "blockchain", initial_state);
-         else {
+         } else if( clean ) {
+
+            auto is_new = [&]() -> bool
+            {
+               // directory doesn't exist
+               if( !fc::exists( _data_dir ) )
+                  return true;
+               // if directory exists but is empty, return true; else false.
+               return ( fc::directory_iterator( _data_dir ) == fc::directory_iterator() );
+            };
+
+            auto is_outdated = [&]() -> bool
+            {
+               if( !fc::exists( _data_dir / "db_version" ) )
+                  return true;
+               std::string version_str;
+               fc::read_file_contents( _data_dir / "db_version", version_str );
+               return (version_str != GRAPHENE_CURRENT_DB_VERSION);
+            };
+
+            bool need_reindex = (!is_new() && is_outdated());
+            std::string reindex_reason = "version upgrade";
+
+            if( !need_reindex )
+            {
+               try
+               {
+                  _chain_db->open(_data_dir / "blockchain", initial_state);
+               }
+               catch( const fc::exception& e )
+               {
+                  ilog( "caught exception ${e} in open()", ("e", e.to_detail_string()) );
+                  need_reindex = true;
+                  reindex_reason = "exception in open()";
+               }
+            }
+
+            if( need_reindex )
+            {
+               ilog("Replaying blockchain due to ${reason}", ("reason", reindex_reason) );
+
+               fc::remove_all( _data_dir / "db_version" );
+               _chain_db->reindex(_data_dir / "blockchain", initial_state());
+
+               // doing this down here helps ensure that DB will be wiped
+               // if any of the above steps were interrupted on a previous run
+               if( !fc::exists( _data_dir / "db_version" ) )
+               {
+                  std::ofstream db_version(
+                     (_data_dir / "db_version").generic_string().c_str(),
+                     std::ios::out | std::ios::binary | std::ios::trunc );
+                  std::string version_string = GRAPHENE_CURRENT_DB_VERSION;
+                  db_version.write( version_string.c_str(), version_string.size() );
+                  db_version.close();
+               }
+            }
+         } else {
             wlog("Detected unclean shutdown. Replaying blockchain...");
             _chain_db->reindex(_data_dir / "blockchain", initial_state());
          }
@@ -310,6 +425,12 @@ namespace detail {
             _chain_db = std::make_shared<chain::database>();
             _chain_db->add_checkpoints(loaded_checkpoints);
             _chain_db->open(_data_dir / "blockchain", initial_state);
+         }
+
+         if( _options->count("force-validate") )
+         {
+            ilog( "All transaction signatures will be validated" );
+            _force_validate = true;
          }
 
          graphene::time::now();
@@ -328,6 +449,7 @@ namespace detail {
             wild_access.allowed_apis.push_back( "database_api" );
             wild_access.allowed_apis.push_back( "network_broadcast_api" );
             wild_access.allowed_apis.push_back( "history_api" );
+            wild_access.allowed_apis.push_back( "crypto_api" );
             _apiaccess.permission_map["*"] = wild_access;
          }
 
@@ -380,12 +502,19 @@ namespace detail {
       virtual bool handle_block(const graphene::net::block_message& blk_msg, bool sync_mode,
                                 std::vector<fc::uint160_t>& contained_transaction_message_ids) override
       { try {
+
          auto latency = graphene::time::now() - blk_msg.block.timestamp;
          if (!sync_mode || blk_msg.block.block_num() % 10000 == 0)
          {
             const auto& witness = blk_msg.block.witness(*_chain_db);
             const auto& witness_account = witness.witness_account(*_chain_db);
-            ilog("Got block #${n} with time ${t} from network with latency of ${l} ms from ${w}", ("t",blk_msg.block.timestamp)("n", blk_msg.block.block_num())("l", (latency.count()/1000))("w",witness_account.name)   );
+            auto last_irr = _chain_db->get_dynamic_global_properties().last_irreversible_block_num;
+            ilog("Got block: #${n} time: ${t} latency: ${l} ms from: ${w}  irreversible: ${i} (-${d})", 
+                 ("t",blk_msg.block.timestamp)
+                 ("n", blk_msg.block.block_num())
+                 ("l", (latency.count()/1000))
+                 ("w",witness_account.name)
+                 ("i",last_irr)("d",blk_msg.block.block_num()-last_irr) );
          }
 
          try {
@@ -393,7 +522,7 @@ namespace detail {
             // you can help the network code out by throwing a block_older_than_undo_history exception.
             // when the net code sees that, it will stop trying to push blocks from that chain, but
             // leave that peer connected so that they can get sync blocks from us
-            bool result = _chain_db->push_block(blk_msg.block, _is_block_producer ? database::skip_nothing : database::skip_transaction_signatures);
+            bool result = _chain_db->push_block(blk_msg.block, (_is_block_producer | _force_validate) ? database::skip_nothing : database::skip_transaction_signatures);
 
             // the block was accepted, so we now know all of the transactions contained in the block
             if (!sync_mode)
@@ -429,7 +558,16 @@ namespace detail {
 
       virtual void handle_transaction(const graphene::net::trx_message& transaction_message) override
       { try {
-         ilog("Got transaction from network");
+         static fc::time_point last_call;
+         static int trx_count = 0;
+         ++trx_count;
+         auto now = fc::time_point::now();
+         if( now - last_call > fc::seconds(1) ) {
+            ilog("Got ${c} transactions from network", ("c",trx_count) );
+            last_call = now;
+            trx_count = 0;
+         }
+
          _chain_db->push_transaction( transaction_message.trx );
       } FC_CAPTURE_AND_RETHROW( (transaction_message) ) }
 
@@ -515,7 +653,7 @@ namespace detail {
                elog("Couldn't find block ${id} -- corresponding ID in our chain is ${id2}",
                     ("id", id.item_hash)("id2", _chain_db->get_block_id_for_num(block_header::num_from_id(id.item_hash))));
             FC_ASSERT( opt_block.valid() );
-            ilog("Serving up block #${num}", ("num", opt_block->block_num()));
+            // ilog("Serving up block #${num}", ("num", opt_block->block_num()));
             return block_message(std::move(*opt_block));
          }
          return trx_message( _chain_db->get_recent_transaction( id.item_hash ) );
@@ -696,7 +834,7 @@ namespace detail {
           }
           while (low_block_num <= high_block_num);
 
-          idump((synopsis));
+          //idump((synopsis));
           return synopsis;
       } FC_CAPTURE_AND_RETHROW() }
 
@@ -803,6 +941,7 @@ void application::set_program_options(boost::program_options::options_descriptio
    configuration_file_options.add_options()
          ("p2p-endpoint", bpo::value<string>(), "Endpoint for P2P node to listen on")
          ("seed-node,s", bpo::value<vector<string>>()->composing(), "P2P nodes to connect to on startup (may specify multiple times)")
+         ("seed-nodes", bpo::value<string>()->composing(), "JSON array of P2P nodes to connect to on startup")
          ("checkpoint,c", bpo::value<vector<string>>()->composing(), "Pairs of [BLOCK_NUM,BLOCK_ID] that should be enforced as checkpoints.")
          ("rpc-endpoint", bpo::value<string>()->implicit_value("127.0.0.1:8090"), "Endpoint for websocket RPC to listen on")
          ("rpc-tls-endpoint", bpo::value<string>()->implicit_value("127.0.0.1:8089"), "Endpoint for TLS websocket RPC to listen on")
@@ -820,6 +959,7 @@ void application::set_program_options(boost::program_options::options_descriptio
           "invalid file is found, it will be replaced with an example Genesis State.")
          ("replay-blockchain", "Rebuild object graph by replaying all blocks")
          ("resync-blockchain", "Delete all blocks and re-sync with network from scratch")
+         ("force-validate", "Force validation of all transactions")
          ("genesis-timestamp", bpo::value<uint32_t>(), "Replace timestamp from genesis.json with current time plus this many seconds (experts only!)")
          ;
    command_line_options.add(_cli_options);
@@ -918,6 +1058,8 @@ void application::shutdown_plugins()
 }
 void application::shutdown()
 {
+   if( my->_p2p_network )
+      my->_p2p_network->close();
    if( my->_chain_db )
       my->_chain_db->close();
 }

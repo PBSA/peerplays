@@ -1,23 +1,30 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/database.hpp>
+#include <graphene/chain/hardfork.hpp>
 #include <fc/uint128.hpp>
 
 namespace graphene { namespace chain {
@@ -35,21 +42,11 @@ share_type cut_fee(share_type a, uint16_t p)
    return r.to_uint64();
 }
 
-bool account_object::is_authorized_asset(const asset_object& asset_obj) const {
-   for( const auto id : blacklisting_accounts )
-      if( asset_obj.options.blacklist_authorities.find(id) != asset_obj.options.blacklist_authorities.end() ) return false;
-
-   for( const auto id : whitelisting_accounts )
-      if( asset_obj.options.whitelist_authorities.find(id) != asset_obj.options.whitelist_authorities.end() ) return true;
-   return false;
-}
-
 void account_balance_object::adjust_balance(const asset& delta)
 {
    assert(delta.asset_id == asset_type);
    balance += delta.amount;
 }
-
 
 void account_statistics_object::process_fees(const account_object& a, database& d) const
 {
@@ -94,42 +91,31 @@ void account_statistics_object::process_fees(const account_object& a, database& 
          assert( referrer_cut + registrar_cut + accumulated + reserveed + lifetime_cut == core_fee_total );
       };
 
-      share_type vesting_fee_subtotal(pending_fees);
-      share_type vested_fee_subtotal(pending_vested_fees);
-      share_type vesting_cashback, vested_cashback;
+      pay_out_fees(a, pending_fees, true);
+      pay_out_fees(a, pending_vested_fees, false);
 
-      pay_out_fees(a, vesting_fee_subtotal, true);
-      d.deposit_cashback(a, vesting_cashback, true);
-      pay_out_fees(a, vested_fee_subtotal, false);
-      d.deposit_cashback(a, vested_cashback, false);
-
-      d.modify(*this, [vested_fee_subtotal, vesting_fee_subtotal](account_statistics_object& s) {
-         s.lifetime_fees_paid += vested_fee_subtotal + vesting_fee_subtotal;
+      d.modify(*this, [&](account_statistics_object& s) {
+         s.lifetime_fees_paid += pending_fees + pending_vested_fees;
          s.pending_fees = 0;
          s.pending_vested_fees = 0;
       });
    }
 }
 
-void account_object::options_type::validate() const
+void account_statistics_object::pay_fee( share_type core_fee, share_type cashback_vesting_threshold )
 {
-   auto needed_witnesses = num_witness;
-   auto needed_committee = num_committee;
-
-   for( vote_id_type id : votes )
-      if( id.type() == vote_id_type::witness && needed_witnesses )
-         --needed_witnesses;
-      else if ( id.type() == vote_id_type::committee && needed_committee )
-         --needed_committee;
-
-   FC_ASSERT( needed_witnesses == 0 && needed_committee == 0,
-              "May not specify fewer witnesses or committee members than the number voted for.");
+   if( core_fee > cashback_vesting_threshold )
+      pending_fees += core_fee;
+   else
+      pending_vested_fees += core_fee;
 }
 
 set<account_id_type> account_member_index::get_account_members(const account_object& a)const
 {
    set<account_id_type> result;
    for( auto auth : a.owner.account_auths )
+      result.insert(auth.first);
+   for( auto auth : a.active.account_auths )
       result.insert(auth.first);
    return result;
 }
@@ -138,6 +124,9 @@ set<public_key_type> account_member_index::get_key_members(const account_object&
    set<public_key_type> result;
    for( auto auth : a.owner.key_auths )
       result.insert(auth.first);
+   for( auto auth : a.active.key_auths )
+      result.insert(auth.first);
+   result.insert( a.options.memo_key );
    return result;
 }
 set<address> account_member_index::get_address_members(const account_object& a)const
@@ -145,6 +134,9 @@ set<address> account_member_index::get_address_members(const account_object& a)c
    set<address> result;
    for( auto auth : a.owner.address_auths )
       result.insert(auth.first);
+   for( auto auth : a.active.address_auths )
+      result.insert(auth.first);
+   result.insert( a.options.memo_key );
    return result;
 }
 

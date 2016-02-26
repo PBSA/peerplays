@@ -1,19 +1,25 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #pragma once
 
@@ -213,6 +219,13 @@ struct approval_delta
    vector<string> key_approvals_to_remove;
 };
 
+struct worker_vote_delta
+{
+   flat_set<worker_id_type> vote_for;
+   flat_set<worker_id_type> vote_against;
+   flat_set<worker_id_type> vote_abstain;
+};
+
 struct signed_block_with_info : public signed_block
 {
    signed_block_with_info();
@@ -221,6 +234,7 @@ struct signed_block_with_info : public signed_block
 
    block_id_type block_id;
    public_key_type signing_key;
+   vector< transaction_id_type > transaction_ids;
 };
 
 struct vesting_balance_object_with_info : public vesting_balance_object
@@ -265,6 +279,10 @@ class wallet_api
       fc::ecc::private_key derive_private_key(const std::string& prefix_string, int sequence_number) const;
 
       variant                           info();
+      /** Returns info such as client version, git version of graphene/fc, version of boost, openssl.
+       * @returns compile time info and client and dependencies versions
+       */
+      variant_object                    about() const;
       optional<signed_block_with_info>    get_block( uint32_t num );
       /** Returns the number of accounts registered on the blockchain
        * @returns the number of registered accounts
@@ -434,9 +452,21 @@ class wallet_api
       /**
        * @ingroup Transaction Builder API
        */
-      signed_transaction propose_builder_transaction(transaction_handle_type handle,
-                                                     time_point_sec expiration = time_point::now() + fc::minutes(1),
-                                                     uint32_t review_period_seconds = 0, bool broadcast = true);
+      signed_transaction propose_builder_transaction(
+          transaction_handle_type handle,
+          time_point_sec expiration = time_point::now() + fc::minutes(1),
+          uint32_t review_period_seconds = 0,
+          bool broadcast = true
+         );
+
+      signed_transaction propose_builder_transaction2(
+         transaction_handle_type handle,
+         string account_name_or_id,
+         time_point_sec expiration = time_point::now() + fc::minutes(1),
+         uint32_t review_period_seconds = 0,
+         bool broadcast = true
+        );
+
       /**
        * @ingroup Transaction Builder API
        */
@@ -577,10 +607,10 @@ class wallet_api
       bool import_account_keys( string filename, string password, string src_account_name, string dest_account_name );
 
       /**
-       * This call will construct a transaction that will claim all balances controled
+       * This call will construct transaction(s) that will claim all balances controled
        * by wif_keys and deposit them into the given account.
        */
-      signed_transaction import_balance( string account_name_or_id, const vector<string>& wif_keys, bool broadcast );
+      vector< signed_transaction > import_balance( string account_name_or_id, const vector<string>& wif_keys, bool broadcast );
 
       /** Transforms a brain key to reduce the chance of errors when re-entering the key from memory.
        *
@@ -611,8 +641,9 @@ class wallet_api
        *                         portion of the user's transaction fees.  This can be the
        *                         same as the registrar_account if there is no referrer.
        * @param referrer_percent the percentage (0 - 100) of the new user's transaction fees
-       *                         not claimed by the blockchain that will be distributed to the 
-       *                         referrer; the rest will be sent to the registrar
+       *                         not claimed by the blockchain that will be distributed to the
+       *                         referrer; the rest will be sent to the registrar.  Will be
+       *                         multiplied by GRAPHENE_1_PERCENT when constructing the transaction.
        * @param broadcast true to broadcast the transaction on the network
        * @returns the signed transaction registering the account
        */
@@ -621,7 +652,7 @@ class wallet_api
                                           public_key_type active,
                                           string  registrar_account,
                                           string  referrer_account,
-                                          uint8_t referrer_percent,
+                                          uint32_t referrer_percent,
                                           bool broadcast = false);
 
       /**
@@ -678,6 +709,24 @@ class wallet_api
                                   string memo,
                                   bool broadcast = false);
 
+      /**
+       *  This method works just like transfer, except it always broadcasts and
+       *  returns the transaction ID along with the signed transaction.
+       */
+      pair<transaction_id_type,signed_transaction> transfer2(string from,
+                                                             string to,
+                                                             string amount,
+                                                             string asset_symbol,
+                                                             string memo ) {
+         auto trx = transfer( from, to, amount, asset_symbol, memo, true );
+         return std::make_pair(trx.id(),trx);
+      }
+
+
+      /**
+       *  This method is used to convert a JSON transaction to its transactin ID.
+       */
+      transaction_id_type get_transaction_id( const signed_transaction& trx )const { return trx.id(); }
 
 
       /** These methods are used for stealth transfers */
@@ -732,7 +781,7 @@ class wallet_api
       blind_confirmation transfer_to_blind( string from_account_id_or_name, 
                                             string asset_symbol,
                                             /** map from key or label to amount */
-                                            map<string, string> to_amounts, 
+                                            vector<pair<string, string>> to_amounts, 
                                             bool broadcast = false );
 
       /**
@@ -819,6 +868,14 @@ class wallet_api
        */
       signed_transaction borrow_asset(string borrower_name, string amount_to_borrow, string asset_symbol,
                                       string amount_of_collateral, bool broadcast = false);
+
+      /** Cancel an existing order
+       *
+       * @param order_id the id of order to be cancelled
+       * @param broadcast true to broadcast the transaction on the network
+       * @returns the signed transaction canceling the order
+       */
+      signed_transaction cancel_order(object_id_type order_id, bool broadcast = false);
 
       /** Creates a new user-issued or market-issued asset.
        *
@@ -1123,6 +1180,43 @@ class wallet_api
                                         string block_signing_key,
                                         bool broadcast = false);
 
+
+      /**
+       * Create a worker object.
+       *
+       * @param owner_account The account which owns the worker and will be paid
+       * @param work_begin_date When the work begins
+       * @param work_end_date When the work ends
+       * @param daily_pay Amount of pay per day (NOT per maint interval)
+       * @param name Any text
+       * @param url Any text
+       * @param worker_settings {"type" : "burn"|"refund"|"vesting", "pay_vesting_period_days" : x}
+       * @param broadcast true if you wish to broadcast the transaction.
+       */
+      signed_transaction create_worker(
+         string owner_account,
+         time_point_sec work_begin_date,
+         time_point_sec work_end_date,
+         share_type daily_pay,
+         string name,
+         string url,
+         variant worker_settings,
+         bool broadcast = false
+         );
+
+      /**
+       * Update your votes for a worker
+       *
+       * @param account The account which will pay the fee and update votes.
+       * @param worker_vote_delta {"vote_for" : [...], "vote_against" : [...], "vote_abstain" : [...]}
+       * @param broadcast true if you wish to broadcast the transaction.
+       */
+      signed_transaction update_worker_votes(
+         string account,
+         worker_vote_delta delta,
+         bool broadcast = false
+         );
+
       /**
        * Get information about a vesting balance object.
        *
@@ -1361,7 +1455,7 @@ FC_REFLECT( graphene::wallet::brain_key_info,
             (brain_priv_key)
             (wif_priv_key)
             (pub_key)
-          );
+          )
 
 FC_REFLECT( graphene::wallet::exported_account_keys, (account_name)(encrypted_private_keys)(public_keys) )
 
@@ -1379,8 +1473,14 @@ FC_REFLECT( graphene::wallet::approval_delta,
    (key_approvals_to_remove)
 )
 
+FC_REFLECT( graphene::wallet::worker_vote_delta,
+   (vote_for)
+   (vote_against)
+   (vote_abstain)
+)
+
 FC_REFLECT_DERIVED( graphene::wallet::signed_block_with_info, (graphene::chain::signed_block),
-   (block_id)(signing_key) )
+   (block_id)(signing_key)(transaction_ids) )
 
 FC_REFLECT_DERIVED( graphene::wallet::vesting_balance_object_with_info, (graphene::chain::vesting_balance_object),
    (allowed_withdraw)(allowed_withdraw_time) )
@@ -1392,6 +1492,7 @@ FC_API( graphene::wallet::wallet_api,
         (help)
         (gethelp)
         (info)
+        (about)
         (begin_builder_transaction)
         (add_operation_to_builder_transaction)
         (replace_operation_in_builder_transaction)
@@ -1399,6 +1500,7 @@ FC_API( graphene::wallet::wallet_api,
         (preview_builder_transaction)
         (sign_builder_transaction)
         (propose_builder_transaction)
+        (propose_builder_transaction2)
         (remove_builder_transaction)
         (is_new)
         (is_locked)
@@ -1418,7 +1520,10 @@ FC_API( graphene::wallet::wallet_api,
         (create_account_with_brain_key)
         (sell_asset)
         (borrow_asset)
+        (cancel_order)
         (transfer)
+        (transfer2)
+        (get_transaction_id)
         (create_asset)
         (update_asset)
         (update_bitasset)
@@ -1439,6 +1544,8 @@ FC_API( graphene::wallet::wallet_api,
         (list_committee_members)
         (create_witness)
         (update_witness)
+        (create_worker)
+        (update_worker_votes)
         (get_vesting_balances)
         (withdraw_vesting)
         (vote_for_committee_member)

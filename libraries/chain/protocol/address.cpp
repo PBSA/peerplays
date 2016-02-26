@@ -1,19 +1,25 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/chain/protocol/address.hpp>
@@ -27,11 +33,8 @@ namespace graphene {
 
    address::address( const std::string& base58str )
    {
-      FC_ASSERT( is_valid( base58str ) );
       std::string prefix( GRAPHENE_ADDRESS_PREFIX );
-
-      // TODO: This is temporary for testing
-      if( is_valid( base58str, "BTS" ) ) prefix = std::string( "BTS" );
+      FC_ASSERT( is_valid( base58str, prefix ), "${str}", ("str",base58str) );
 
       std::vector<char> v = fc::from_base58( base58str.substr( prefix.size() ) );
       memcpy( (char*)addr._hash, v.data(), std::min<size_t>( v.size()-4, sizeof( addr ) ) );
@@ -39,10 +42,6 @@ namespace graphene {
 
    bool address::is_valid( const std::string& base58str, const std::string& prefix )
    {
-      // TODO: This is temporary for testing
-      if( prefix == GRAPHENE_ADDRESS_PREFIX && is_valid( base58str, "BTS" ) )
-          return true;
-
       const size_t prefix_len = prefix.size();
       if( base58str.size() <= prefix_len )
           return false;
@@ -51,17 +50,20 @@ namespace graphene {
       std::vector<char> v;
       try
       {
-		  v = fc::from_base58( base58str.substr( prefix_len ) );
-	  }
-	  catch( const fc::parse_error_exception& e )
-	  {
-		  return false;
-	  }
+		     v = fc::from_base58( base58str.substr( prefix_len ) );
+      }
+      catch( const fc::parse_error_exception& e )
+      {
+        return false;
+      }
+
       if( v.size() != sizeof( fc::ripemd160 ) + 4 )
           return false;
+
       const fc::ripemd160 checksum = fc::ripemd160::hash( v.data(), v.size() - 4 );
       if( memcmp( v.data() + 20, (char*)checksum._hash, 4 ) != 0 )
           return false;
+
       return true;
    }
 

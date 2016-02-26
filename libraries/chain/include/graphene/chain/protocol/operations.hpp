@@ -1,4 +1,26 @@
-/* Copyright (C) Cryptonomex, Inc - All Rights Reserved **/
+/*
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
+ *
+ * The MIT License
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #pragma once
 #include <graphene/chain/protocol/base.hpp>
 #include <graphene/chain/protocol/account.hpp>
@@ -7,6 +29,8 @@
 #include <graphene/chain/protocol/balance.hpp>
 #include <graphene/chain/protocol/custom.hpp>
 #include <graphene/chain/protocol/committee_member.hpp>
+#include <graphene/chain/protocol/confidential.hpp>
+#include <graphene/chain/protocol/fba.hpp>
 #include <graphene/chain/protocol/market.hpp>
 #include <graphene/chain/protocol/proposal.hpp>
 #include <graphene/chain/protocol/transfer.hpp>
@@ -14,7 +38,6 @@
 #include <graphene/chain/protocol/withdraw_permission.hpp>
 #include <graphene/chain/protocol/witness.hpp>
 #include <graphene/chain/protocol/worker.hpp>
-#include <graphene/chain/protocol/confidential.hpp>
 
 namespace graphene { namespace chain {
 
@@ -66,8 +89,9 @@ namespace graphene { namespace chain {
             transfer_to_blind_operation,
             blind_transfer_operation,
             transfer_from_blind_operation,
-
-            asset_settle_cancel_operation  // VIRTUAL
+            asset_settle_cancel_operation,  // VIRTUAL
+            asset_claim_fees_operation,
+            fba_distribute_operation        // VIRTUAL
          > operation;
 
    /// @} // operations group

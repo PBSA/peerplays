@@ -1,25 +1,32 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #pragma once
 
 #include <graphene/app/database_api.hpp>
 
 #include <graphene/chain/protocol/types.hpp>
+#include <graphene/chain/protocol/confidential.hpp>
 
 #include <graphene/market_history/market_history_plugin.hpp>
 
@@ -27,6 +34,7 @@
 
 #include <fc/api.hpp>
 #include <fc/optional.hpp>
+#include <fc/crypto/elliptic.hpp>
 #include <fc/network/ip.hpp>
 
 #include <boost/container/flat_set.hpp>
@@ -39,10 +47,27 @@
 namespace graphene { namespace app {
    using namespace graphene::chain;
    using namespace graphene::market_history;
+   using namespace fc::ecc;
    using namespace std;
 
    class application;
 
+   struct verify_range_result
+   {
+      bool        success;
+      uint64_t    min_val;
+      uint64_t    max_val;
+   };
+   
+   struct verify_range_proof_rewind_result
+   {
+      bool                          success;
+      uint64_t                      min_val;
+      uint64_t                      max_val;
+      uint64_t                      value_out;
+      fc::ecc::blind_factor_type    blind_out;
+      string                        message_out;
+   };
 
    /**
     * @brief The history_api class implements the RPC API for account history
@@ -67,6 +92,7 @@ namespace graphene { namespace app {
                                                               unsigned limit = 100,
                                                               operation_history_id_type start = operation_history_id_type())const;
 
+         vector<order_history_object> get_fill_order_history( asset_id_type a, asset_id_type b, uint32_t limit )const;
          vector<bucket_object> get_market_history( asset_id_type a, asset_id_type b, uint32_t bucket_seconds,
                                                    fc::time_point_sec start, fc::time_point_sec end )const;
          flat_set<uint32_t> get_market_history_buckets()const;
@@ -133,6 +159,11 @@ namespace graphene { namespace app {
          network_node_api(application& a);
 
          /**
+          * @brief Return general network information, such as p2p port
+          */
+         fc::variant_object get_info() const;
+
+         /**
           * @brief add_node Connect to a new peer
           * @param ep The IP/Port of the peer to connect to
           */
@@ -140,11 +171,67 @@ namespace graphene { namespace app {
 
          /**
           * @brief Get status of all current connections to peers
-           */
+          */
          std::vector<net::peer_status> get_connected_peers() const;
+
+         /**
+          * @brief Get advanced node parameters, such as desired and max
+          *        number of connections
+          */
+         fc::variant_object get_advanced_node_parameters() const;
+
+         /**
+          * @brief Set advanced node parameters, such as desired and max
+          *        number of connections
+          * @param params a JSON object containing the name/value pairs for the parameters to set
+          */
+         void set_advanced_node_parameters(const fc::variant_object& params);
+
+         /**
+          * @brief Return list of potential peers
+          */
+         std::vector<net::potential_peer_record> get_potential_peers() const;
 
       private:
          application& _app;
+   };
+   
+   class crypto_api
+   {
+      public:
+         crypto_api();
+         
+         fc::ecc::blind_signature blind_sign( const extended_private_key_type& key, const fc::ecc::blinded_hash& hash, int i );
+         
+         signature_type unblind_signature( const extended_private_key_type& key,
+                                              const extended_public_key_type& bob,
+                                              const fc::ecc::blind_signature& sig,
+                                              const fc::sha256& hash,
+                                              int i );
+                                                                  
+         fc::ecc::commitment_type blind( const fc::ecc::blind_factor_type& blind, uint64_t value );
+         
+         fc::ecc::blind_factor_type blind_sum( const std::vector<blind_factor_type>& blinds_in, uint32_t non_neg );
+         
+         bool verify_sum( const std::vector<commitment_type>& commits_in, const std::vector<commitment_type>& neg_commits_in, int64_t excess );
+         
+         verify_range_result verify_range( const fc::ecc::commitment_type& commit, const std::vector<char>& proof );
+         
+         std::vector<char> range_proof_sign( uint64_t min_value, 
+                                             const commitment_type& commit, 
+                                             const blind_factor_type& commit_blind, 
+                                             const blind_factor_type& nonce,
+                                             int8_t base10_exp,
+                                             uint8_t min_bits,
+                                             uint64_t actual_value );
+                                       
+         
+         verify_range_proof_rewind_result verify_range_proof_rewind( const blind_factor_type& nonce,
+                                                                     const fc::ecc::commitment_type& commit, 
+                                                                     const std::vector<char>& proof );
+         
+                                         
+         range_proof_info range_get_info( const std::vector<char>& proof );
    };
 
    /**
@@ -176,6 +263,8 @@ namespace graphene { namespace app {
          fc::api<history_api> history()const;
          /// @brief Retrieve the network node API
          fc::api<network_node_api> network_node()const;
+         /// @brief Retrieve the cryptography API
+         fc::api<crypto_api> crypto()const;
 
       private:
          /// @brief Called to enable an API, not reflected.
@@ -186,15 +275,23 @@ namespace graphene { namespace app {
          optional< fc::api<network_broadcast_api> > _network_broadcast_api;
          optional< fc::api<network_node_api> > _network_node_api;
          optional< fc::api<history_api> >  _history_api;
+         optional< fc::api<crypto_api> > _crypto_api;
    };
 
 }}  // graphene::app
 
 FC_REFLECT( graphene::app::network_broadcast_api::transaction_confirmation,
         (id)(block_num)(trx_num)(trx) )
+FC_REFLECT( graphene::app::verify_range_result,
+        (success)(min_val)(max_val) )
+FC_REFLECT( graphene::app::verify_range_proof_rewind_result,
+        (success)(min_val)(max_val)(value_out)(blind_out)(message_out) )
+//FC_REFLECT_TYPENAME( fc::ecc::compact_signature );
+//FC_REFLECT_TYPENAME( fc::ecc::commitment_type );
 
 FC_API(graphene::app::history_api,
        (get_account_history)
+       (get_fill_order_history)
        (get_market_history)
        (get_market_history_buckets)
      )
@@ -204,8 +301,23 @@ FC_API(graphene::app::network_broadcast_api,
        (broadcast_block)
      )
 FC_API(graphene::app::network_node_api,
+       (get_info)
        (add_node)
        (get_connected_peers)
+       (get_potential_peers)
+       (get_advanced_node_parameters)
+       (set_advanced_node_parameters)
+     )
+FC_API(graphene::app::crypto_api,
+       (blind_sign)
+       (unblind_signature)
+       (blind)
+       (blind_sum)
+       (verify_sum)
+       (verify_range)
+       (range_proof_sign)
+       (verify_range_proof_rewind)
+       (range_get_info)
      )
 FC_API(graphene::app::login_api,
        (login)
@@ -213,4 +325,5 @@ FC_API(graphene::app::login_api,
        (database)
        (history)
        (network_node)
+       (crypto)
      )

@@ -1,19 +1,25 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #include <graphene/chain/database.hpp>
@@ -21,11 +27,12 @@
 
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/global_property_object.hpp>
+#include <graphene/chain/market_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/transaction_object.hpp>
-#include <graphene/chain/market_evaluator.hpp>
 #include <graphene/chain/withdraw_permission_object.hpp>
 #include <graphene/chain/witness_object.hpp>
+
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
 #include <fc/uint128.hpp>
@@ -87,8 +94,8 @@ void database::update_global_dynamic_data( const signed_block& b )
                  ("recently_missed",_dgp.recently_missed_count)("max_undo",GRAPHENE_MAX_UNDO_HISTORY) );
    }
 
-   _undo_db.set_max_size( _dgp.head_block_number - _dgp.last_irreversible_block_num + GRAPHENE_MIN_UNDO_HISTORY );
-   _fork_db.set_max_size( _dgp.head_block_number - _dgp.last_irreversible_block_num + GRAPHENE_MIN_UNDO_HISTORY );
+   _undo_db.set_max_size( _dgp.head_block_number - _dgp.last_irreversible_block_num + 1 );
+   _fork_db.set_max_size( _dgp.head_block_number - _dgp.last_irreversible_block_num + 1 );
 }
 
 void database::update_signing_witness(const witness_object& signing_witness, const signed_block& new_block)
@@ -149,14 +156,14 @@ void database::update_last_irreversible_block()
 }
 
 void database::clear_expired_transactions()
-{
+{ try {
    //Look for expired transactions in the deduplication list, and remove them.
    //Transactions must have expired by at least two forking windows in order to be removed.
    auto& transaction_idx = static_cast<transaction_index&>(get_mutable_index(implementation_ids, impl_transaction_object_type));
    const auto& dedupe_index = transaction_idx.indices().get<by_expiration>();
    while( (!dedupe_index.empty()) && (head_block_time() > dedupe_index.rbegin()->trx.expiration) )
       transaction_idx.remove(*dedupe_index.rbegin());
-}
+} FC_CAPTURE_AND_RETHROW() }
 
 void database::clear_expired_proposals()
 {
@@ -247,7 +254,7 @@ bool database::check_for_blackswan( const asset_object& mia, bool enable_black_s
 }
 
 void database::clear_expired_orders()
-{
+{ try {
    detail::with_skip_flags( *this,
       get_node_properties().skip_flags | skip_authority_check, [&](){
          transaction_evaluation_state cancel_context(this);
@@ -260,6 +267,18 @@ void database::clear_expired_orders()
             const limit_order_object& order = *limit_index.begin();
             canceler.fee_paying_account = order.seller;
             canceler.order = order.id;
+            canceler.fee = current_fee_schedule().calculate_fee( canceler );
+            if( canceler.fee.amount > order.deferred_fee )
+            {
+               // Cap auto-cancel fees at deferred_fee; see #549
+               wlog( "At block ${b}, fee for clearing expired order ${oid} was capped at deferred_fee ${fee}", ("b", head_block_num())("oid", order.id)("fee", order.deferred_fee) );
+               canceler.fee = asset( order.deferred_fee, asset_id_type() );
+            }
+            // we know the fee for this op is set correctly since it is set by the chain.
+            // this allows us to avoid a hung chain:
+            // - if #549 case above triggers
+            // - if the fee is incorrect, which may happen due to #435 (although since cancel is a fixed-fee op, it shouldn't)
+            cancel_context.skip_fee_schedule_check = true;
             apply_operation(cancel_context, canceler);
          }
      });
@@ -270,25 +289,47 @@ void database::clear_expired_orders()
    {
       asset_id_type current_asset = settlement_index.begin()->settlement_asset_id();
       asset max_settlement_volume;
+      bool extra_dump = false;
 
-      auto next_asset = [&current_asset, &settlement_index] {
+      auto next_asset = [&current_asset, &settlement_index, &extra_dump] {
          auto bound = settlement_index.upper_bound(current_asset);
          if( bound == settlement_index.end() )
+         {
+            if( extra_dump )
+            {
+               ilog( "next_asset() returning false" );
+            }
             return false;
+         }
+         if( extra_dump )
+         {
+            ilog( "next_asset returning true, bound is ${b}", ("b", *bound) );
+         }
          current_asset = bound->settlement_asset_id();
          return true;
       };
+
+      uint32_t count = 0;
 
       // At each iteration, we either consume the current order and remove it, or we move to the next asset
       for( auto itr = settlement_index.lower_bound(current_asset);
            itr != settlement_index.end();
            itr = settlement_index.lower_bound(current_asset) )
       {
+         ++count;
          const force_settlement_object& order = *itr;
          auto order_id = order.id;
          current_asset = order.settlement_asset_id();
          const asset_object& mia_object = get(current_asset);
-         const asset_bitasset_data_object mia = mia_object.bitasset_data(*this);
+         const asset_bitasset_data_object& mia = mia_object.bitasset_data(*this);
+
+         extra_dump = ((count >= 1000) && (count <= 1020));
+
+         if( extra_dump )
+         {
+            wlog( "clear_expired_orders() dumping extra data for iteration ${c}", ("c", count) );
+            ilog( "head_block_num is ${hb} current_asset is ${a}", ("hb", head_block_num())("a", current_asset) );
+         }
 
          if( mia.has_settlement() )
          {
@@ -301,7 +342,13 @@ void database::clear_expired_orders()
          if( order.settlement_date > head_block_time() )
          {
             if( next_asset() )
+            {
+               if( extra_dump )
+               {
+                  ilog( "next_asset() returned true when order.settlement_date > head_block_time()" );
+               }
                continue;
+            }
             break;
          }
          // Can we still settle in this asset?
@@ -322,7 +369,13 @@ void database::clear_expired_orders()
                  ("settled_volume", mia.force_settled_volume)("max_volume", max_settlement_volume));
                  */
             if( next_asset() )
+            {
+               if( extra_dump )
+               {
+                  ilog( "next_asset() returned true when mia.force_settled_volume >= max_settlement_volume.amount" );
+               }
                continue;
+            }
             break;
          }
 
@@ -345,6 +398,12 @@ void database::clear_expired_orders()
             assert(itr != call_index.end() && itr->debt_type() == mia_object.get_id());
             asset max_settlement = max_settlement_volume - settled;
 
+            if( order.balance.amount == 0 )
+            {
+               wlog( "0 settlement detected" );
+               cancel_order( order );
+               break;
+            }
             try {
                settled += match(*itr, order, settlement_price, max_settlement);
             } 
@@ -354,20 +413,25 @@ void database::clear_expired_orders()
                break;
             }
          }
-         modify(mia, [settled](asset_bitasset_data_object& b) {
-            b.force_settled_volume = settled.amount;
-         });
+         if( mia.force_settled_volume != settled.amount )
+         {
+            modify(mia, [settled](asset_bitasset_data_object& b) {
+               b.force_settled_volume = settled.amount;
+            });
+         }
       }
    }
-}
+} FC_CAPTURE_AND_RETHROW() }
 
 void database::update_expired_feeds()
 {
-   auto& asset_idx = get_index_type<asset_index>().indices();
-   for( const asset_object& a : asset_idx )
+   auto& asset_idx = get_index_type<asset_index>().indices().get<by_type>();
+   auto itr = asset_idx.lower_bound( true /** market issued */ );
+   while( itr != asset_idx.end() )
    {
-      if( !a.is_market_issued() )
-         continue;
+      const asset_object& a = *itr;
+      ++itr;
+      assert( a.is_market_issued() );
 
       const asset_bitasset_data_object& b = a.bitasset_data(*this);
       if( b.feed_is_expired(head_block_time()) )

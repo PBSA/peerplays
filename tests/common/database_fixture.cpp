@@ -1,19 +1,25 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #include <boost/test/unit_test.hpp>
 #include <boost/program_options.hpp>
@@ -26,7 +32,8 @@
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/committee_member_object.hpp>
-#include <graphene/chain/market_evaluator.hpp>
+#include <graphene/chain/fba_object.hpp>
+#include <graphene/chain/market_object.hpp>
 #include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/witness_object.hpp>
 
@@ -42,6 +49,8 @@
 #include "database_fixture.hpp"
 
 using namespace graphene::chain::test;
+
+uint32_t GRAPHENE_TESTING_GENESIS_TIMESTAMP = 1431700000;
 
 namespace graphene { namespace chain {
 
@@ -164,6 +173,7 @@ void database_fixture::verify_asset_supplies( const database& db )
       asset for_sale = o.amount_for_sale();
       if( for_sale.asset_id == asset_id_type() ) core_in_orders += for_sale.amount;
       total_balances[for_sale.asset_id] += for_sale.amount;
+      total_balances[asset_id_type()] += o.deferred_fee;
    }
    for( const call_order_object& o : db.get_index_type<call_order_index>().indices() )
    {
@@ -186,6 +196,8 @@ void database_fixture::verify_asset_supplies( const database& db )
    }
    for( const vesting_balance_object& vbo : db.get_index_type< vesting_balance_index >().indices() )
       total_balances[ vbo.balance.asset_id ] += vbo.balance.amount;
+   for( const fba_accumulator_object& fba : db.get_index_type< simple_index< fba_accumulator_object > >() )
+      total_balances[ asset_id_type() ] += fba.accumulated_fba_fees;
 
    total_balances[asset_id_type()] += db.get_dynamic_global_properties().witness_budget;
 
@@ -308,18 +320,20 @@ void database_fixture::generate_blocks( uint32_t block_count )
       generate_block();
 }
 
-void database_fixture::generate_blocks(fc::time_point_sec timestamp, bool miss_intermediate_blocks)
+void database_fixture::generate_blocks(fc::time_point_sec timestamp, bool miss_intermediate_blocks, uint32_t skip)
 {
    if( miss_intermediate_blocks )
    {
-      generate_block();
-      auto slots_to_miss = db.get_slot_at_time(timestamp) - 1;
-      if( slots_to_miss <= 0 ) return;
-      generate_block(~0, init_account_priv_key, slots_to_miss);
+      generate_block(skip);
+      auto slots_to_miss = db.get_slot_at_time(timestamp);
+      if( slots_to_miss <= 1 )
+         return;
+      --slots_to_miss;
+      generate_block(skip, init_account_priv_key, slots_to_miss);
       return;
    }
    while( db.head_block_time() < timestamp )
-      generate_block();
+      generate_block(skip);
 }
 
 account_create_operation database_fixture::make_account(
@@ -424,9 +438,11 @@ const asset_object& database_fixture::create_bitasset(
    creator.common_options.max_supply = GRAPHENE_MAX_SHARE_SUPPLY;
    creator.precision = 2;
    creator.common_options.market_fee_percent = market_fee_percent;
+   if( issuer == GRAPHENE_WITNESS_ACCOUNT )
+      flags |= witness_fed_asset;
    creator.common_options.issuer_permissions = flags;
    creator.common_options.flags = flags & ~global_settle;
-   creator.common_options.core_exchange_rate = price({asset(1,1),asset(1)});
+   creator.common_options.core_exchange_rate = price({asset(1,asset_id_type(1)),asset(1)});
    creator.bitasset_opts = bitasset_options();
    trx.operations.push_back(std::move(creator));
    trx.validate();
@@ -451,7 +467,9 @@ const asset_object& database_fixture::create_prediction_market(
    creator.common_options.market_fee_percent = market_fee_percent;
    creator.common_options.issuer_permissions = flags | global_settle;
    creator.common_options.flags = flags & ~global_settle;
-   creator.common_options.core_exchange_rate = price({asset(1,1),asset(1)});
+   if( issuer == GRAPHENE_WITNESS_ACCOUNT )
+      creator.common_options.flags |= witness_fed_asset;
+   creator.common_options.core_exchange_rate = price({asset(1,asset_id_type(1)),asset(1)});
    creator.bitasset_opts = bitasset_options();
    creator.is_prediction_market = true;
    trx.operations.push_back(std::move(creator));
@@ -469,7 +487,7 @@ const asset_object& database_fixture::create_user_issued_asset( const string& na
    creator.symbol = name;
    creator.common_options.max_supply = 0;
    creator.precision = 2;
-   creator.common_options.core_exchange_rate = price({asset(1,1),asset(1)});
+   creator.common_options.core_exchange_rate = price({asset(1,asset_id_type(1)),asset(1)});
    creator.common_options.max_supply = GRAPHENE_MAX_SHARE_SUPPLY;
    creator.common_options.flags = charge_market_fee;
    creator.common_options.issuer_permissions = charge_market_fee;
@@ -488,11 +506,13 @@ const asset_object& database_fixture::create_user_issued_asset( const string& na
    creator.symbol = name;
    creator.common_options.max_supply = 0;
    creator.precision = 2;
-   creator.common_options.core_exchange_rate = price({asset(1,1),asset(1)});
+   creator.common_options.core_exchange_rate = price({asset(1,asset_id_type(1)),asset(1)});
    creator.common_options.max_supply = GRAPHENE_MAX_SHARE_SUPPLY;
    creator.common_options.flags = flags;
    creator.common_options.issuer_permissions = flags;
+   trx.operations.clear();
    trx.operations.push_back(std::move(creator));
+   set_expiration( db, trx );
    trx.validate();
    processed_transaction ptx = db.push_transaction(trx, ~0);
    trx.operations.clear();
@@ -509,6 +529,41 @@ void database_fixture::issue_uia( const account_object& recipient, asset amount 
    trx.operations.push_back(op);
    db.push_transaction( trx, ~0 );
    trx.operations.clear();
+}
+
+void database_fixture::issue_uia( account_id_type recipient_id, asset amount )
+{
+   issue_uia( recipient_id(db), amount );
+}
+
+void database_fixture::change_fees(
+   const flat_set< fee_parameters >& new_params,
+   uint32_t new_scale /* = 0 */
+   )
+{
+   const chain_parameters& current_chain_params = db.get_global_properties().parameters;
+   const fee_schedule& current_fees = *(current_chain_params.current_fees);
+
+   flat_map< int, fee_parameters > fee_map;
+   fee_map.reserve( current_fees.parameters.size() );
+   for( const fee_parameters& op_fee : current_fees.parameters )
+      fee_map[ op_fee.which() ] = op_fee;
+   for( const fee_parameters& new_fee : new_params )
+      fee_map[ new_fee.which() ] = new_fee;
+
+   fee_schedule_type new_fees;
+
+   for( const std::pair< int, fee_parameters >& item : fee_map )
+      new_fees.parameters.insert( item.second );
+   if( new_scale != 0 )
+      new_fees.scale = new_scale;
+
+   chain_parameters new_chain_params = current_chain_params;
+   new_chain_params.current_fees = new_fees;
+
+   db.modify(db.get_global_properties(), [&](global_property_object& p) {
+      p.parameters = new_chain_params;
+   });
 }
 
 const account_object& database_fixture::create_account(
@@ -726,6 +781,8 @@ void database_fixture::publish_feed( const asset_object& mia, const account_obje
    op.publisher = by.id;
    op.asset_id = mia.id;
    op.feed = f;
+   if( op.feed.core_exchange_rate.is_null() )
+      op.feed.core_exchange_rate = op.feed.settlement_price;
    trx.operations.emplace_back( std::move(op) );
 
    for( auto& op : trx.operations ) db.current_fee_schedule().set_fee(op);
@@ -977,6 +1034,24 @@ int64_t database_fixture::get_balance( account_id_type account, asset_id_type a 
 int64_t database_fixture::get_balance( const account_object& account, const asset_object& a )const
 {
   return db.get_balance(account.get_id(), a.get_id()).amount.value;
+}
+
+vector< operation_history_object > database_fixture::get_operation_history( account_id_type account_id )const
+{
+   vector< operation_history_object > result;
+   const auto& stats = account_id(db).statistics(db);
+   if(stats.most_recent_op == account_transaction_history_id_type())
+      return result;
+
+   const account_transaction_history_object* node = &stats.most_recent_op(db);
+   while( true )
+   {
+      result.push_back( node->operation_id(db) );
+      if(node->next == account_transaction_history_id_type())
+         break;
+      node = db.find(node->next);
+   }
+   return result;
 }
 
 namespace test {

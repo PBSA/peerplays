@@ -1,26 +1,33 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #include <graphene/chain/database.hpp>
 
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/asset_object.hpp>
-#include <graphene/chain/market_evaluator.hpp>
+#include <graphene/chain/hardfork.hpp>
+#include <graphene/chain/market_object.hpp>
 
 #include <fc/uint128.hpp>
 
@@ -89,7 +96,6 @@ void database::globally_settle_asset( const asset_object& mia, const price& sett
 void database::cancel_order(const force_settlement_object& order, bool create_virtual_op)
 {
    adjust_balance(order.owner, order.balance);
-   remove(order);
 
    if( create_virtual_op )
    {
@@ -99,6 +105,7 @@ void database::cancel_order(const force_settlement_object& order, bool create_vi
       vop.amount = order.balance;
       push_applied_operation( vop );
    }
+   remove(order);
 }
 
 void database::cancel_order( const limit_order_object& order, bool create_virtual_op  )
@@ -112,6 +119,7 @@ void database::cancel_order( const limit_order_object& order, bool create_virtua
       }
    });
    adjust_balance(order.seller, refunded);
+   adjust_balance(order.seller, order.deferred_fee);
 
    if( create_virtual_op )
    {
@@ -122,6 +130,27 @@ void database::cancel_order( const limit_order_object& order, bool create_virtua
    }
 
    remove(order);
+}
+
+bool maybe_cull_small_order( database& db, const limit_order_object& order )
+{
+   /**
+    *  There are times when the AMOUNT_FOR_SALE * SALE_PRICE == 0 which means that we
+    *  have hit the limit where the seller is asking for nothing in return.  When this
+    *  happens we must refund any balance back to the seller, it is too small to be
+    *  sold at the sale price.
+    *
+    *  If the order is a taker order (as opposed to a maker order), so the price is
+    *  set by the counterparty, this check is deferred until the order becomes unmatched
+    *  (see #555) -- however, detecting this condition is the responsibility of the caller.
+    */
+   if( order.amount_to_receive().amount == 0 )
+   {
+      ilog( "applied epsilon logic" );
+      db.cancel_order(order);
+      return true;
+   }
+   return false;
 }
 
 bool database::apply_order(const limit_order_object& new_order_object, bool allow_black_swan)
@@ -163,7 +192,15 @@ bool database::apply_order(const limit_order_object& new_order_object, bool allo
    check_call_orders(sell_asset, allow_black_swan);
    check_call_orders(receive_asset, allow_black_swan);
 
-   return find_object(order_id) == nullptr;
+   const limit_order_object* updated_order_object = find< limit_order_object >( order_id );
+   if( updated_order_object == nullptr )
+      return true;
+   if( head_block_time() <= HARDFORK_555_TIME )
+      return false;
+   // before #555 we would have done maybe_cull_small_order() logic as a result of fill_order() being called by match() above
+   // however after #555 we need to get rid of small orders -- #555 hardfork defers logic that was done too eagerly before, and
+   // this is the point it's deferred to.
+   return maybe_cull_small_order( *this, *updated_order_object );
 }
 
 /**
@@ -210,8 +247,8 @@ int database::match( const limit_order_object& usd, const OrderType& core, const
            core_pays == core.amount_for_sale() );
 
    int result = 0;
-   result |= fill_order( usd, usd_pays, usd_receives );
-   result |= fill_order( core, core_pays, core_receives ) << 1;
+   result |= fill_order( usd, usd_pays, usd_receives, false );
+   result |= fill_order( core, core_pays, core_receives, true ) << 1;
    assert( result != 0 );
    return result;
 }
@@ -255,8 +292,10 @@ asset database::match( const call_order_object& call,
    return call_receives;
 } FC_CAPTURE_AND_RETHROW( (call)(settle)(match_price)(max_settlement) ) }
 
-bool database::fill_order( const limit_order_object& order, const asset& pays, const asset& receives )
+bool database::fill_order( const limit_order_object& order, const asset& pays, const asset& receives, bool cull_if_small )
 { try {
+   cull_if_small |= (head_block_time() < HARDFORK_555_TIME);
+
    FC_ASSERT( order.amount_for_sale().asset_id == pays.asset_id );
    FC_ASSERT( pays.asset_id != receives.asset_id );
 
@@ -269,6 +308,15 @@ bool database::fill_order( const limit_order_object& order, const asset& pays, c
    assert( pays.asset_id != receives.asset_id );
    push_applied_operation( fill_order_operation( order.id, order.seller, pays, receives, issuer_fees ) );
 
+   // conditional because cheap integer comparison may allow us to avoid two expensive modify() and object lookups
+   if( order.deferred_fee > 0 )
+   {
+      modify( seller.statistics(*this), [&]( account_statistics_object& statistics )
+      {
+         statistics.pay_fee( order.deferred_fee, get_global_properties().parameters.cashback_vesting_threshold );
+      } );
+   }
+
    if( pays == order.amount_for_sale() )
    {
       remove( order );
@@ -278,18 +326,10 @@ bool database::fill_order( const limit_order_object& order, const asset& pays, c
    {
       modify( order, [&]( limit_order_object& b ) {
                              b.for_sale -= pays.amount;
+                             b.deferred_fee = 0;
                           });
-      /**
-       *  There are times when the AMOUNT_FOR_SALE * SALE_PRICE == 0 which means that we
-       *  have hit the limit where the seller is asking for nothing in return.  When this
-       *  happens we must refund any balance back to the seller, it is too small to be
-       *  sold at the sale price.
-       */
-      if( order.amount_to_receive().amount == 0 )
-      {
-         cancel_order(order);
-         return true;
-      }
+      if( cull_if_small )
+         return maybe_cull_small_order( *this, order );
       return false;
    }
 } FC_CAPTURE_AND_RETHROW( (order)(pays)(receives) ) }
@@ -339,13 +379,11 @@ bool database::fill_order( const call_order_object& order, const asset& pays, co
            });
    }
 
-   if( collateral_freed )
-   {
-      remove( order );
-   }
-
    assert( pays.asset_id != receives.asset_id );
    push_applied_operation( fill_order_operation{ order.id, order.borrower, pays, receives, asset(0, pays.asset_id) } );
+
+   if( collateral_freed )
+      remove( order );
 
    return collateral_freed.valid();
 } FC_CAPTURE_AND_RETHROW( (order)(pays)(receives) ) }
@@ -363,13 +401,15 @@ bool database::fill_order(const force_settlement_object& settle, const asset& pa
       });
       filled = false;
    } else {
-      remove(settle);
       filled = true;
    }
    adjust_balance(settle.owner, receives - issuer_fees);
 
    assert( pays.asset_id != receives.asset_id );
    push_applied_operation( fill_order_operation{ settle.id, settle.owner, pays, receives, issuer_fees } );
+
+   if (filled)
+      remove(settle);
 
    return filled;
 } FC_CAPTURE_AND_RETHROW( (settle)(pays)(receives) ) }
@@ -413,15 +453,8 @@ bool database::check_call_orders(const asset_object& mia, bool enable_black_swan
     auto limit_itr = limit_price_index.lower_bound( max_price );
     auto limit_end = limit_price_index.upper_bound( min_price );
 
-    if( limit_itr == limit_end ) {
-       /*
-       if( head_block_num() > 300000 )
-          ilog( "no orders below between: ${p}  and: ${m}", 
-                ("p", bitasset.current_feed.max_short_squeeze_price())
-                ("m", max_price) );
-      */
+    if( limit_itr == limit_end )
        return false;
-    }
 
     auto call_min = price::min( bitasset.options.short_backing_asset, mia.id );
     auto call_max = price::max( bitasset.options.short_backing_asset, mia.id );
@@ -429,6 +462,7 @@ bool database::check_call_orders(const asset_object& mia, bool enable_black_swan
     auto call_end = call_price_index.upper_bound( call_max );
 
     bool filled_limit = false;
+    bool margin_called = false;
 
     while( !check_for_blackswan( mia, enable_black_swan ) && call_itr != call_end )
     {
@@ -441,12 +475,32 @@ bool database::check_call_orders(const asset_object& mia, bool enable_black_swan
           match_price      = limit_itr->sell_price;
           usd_for_sale     = limit_itr->amount_for_sale();
        }
-       else return filled_limit;
+       else return margin_called;
 
        match_price.validate();
 
+       // would be margin called, but there is no matching order #436
+       bool feed_protected = ( bitasset.current_feed.settlement_price > ~call_itr->call_price );
+       if( feed_protected && (head_block_time() > HARDFORK_436_TIME) )
+          return margin_called;
+
+       // would be margin called, but there is no matching order
        if( match_price > ~call_itr->call_price )
-          return filled_limit;
+          return margin_called;
+
+       if( feed_protected )
+       {
+          ilog( "Feed protected margin call executing (HARDFORK_436_TIME not here yet)" );
+          idump( (*call_itr) );
+          idump( (*limit_itr) );
+       }
+
+     //  idump((*call_itr));
+     //  idump((*limit_itr));
+
+     //  ilog( "match_price <= ~call_itr->call_price  performing a margin call" );
+
+       margin_called = true;
 
        auto usd_to_buy   = call_itr->get_debt();
 
@@ -478,16 +532,18 @@ bool database::check_call_orders(const asset_object& mia, bool enable_black_swan
           filled_call    = true;
        }
 
+       FC_ASSERT( filled_call || filled_limit );
+
        auto old_call_itr = call_itr;
        if( filled_call ) ++call_itr;
        fill_order(*old_call_itr, call_pays, call_receives);
 
        auto old_limit_itr = filled_limit ? limit_itr++ : limit_itr;
-       fill_order(*old_limit_itr, order_pays, order_receives);
+       fill_order(*old_limit_itr, order_pays, order_receives, true);
 
     } // whlie call_itr != call_end
 
-    return filled_limit;
+    return margin_called;
 } FC_CAPTURE_AND_RETHROW() }
 
 void database::pay_order( const account_object& receiver, const asset& receives, const asset& pays )

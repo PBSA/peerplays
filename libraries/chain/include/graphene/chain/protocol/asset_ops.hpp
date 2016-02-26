@@ -1,3 +1,26 @@
+/*
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
+ *
+ * The MIT License
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #pragma once
 #include <graphene/chain/protocol/base.hpp>
 #include <graphene/chain/protocol/memo.hpp>
@@ -33,12 +56,11 @@ namespace graphene { namespace chain {
       /// the core exchange rate.
       price core_exchange_rate;
 
-      /// A set of accounts which maintain whitelists to consult for this asset. If enforce_white_list() returns
-      /// true, an account may only send, receive, trade, etc. in this asset if one of these accounts appears in
-      /// its account_object::whitelisting_accounts field.
+      /// A set of accounts which maintain whitelists to consult for this asset. If whitelist_authorities
+      /// is non-empty, then only accounts in whitelist_authorities are allowed to hold, use, or transfer the asset.
       flat_set<account_id_type> whitelist_authorities;
-      /// A set of accounts which maintain blacklists to consult for this asset. If enforce_white_list() returns
-      /// true, an account may only send, receive, trade, etc. in this asset if none of these accounts appears in
+      /// A set of accounts which maintain blacklists to consult for this asset. If flags & white_list is set,
+      /// an account may only send, receive, trade, etc. in this asset if none of these accounts appears in
       /// its account_object::blacklisting_accounts field. If the account is blacklisted, it may not transact in
       /// this asset even if it is also whitelisted.
       flat_set<account_id_type> blacklist_authorities;
@@ -206,7 +228,9 @@ namespace graphene { namespace chain {
       extensions_type extensions;
 
       account_id_type fee_payer()const { return account; }
-      void            validate()const {}
+      void            validate()const {
+         FC_ASSERT( amount.amount > 0, "Must settle at least 1 unit" );
+      }
 
       share_type calculate_fee(const fee_parameters_type& params)const
       { return 0; }
@@ -400,7 +424,29 @@ namespace graphene { namespace chain {
       void            validate()const;
    };
 
+   /**
+    * @brief used to transfer accumulated fees back to the issuer's balance.
+    */
+   struct asset_claim_fees_operation : public base_operation
+   {
+      struct fee_parameters_type {
+         uint64_t fee = 20 * GRAPHENE_BLOCKCHAIN_PRECISION;
+      };
+
+      asset           fee;
+      account_id_type issuer;
+      asset           amount_to_claim; /// amount_to_claim.asset_id->issuer must == issuer
+      extensions_type extensions;
+
+      account_id_type fee_payer()const { return issuer; }
+      void            validate()const;
+   };
+
+
 } } // graphene::chain
+
+FC_REFLECT( graphene::chain::asset_claim_fees_operation, (fee)(issuer)(amount_to_claim)(extensions) )
+FC_REFLECT( graphene::chain::asset_claim_fees_operation::fee_parameters_type, (fee) )
 
 FC_REFLECT( graphene::chain::asset_options,
             (max_supply)

@@ -1,22 +1,27 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #pragma once
-#include <graphene/chain/evaluator.hpp>
 #include <graphene/chain/global_property_object.hpp>
 #include <graphene/chain/node_property_object.hpp>
 #include <graphene/chain/account_object.hpp>
@@ -24,6 +29,7 @@
 #include <graphene/chain/fork_database.hpp>
 #include <graphene/chain/block_database.hpp>
 #include <graphene/chain/genesis_state.hpp>
+#include <graphene/chain/evaluator.hpp>
 
 #include <graphene/db/object_database.hpp>
 #include <graphene/db/object.hpp>
@@ -39,6 +45,8 @@
 namespace graphene { namespace chain {
    using graphene::db::abstract_object;
    using graphene::db::object;
+   class op_evaluator;
+   class transaction_evaluation_state;
 
    struct budget_record;
 
@@ -67,7 +75,8 @@ namespace graphene { namespace chain {
             skip_merkle_check           = 1 << 7,  ///< used while reindexing
             skip_assert_evaluation      = 1 << 8,  ///< used while reindexing
             skip_undo_history_check     = 1 << 9,  ///< used while reindexing
-            skip_witness_schedule_check = 1 << 10  ///< used whiel reindexing
+            skip_witness_schedule_check = 1 << 10,  ///< used while reindexing
+            skip_validate               = 1 << 11 ///< used prior to checkpoint, skips validate() call on transaction
          };
 
          /**
@@ -100,7 +109,7 @@ namespace graphene { namespace chain {
           * Will close the database before wiping. Database will be closed when this function returns.
           */
          void wipe(const fc::path& data_dir, bool include_blocks);
-         void close(uint32_t blocks_to_rewind = 0);
+         void close(bool rewind = true);
 
          //////////////////// db_block.cpp ////////////////////
 
@@ -160,7 +169,7 @@ namespace graphene { namespace chain {
           */
          uint32_t  push_applied_operation( const operation& op );
          void      set_applied_operation_result( uint32_t op_id, const operation_result& r );
-         const vector<operation_history_object>& get_applied_operations()const;
+         const vector<optional< operation_history_object > >& get_applied_operations()const;
 
          string to_pretty_string( const asset& a )const;
 
@@ -266,14 +275,6 @@ namespace graphene { namespace chain {
                operation::tag<typename EvaluatorType::operation_type>::value].reset( new op_evaluator_impl<EvaluatorType>() );
          }
 
-         template<typename EvaluatorType>
-         void register_evaluation_observer( evaluation_observer& observer )
-         {
-            unique_ptr<op_evaluator>& op_eval = _operation_evaluators[operation::tag<typename EvaluatorType::operation_type>::value];
-            op_eval->eval_observers.push_back( &observer );
-            return;
-         }
-
          //////////////////// db_balance.cpp ////////////////////
 
          /**
@@ -363,7 +364,7 @@ namespace graphene { namespace chain {
          /**
           * @return true if the order was completely filled and thus freed.
           */
-         bool fill_order( const limit_order_object& order, const asset& pays, const asset& receives );
+         bool fill_order( const limit_order_object& order, const asset& pays, const asset& receives, bool cull_if_small );
          bool fill_order( const call_order_object& order, const asset& pays, const asset& receives );
          bool fill_order( const force_settlement_object& settle, const asset& pays, const asset& receives );
 
@@ -405,12 +406,14 @@ namespace graphene { namespace chain {
 
          //////////////////// db_block.cpp ////////////////////
 
+       public:
+         // these were formerly private, but they have a fairly well-defined API, so let's make them public
          void                  apply_block( const signed_block& next_block, uint32_t skip = skip_nothing );
          processed_transaction apply_transaction( const signed_transaction& trx, uint32_t skip = skip_nothing );
+         operation_result      apply_operation( transaction_evaluation_state& eval_state, const operation& op );
+      private:
          void                  _apply_block( const signed_block& next_block );
          processed_transaction _apply_transaction( const signed_transaction& trx );
-         operation_result      apply_operation( transaction_evaluation_state& eval_state, const operation& op );
-
 
          ///Steps involved in applying a new block
          ///@{
@@ -469,7 +472,7 @@ namespace graphene { namespace chain {
           * order they occur and is cleared after the applied_block signal is
           * emited.
           */
-         vector<operation_history_object>  _applied_ops;
+         vector<optional<operation_history_object> >  _applied_ops;
 
          uint32_t                          _current_block_num    = 0;
          uint16_t                          _current_trx_in_block = 0;

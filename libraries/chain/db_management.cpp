@@ -1,19 +1,25 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #include <graphene/chain/database.hpp>
@@ -104,35 +110,10 @@ void database::wipe(const fc::path& data_dir, bool include_blocks)
 
 void database::open(
    const fc::path& data_dir,
-   std::function<genesis_state_type()> genesis_loader )
+   std::function<genesis_state_type()> genesis_loader)
 {
    try
    {
-      auto is_new = [&]() -> bool
-      {
-         // directory doesn't exist
-         if( !fc::exists( data_dir ) )
-            return true;
-         // if directory exists but is empty, return true; else false.
-         return ( fc::directory_iterator( data_dir ) == fc::directory_iterator() );
-      };
-
-      auto is_outdated = [&]() -> bool
-      {
-         if( !fc::exists( data_dir / "db_version" ) )
-            return true;
-         std::string version_str;
-         fc::read_file_contents( data_dir / "db_version", version_str );
-         return (version_str != GRAPHENE_CURRENT_DB_VERSION);
-      };
-
-      if( (!is_new()) && is_outdated() )
-      {
-         ilog( "Old database version detected, reindex is required" );
-         wipe( data_dir, false );
-         fc::remove_all( data_dir / "db_version" );
-      }
-
       object_database::open(data_dir);
 
       _block_id_to_block.open(data_dir / "database" / "block_num_to_block");
@@ -145,55 +126,48 @@ void database::open(
       {
          _fork_db.start_block( *last_block );
          idump((last_block->id())(last_block->block_num()));
+         idump((head_block_id())(head_block_num()));
          if( last_block->id() != head_block_id() )
          {
-              FC_ASSERT( head_block_num() == 0, "last block ID does not match current chain state" );
+              FC_ASSERT( head_block_num() == 0, "last block ID does not match current chain state",
+                         ("last_block->id", last_block->id())("head_block_num",head_block_num()) );
          }
       }
-
-      // doing this down here helps ensure that DB will be wiped
-      // if any of the above steps were interrupted on a previous run
-      if( !fc::exists( data_dir / "db_version" ) )
-      {
-         std::ofstream db_version(
-            (data_dir / "db_version").generic_string().c_str(),
-            std::ios::out | std::ios::binary | std::ios::trunc );
-         std::string version_string = GRAPHENE_CURRENT_DB_VERSION;
-         db_version.write( version_string.c_str(), version_string.size() );
-         db_version.close();
-      }
-
-      //idump((head_block_id())(head_block_num()));
    }
    FC_CAPTURE_LOG_AND_RETHROW( (data_dir) )
 }
 
-void database::close(uint32_t blocks_to_rewind)
+void database::close(bool rewind)
 {
    // TODO:  Save pending tx's on close()
    clear_pending();
 
    // pop all of the blocks that we can given our undo history, this should
    // throw when there is no more undo history to pop
-   try
+   if( rewind )
    {
-      while( true )
+      try
       {
-      //   elog("pop");
-         block_id_type popped_block_id = head_block_id();
-         pop_block();
-         _fork_db.remove(popped_block_id); // doesn't throw on missing
-         try
+         uint32_t cutoff = get_dynamic_global_properties().last_irreversible_block_num;
+
+         while( head_block_num() > cutoff )
          {
-            _block_id_to_block.remove(popped_block_id);
-         }
-         catch (const fc::key_not_found_exception&)
-         {
+         //   elog("pop");
+            block_id_type popped_block_id = head_block_id();
+            pop_block();
+            _fork_db.remove(popped_block_id); // doesn't throw on missing
+            try
+            {
+               _block_id_to_block.remove(popped_block_id);
+            }
+            catch (const fc::key_not_found_exception&)
+            {
+            }
          }
       }
-   }
-   catch (...)
-   {
+      catch (...)
+      {
+      }
    }
 
    // Since pop_block() will move tx's in the popped blocks into pending,

@@ -1,23 +1,30 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/db_with.hpp>
+#include <graphene/chain/hardfork.hpp>
 
 #include <graphene/chain/block_summary_object.hpp>
 #include <graphene/chain/global_property_object.hpp>
@@ -27,6 +34,7 @@
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <graphene/chain/exceptions.hpp>
+#include <graphene/chain/evaluator.hpp>
 
 namespace graphene { namespace chain {
 
@@ -102,7 +110,7 @@ std::vector<block_id_type> database::get_block_ids_on_fork(block_id_type head_of
  */
 bool database::push_block(const signed_block& new_block, uint32_t skip)
 {
-   //idump((new_block.block_num())(new_block.id())(new_block.timestamp)(new_block.previous));
+//   idump((new_block.block_num())(new_block.id())(new_block.timestamp)(new_block.previous));
    bool result;
    detail::with_skip_flags( *this, skip, [&]()
    {
@@ -141,6 +149,7 @@ bool database::_push_block(const signed_block& new_block)
             // push all blocks on the new fork
             for( auto ritr = branches.first.rbegin(); ritr != branches.first.rend(); ++ritr )
             {
+                ilog( "pushing blocks from fork ${n} ${id}", ("n",(*ritr)->data.block_num())("id",(*ritr)->data.id()) );
                 optional<fc::exception> except;
                 try {
                    undo_database::session session = _undo_db.start_undo_session();
@@ -151,6 +160,7 @@ bool database::_push_block(const signed_block& new_block)
                 catch ( const fc::exception& e ) { except = e; }
                 if( except )
                 {
+                   wlog( "exception thrown while switching forks ${e}", ("e",except->to_detail_string() ) );
                    // remove the rest of branches.first from the fork_db, those blocks are invalid
                    while( ritr != branches.first.rend() )
                    {
@@ -252,6 +262,7 @@ processed_transaction database::push_proposal(const proposal_object& proposal)
    eval_state.operation_results.reserve(proposal.proposed_transaction.operations.size());
    processed_transaction ptrx(proposal.proposed_transaction);
    eval_state._trx = &ptrx;
+   size_t old_applied_ops_size = _applied_ops.size();
 
    try {
       auto session = _undo_db.start_undo_session(true);
@@ -260,6 +271,18 @@ processed_transaction database::push_proposal(const proposal_object& proposal)
       remove(proposal);
       session.merge();
    } catch ( const fc::exception& e ) {
+      if( head_block_time() <= HARDFORK_483_TIME )
+      {
+         for( size_t i=old_applied_ops_size,n=_applied_ops.size(); i<n; i++ )
+         {
+            ilog( "removing failed operation from applied_ops: ${op}", ("op", *(_applied_ops[i])) );
+            _applied_ops[i].reset();
+         }
+      }
+      else
+      {
+         _applied_ops.resize( old_applied_ops_size );
+      }
       elog( "e", ("e",e.to_detail_string() ) );
       throw;
    }
@@ -274,14 +297,14 @@ signed_block database::generate_block(
    const fc::ecc::private_key& block_signing_private_key,
    uint32_t skip /* = 0 */
    )
-{
+{ try {
    signed_block result;
    detail::with_skip_flags( *this, skip, [&]()
    {
       result = _generate_block( when, witness_id, block_signing_private_key );
    } );
    return result;
-}
+} FC_CAPTURE_AND_RETHROW() }
 
 signed_block database::_generate_block(
    fc::time_point_sec when,
@@ -375,7 +398,10 @@ signed_block database::_generate_block(
       pending_block.sign( block_signing_private_key );
 
    // TODO:  Move this to _push_block() so session is restored.
-   FC_ASSERT( fc::raw::pack_size(pending_block) <= get_global_properties().parameters.maximum_block_size );
+   if( !(skip & skip_block_size_check) )
+   {
+      FC_ASSERT( fc::raw::pack_size(pending_block) <= get_global_properties().parameters.maximum_block_size );
+   }
 
    push_block( pending_block, skip );
 
@@ -392,9 +418,10 @@ void database::pop_block()
    auto head_id = head_block_id();
    optional<signed_block> head_block = fetch_block_by_id( head_id );
    GRAPHENE_ASSERT( head_block.valid(), pop_empty_chain, "there are no blocks to pop" );
-   pop_undo();
-   _block_id_to_block.remove( head_id );
+
    _fork_db.pop_block();
+   _block_id_to_block.remove( head_id );
+   pop_undo();
 
    _popped_tx.insert( _popped_tx.begin(), head_block->transactions.begin(), head_block->transactions.end() );
 
@@ -410,7 +437,7 @@ void database::clear_pending()
 uint32_t database::push_applied_operation( const operation& op )
 {
    _applied_ops.emplace_back(op);
-   auto& oh = _applied_ops.back();
+   operation_history_object& oh = *(_applied_ops.back());
    oh.block_num    = _current_block_num;
    oh.trx_in_block = _current_trx_in_block;
    oh.op_in_trx    = _current_op_in_trx;
@@ -420,10 +447,15 @@ uint32_t database::push_applied_operation( const operation& op )
 void database::set_applied_operation_result( uint32_t op_id, const operation_result& result )
 {
    assert( op_id < _applied_ops.size() );
-   _applied_ops[op_id].result = result;
+   if( _applied_ops[op_id] )
+      _applied_ops[op_id]->result = result;
+   else
+   {
+      elog( "Could not set operation result (head_block_num=${b})", ("b", head_block_num()) );
+   }
 }
 
-const vector<operation_history_object>& database::get_applied_operations() const
+const vector<optional< operation_history_object > >& database::get_applied_operations() const
 {
    return _applied_ops;
 }
@@ -452,6 +484,7 @@ void database::apply_block( const signed_block& next_block, uint32_t skip )
 
 void database::_apply_block( const signed_block& next_block )
 { try {
+   uint32_t next_block_num = next_block.block_num();
    uint32_t skip = get_node_properties().skip_flags;
    _applied_ops.clear();
 
@@ -462,7 +495,7 @@ void database::_apply_block( const signed_block& next_block )
    const auto& dynamic_global_props = get<dynamic_global_property_object>(dynamic_global_property_id_type());
    bool maint_needed = (dynamic_global_props.next_maintenance_time <= next_block.timestamp);
 
-   _current_block_num    = next_block.block_num();
+   _current_block_num    = next_block_num;
    _current_trx_in_block = 0;
 
    for( const auto& trx : next_block.transactions )
@@ -539,7 +572,10 @@ processed_transaction database::apply_transaction(const signed_transaction& trx,
 processed_transaction database::_apply_transaction(const signed_transaction& trx)
 { try {
    uint32_t skip = get_node_properties().skip_flags;
-   trx.validate();
+
+   if( true || !(skip&skip_validate) )   /* issue #505 explains why this skip_flag is disabled */
+      trx.validate();
+
    auto& trx_idx = get_mutable_index_type<transaction_index>();
    const chain_id_type& chain_id = get_chain_id();
    auto trx_id = trx.id();
@@ -597,8 +633,8 @@ processed_transaction database::_apply_transaction(const signed_transaction& trx
    ptrx.operation_results = std::move(eval_state.operation_results);
 
    //Make sure the temp account has no non-zero balances
-   const auto& index = get_index_type<account_balance_index>().indices().get<by_account>();
-   auto range = index.equal_range(GRAPHENE_TEMP_ACCOUNT);
+   const auto& index = get_index_type<account_balance_index>().indices().get<by_account_asset>();
+   auto range = index.equal_range( boost::make_tuple( GRAPHENE_TEMP_ACCOUNT ) );
    std::for_each(range.first, range.second, [](const account_balance_object& b) { FC_ASSERT(b.balance == 0); });
 
    return ptrx;
@@ -619,7 +655,7 @@ operation_result database::apply_operation(transaction_evaluation_state& eval_st
    auto result = eval->evaluate( eval_state, op, true );
    set_applied_operation_result( op_id, result );
    return result;
-} FC_CAPTURE_AND_RETHROW(  ) }
+} FC_CAPTURE_AND_RETHROW( (op) ) }
 
 const witness_object& database::validate_block_header( uint32_t skip, const signed_block& next_block )const
 {
@@ -630,13 +666,15 @@ const witness_object& database::validate_block_header( uint32_t skip, const sign
    if( !(skip&skip_witness_signature) ) 
       FC_ASSERT( next_block.validate_signee( witness.signing_key ) );
 
-   if( !skip_witness_schedule_check )
+   if( !(skip&skip_witness_schedule_check) )
    {
       uint32_t slot_num = get_slot_at_time( next_block.timestamp );
       FC_ASSERT( slot_num > 0 );
 
       witness_id_type scheduled_witness = get_scheduled_witness( slot_num );
-      FC_ASSERT( next_block.witness == scheduled_witness );
+
+      FC_ASSERT( next_block.witness == scheduled_witness, "Witness produced block at wrong time",
+                 ("block witness",next_block.witness)("scheduled",scheduled_witness)("slot_num",slot_num) );
    }
 
    return witness;

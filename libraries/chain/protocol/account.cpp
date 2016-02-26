@@ -1,4 +1,28 @@
+/*
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
+ *
+ * The MIT License
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #include <graphene/chain/protocol/account.hpp>
+#include <graphene/chain/hardfork.hpp>
 
 namespace graphene { namespace chain {
 
@@ -33,17 +57,27 @@ namespace graphene { namespace chain {
  * - Length is between (inclusive) GRAPHENE_MIN_ACCOUNT_NAME_LENGTH and GRAPHENE_MAX_ACCOUNT_NAME_LENGTH
  */
 bool is_valid_name( const string& name )
-{
-#if GRAPHENE_MIN_ACCOUNT_NAME_LENGTH < 3
-#error This is_valid_name implementation implicitly enforces minimum name length of 3.
-#endif
-
+{ try {
     const size_t len = name.size();
+
+    /** this condition will prevent witnesses from including new names before this time, but
+     * allow them after this time.   This check can be removed from the code after HARDFORK_385_TIME
+     * has passed.
+     */
+    if( fc::time_point::now() < fc::time_point(HARDFORK_385_TIME) )
+       FC_ASSERT( len >= 3 );
+
     if( len < GRAPHENE_MIN_ACCOUNT_NAME_LENGTH )
+    {
+          ilog( ".");
         return false;
+    }
 
     if( len > GRAPHENE_MAX_ACCOUNT_NAME_LENGTH )
+    {
+          ilog( ".");
         return false;
+    }
 
     size_t begin = 0;
     while( true )
@@ -51,8 +85,11 @@ bool is_valid_name( const string& name )
        size_t end = name.find_first_of( '.', begin );
        if( end == std::string::npos )
           end = len;
-       if( end - begin < 3 )
+       if( (end - begin) < GRAPHENE_MIN_ACCOUNT_NAME_LENGTH )
+       {
+          idump( (name) (end)(len)(begin)(GRAPHENE_MAX_ACCOUNT_NAME_LENGTH) );
           return false;
+       }
        switch( name[begin] )
        {
           case 'a': case 'b': case 'c': case 'd': case 'e': case 'f': case 'g': case 'h':
@@ -61,6 +98,7 @@ bool is_valid_name( const string& name )
           case 'y': case 'z':
              break;
           default:
+          ilog( ".");
              return false;
        }
        switch( name[end-1] )
@@ -73,6 +111,7 @@ bool is_valid_name( const string& name )
           case '8': case '9':
              break;
           default:
+          ilog( ".");
              return false;
        }
        for( size_t i=begin+1; i<end-1; i++ )
@@ -88,6 +127,7 @@ bool is_valid_name( const string& name )
              case '-':
                 break;
              default:
+          ilog( ".");
                 return false;
           }
        }
@@ -96,7 +136,7 @@ bool is_valid_name( const string& name )
        begin = end+1;
     }
     return true;
-}
+} FC_CAPTURE_AND_RETHROW( (name) ) }
 
 bool is_cheap_name( const string& n )
 {
@@ -119,6 +159,21 @@ bool is_cheap_name( const string& n )
    if( !v )
       return true;
    return false;
+}
+
+void account_options::validate() const
+{
+   auto needed_witnesses = num_witness;
+   auto needed_committee = num_committee;
+
+   for( vote_id_type id : votes )
+      if( id.type() == vote_id_type::witness && needed_witnesses )
+         --needed_witnesses;
+      else if ( id.type() == vote_id_type::committee && needed_committee )
+         --needed_committee;
+
+   FC_ASSERT( needed_witnesses == 0 && needed_committee == 0,
+              "May not specify fewer witnesses or committee members than the number voted for.");
 }
 
 share_type account_create_operation::calculate_fee( const fee_parameters_type& k )const
@@ -148,6 +203,23 @@ void account_create_operation::validate()const
    FC_ASSERT( !owner.is_impossible(), "cannot create an account with an imposible owner authority threshold" );
    FC_ASSERT( !active.is_impossible(), "cannot create an account with an imposible active authority threshold" );
    options.validate();
+   if( extensions.value.owner_special_authority.valid() )
+      validate_special_authority( *extensions.value.owner_special_authority );
+   if( extensions.value.active_special_authority.valid() )
+      validate_special_authority( *extensions.value.active_special_authority );
+   if( extensions.value.buyback_options.valid() )
+   {
+      FC_ASSERT( !(extensions.value.owner_special_authority.valid()) );
+      FC_ASSERT( !(extensions.value.active_special_authority.valid()) );
+      FC_ASSERT( owner == authority::null_authority() );
+      FC_ASSERT( active == authority::null_authority() );
+      size_t n_markets = extensions.value.buyback_options->markets.size();
+      FC_ASSERT( n_markets > 0 );
+      for( const asset_id_type m : extensions.value.buyback_options->markets )
+      {
+         FC_ASSERT( m != extensions.value.buyback_options->asset_to_buy );
+      }
+   }
 }
 
 
@@ -166,7 +238,17 @@ void account_update_operation::validate()const
    FC_ASSERT( account != GRAPHENE_TEMP_ACCOUNT );
    FC_ASSERT( fee.amount >= 0 );
    FC_ASSERT( account != account_id_type() );
-   FC_ASSERT( owner || active || new_options );
+
+   bool has_action = (
+         owner.valid()
+      || active.valid()
+      || new_options.valid()
+      || extensions.value.owner_special_authority.valid()
+      || extensions.value.active_special_authority.valid()
+      );
+
+   FC_ASSERT( has_action );
+
    if( owner )
    {
       FC_ASSERT( owner->num_auths() != 0 );
@@ -182,8 +264,11 @@ void account_update_operation::validate()const
 
    if( new_options )
       new_options->validate();
+   if( extensions.value.owner_special_authority.valid() )
+      validate_special_authority( *extensions.value.owner_special_authority );
+   if( extensions.value.active_special_authority.valid() )
+      validate_special_authority( *extensions.value.active_special_authority );
 }
-
 
 share_type account_upgrade_operation::calculate_fee(const fee_parameters_type& k) const
 {

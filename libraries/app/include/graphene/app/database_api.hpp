@@ -1,19 +1,25 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #pragma once
 
@@ -28,12 +34,14 @@
 #include <graphene/chain/balance_object.hpp>
 #include <graphene/chain/chain_property_object.hpp>
 #include <graphene/chain/committee_member_object.hpp>
-#include <graphene/chain/market_evaluator.hpp>
+#include <graphene/chain/confidential_object.hpp>
+#include <graphene/chain/market_object.hpp>
 #include <graphene/chain/operation_history_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
-#include <graphene/chain/worker_evaluator.hpp>
+#include <graphene/chain/worker_object.hpp>
 #include <graphene/chain/witness_object.hpp>
-#include <graphene/chain/confidential_evaluator.hpp>
+
+#include <graphene/market_history/market_history_plugin.hpp>
 
 #include <fc/api.hpp>
 #include <fc/optional.hpp>
@@ -51,9 +59,46 @@
 namespace graphene { namespace app {
 
 using namespace graphene::chain;
+using namespace graphene::market_history;
 using namespace std;
 
 class database_api_impl;
+
+struct order_book
+{
+  string                        base;
+  string                        quote;
+  vector< pair<double,double> > bids;
+  vector< pair<double,double> > asks;
+};
+
+struct market_ticker
+{
+   string                       base;
+   string                       quote;
+   double                       latest;
+   double                       lowest_ask;
+   double                       highest_bid;
+   double                       percent_change;
+   double                       base_volume;
+   double                       quote_volume;
+};
+
+struct market_volume
+{
+   string                       base;
+   string                       quote;
+   double                       base_volume;
+   double                       quote_volume;
+};
+
+struct market_trade
+{
+   fc::time_point_sec           date;
+   double                       price;
+   double                       amount;
+   double                       value;
+};
 
 /**
  * @brief The database_api class implements the RPC API for the chain database.
@@ -117,6 +162,13 @@ class database_api
        * @brief used to fetch an individual transaction.
        */
       processed_transaction get_transaction( uint32_t block_num, uint32_t trx_in_block )const;
+
+      /**
+       * If the transaction has not expired, this method will return the transaction for the given ID or
+       * it will return NULL if it is not known.  Just because it is not known does not mean it wasn't
+       * included in the blockchain.
+       */
+      optional<signed_transaction> get_recent_transaction_by_id( const transaction_id_type& id )const;
 
       /////////////
       // Globals //
@@ -311,7 +363,46 @@ class database_api
        * @param a First asset ID
        * @param b Second asset ID
        */
-      void unsubscribe_from_market(asset_id_type a, asset_id_type b);
+      void unsubscribe_from_market( asset_id_type a, asset_id_type b );
+
+      /**
+       * @brief Returns the ticker for the market assetA:assetB
+       * @param a String name of the first asset
+       * @param b String name of the second asset
+       * @return The market ticker for the past 24 hours.
+       */
+      market_ticker get_ticker( const string& base, const string& quote )const;
+
+      /**
+       * @brief Returns the 24 hour volume for the market assetA:assetB
+       * @param a String name of the first asset
+       * @param b String name of the second asset
+       * @return The market volume over the past 24 hours
+       */
+      market_volume get_24_volume( const string& base, const string& quote )const;
+
+      /**
+       * @brief Returns the order book for the market base:quote
+       * @param base String name of the first asset
+       * @param quote String name of the second asset
+       * @param depth of the order book. Up to depth of each asks and bids, capped at 50. Prioritizes most moderate of each
+       * @return Order book of the market
+       */
+      order_book get_order_book( const string& base, const string& quote, unsigned limit = 50 )const;
+
+      /**
+       * @brief Returns recent trades for the market assetA:assetB
+       * Note: Currentlt, timezone offsets are not supported. The time must be UTC.
+       * @param a String name of the first asset
+       * @param b String name of the second asset
+       * @param stop Stop time as a UNIX timestamp
+       * @param limit Number of trasactions to retrieve, capped at 100
+       * @param start Start time as a UNIX timestamp
+       * @return Recent transactions in the market
+       */
+      vector<market_trade> get_trade_history( const string& base, const string& quote, fc::time_point_sec start, fc::time_point_sec stop, unsigned limit = 100 )const;
+
+
 
       ///////////////
       // Witnesses //
@@ -437,7 +528,7 @@ class database_api
        *  For each operation calculate the required fee in the specified asset type.  If the asset type does
        *  not have a valid core_exchange_rate
        */
-      vector<asset> get_required_fees( const vector<operation>& ops, asset_id_type id )const;
+      vector< fc::variant > get_required_fees( const vector<operation>& ops, asset_id_type id )const;
 
       ///////////////////////////
       // Proposed transactions //
@@ -462,6 +553,10 @@ class database_api
 };
 
 } }
+FC_REFLECT( graphene::app::order_book, (base)(quote)(bids)(asks) );
+FC_REFLECT( graphene::app::market_ticker, (base)(quote)(latest)(lowest_ask)(highest_bid)(percent_change)(base_volume)(quote_volume) );
+FC_REFLECT( graphene::app::market_volume, (base)(quote)(base_volume)(quote_volume) );
+FC_REFLECT( graphene::app::market_trade, (date)(price)(amount)(value) );
 
 FC_API(graphene::app::database_api,
    // Objects
@@ -477,6 +572,7 @@ FC_API(graphene::app::database_api,
    (get_block_header)
    (get_block)
    (get_transaction)
+   (get_recent_transaction_by_id)
 
    // Globals
    (get_chain_properties)
@@ -510,12 +606,16 @@ FC_API(graphene::app::database_api,
    (lookup_asset_symbols)
 
    // Markets / feeds
+   (get_order_book)
    (get_limit_orders)
    (get_call_orders)
    (get_settle_orders)
    (get_margin_positions)
    (subscribe_to_market)
    (unsubscribe_from_market)
+   (get_ticker)
+   (get_24_volume)
+   (get_trade_history)
 
    // Witnesses
    (get_witnesses)

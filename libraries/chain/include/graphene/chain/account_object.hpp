@@ -1,19 +1,25 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #pragma once
 #include <graphene/chain/protocol/operations.hpp>
@@ -74,6 +80,11 @@ namespace graphene { namespace chain {
 
          /// @brief Split up and pay out @ref pending_fees and @ref pending_vested_fees
          void process_fees(const account_object& a, database& d) const;
+
+         /**
+          * Core fees are paid into the account_statistics_object by this method
+          */
+         void pay_fee( share_type core_fee, share_type cashback_vesting_threshold );
    };
 
    /**
@@ -193,6 +204,31 @@ namespace graphene { namespace chain {
           * Vesting balance which receives cashback_reward deposits.
           */
          optional<vesting_balance_id_type> cashback_vb;
+
+         special_authority owner_special_authority = no_special_authority();
+         special_authority active_special_authority = no_special_authority();
+
+         /**
+          * This flag is set when the top_n logic sets both authorities,
+          * and gets reset when authority or special_authority is set.
+          */
+         uint8_t top_n_control_flags = 0;
+         static const uint8_t top_n_control_owner  = 1;
+         static const uint8_t top_n_control_active = 2;
+
+         /**
+          * This is a set of assets which the account is allowed to have.
+          * This is utilized to restrict buyback accounts to the assets that trade in their markets.
+          * In the future we may expand this to allow accounts to e.g. voluntarily restrict incoming transfers.
+          */
+         optional< flat_set<asset_id_type> > allowed_assets;
+
+         bool has_special_authority()const
+         {
+            return (owner_special_authority.which() != special_authority::tag< no_special_authority >::value)
+                || (active_special_authority.which() != special_authority::tag< no_special_authority >::value);
+         }
+
          template<typename DB>
          const vesting_balance_object& cashback_balance(const DB& db)const
          {
@@ -221,12 +257,6 @@ namespace graphene { namespace chain {
          {
             return !is_basic_account(now);
          }
-
-         /**
-          * @return true if this account is whitelisted and not blacklisted to transact in the provided asset; false
-          * otherwise.
-          */
-         bool is_authorized_asset(const asset_object& asset_obj)const;
 
          account_id_type get_id()const { return id; }
    };
@@ -278,9 +308,8 @@ namespace graphene { namespace chain {
          map< account_id_type, set<account_id_type> > referred_by;
    };
 
-   struct by_asset;
-   struct by_account;
-   struct by_balance;
+   struct by_account_asset;
+   struct by_asset_balance;
    /**
     * @ingroup object_index
     */
@@ -288,13 +317,26 @@ namespace graphene { namespace chain {
       account_balance_object,
       indexed_by<
          ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
-         hashed_unique< tag<by_balance>, composite_key<
-            account_balance_object,
-            member<account_balance_object, account_id_type, &account_balance_object::owner>,
-            member<account_balance_object, asset_id_type, &account_balance_object::asset_type> >
+         ordered_unique< tag<by_account_asset>,
+            composite_key<
+               account_balance_object,
+               member<account_balance_object, account_id_type, &account_balance_object::owner>,
+               member<account_balance_object, asset_id_type, &account_balance_object::asset_type>
+            >
          >,
-         ordered_non_unique< tag<by_account>, member<account_balance_object, account_id_type, &account_balance_object::owner> >,
-         ordered_non_unique< tag<by_asset>, member<account_balance_object, asset_id_type, &account_balance_object::asset_type> >
+         ordered_unique< tag<by_asset_balance>,
+            composite_key<
+               account_balance_object,
+               member<account_balance_object, asset_id_type, &account_balance_object::asset_type>,
+               member<account_balance_object, share_type, &account_balance_object::balance>,
+               member<account_balance_object, account_id_type, &account_balance_object::owner>
+            >,
+            composite_key_compare<
+               std::less< asset_id_type >,
+               std::greater< share_type >,
+               std::less< account_id_type >
+            >
+         >
       >
    > account_balance_object_multi_index_type;
 
@@ -311,7 +353,7 @@ namespace graphene { namespace chain {
    typedef multi_index_container<
       account_object,
       indexed_by<
-         hashed_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
+         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
          ordered_unique< tag<by_name>, member<account_object, string, &account_object::name> >
       >
    > account_multi_index_type;
@@ -328,8 +370,12 @@ FC_REFLECT_DERIVED( graphene::chain::account_object,
                     (membership_expiration_date)(registrar)(referrer)(lifetime_referrer)
                     (network_fee_percentage)(lifetime_referrer_fee_percentage)(referrer_rewards_percentage)
                     (name)(owner)(active)(options)(statistics)(whitelisting_accounts)(blacklisting_accounts)
-                    (whitelisting_accounts)(blacklisted_accounts)
-                    (cashback_vb) )
+                    (whitelisted_accounts)(blacklisted_accounts)
+                    (cashback_vb)
+                    (owner_special_authority)(active_special_authority)
+                    (top_n_control_flags)
+                    (allowed_assets)
+                    )
 
 FC_REFLECT_DERIVED( graphene::chain::account_balance_object,
                     (graphene::db::object),

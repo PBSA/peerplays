@@ -1,19 +1,25 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #include <graphene/market_history/market_history_plugin.hpp>
@@ -78,6 +84,43 @@ struct operation_process_fill_order
       const auto& buckets = _plugin.tracked_buckets();
       auto& db         = _plugin.database();
       const auto& bucket_idx = db.get_index_type<bucket_index>();
+      const auto& history_idx = db.get_index_type<history_index>().indices().get<by_key>();
+
+      auto time = db.head_block_time();
+
+      history_key hkey;
+      hkey.base = o.pays.asset_id;
+      hkey.quote = o.receives.asset_id;
+      if( hkey.base > hkey.quote ) 
+         std::swap( hkey.base, hkey.quote );
+      hkey.sequence = std::numeric_limits<int64_t>::min();
+
+      auto itr = history_idx.lower_bound( hkey );
+
+      if( itr->key.base == hkey.base && itr->key.quote == hkey.quote )
+         hkey.sequence = itr->key.sequence - 1;
+      else
+         hkey.sequence = 0;
+
+      db.create<order_history_object>( [&]( order_history_object& ho ) {
+         ho.key = hkey;
+         ho.time = time;
+         ho.op = o;
+      });
+
+      hkey.sequence += 200;
+      itr = history_idx.lower_bound( hkey );
+
+      while( itr != history_idx.end() )
+      {
+         if( itr->key.base == hkey.base && itr->key.quote == hkey.quote )
+         {
+            db.remove( *itr );
+            itr = history_idx.lower_bound( hkey );
+         }
+         else break;
+      }
+
 
       auto max_history = _plugin.max_history();
       for( auto bucket : buckets )
@@ -87,6 +130,7 @@ struct operation_process_fill_order
           bucket_key key;
           key.base    = o.pays.asset_id;
           key.quote   = o.receives.asset_id;
+
 
           /** for every matched order there are two fill order operations created, one for
            * each side.  We can filter the duplicates by only considering the fill operations where
@@ -175,9 +219,12 @@ void market_history_plugin_impl::update_market_histories( const signed_block& b 
    if( _tracked_buckets.size() == 0 ) return;
 
    graphene::chain::database& db = database();
-   const vector<operation_history_object>& hist = db.get_applied_operations();
-   for( auto op : hist )
-      op.op.visit( operation_process_fill_order( _self, b.timestamp ) );
+   const vector<optional< operation_history_object > >& hist = db.get_applied_operations();
+   for( const optional< operation_history_object >& o_op : hist )
+   {
+      if( o_op.valid() )
+         o_op->op.visit( operation_process_fill_order( _self, b.timestamp ) );
+   }
 }
 
 } // end namespace detail
@@ -219,6 +266,7 @@ void market_history_plugin::plugin_initialize(const boost::program_options::vari
 { try {
    database().applied_block.connect( [&]( const signed_block& b){ my->update_market_histories(b); } );
    database().add_index< primary_index< bucket_index  > >();
+   database().add_index< primary_index< history_index  > >();
 
    if( options.count( "bucket-size" ) )
    {

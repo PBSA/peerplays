@@ -1,19 +1,25 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #pragma once
 #include <fc/container/flat_fwd.hpp>
@@ -86,9 +92,12 @@ namespace graphene { namespace chain {
       transfer_restricted  = 0x08, /**< require the issuer to be one party to every transfer */
       disable_force_settle = 0x10, /**< disable force settling */
       global_settle        = 0x20, /**< allow the bitasset issuer to force a global settling -- this may be set in permissions, but not flags */
-      disable_confidential = 0x40  /**< allow the asset to be used with confidential transactions */
+      disable_confidential = 0x40, /**< allow the asset to be used with confidential transactions */
+      witness_fed_asset    = 0x80, /**< allow the asset to be fed by witnesses */
+      committee_fed_asset  = 0x100 /**< allow the asset to be fed by the committee */
    };
-   const static uint32_t ASSET_ISSUER_PERMISSION_MASK = charge_market_fee|white_list|override_authority|transfer_restricted|disable_force_settle|global_settle|disable_confidential;
+   const static uint32_t ASSET_ISSUER_PERMISSION_MASK = charge_market_fee|white_list|override_authority|transfer_restricted|disable_force_settle|global_settle|disable_confidential
+      |witness_fed_asset|committee_fed_asset;
    const static uint32_t UIA_ASSET_ISSUER_PERMISSION_MASK = charge_market_fee|white_list|override_authority|transfer_restricted|disable_confidential;
 
    enum reserved_spaces
@@ -143,7 +152,10 @@ namespace graphene { namespace chain {
       impl_blinded_balance_object_type,
       impl_chain_property_object_type,
       impl_witness_schedule_object_type,
-      impl_budget_record_object_type
+      impl_budget_record_object_type,
+      impl_special_authority_object_type,
+      impl_buyback_object_type,
+      impl_fba_accumulator_object_type
    };
 
    //typedef fc::unsigned_int            object_id_type;
@@ -162,6 +174,7 @@ namespace graphene { namespace chain {
    class vesting_balance_object;
    class worker_object;
    class balance_object;
+   class blinded_balance_object;
 
    typedef object_id< protocol_ids, account_object_type,            account_object>               account_id_type;
    typedef object_id< protocol_ids, asset_object_type,              asset_object>                 asset_id_type;
@@ -191,6 +204,9 @@ namespace graphene { namespace chain {
    class chain_property_object;
    class witness_schedule_object;
    class budget_record_object;
+   class special_authority_object;
+   class buyback_object;
+   class fba_accumulator_object;
 
    typedef object_id< implementation_ids, impl_global_property_object_type,  global_property_object>                    global_property_id_type;
    typedef object_id< implementation_ids, impl_dynamic_global_property_object_type,  dynamic_global_property_object>    dynamic_global_property_id_type;
@@ -207,6 +223,10 @@ namespace graphene { namespace chain {
    typedef object_id< implementation_ids, impl_chain_property_object_type,   chain_property_object>                     chain_property_id_type;
    typedef object_id< implementation_ids, impl_witness_schedule_object_type, witness_schedule_object>                   witness_schedule_id_type;
    typedef object_id< implementation_ids, impl_budget_record_object_type, budget_record_object >                        budget_record_id_type;
+   typedef object_id< implementation_ids, impl_blinded_balance_object_type, blinded_balance_object >                    blinded_balance_id_type;
+   typedef object_id< implementation_ids, impl_special_authority_object_type, special_authority_object >                special_authority_id_type;
+   typedef object_id< implementation_ids, impl_buyback_object_type, buyback_object >                                    buyback_id_type;
+   typedef object_id< implementation_ids, impl_fba_accumulator_object_type, fba_accumulator_object >                    fba_accumulator_id_type;
 
    typedef fc::array<char, GRAPHENE_MAX_ASSET_SYMBOL_LENGTH>    symbol_type;
    typedef fc::ripemd160                                        block_id_type;
@@ -241,16 +261,67 @@ namespace graphene { namespace chain {
        bool is_valid_muse( const std::string& base58str );
    };
 
+   struct extended_public_key_type
+   {
+      struct binary_key
+      {
+         binary_key() {}
+         uint32_t                   check = 0;
+         fc::ecc::extended_key_data data;
+      };
+      
+      fc::ecc::extended_key_data key_data;
+       
+      extended_public_key_type();
+      extended_public_key_type( const fc::ecc::extended_key_data& data );
+      extended_public_key_type( const fc::ecc::extended_public_key& extpubkey );
+      explicit extended_public_key_type( const std::string& base58str );
+      operator fc::ecc::extended_public_key() const;
+      explicit operator std::string() const;
+      friend bool operator == ( const extended_public_key_type& p1, const fc::ecc::extended_public_key& p2);
+      friend bool operator == ( const extended_public_key_type& p1, const extended_public_key_type& p2);
+      friend bool operator != ( const extended_public_key_type& p1, const extended_public_key_type& p2);
+   };
+   
+   struct extended_private_key_type
+   {
+      struct binary_key
+      {
+         binary_key() {}
+         uint32_t                   check = 0;
+         fc::ecc::extended_key_data data;
+      };
+      
+      fc::ecc::extended_key_data key_data;
+       
+      extended_private_key_type();
+      extended_private_key_type( const fc::ecc::extended_key_data& data );
+      extended_private_key_type( const fc::ecc::extended_private_key& extprivkey );
+      explicit extended_private_key_type( const std::string& base58str );
+      operator fc::ecc::extended_private_key() const;
+      explicit operator std::string() const;
+      friend bool operator == ( const extended_private_key_type& p1, const fc::ecc::extended_private_key& p2);
+      friend bool operator == ( const extended_private_key_type& p1, const extended_private_key_type& p2);
+      friend bool operator != ( const extended_private_key_type& p1, const extended_private_key_type& p2);
+   };
 } }  // graphene::chain
 
 namespace fc
 {
     void to_variant( const graphene::chain::public_key_type& var,  fc::variant& vo );
     void from_variant( const fc::variant& var,  graphene::chain::public_key_type& vo );
+    void to_variant( const graphene::chain::extended_public_key_type& var, fc::variant& vo );
+    void from_variant( const fc::variant& var, graphene::chain::extended_public_key_type& vo );
+    void to_variant( const graphene::chain::extended_private_key_type& var, fc::variant& vo );
+    void from_variant( const fc::variant& var, graphene::chain::extended_private_key_type& vo );
 }
 
 FC_REFLECT( graphene::chain::public_key_type, (key_data) )
 FC_REFLECT( graphene::chain::public_key_type::binary_key, (data)(check) )
+FC_REFLECT( graphene::chain::extended_public_key_type, (key_data) )
+FC_REFLECT( graphene::chain::extended_public_key_type::binary_key, (check)(data) )
+FC_REFLECT( graphene::chain::extended_private_key_type, (key_data) )
+FC_REFLECT( graphene::chain::extended_private_key_type::binary_key, (check)(data) )
 
 FC_REFLECT_ENUM( graphene::chain::object_type,
                  (null_object_type)
@@ -286,6 +357,9 @@ FC_REFLECT_ENUM( graphene::chain::impl_object_type,
                  (impl_chain_property_object_type)
                  (impl_witness_schedule_object_type)
                  (impl_budget_record_object_type)
+                 (impl_special_authority_object_type)
+                 (impl_buyback_object_type)
+                 (impl_fba_accumulator_object_type)
                )
 
 FC_REFLECT_TYPENAME( graphene::chain::share_type )
@@ -303,6 +377,7 @@ FC_REFLECT_TYPENAME( graphene::chain::operation_history_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::withdraw_permission_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::vesting_balance_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::worker_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::balance_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::global_property_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::dynamic_global_property_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::asset_dynamic_data_id_type )
@@ -313,6 +388,20 @@ FC_REFLECT_TYPENAME( graphene::chain::transaction_obj_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::block_summary_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::account_transaction_history_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::budget_record_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::special_authority_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::buyback_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::fba_accumulator_id_type )
+
 FC_REFLECT( graphene::chain::void_t, )
 
-FC_REFLECT_ENUM( graphene::chain::asset_issuer_permission_flags, (charge_market_fee)(white_list)(transfer_restricted)(override_authority)(disable_force_settle)(global_settle)(disable_confidential) )
+FC_REFLECT_ENUM( graphene::chain::asset_issuer_permission_flags,
+   (charge_market_fee)
+   (white_list)
+   (transfer_restricted)
+   (override_authority)
+   (disable_force_settle)
+   (global_settle)
+   (disable_confidential)
+   (witness_fed_asset)
+   (committee_fed_asset)
+   )

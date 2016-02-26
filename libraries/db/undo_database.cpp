@@ -1,19 +1,25 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #include <graphene/db/object_database.hpp>
 #include <graphene/db/undo_database.hpp>
@@ -124,25 +130,111 @@ void undo_database::merge()
    FC_ASSERT( _stack.size() >=2 );
    auto& state = _stack.back();
    auto& prev_state = _stack[_stack.size()-2];
+
+   // An object's relationship to a state can be:
+   // in new_ids            : new
+   // in old_values (was=X) : upd(was=X)
+   // in removed (was=X)    : del(was=X)
+   // not in any of above   : nop
+   //
+   // When merging A=prev_state and B=state we have a 4x4 matrix of all possibilities:
+   //
+   //                   |--------------------- B ----------------------|
+   //
+   //                +------------+------------+------------+------------+
+   //                | new        | upd(was=Y) | del(was=Y) | nop        |
+   //   +------------+------------+------------+------------+------------+
+   // / | new        | N/A        | new       A| nop       C| new       A|
+   // | +------------+------------+------------+------------+------------+
+   // | | upd(was=X) | N/A        | upd(was=X)A| del(was=X)C| upd(was=X)A|
+   // A +------------+------------+------------+------------+------------+
+   // | | del(was=X) | N/A        | N/A        | N/A        | del(was=X)A|
+   // | +------------+------------+------------+------------+------------+
+   // \ | nop        | new       B| upd(was=Y)B| del(was=Y)B| nop      AB|
+   //   +------------+------------+------------+------------+------------+
+   //
+   // Each entry was composed by labelling what should occur in the given case.
+   //
+   // Type A means the composition of states contains the same entry as the first of the two merged states for that object.
+   // Type B means the composition of states contains the same entry as the second of the two merged states for that object.
+   // Type C means the composition of states contains an entry different from either of the merged states for that object.
+   // Type N/A means the composition of states violates causal timing.
+   // Type AB means both type A and type B simultaneously.
+   //
+   // The merge() operation is defined as modifying prev_state in-place to be the state object which represents the composition of
+   // state A and B.
+   //
+   // Type A (and AB) can be implemented as a no-op; prev_state already contains the correct value for the merged state.
+   // Type B (and AB) can be implemented by copying from state to prev_state.
+   // Type C needs special case-by-case logic.
+   // Type N/A can be ignored or assert(false) as it can only occur if prev_state and state have illegal values
+   // (a serious logic error which should never happen).
+   //
+
+   // We can only be outside type A/AB (the nop path) if B is not nop, so it suffices to iterate through B's three containers.
+
+   // *+upd
    for( auto& obj : state.old_values )
    {
       if( prev_state.new_ids.find(obj.second->id) != prev_state.new_ids.end() )
+      {
+         // new+upd -> new, type A
          continue;
-      if( prev_state.old_values.find(obj.second->id) == prev_state.old_values.end() )
-         prev_state.old_values[obj.second->id] = std::move(obj.second);
+      }
+      if( prev_state.old_values.find(obj.second->id) != prev_state.old_values.end() )
+      {
+         // upd(was=X) + upd(was=Y) -> upd(was=X), type A
+         continue;
+      }
+      // del+upd -> N/A
+      assert( prev_state.removed.find(obj.second->id) == prev_state.removed.end() );
+      // nop+upd(was=Y) -> upd(was=Y), type B
+      prev_state.old_values[obj.second->id] = std::move(obj.second);
    }
+
+   // *+new, but we assume the N/A cases don't happen, leaving type B nop+new -> new
    for( auto id : state.new_ids )
       prev_state.new_ids.insert(id);
+
+   // old_index_next_ids can only be updated, iterate over *+upd cases
    for( auto& item : state.old_index_next_ids )
    {
       if( prev_state.old_index_next_ids.find( item.first ) == prev_state.old_index_next_ids.end() )
+      {
+         // nop+upd(was=Y) -> upd(was=Y), type B
          prev_state.old_index_next_ids[item.first] = item.second;
-   }
-   for( auto& obj : state.removed )
-      if( prev_state.new_ids.find(obj.second->id) == prev_state.new_ids.end() )
-         prev_state.removed[obj.second->id] = std::move(obj.second);
+         continue;
+      }
       else
+      {
+         // upd(was=X)+upd(was=Y) -> upd(was=X), type A
+         // type A implementation is a no-op, as discussed above, so there is no code here
+         continue;
+      }
+   }
+
+   // *+del
+   for( auto& obj : state.removed )
+   {
+      if( prev_state.new_ids.find(obj.second->id) != prev_state.new_ids.end() )
+      {
+         // new + del -> nop (type C)
          prev_state.new_ids.erase(obj.second->id);
+         continue;
+      }
+      auto it = prev_state.old_values.find(obj.second->id);
+      if( it != prev_state.old_values.end() )
+      {
+         // upd(was=X) + del(was=Y) -> del(was=X)
+         prev_state.removed[obj.second->id] = std::move(it->second);
+         prev_state.old_values.erase(obj.second->id);
+         continue;
+      }
+      // del + del -> N/A
+      assert( prev_state.removed.find( obj.second->id ) == prev_state.removed.end() );
+      // nop + del(was=Y) -> del(was=Y)
+      prev_state.removed[obj.second->id] = std::move(obj.second);
+   }
    _stack.pop_back();
    --_active_sessions;
 }

@@ -1,19 +1,25 @@
 /*
- * Copyright (c) 2015, Cryptonomex, Inc.
- * All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * This source code is provided for evaluation in private test networks only, until September 8, 2015. After this date, this license expires and
- * the code may not be used, modified or distributed for any purpose. Redistribution and use in source and binary forms, with or without modification,
- * are permitted until September 8, 2015, provided that the following conditions are met:
+ * The MIT License
  *
- * 1. The code and/or derivative works are used only for private test networks consisting of no more than 10 P2P nodes.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #include <cctype>
 
@@ -25,10 +31,11 @@
 #include <graphene/chain/get_config.hpp>
 #include <graphene/utilities/key_conversion.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
-#include <graphene/chain/withdraw_permission_object.hpp>
-#include <graphene/chain/worker_evaluator.hpp>
+#include <graphene/chain/confidential_object.hpp>
+#include <graphene/chain/market_object.hpp>
 #include <graphene/chain/transaction_object.hpp>
-#include <graphene/chain/confidential_evaluator.hpp>
+#include <graphene/chain/withdraw_permission_object.hpp>
+#include <graphene/chain/worker_object.hpp>
 
 #include <fc/crypto/hex.hpp>
 #include <fc/smart_ref_impl.hpp>
@@ -84,6 +91,10 @@ namespace graphene { namespace app {
        {
           _network_node_api = std::make_shared< network_node_api >( std::ref(_app) );
        }
+       else if( api_name == "crypto_api" )
+       {
+          _crypto_api = std::make_shared< crypto_api >();
+       }
        return;
     }
 
@@ -138,6 +149,13 @@ namespace graphene { namespace app {
     {
     }
 
+    fc::variant_object network_node_api::get_info() const
+    {
+       fc::mutable_variant_object result = _app.p2p_node()->network_get_info();
+       result["connection_count"] = _app.p2p_node()->get_connection_count();
+       return result;
+    }
+
     void network_node_api::add_node(const fc::ip::endpoint& ep)
     {
        _app.p2p_node()->add_node(ep);
@@ -145,7 +163,22 @@ namespace graphene { namespace app {
 
     std::vector<net::peer_status> network_node_api::get_connected_peers() const
     {
-      return _app.p2p_node()->get_connected_peers();
+       return _app.p2p_node()->get_connected_peers();
+    }
+
+    std::vector<net::potential_peer_record> network_node_api::get_potential_peers() const
+    {
+       return _app.p2p_node()->get_potential_peers();
+    }
+
+    fc::variant_object network_node_api::get_advanced_node_parameters() const
+    {
+       return _app.p2p_node()->get_advanced_node_parameters();
+    }
+
+    void network_node_api::set_advanced_node_parameters(const fc::variant_object& params)
+    {
+       return _app.p2p_node()->set_advanced_node_parameters(params);
     }
 
     fc::api<network_broadcast_api> login_api::network_broadcast()const
@@ -170,6 +203,12 @@ namespace graphene { namespace app {
     {
        FC_ASSERT(_history_api);
        return *_history_api;
+    }
+
+    fc::api<crypto_api> login_api::crypto() const
+    {
+       FC_ASSERT(_crypto_api);
+       return *_crypto_api;
     }
 
     vector<account_id_type> get_relevant_accounts( const object* obj )
@@ -217,6 +256,7 @@ namespace graphene { namespace app {
                result.push_back( aobj->borrower );
                break;
             } case custom_object_type:{
+              break;
             } case proposal_object_type:{
                const auto& aobj = dynamic_cast<const proposal_object*>(obj);
                assert( aobj != nullptr );
@@ -251,6 +291,7 @@ namespace graphene { namespace app {
                break;
             } case balance_object_type:{
                /** these are free from any accounts */
+               break;
             }
           }
        }
@@ -258,13 +299,17 @@ namespace graphene { namespace app {
        {
           switch( (impl_object_type)obj->id.type() )
           {
-                 case impl_global_property_object_type:{
-               } case impl_dynamic_global_property_object_type:{
-               } case impl_reserved0_object_type:{
-               } case impl_asset_dynamic_data_type:{
-               } case impl_asset_bitasset_data_type:{
+                 case impl_global_property_object_type:
                   break;
-               } case impl_account_balance_object_type:{
+                 case impl_dynamic_global_property_object_type:
+                  break;
+                 case impl_reserved0_object_type:
+                  break;
+                 case impl_asset_dynamic_data_type:
+                  break;
+                 case impl_asset_bitasset_data_type:
+                  break;
+                 case impl_account_balance_object_type:{
                   const auto& aobj = dynamic_cast<const account_balance_object*>(obj);
                   assert( aobj != nullptr );
                   result.push_back( aobj->owner );
@@ -289,16 +334,51 @@ namespace graphene { namespace app {
                   for( const auto& a : aobj->owner.account_auths )
                      result.push_back( a.first );
                   break;
-               } case impl_block_summary_object_type:{
-               } case impl_account_transaction_history_object_type:{
-               } case impl_chain_property_object_type: {
-               } case impl_witness_schedule_object_type: {
-               } case impl_budget_record_object_type: {
-               }
+               } case impl_block_summary_object_type:
+                  break;
+                 case impl_account_transaction_history_object_type:
+                  break;
+                 case impl_chain_property_object_type:
+                  break;
+                 case impl_witness_schedule_object_type:
+                  break;
+                 case impl_budget_record_object_type:
+                  break;
+                 case impl_special_authority_object_type:
+                  break;
+                 case impl_buyback_object_type:
+                  break;
+                 case impl_fba_accumulator_object_type:
+                  break;
           }
        }
        return result;
     } // end get_relevant_accounts( obj )
+
+    vector<order_history_object> history_api::get_fill_order_history( asset_id_type a, asset_id_type b, uint32_t limit  )const
+    {
+       FC_ASSERT(_app.chain_database());
+       const auto& db = *_app.chain_database();
+       if( a > b ) std::swap(a,b);
+       const auto& history_idx = db.get_index_type<graphene::market_history::history_index>().indices().get<by_key>();
+       history_key hkey;
+       hkey.base = a;
+       hkey.quote = b;
+       hkey.sequence = std::numeric_limits<int64_t>::min();
+
+       uint32_t count = 0;
+       auto itr = history_idx.lower_bound( hkey );
+       vector<order_history_object> result;
+       while( itr != history_idx.end() && count < limit)
+       {
+          if( itr->key.base != a || itr->key.quote != b ) break;
+          result.push_back( *itr );
+          ++itr;
+          ++count;
+       }
+
+       return result;
+    }
 
     vector<operation_history_object> history_api::get_account_history(account_id_type account, operation_history_id_type stop, unsigned limit, operation_history_id_type start) const
     {
@@ -335,7 +415,7 @@ namespace graphene { namespace app {
        FC_ASSERT(_app.chain_database());
        const auto& db = *_app.chain_database();
        vector<bucket_object> result;
-       result.reserve(100);
+       result.reserve(200);
 
        if( a > b ) std::swap(a,b);
 
@@ -343,14 +423,86 @@ namespace graphene { namespace app {
        const auto& by_key_idx = bidx.indices().get<by_key>();
 
        auto itr = by_key_idx.lower_bound( bucket_key( a, b, bucket_seconds, start ) );
-       while( itr != by_key_idx.end() && itr->key.open <= end && result.size() < 100 )
+       while( itr != by_key_idx.end() && itr->key.open <= end && result.size() < 200 )
        {
           if( !(itr->key.base == a && itr->key.quote == b && itr->key.seconds == bucket_seconds) )
+          {
             return result;
+          }
           result.push_back(*itr);
           ++itr;
        }
        return result;
     } FC_CAPTURE_AND_RETHROW( (a)(b)(bucket_seconds)(start)(end) ) }
+    
+    crypto_api::crypto_api(){};
+    
+    blind_signature crypto_api::blind_sign( const extended_private_key_type& key, const blinded_hash& hash, int i )
+    {
+       return fc::ecc::extended_private_key( key ).blind_sign( hash, i );
+    }
+         
+    signature_type crypto_api::unblind_signature( const extended_private_key_type& key,
+                                                     const extended_public_key_type& bob,
+                                                     const blind_signature& sig,
+                                                     const fc::sha256& hash,
+                                                     int i )
+    {
+       return fc::ecc::extended_private_key( key ).unblind_signature( extended_public_key( bob ), sig, hash, i );
+    }
+                                                               
+    commitment_type crypto_api::blind( const blind_factor_type& blind, uint64_t value )
+    {
+       return fc::ecc::blind( blind, value );
+    }
+   
+    blind_factor_type crypto_api::blind_sum( const std::vector<blind_factor_type>& blinds_in, uint32_t non_neg )
+    {
+       return fc::ecc::blind_sum( blinds_in, non_neg );
+    }
+   
+    bool crypto_api::verify_sum( const std::vector<commitment_type>& commits_in, const std::vector<commitment_type>& neg_commits_in, int64_t excess )
+    {
+       return fc::ecc::verify_sum( commits_in, neg_commits_in, excess );
+    }
+    
+    verify_range_result crypto_api::verify_range( const commitment_type& commit, const std::vector<char>& proof )
+    {
+       verify_range_result result;
+       result.success = fc::ecc::verify_range( result.min_val, result.max_val, commit, proof );
+       return result;
+    }
+    
+    std::vector<char> crypto_api::range_proof_sign( uint64_t min_value, 
+                                                    const commitment_type& commit, 
+                                                    const blind_factor_type& commit_blind, 
+                                                    const blind_factor_type& nonce,
+                                                    int8_t base10_exp,
+                                                    uint8_t min_bits,
+                                                    uint64_t actual_value )
+    {
+       return fc::ecc::range_proof_sign( min_value, commit, commit_blind, nonce, base10_exp, min_bits, actual_value );
+    }
+                               
+    verify_range_proof_rewind_result crypto_api::verify_range_proof_rewind( const blind_factor_type& nonce,
+                                                                            const commitment_type& commit, 
+                                                                            const std::vector<char>& proof )
+    {
+       verify_range_proof_rewind_result result;
+       result.success = fc::ecc::verify_range_proof_rewind( result.blind_out, 
+                                                            result.value_out, 
+                                                            result.message_out, 
+                                                            nonce, 
+                                                            result.min_val, 
+                                                            result.max_val, 
+                                                            const_cast< commitment_type& >( commit ), 
+                                                            proof );
+       return result;
+    }
+                                    
+    range_proof_info crypto_api::range_get_info( const std::vector<char>& proof )
+    {
+       return fc::ecc::range_get_info( proof );
+    }
 
 } } // graphene::app
