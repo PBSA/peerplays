@@ -152,8 +152,15 @@ if(ENABLE_COVERAGE_TESTING)
 endif()
 
 add_subdirectory( libraries )
+
+
+set(BUILD_BITSHARES_PROGRAMS TRUE CACHE BOOL "Build bitshares executables (witness node, cli wallet, etc)")
 add_subdirectory( programs )
-add_subdirectory( tests )
+
+set(BUILD_BITSHARES_TESTS TRUE CACHE BOOL "Build bitshares unit tests")
+if( BUILD_BITSHARES_TESTS )
+  add_subdirectory( tests )
+endif( BUILD_BITSHARES_TESTS )
 
 
 if (ENABLE_INSTALLER)
