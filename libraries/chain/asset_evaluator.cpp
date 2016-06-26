@@ -32,6 +32,8 @@
 
 #include <functional>
 
+#include <boost/algorithm/string/case_conv.hpp>
+
 namespace graphene { namespace chain {
 
 void_result asset_create_evaluator::do_evaluate( const asset_create_operation& op )
@@ -354,6 +356,65 @@ void_result asset_update_bitasset_evaluator::do_apply(const asset_update_bitasse
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (o) ) }
+
+void_result asset_update_dividend_evaluator::do_evaluate(const asset_update_dividend_operation& o)
+{ try {
+   database& d = db();
+
+   const asset_object& a = o.asset_to_update(d);
+   asset_to_update = &a;
+
+   FC_ASSERT( o.issuer == a.issuer, "", ("o.issuer", o.issuer)("a.issuer", a.issuer) );
+   auto& params = db().get_global_properties().parameters;
+   if (o.new_options.payout_interval &&
+       *o.new_options.payout_interval < params.maintenance_interval)
+      FC_THROW("New payout interval may not be less than the maintenance interval", 
+               ("new_payout_interval", o.new_options.payout_interval)("maintenance_interval", params.maintenance_interval));
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (o) ) }
+
+void_result asset_update_dividend_evaluator::do_apply( const asset_update_dividend_operation& op )
+{ try {
+   database& d = db();
+   if (!asset_to_update->dividend_data_id)
+   {
+      // this was not a dividend-paying asset, we're converting it to a dividend-paying asset
+      std::string dividend_distribution_account_name(boost::to_lower_copy(asset_to_update->symbol) + "-dividend-distribution");
+
+      const auto& new_acnt_object = db().create<account_object>( [&]( account_object& obj ){
+            obj.registrar = op.issuer;
+            obj.referrer = op.issuer;
+            obj.lifetime_referrer = op.issuer(db()).lifetime_referrer;
+
+            auto& params = db().get_global_properties().parameters;
+            obj.network_fee_percentage = GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE;
+            obj.lifetime_referrer_fee_percentage = GRAPHENE_DEFAULT_LIFETIME_REFERRER_PERCENT_OF_FEE;
+            obj.referrer_rewards_percentage = GRAPHENE_DEFAULT_LIFETIME_REFERRER_PERCENT_OF_FEE;
+
+            obj.name             = dividend_distribution_account_name;
+            obj.owner.weight_threshold = 1;
+            obj.active.weight_threshold = 1;
+            obj.statistics = db().create<account_statistics_object>([&](account_statistics_object& s){s.owner = obj.id;}).id;
+      });
+
+      const asset_dividend_data_object& dividend_data = d.create<asset_dividend_data_object>( [&]( asset_dividend_data_object& dividend_data_obj ) {
+            dividend_data_obj.options = op.new_options;
+            dividend_data_obj.dividend_distribution_account = new_acnt_object.id;
+      });
+
+      d.modify(*asset_to_update, [&](asset_object& a) {
+            a.dividend_data_id = dividend_data.id;
+      });
+   }
+   else
+   {
+      const asset_dividend_data_object& dividend_data = asset_to_update->dividend_data(d);
+      d.modify(dividend_data,  [&]( asset_dividend_data_object& dividend_data_obj ) {
+            dividend_data_obj.options = op.new_options;
+      });
+   }
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
 
 void_result asset_update_feed_producers_evaluator::do_evaluate(const asset_update_feed_producers_evaluator::operation_type& o)
 { try {

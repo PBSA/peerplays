@@ -180,6 +180,12 @@ void asset_update_bitasset_operation::validate() const
    new_options.validate();
 }
 
+void asset_update_dividend_operation::validate() const
+{
+   FC_ASSERT( fee.amount >= 0 );
+   new_options.validate();
+}
+
 void asset_update_feed_producers_operation::validate() const
 {
    FC_ASSERT( fee.amount >= 0 );
@@ -196,6 +202,10 @@ void bitasset_options::validate() const
    FC_ASSERT(minimum_feeds > 0);
    FC_ASSERT(force_settlement_offset_percent <= GRAPHENE_100_PERCENT);
    FC_ASSERT(maximum_force_settlement_volume <= GRAPHENE_100_PERCENT);
+}
+
+void dividend_asset_options::validate() const
+{
 }
 
 void asset_options::validate()const

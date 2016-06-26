@@ -143,6 +143,7 @@ void database::initialize_evaluators()
    register_evaluator<asset_reserve_evaluator>();
    register_evaluator<asset_update_evaluator>();
    register_evaluator<asset_update_bitasset_evaluator>();
+   register_evaluator<asset_update_dividend_evaluator>();
    register_evaluator<asset_update_feed_producers_evaluator>();
    register_evaluator<asset_settle_evaluator>();
    register_evaluator<asset_global_settle_evaluator>();
@@ -204,6 +205,7 @@ void database::initialize_indexes()
    add_index< primary_index<transaction_index                             > >();
    add_index< primary_index<account_balance_index                         > >();
    add_index< primary_index<asset_bitasset_data_index                     > >();
+   add_index< primary_index<asset_dividend_data_object_index              > >();
    add_index< primary_index<simple_index<global_property_object          >> >();
    add_index< primary_index<simple_index<dynamic_global_property_object  >> >();
    add_index< primary_index<simple_index<account_statistics_object       >> >();
@@ -216,6 +218,8 @@ void database::initialize_indexes()
    add_index< primary_index< buyback_index                                > >();
 
    add_index< primary_index< simple_index< fba_accumulator_object       > > >();
+   add_index< primary_index<pending_dividend_payout_balance_object_index > >();
+   add_index< primary_index<distributed_dividend_balance_object_index > >();
 }
 
 void database::init_genesis(const genesis_state_type& genesis_state)

@@ -155,7 +155,10 @@ namespace graphene { namespace chain {
       impl_budget_record_object_type,
       impl_special_authority_object_type,
       impl_buyback_object_type,
-      impl_fba_accumulator_object_type
+      impl_fba_accumulator_object_type,
+      impl_asset_dividend_data_type,
+      impl_pending_dividend_payout_balance_object_type,
+      impl_distributed_dividend_balance_data_type
    };
 
    //typedef fc::unsigned_int            object_id_type;
@@ -207,11 +210,15 @@ namespace graphene { namespace chain {
    class special_authority_object;
    class buyback_object;
    class fba_accumulator_object;
+   class asset_dividend_data_object;
+   class pending_dividend_payout_balance_object;
 
    typedef object_id< implementation_ids, impl_global_property_object_type,  global_property_object>                    global_property_id_type;
    typedef object_id< implementation_ids, impl_dynamic_global_property_object_type,  dynamic_global_property_object>    dynamic_global_property_id_type;
    typedef object_id< implementation_ids, impl_asset_dynamic_data_type,      asset_dynamic_data_object>                 asset_dynamic_data_id_type;
    typedef object_id< implementation_ids, impl_asset_bitasset_data_type,     asset_bitasset_data_object>                asset_bitasset_data_id_type;
+   typedef object_id< implementation_ids, impl_asset_dividend_data_type,     asset_dividend_data_object>                asset_dividend_data_id_type;
+   typedef object_id< implementation_ids, impl_pending_dividend_payout_balance_object_type,     pending_dividend_payout_balance_object>                pending_dividend_payout_balance_object_type;
    typedef object_id< implementation_ids, impl_account_balance_object_type,  account_balance_object>                    account_balance_id_type;
    typedef object_id< implementation_ids, impl_account_statistics_object_type,account_statistics_object>                account_statistics_id_type;
    typedef object_id< implementation_ids, impl_transaction_object_type,      transaction_object>                        transaction_obj_id_type;
@@ -359,6 +366,9 @@ FC_REFLECT_ENUM( graphene::chain::impl_object_type,
                  (impl_special_authority_object_type)
                  (impl_buyback_object_type)
                  (impl_fba_accumulator_object_type)
+                 (impl_asset_dividend_data_type)
+                 (impl_pending_dividend_payout_balance_object_type)
+                 (impl_distributed_dividend_balance_data_type)
                )
 
 FC_REFLECT_TYPENAME( graphene::chain::share_type )
