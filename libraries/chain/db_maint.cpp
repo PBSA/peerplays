@@ -964,7 +964,9 @@ void process_dividend_assets(database& db)
 #endif
 
                ++pending_balance_object_iter;
-               db.remove(pending_balance_object);
+               db.modify(pending_balance_object, [&]( pending_dividend_payout_balance_object& pending_balance ){
+                  pending_balance.pending_balance = 0;
+               });
             }
             // we will always be left with the last holder's data, generate the virtual op for it now.
             if (last_holder_account_id)
@@ -1002,7 +1004,9 @@ void process_dividend_assets(database& db)
                                  asset(-distributed_balance_object.balance_at_last_maintenance_interval, 
                                        distributed_balance_object.dividend_payout_asset_type));
                ++distributed_balance_object_iter;
-               db.remove(distributed_balance_object); // now they've been paid out, reset to zero
+               db.modify(distributed_balance_object, [&]( distributed_dividend_balance_object& obj ){
+                  obj.balance_at_last_maintenance_interval = 0; // now they've been paid out, reset to zero
+               });
             }
 
             // now schedule the next payout time
