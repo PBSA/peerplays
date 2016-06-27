@@ -35,6 +35,7 @@
 #include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/withdraw_permission_object.hpp>
 #include <graphene/chain/witness_object.hpp>
+#include <graphene/account_history/account_history_plugin.hpp>
 
 #include <fc/crypto/digest.hpp>
 
@@ -1143,7 +1144,7 @@ BOOST_AUTO_TEST_CASE( create_dividend_uia )
          asset_update_dividend_operation op;
          op.issuer = dividend_holder_asset_object.issuer;
          op.asset_to_update = dividend_holder_asset_object.id;
-         op.new_options.next_payout_time = fc::time_point::now() + fc::minutes(1);
+         op.new_options.next_payout_time = db.head_block_time() + fc::minutes(1);
          op.new_options.payout_interval = 60 * 60 * 24 * 7; // one week
 
          trx.operations.push_back(op);
@@ -1286,10 +1287,16 @@ BOOST_AUTO_TEST_CASE( create_dividend_uia )
          generate_blocks(next_payout_scheduled_time);
          // if the scheduled time fell on a maintenance interval, then we should have paid out.
          // if not, we need to advance to the next maintenance interval to trigger the payout
-         BOOST_REQUIRE(dividend_data.options.next_payout_time);
-         if (*dividend_data.options.next_payout_time == next_payout_scheduled_time)
-            generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
-         generate_block();   // get the maintenance skip slots out of the way
+         if (dividend_data.options.next_payout_time)
+         {
+            // we know there was a next_payout_time set when we entered this, so if
+            // it has been cleared, we must have already processed payouts, no need to
+            // further advance time.
+            BOOST_REQUIRE(dividend_data.options.next_payout_time);
+            if (*dividend_data.options.next_payout_time == next_payout_scheduled_time)
+               generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+            generate_block();   // get the maintenance skip slots out of the way
+         }
       };
 
       fc::time_point_sec old_next_payout_scheduled_time = *dividend_data.options.next_payout_time;
@@ -1302,12 +1309,31 @@ BOOST_AUTO_TEST_CASE( create_dividend_uia )
       BOOST_CHECK_MESSAGE(old_next_payout_scheduled_time + *dividend_data.options.payout_interval == *dividend_data.options.next_payout_time,
                              "New payout was not scheduled for the expected time");
 
+      auto verify_dividend_payout_operations = [&](const account_object& destination_account, const asset& expected_payout)
+      {
+         BOOST_TEST_MESSAGE("Verifying the virtual op was created");
+         const account_transaction_history_index& hist_idx = db.get_index_type<account_transaction_history_index>();
+         auto account_history_range = hist_idx.indices().get<by_seq>().equal_range(boost::make_tuple(destination_account.id));
+         BOOST_REQUIRE(account_history_range.first != account_history_range.second);
+         const operation_history_object& history_object = std::prev(account_history_range.second)->operation_id(db);
+         const asset_dividend_distribution_operation& distribution_operation = history_object.op.get<asset_dividend_distribution_operation>();
+         BOOST_CHECK(distribution_operation.account_id == destination_account.id);
+         BOOST_CHECK(distribution_operation.amounts.find(expected_payout) != distribution_operation.amounts.end());
+      };
+
+      BOOST_TEST_MESSAGE("Verifying the payouts");
       BOOST_CHECK_EQUAL(get_balance(alice, test_asset_object), 20000);
+      verify_dividend_payout_operations(alice, asset(20000, test_asset_object.id));
       verify_pending_balance(alice, test_asset_object, 0);
+      
       BOOST_CHECK_EQUAL(get_balance(bob, test_asset_object), 20000);
+      verify_dividend_payout_operations(bob, asset(20000, test_asset_object.id));
       verify_pending_balance(bob, test_asset_object, 0);
+      
       BOOST_CHECK_EQUAL(get_balance(carol, test_asset_object), 30000);
+      verify_dividend_payout_operations(carol, asset(30000, test_asset_object.id));
       verify_pending_balance(carol, test_asset_object, 0);
+
 
 
       BOOST_TEST_MESSAGE("Removing the payout interval");

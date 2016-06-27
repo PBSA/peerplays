@@ -261,6 +261,43 @@ namespace graphene { namespace chain {
    };
 
    /**
+    * Virtual op generated when a dividend asset pays out dividends
+    */
+   struct asset_dividend_distribution_operation : public base_operation
+   {
+      asset_dividend_distribution_operation() {}
+      asset_dividend_distribution_operation(const asset_id_type& dividend_asset_id,
+                                            const account_id_type& account_id,
+                                            const flat_set<asset>& amounts) :
+         dividend_asset_id(dividend_asset_id),
+         account_id(account_id),
+         amounts(amounts)
+      {}
+      struct fee_parameters_type { };
+
+      asset           fee;
+
+      /// The dividend-paying asset which triggered this payout
+      asset_id_type   dividend_asset_id;
+
+      /// The user account receiving the dividends
+      account_id_type account_id;
+
+      /// The amounts received
+      flat_set<asset> amounts;
+
+      extensions_type extensions;
+
+      account_id_type fee_payer()const { return account_id; }
+      void            validate()const {
+         FC_ASSERT( false, "virtual operation" );
+      }
+
+      share_type calculate_fee(const fee_parameters_type& params)const
+      { return 0; }
+   };
+
+   /**
     * @ingroup operations
     */
    struct asset_fund_fee_pool_operation : public base_operation
@@ -545,7 +582,7 @@ FC_REFLECT( graphene::chain::asset_update_feed_producers_operation::fee_paramete
 FC_REFLECT( graphene::chain::asset_publish_feed_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::asset_issue_operation::fee_parameters_type, (fee)(price_per_kbyte) )
 FC_REFLECT( graphene::chain::asset_reserve_operation::fee_parameters_type, (fee) )
-
+FC_REFLECT( graphene::chain::asset_dividend_distribution_operation::fee_parameters_type, )
 
 FC_REFLECT( graphene::chain::asset_create_operation,
             (fee)
@@ -593,3 +630,4 @@ FC_REFLECT( graphene::chain::asset_reserve_operation,
             (fee)(payer)(amount_to_reserve)(extensions) )
 
 FC_REFLECT( graphene::chain::asset_fund_fee_pool_operation, (fee)(from_account)(asset_id)(amount)(extensions) );
+FC_REFLECT( graphene::chain::asset_dividend_distribution_operation, (fee)(dividend_asset_id)(account_id)(amounts)(extensions) );
