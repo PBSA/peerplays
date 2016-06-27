@@ -109,7 +109,8 @@ namespace graphene { namespace chain {
             bet_matched_operation, // VIRTUAL
             bet_cancel_operation,
             bet_canceled_operation, // VIRTUAL
-            asset_update_dividend_operation
+            asset_update_dividend_operation,
+            asset_dividend_distribution_operation // VIRTUAL
          > operation;
 
    /// @} // operations group

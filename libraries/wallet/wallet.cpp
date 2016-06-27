@@ -33,6 +33,7 @@
 #include <boost/version.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/algorithm/string/join.hpp>
 
 #include <boost/range/adaptor/map.hpp>
 #include <boost/range/algorithm_ext/erase.hpp>
@@ -123,6 +124,7 @@ public:
    std::string operator()(const account_create_operation& op)const;
    std::string operator()(const account_update_operation& op)const;
    std::string operator()(const asset_create_operation& op)const;
+   std::string operator()(const asset_dividend_distribution_operation& op)const;
 };
 
 template<class T>
@@ -2656,9 +2658,7 @@ std::string operation_printer::operator()(const T& op)const
    operation_result_printer rprinter(wallet);
    std::string str_result = result.visit(rprinter);
    if( str_result != "" )
-   {
       out << "   result: " << str_result;
-   }
    return "";
 }
 std::string operation_printer::operator()(const transfer_from_blind_operation& op)const
@@ -2736,6 +2736,22 @@ std::string operation_printer::operator()(const asset_create_operation& op) cons
       out << "User-Issue Asset ";
    out << "'" << op.symbol << "' with issuer " << wallet.get_account(op.issuer).name;
    return fee(op.fee);
+}
+
+std::string operation_printer::operator()(const asset_dividend_distribution_operation& op)const
+{
+   asset_object dividend_paying_asset = wallet.get_asset(op.dividend_asset_id);
+   account_object receiver = wallet.get_account(op.account_id);
+
+   out << receiver.name << " received dividend payments for " << dividend_paying_asset.symbol << ": ";
+   std::vector<std::string> pretty_payout_amounts;
+   for (const asset& payment : op.amounts)
+   {
+      asset_object payout_asset = wallet.get_asset(payment.asset);
+      pretty_payout_amounts.push_back(payout_asset.amount_to_pretty_string(payout_asset.amount));
+   }
+   out << boost::algorithm::join(pretty_payout_amounts, ", ");
+   return "";
 }
 
 std::string operation_result_printer::operator()(const void_result& x) const

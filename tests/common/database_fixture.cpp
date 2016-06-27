@@ -1069,13 +1069,9 @@ int64_t database_fixture::get_dividend_pending_payout_balance(asset_id_type divi
 {
    const pending_dividend_payout_balance_object_index& pending_payout_balance_index = 
      db.get_index_type<pending_dividend_payout_balance_object_index>();
-   dlog("searching ${a}", ("a", dividend_holder_asset_type(db).symbol));
-   dlog("searching ${b}", ("b", dividend_payout_asset_type(db).symbol));
-   dlog("searching ${c}", ("c", dividend_holder_account_id(db).name));
-   dlog("searching ${a} ${b} ${c}", ("a", dividend_holder_asset_type(db).symbol)("b", dividend_payout_asset_type(db).symbol)("c", dividend_holder_account_id(db).name));
    auto pending_payout_iter = 
-      pending_payout_balance_index.indices().get<by_dividend_asset_account_asset>().find(boost::make_tuple(dividend_holder_asset_type, dividend_payout_asset_type, dividend_holder_account_id));
-   if (pending_payout_iter == pending_payout_balance_index.indices().get<by_dividend_asset_account_asset>().end())
+      pending_payout_balance_index.indices().get<by_dividend_payout_account>().find(boost::make_tuple(dividend_holder_asset_type, dividend_payout_asset_type, dividend_holder_account_id));
+   if (pending_payout_iter == pending_payout_balance_index.indices().get<by_dividend_payout_account>().end())
      return 0;
    else
      return pending_payout_iter->pending_balance.value;

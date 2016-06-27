@@ -799,8 +799,8 @@ void schedule_pending_dividend_balances(database& db,
 
                dlog("Crediting account ${account} with ${amount}", ("account", holder_balance_object.owner(db).name)("amount", amount_to_credit));
                auto pending_payout_iter = 
-                  pending_payout_balance_index.indices().get<by_dividend_asset_account_asset>().find(boost::make_tuple(dividend_holder_asset_obj.id, payout_asset_type, holder_balance_object.owner));
-               if (pending_payout_iter == pending_payout_balance_index.indices().get<by_dividend_asset_account_asset>().end())
+                  pending_payout_balance_index.indices().get<by_dividend_payout_account>().find(boost::make_tuple(dividend_holder_asset_obj.id, payout_asset_type, holder_balance_object.owner));
+               if (pending_payout_iter == pending_payout_balance_index.indices().get<by_dividend_payout_account>().end())
                   db.create<pending_dividend_payout_balance_object>( [&]( pending_dividend_payout_balance_object& obj ){
                      obj.owner = holder_balance_object.owner;
                      obj.dividend_holder_asset_type = dividend_holder_asset_obj.id;
@@ -839,7 +839,7 @@ void schedule_pending_dividend_balances(database& db,
          // Reduce all pending payouts proportionally
          share_type total_pending_balances;
          auto pending_payouts_range = 
-            pending_payout_balance_index.indices().get<by_dividend_asset_account_asset>().equal_range(boost::make_tuple(dividend_holder_asset_obj.id, payout_asset_type));
+            pending_payout_balance_index.indices().get<by_dividend_payout_account>().equal_range(boost::make_tuple(dividend_holder_asset_obj.id, payout_asset_type));
 
          for (const pending_dividend_payout_balance_object& pending_balance_object : boost::make_iterator_range(pending_payouts_range.first, pending_payouts_range.second))
             total_pending_balances += pending_balance_object.pending_balance;
@@ -927,11 +927,28 @@ void process_dividend_assets(database& db)
             // for debugging, sum up our payouts here
             std::map<asset_id_type, share_type> amounts_paid_out_by_asset;
 #endif
+
             auto pending_payouts_range = 
-               pending_payout_balance_index.indices().get<by_dividend_asset_account_asset>().equal_range(boost::make_tuple(dividend_holder_asset_obj.id));
+               pending_payout_balance_index.indices().get<by_dividend_account_payout>().equal_range(boost::make_tuple(dividend_holder_asset_obj.id));
+            // the pending_payouts_range is all payouts for this dividend asset, sorted by the holder's account
+            // we iterate in this order so we can build up a list of payouts for each account to put in the 
+            // virtual op
+            flat_set<asset> payouts_for_this_holder;
+            fc::optional<account_id_type> last_holder_account_id;
             for (auto pending_balance_object_iter = pending_payouts_range.first; pending_balance_object_iter != pending_payouts_range.second; )
             {
                const pending_dividend_payout_balance_object& pending_balance_object = *pending_balance_object_iter;
+
+               if (last_holder_account_id && *last_holder_account_id != pending_balance_object.owner)
+               {
+                  // we've moved on to a new account, generate the dividend payment virtual op for the previous one
+                  db.push_applied_operation(asset_dividend_distribution_operation(dividend_holder_asset_obj.id, 
+                                                                                  *last_holder_account_id, 
+                                                                                  payouts_for_this_holder));
+                  ilog("Just pushed virtual op for payout to ${account}", ("account", (*last_holder_account_id)(db).name));
+                  payouts_for_this_holder.clear();
+               }
+
                ilog("Processing payout of ${asset} to account ${account}", 
                     ("asset", asset(pending_balance_object.pending_balance, pending_balance_object.dividend_payout_asset_type))
                     ("account", pending_balance_object.owner(db).name));
@@ -939,12 +956,24 @@ void process_dividend_assets(database& db)
                db.adjust_balance(pending_balance_object.owner, 
                                  asset(pending_balance_object.pending_balance, 
                                        pending_balance_object.dividend_payout_asset_type));
+               payouts_for_this_holder.insert(asset(pending_balance_object.pending_balance, 
+                                                    pending_balance_object.dividend_payout_asset_type));
+               last_holder_account_id = pending_balance_object.owner;
 #ifndef NDEBUG
                amounts_paid_out_by_asset[pending_balance_object.dividend_payout_asset_type] += pending_balance_object.pending_balance;
 #endif
 
                ++pending_balance_object_iter;
                db.remove(pending_balance_object);
+            }
+            // we will always be left with the last holder's data, generate the virtual op for it now.
+            if (last_holder_account_id)
+            {
+               // we've moved on to a new account, generate the dividend payment virtual op for the previous one
+               db.push_applied_operation(asset_dividend_distribution_operation(dividend_holder_asset_obj.id, 
+                                                                               *last_holder_account_id, 
+                                                                               payouts_for_this_holder));
+               ilog("Just pushed virtual op for payout to ${account}", ("account", (*last_holder_account_id)(db).name));
             }
 
             // now debit the total amount of dividends paid out from the distribution account
