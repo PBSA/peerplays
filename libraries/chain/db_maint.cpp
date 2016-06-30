@@ -30,6 +30,7 @@
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/fba_accumulator_id.hpp>
 #include <graphene/chain/hardfork.hpp>
+#include <graphene/chain/is_authorized_asset.hpp>
 
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/asset_object.hpp>
@@ -716,6 +717,10 @@ void deprecate_annual_members( database& db )
    return;
 }
 
+// Schedules payouts from a dividend distribution account to the current holders of the
+// dividend-paying asset.  This takes any deposits made to the dividend distribution account
+// since the last time it was called, and distributes them to the current owners of the
+// dividend-paying asset according to the amount they own.
 void schedule_pending_dividend_balances(database& db, 
                                         const asset_object& dividend_holder_asset_obj,
                                         const asset_dividend_data_object& dividend_data,
@@ -723,7 +728,8 @@ void schedule_pending_dividend_balances(database& db,
                                         const distributed_dividend_balance_object_index& distributed_dividend_balance_index,
                                         const pending_dividend_payout_balance_object_index& pending_payout_balance_index)
 {
-   dlog("Processing dividend payments for dividend holder asset asset type ${holder_asset}", ("holder_asset", dividend_holder_asset_obj.symbol));
+   dlog("Processing dividend payments for dividend holder asset asset type ${holder_asset} at time ${t}", 
+        ("holder_asset", dividend_holder_asset_obj.symbol)("t", db.head_block_time()));
    auto current_distribution_account_balance_range = 
       balance_index.indices().get<by_account_asset>().equal_range(boost::make_tuple(dividend_data.dividend_distribution_account));
    auto previous_distribution_account_balance_range = 
@@ -786,7 +792,8 @@ void schedule_pending_dividend_balances(database& db,
          share_type remaining_balance_of_dividend_asset = total_balance_of_dividend_asset;
 
          for (const account_balance_object& holder_balance_object : boost::make_iterator_range(holder_account_balance_range.first, holder_account_balance_range.second))
-            if (holder_balance_object.owner != dividend_data.dividend_distribution_account)
+            if (holder_balance_object.owner != dividend_data.dividend_distribution_account &&
+                holder_balance_object.balance.value)
             {
                // TODO: if holder_balance_object.owner is able to accept payout_asset_type
                fc::uint128_t amount_to_credit(remaining_amount_to_distribute.value);
@@ -902,6 +909,8 @@ void process_dividend_assets(database& db)
       if (dividend_holder_asset_obj.dividend_data_id)
       {
          const asset_dividend_data_object& dividend_data = dividend_holder_asset_obj.dividend_data(db);
+         const account_object& dividend_distribution_account_object = dividend_data.dividend_distribution_account(db);
+
          schedule_pending_dividend_balances(db, dividend_holder_asset_obj, dividend_data,
                                             balance_index, distributed_dividend_balance_index, pending_payout_balance_index);
          fc::time_point_sec current_head_block_time = db.head_block_time();
@@ -923,10 +932,7 @@ void process_dividend_assets(database& db)
             // and use this map to keep track of the total amount of each asset paid out.
             // Afterwards, we decrease the distribution account's balance by the total amount paid out, 
             // and modify the distributed_balances accordingly
-#ifndef NDEBUG
-            // for debugging, sum up our payouts here
             std::map<asset_id_type, share_type> amounts_paid_out_by_asset;
-#endif
 
             auto pending_payouts_range = 
                pending_payout_balance_index.indices().get<by_dividend_account_payout>().equal_range(boost::make_tuple(dividend_holder_asset_obj.id));
@@ -935,6 +941,20 @@ void process_dividend_assets(database& db)
             // virtual op
             flat_set<asset> payouts_for_this_holder;
             fc::optional<account_id_type> last_holder_account_id;
+
+            // cache the assets the distribution account is approved to send, we will be asking
+            // for these often
+            flat_map<asset_id_type, bool> approved_assets; // assets that the dividend distribution account is authorized to send/receive
+            auto is_asset_approved_for_distribution_account = [&](const asset_id_type& asset_id) {
+               auto approved_assets_iter = approved_assets.find(asset_id);
+               if (approved_assets_iter != approved_assets.end())
+                  return approved_assets_iter->second;
+               bool is_approved = is_authorized_asset(db, dividend_distribution_account_object, 
+                                                      asset_id(db));
+               approved_assets[asset_id] = is_approved;
+               return is_approved;
+            };
+
             for (auto pending_balance_object_iter = pending_payouts_range.first; pending_balance_object_iter != pending_payouts_range.second; )
             {
                const pending_dividend_payout_balance_object& pending_balance_object = *pending_balance_object_iter;
@@ -947,26 +967,31 @@ void process_dividend_assets(database& db)
                                                                                   payouts_for_this_holder));
                   ilog("Just pushed virtual op for payout to ${account}", ("account", (*last_holder_account_id)(db).name));
                   payouts_for_this_holder.clear();
+                  last_holder_account_id.reset();
                }
 
-               ilog("Processing payout of ${asset} to account ${account}", 
-                    ("asset", asset(pending_balance_object.pending_balance, pending_balance_object.dividend_payout_asset_type))
-                    ("account", pending_balance_object.owner(db).name));
 
-               db.adjust_balance(pending_balance_object.owner, 
-                                 asset(pending_balance_object.pending_balance, 
-                                       pending_balance_object.dividend_payout_asset_type));
-               payouts_for_this_holder.insert(asset(pending_balance_object.pending_balance, 
-                                                    pending_balance_object.dividend_payout_asset_type));
-               last_holder_account_id = pending_balance_object.owner;
-#ifndef NDEBUG
-               amounts_paid_out_by_asset[pending_balance_object.dividend_payout_asset_type] += pending_balance_object.pending_balance;
-#endif
+               if (is_authorized_asset(db, pending_balance_object.owner(db), pending_balance_object.dividend_payout_asset_type(db)) &&
+                   is_asset_approved_for_distribution_account(pending_balance_object.dividend_payout_asset_type))
+               {
+                  ilog("Processing payout of ${asset} to account ${account}", 
+                       ("asset", asset(pending_balance_object.pending_balance, pending_balance_object.dividend_payout_asset_type))
+                       ("account", pending_balance_object.owner(db).name));
+
+                  db.adjust_balance(pending_balance_object.owner, 
+                                    asset(pending_balance_object.pending_balance, 
+                                          pending_balance_object.dividend_payout_asset_type));
+                  payouts_for_this_holder.insert(asset(pending_balance_object.pending_balance, 
+                                                       pending_balance_object.dividend_payout_asset_type));
+                  last_holder_account_id = pending_balance_object.owner;
+                  amounts_paid_out_by_asset[pending_balance_object.dividend_payout_asset_type] += pending_balance_object.pending_balance;
+
+                  db.modify(pending_balance_object, [&]( pending_dividend_payout_balance_object& pending_balance ){
+                     pending_balance.pending_balance = 0;
+                  });
+               }
 
                ++pending_balance_object_iter;
-               db.modify(pending_balance_object, [&]( pending_dividend_payout_balance_object& pending_balance ){
-                  pending_balance.pending_balance = 0;
-               });
             }
             // we will always be left with the last holder's data, generate the virtual op for it now.
             if (last_holder_account_id)
@@ -979,34 +1004,25 @@ void process_dividend_assets(database& db)
             }
 
             // now debit the total amount of dividends paid out from the distribution account
-            auto distributed_balance_range = 
-               distributed_dividend_balance_index.indices().get<by_dividend_payout_asset>().equal_range(boost::make_tuple(dividend_holder_asset_obj.id));
+            // and reduce the distributed_balances accordingly
 
-#ifndef NDEBUG
-            // validate that we actually  paid out exactly as much as we had planned to
-            assert(amounts_paid_out_by_asset.size() == std::distance(distributed_balance_range.first, distributed_balance_range.second));
-            if (amounts_paid_out_by_asset.size() == std::distance(distributed_balance_range.first, distributed_balance_range.second))
+            for (const auto& value : amounts_paid_out_by_asset)
             {
-               auto distributed_balance_object_iter = distributed_balance_range.first;
-               for (const auto& asset_and_amount_paid_out : amounts_paid_out_by_asset)
-               {
-                  assert(distributed_balance_object_iter->dividend_payout_asset_type == asset_and_amount_paid_out.first);
-                  assert(distributed_balance_object_iter->balance_at_last_maintenance_interval == asset_and_amount_paid_out.second);
-                  ++distributed_balance_object_iter;
-               }
-            }
-#endif
+               const asset_id_type& asset_paid_out = value.first;
+               const share_type& amount_paid_out = value.second;
 
-            for (auto distributed_balance_object_iter = distributed_balance_range.first; distributed_balance_object_iter != distributed_balance_range.second; )
-            {
-               const distributed_dividend_balance_object& distributed_balance_object = *distributed_balance_object_iter;
                db.adjust_balance(dividend_data.dividend_distribution_account, 
-                                 asset(-distributed_balance_object.balance_at_last_maintenance_interval, 
-                                       distributed_balance_object.dividend_payout_asset_type));
-               ++distributed_balance_object_iter;
-               db.modify(distributed_balance_object, [&]( distributed_dividend_balance_object& obj ){
-                  obj.balance_at_last_maintenance_interval = 0; // now they've been paid out, reset to zero
-               });
+                                 asset(-amount_paid_out,
+                                       asset_paid_out));
+               auto distributed_balance_iter = 
+                  distributed_dividend_balance_index.indices().get<by_dividend_payout_asset>().find(boost::make_tuple(dividend_holder_asset_obj.id, 
+                                                                                                                      asset_paid_out));
+               assert(distributed_balance_iter != distributed_dividend_balance_index.indices().get<by_dividend_payout_asset>().end());
+               if (distributed_balance_iter != distributed_dividend_balance_index.indices().get<by_dividend_payout_asset>().end())
+                  db.modify(*distributed_balance_iter, [&]( distributed_dividend_balance_object& obj ){
+                     obj.balance_at_last_maintenance_interval -= amount_paid_out; // now they've been paid out, reset to zero
+                  });
+
             }
 
             // now schedule the next payout time

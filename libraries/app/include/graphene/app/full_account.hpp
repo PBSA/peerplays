@@ -44,6 +44,7 @@ namespace graphene { namespace app {
       vector<limit_order_object>       limit_orders;
       vector<call_order_object>        call_orders;
       vector<proposal_object>          proposals;
+      vector<pending_dividend_payout_balance_object> pending_dividend_payments;
    };
 
 } }
@@ -61,4 +62,5 @@ FC_REFLECT( graphene::app::full_account,
             (limit_orders)
             (call_orders)
             (proposals) 
+            (pending_dividend_payments)
           )
