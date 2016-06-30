@@ -2730,8 +2730,8 @@ std::string operation_printer::operator()(const asset_dividend_distribution_oper
    std::vector<std::string> pretty_payout_amounts;
    for (const asset& payment : op.amounts)
    {
-      asset_object payout_asset = wallet.get_asset(payment.asset);
-      pretty_payout_amounts.push_back(payout_asset.amount_to_pretty_string(payout_asset.amount));
+      asset_object payout_asset = wallet.get_asset(payment.asset_id);
+      pretty_payout_amounts.push_back(payout_asset.amount_to_pretty_string(payment));
    }
    out << boost::algorithm::join(pretty_payout_amounts, ", ");
    return "";
