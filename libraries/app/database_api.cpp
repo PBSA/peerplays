@@ -24,6 +24,7 @@
 
 #include <graphene/app/database_api.hpp>
 #include <graphene/chain/get_config.hpp>
+#include <graphene/chain/account_object.hpp>
 
 #include <fc/bloom_filter.hpp>
 #include <fc/smart_ref_impl.hpp>
@@ -719,6 +720,10 @@ std::map<std::string, full_account> database_api_impl::get_full_accounts( const 
                        acnt.withdraws.emplace_back(withdraw);
                     });
 
+      auto pending_payouts_range = 
+         _db.get_index_type<pending_dividend_payout_balance_object_index>().indices().get<by_account_dividend_payout>().equal_range(boost::make_tuple(account->id));
+
+      std::copy(pending_payouts_range.first, pending_payouts_range.second, std::back_inserter(acnt.pending_dividend_payments));
 
       results[account_name_or_id] = acnt;
    }

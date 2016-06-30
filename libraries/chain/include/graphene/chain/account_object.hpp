@@ -392,8 +392,9 @@ namespace graphene { namespace chain {
     */
    typedef generic_index<account_object, account_multi_index_type> account_index;
 
-   struct by_dividend_payout_account{};
-   struct by_dividend_account_payout{};
+   struct by_dividend_payout_account{}; // use when calculating pending payouts
+   struct by_dividend_account_payout{}; // use when doing actual payouts
+   struct by_account_dividend_payout{}; // use in get_full_accounts()
 
    /**
     * @ingroup object_index
@@ -415,6 +416,14 @@ namespace graphene { namespace chain {
                pending_dividend_payout_balance_object,
                member<pending_dividend_payout_balance_object, asset_id_type, &pending_dividend_payout_balance_object::dividend_holder_asset_type>,
                member<pending_dividend_payout_balance_object, account_id_type, &pending_dividend_payout_balance_object::owner>,
+               member<pending_dividend_payout_balance_object, asset_id_type, &pending_dividend_payout_balance_object::dividend_payout_asset_type>
+            >
+         >,
+         ordered_unique< tag<by_account_dividend_payout>,
+            composite_key<
+               pending_dividend_payout_balance_object,
+               member<pending_dividend_payout_balance_object, account_id_type, &pending_dividend_payout_balance_object::owner>,
+               member<pending_dividend_payout_balance_object, asset_id_type, &pending_dividend_payout_balance_object::dividend_holder_asset_type>,
                member<pending_dividend_payout_balance_object, asset_id_type, &pending_dividend_payout_balance_object::dividend_payout_asset_type>
             >
          >
