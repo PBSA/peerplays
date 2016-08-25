@@ -411,6 +411,11 @@ void_result asset_update_dividend_evaluator::do_apply( const asset_update_divide
       const asset_dividend_data_object& dividend_data = asset_to_update->dividend_data(d);
       d.modify(dividend_data,  [&]( asset_dividend_data_object& dividend_data_obj ) {
             dividend_data_obj.options = op.new_options;
+            // whenever new options are set, clear out the scheduled payout/distribution times
+            // this will reset and cause the next distribution to happen at the next maintenance
+            // interval and a payout at the next_payout_time
+            dividend_data_obj.last_scheduled_payout_time.reset();
+            dividend_data_obj.last_scheduled_distribution_time.reset();
       });
    }
    return void_result();

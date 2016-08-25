@@ -1162,6 +1162,18 @@ BOOST_AUTO_TEST_CASE( create_dividend_uia )
       }
       generate_block();
 
+      BOOST_TEST_MESSAGE("Funding asset fee pool");
+      {
+         asset_fund_fee_pool_operation fund_op;
+         fund_op.from_account = account_id_type();
+         fund_op.asset_id = get_asset("TEST").id;
+         fund_op.amount = 500000000;
+         trx.operations.push_back(std::move(fund_op));
+         set_expiration(db, trx);
+         PUSH_TX( db, trx, ~0 );
+         trx.operations.clear();
+      }
+
       // our DIVIDEND asset should not yet be a divdend asset
       const auto& dividend_holder_asset_object = get_asset("DIVIDEND");
       BOOST_CHECK(!dividend_holder_asset_object.dividend_data_id);
@@ -1192,6 +1204,12 @@ BOOST_AUTO_TEST_CASE( create_dividend_uia )
       const account_object& dividend_distribution_account = dividend_data.dividend_distribution_account(db);
       BOOST_CHECK_EQUAL(dividend_distribution_account.name, "dividend-dividend-distribution");
 
+      // db.modify( db.get_global_properties(), [&]( global_property_object& _gpo )
+      // {
+      //    _gpo.parameters.current_fees->get<asset_dividend_distribution_operation>().distribution_base_fee = 100;
+      //    _gpo.parameters.current_fees->get<asset_dividend_distribution_operation>().distribution_fee_per_holder = 100;
+      // } );
+
 
    } catch(fc::exception& e) {
       edump((e.to_detail_string()));
@@ -1207,6 +1225,26 @@ BOOST_AUTO_TEST_CASE( test_update_dividend_interval )
 
       const auto& dividend_holder_asset_object = get_asset("DIVIDEND");
       const auto& dividend_data = dividend_holder_asset_object.dividend_data(db);
+
+      auto advance_to_next_payout_time = [&]() {
+         // Advance to the next upcoming payout time
+         BOOST_REQUIRE(dividend_data.options.next_payout_time);
+         fc::time_point_sec next_payout_scheduled_time = *dividend_data.options.next_payout_time;
+         // generate blocks up to the next scheduled time
+         generate_blocks(next_payout_scheduled_time);
+         // if the scheduled time fell on a maintenance interval, then we should have paid out.
+         // if not, we need to advance to the next maintenance interval to trigger the payout
+         if (dividend_data.options.next_payout_time)
+         {
+            // we know there was a next_payout_time set when we entered this, so if
+            // it has been cleared, we must have already processed payouts, no need to
+            // further advance time.
+            BOOST_REQUIRE(dividend_data.options.next_payout_time);
+            if (*dividend_data.options.next_payout_time == next_payout_scheduled_time)
+               generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+            generate_block();   // get the maintenance skip slots out of the way
+         }
+      };
 
       BOOST_TEST_MESSAGE("Updating the payout interval");
       {
@@ -1227,6 +1265,23 @@ BOOST_AUTO_TEST_CASE( test_update_dividend_interval )
          BOOST_REQUIRE(dividend_data.options.payout_interval);
          BOOST_CHECK_EQUAL(*dividend_data.options.payout_interval, 60 * 60 * 24);
       }
+
+      BOOST_TEST_MESSAGE("Removing the payout interval");
+      {
+         asset_update_dividend_operation op;
+         op.issuer = dividend_holder_asset_object.issuer;
+         op.asset_to_update = dividend_holder_asset_object.id;
+         op.new_options.next_payout_time = dividend_data.options.next_payout_time;
+         op.new_options.payout_interval = fc::optional<uint32_t>();
+         trx.operations.push_back(op);
+         set_expiration(db, trx);
+         PUSH_TX( db, trx, ~0 );
+         trx.operations.clear();
+      }
+      generate_block();
+      BOOST_CHECK(!dividend_data.options.payout_interval);
+      advance_to_next_payout_time();
+      BOOST_REQUIRE_MESSAGE(!dividend_data.options.next_payout_time, "A new payout was scheduled, but none should have been");
    } catch(fc::exception& e) {
       edump((e.to_detail_string()));
       throw;
@@ -1365,6 +1420,28 @@ BOOST_AUTO_TEST_CASE( test_basic_dividend_distribution )
       throw;
    }
 }
+BOOST_AUTO_TEST_CASE( test_dividend_distribution_interval )
+{
+   using namespace graphene;
+   try {
+      INVOKE( create_dividend_uia );
+
+      const auto& dividend_holder_asset_object = get_asset("DIVIDEND");
+      const auto& dividend_data = dividend_holder_asset_object.dividend_data(db);
+      const account_object& dividend_distribution_account = dividend_data.dividend_distribution_account(db);
+      const account_object& alice = get_account("alice");
+      const account_object& bob = get_account("bob");
+      const account_object& carol = get_account("carol");
+      const account_object& dave = get_account("dave");
+      const account_object& frank = get_account("frank");
+      const auto& test_asset_object = get_asset("TEST");
+   } catch(fc::exception& e) {
+      edump((e.to_detail_string()));
+      throw;
+   }
+}
+
+
 BOOST_AUTO_TEST_CASE( check_dividend_corner_cases )
 {
    using namespace graphene;
@@ -1463,26 +1540,24 @@ BOOST_AUTO_TEST_CASE( check_dividend_corner_cases )
       BOOST_TEST_MESSAGE("Generating blocks until next maintenance interval");
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       generate_block();   // get the maintenance skip slots out of the way
-      BOOST_TEST_MESSAGE("Verify that no pending payments were scheduled");
+      BOOST_TEST_MESSAGE("Verify that no alice received her payment of the entire amount");
       verify_pending_balance(alice, test_asset_object, 1000);
 
-      BOOST_TEST_MESSAGE("Removing the payout interval");
-      {
-         asset_update_dividend_operation op;
-         op.issuer = dividend_holder_asset_object.issuer;
-         op.asset_to_update = dividend_holder_asset_object.id;
-         op.new_options.next_payout_time = dividend_data.options.next_payout_time;
-         op.new_options.payout_interval = fc::optional<uint32_t>();
-         trx.operations.push_back(op);
-         set_expiration(db, trx);
-         PUSH_TX( db, trx, ~0 );
-         trx.operations.clear();
-      }
+      // Test that we can pay out the dividend asset itself
+      issue_asset_to_account(dividend_holder_asset_object, bob, 1); 
+      issue_asset_to_account(dividend_holder_asset_object, carol, 1); 
+      issue_asset_to_account(dividend_holder_asset_object, dividend_distribution_account, 300); 
       generate_block();
-      BOOST_CHECK(!dividend_data.options.payout_interval);
-      advance_to_next_payout_time();
-      BOOST_REQUIRE_MESSAGE(!dividend_data.options.next_payout_time, "A new payout was scheduled, but none should have been");
-
+      BOOST_CHECK_EQUAL(get_balance(alice, dividend_holder_asset_object), 1);
+      BOOST_CHECK_EQUAL(get_balance(bob, dividend_holder_asset_object), 1);
+      BOOST_CHECK_EQUAL(get_balance(carol, dividend_holder_asset_object), 1);
+      BOOST_TEST_MESSAGE("Generating blocks until next maintenance interval");
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      generate_block();   // get the maintenance skip slots out of the way
+      BOOST_TEST_MESSAGE("Verify that the dividend asset was shared out");
+      verify_pending_balance(alice, dividend_holder_asset_object, 100);
+      verify_pending_balance(bob, dividend_holder_asset_object, 100);
+      verify_pending_balance(carol, dividend_holder_asset_object, 100);
    } catch(fc::exception& e) {
       edump((e.to_detail_string()));
       throw;
