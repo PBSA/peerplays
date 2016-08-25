@@ -128,6 +128,29 @@ namespace graphene { namespace chain {
       /// If payout_interval is not set, the next payout (if any) will be the last until
       /// the options are updated again.
       fc::optional<uint32_t> payout_interval;
+      /// Each dividend distribution incurs a fee that is based on the number of accounts
+      /// that hold the dividend asset, not as a percentage of the amount paid out. 
+      /// This parameter prevents assets from being distributed unless the fee is less than
+      /// the percentage here, to prevent a slow trickle of deposits to the account from being
+      /// completely consumed.
+      /// In other words, if you set this parameter to 10% and the fees work out to 100 BTS
+      /// to share out, balances in the dividend distribution accounts will not be shared out
+      /// if the balance is less than 10000 BTS.  
+      uint64_t minimum_fee_percentage;
+
+      /// Normally, pending dividend payments are calculated each maintenance interval in
+      /// which there are balances in the dividend distribution account.  At present, this
+      /// is once per hour on the BitShares blockchain.  If this is too often (too expensive
+      /// in fees or to computationally-intensive for the blockchain) this can be increased.
+      /// If you set this to, for example, one day, distributions will take place on even
+      /// multiples of one day, allowing deposits to the distribution account to accumulate
+      /// for 23 maintenance intervals and then computing the pending payouts on the 24th.
+      ///
+      /// Payouts will always occur at the next payout time whether or not it falls on a
+      /// multiple of the distribution interval, and the timer on the distribution interval
+      /// are reset at payout time.  So if you have the distribution interval at three days 
+      /// and the payout interval at one week, payouts will occur at days 3, 6, 7, 10, 13, 14...
+      fc::optional<uint32_t> minimum_distribution_interval;
 
       extensions_type extensions;
 
@@ -273,7 +296,23 @@ namespace graphene { namespace chain {
          account_id(account_id),
          amounts(amounts)
       {}
-      struct fee_parameters_type { };
+      struct fee_parameters_type {
+         /* note: this is a virtual op and there are no fees directly charged for it */
+
+         /* Whenever the system computes the pending dividend payments for an asset,
+          * it charges the distribution_base_fee + distribution_fee_per_holder.
+          * The computational cost of distributing the dividend payment is proportional
+          * to the number of dividend holders the asset is divided up among.
+          */
+         /** This fee is charged whenever the system schedules pending dividend
+          * payments.
+          */
+         uint64_t distribution_base_fee;
+         /** This fee is charged (in addition to the distribution_base_fee) for each 
+          * user the dividend payment is shared out amongst
+          */
+         uint32_t distribution_fee_per_holder;
+      };
 
       asset           fee;
 
@@ -582,7 +621,7 @@ FC_REFLECT( graphene::chain::asset_update_feed_producers_operation::fee_paramete
 FC_REFLECT( graphene::chain::asset_publish_feed_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::asset_issue_operation::fee_parameters_type, (fee)(price_per_kbyte) )
 FC_REFLECT( graphene::chain::asset_reserve_operation::fee_parameters_type, (fee) )
-FC_REFLECT( graphene::chain::asset_dividend_distribution_operation::fee_parameters_type, )
+FC_REFLECT( graphene::chain::asset_dividend_distribution_operation::fee_parameters_type, (distribution_base_fee)(distribution_fee_per_holder))
 
 FC_REFLECT( graphene::chain::asset_create_operation,
             (fee)

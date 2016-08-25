@@ -272,11 +272,23 @@ namespace graphene { namespace chain {
          dividend_asset_options options;
 
          /// The time payouts on this asset were scheduled to be processed last
+         /// This field is reset any time the dividend_asset_options are updated
          fc::optional<time_point_sec> last_scheduled_payout_time;
 
          /// The time payouts on this asset were last processed 
          /// (this should be the maintenance interval at or after last_scheduled_payout_time)
+         /// This can be displayed for the user
          fc::optional<time_point_sec> last_payout_time;
+
+         /// The time pending payouts on this asset were last computed, used for
+         /// correctly computing the next pending payout time.
+         /// This field is reset any time the dividend_asset_options are updated
+         fc::optional<time_point_sec> last_scheduled_distribution_time;
+
+         /// The time pending payouts on this asset were last computed.
+         /// (this should be the maintenance interval at or after last_scheduled_distribution_time)
+         /// This can be displayed for the user
+         fc::optional<time_point_sec> last_distribution_time;
 
          /// The account which collects pending payouts
          account_id_type dividend_distribution_account;

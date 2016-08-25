@@ -3269,6 +3269,14 @@ signed_transaction wallet_api::update_bitasset(string symbol,
    return my->update_bitasset(symbol, new_options, broadcast);
 }
 
+signed_transaction wallet_api::update_dividend_asset(string symbol,
+                                                     dividend_asset_options new_options,
+                                                     bool broadcast /* = false */)
+{
+   return my->update_dividend_asset(symbol, new_options, broadcast);
+}
+
+
 signed_transaction wallet_api::update_asset_feed_producers(string symbol,
                                                            flat_set<string> new_feed_producers,
                                                            bool broadcast /* = false */)

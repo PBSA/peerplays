@@ -1053,6 +1053,21 @@ class wallet_api
                                          bitasset_options new_options,
                                          bool broadcast = false);
 
+
+      /** Update the given asset's dividend asset options.
+       *
+       * If the asset is not already a dividend-paying asset, it will be converted into one.
+       *
+       * @param symbol the name or id of the asset to update, which must be a market-issued asset
+       * @param new_options the new dividend_asset_options object, which will entirely replace the existing
+       *                    options.
+       * @param broadcast true to broadcast the transaction on the network
+       * @returns the signed transaction updating the asset
+       */
+      signed_transaction update_dividend_asset(string symbol,
+                                               dividend_asset_options new_options,
+                                               bool broadcast = false);
+
       /** Update the set of feed-producing accounts for a BitAsset.
        *
        * BitAssets have price feeds selected by taking the median values of recommendations from a set of feed producers.
@@ -1697,6 +1712,7 @@ FC_API( graphene::wallet::wallet_api,
         (create_asset)
         (update_asset)
         (update_bitasset)
+        (update_dividend_asset)
         (update_asset_feed_producers)
         (publish_asset_feed)
         (issue_asset)
