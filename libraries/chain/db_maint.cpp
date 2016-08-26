@@ -726,8 +726,8 @@ void schedule_pending_dividend_balances(database& db,
                                         const asset_dividend_data_object& dividend_data,
                                         const fc::time_point_sec& current_head_block_time, 
                                         const account_balance_index& balance_index,
-                                        const distributed_dividend_balance_object_index& distributed_dividend_balance_index,
-                                        const pending_dividend_payout_balance_object_index& pending_payout_balance_index)
+                                        const total_distributed_dividend_balance_object_index& distributed_dividend_balance_index,
+                                        const pending_dividend_payout_balance_for_holder_object_index& pending_payout_balance_index)
 {
    dlog("Processing dividend payments for dividend holder asset type ${holder_asset} at time ${t}", 
         ("holder_asset", dividend_holder_asset_obj.symbol)("t", db.head_block_time()));
@@ -757,6 +757,15 @@ void schedule_pending_dividend_balances(database& db,
         ("current", std::distance(current_distribution_account_balance_range.first, current_distribution_account_balance_range.second))
         ("previous", std::distance(previous_distribution_account_balance_range.first, previous_distribution_account_balance_range.second)));
 
+   // when we pay out the dividends to the holders, we need to know the total balance of the dividend asset in all
+   // accounts other than the distribution account (it would be silly to distribute dividends back to 
+   // the distribution account)
+   share_type total_balance_of_dividend_asset;
+   for (const account_balance_object& holder_balance_object : boost::make_iterator_range(holder_balances_begin, holder_balances_end))
+      if (holder_balance_object.owner != dividend_data.dividend_distribution_account)
+         total_balance_of_dividend_asset += holder_balance_object.balance;
+
+
    // loop through all of the assets currently or previously held in the distribution account
    while (current_distribution_account_balance_iter != current_distribution_account_balance_range.second ||
           previous_distribution_account_balance_iter != previous_distribution_account_balance_range.second)
@@ -771,6 +780,7 @@ void schedule_pending_dividend_balances(database& db,
          if (previous_distribution_account_balance_iter == previous_distribution_account_balance_range.second || 
              current_distribution_account_balance_iter->asset_type < previous_distribution_account_balance_iter->dividend_payout_asset_type)
          {
+            // there are no more previous balances or there is no previous balance for this particular asset type
             payout_asset_type = current_distribution_account_balance_iter->asset_type;
             current_balance = current_distribution_account_balance_iter->balance;
             idump((payout_asset_type)(current_balance));
@@ -778,12 +788,14 @@ void schedule_pending_dividend_balances(database& db,
          else if (current_distribution_account_balance_iter == current_distribution_account_balance_range.second || 
                   previous_distribution_account_balance_iter->dividend_payout_asset_type < current_distribution_account_balance_iter->asset_type)
          {
+            // there are no more current balances or there is no current balance for this particular previous asset type
             payout_asset_type = previous_distribution_account_balance_iter->dividend_payout_asset_type;
             previous_balance = previous_distribution_account_balance_iter->balance_at_last_maintenance_interval;
             idump((payout_asset_type)(previous_balance));
          }
          else
          {
+            // we have both a previous and a current balance for this asset type
             payout_asset_type = current_distribution_account_balance_iter->asset_type;
             current_balance = current_distribution_account_balance_iter->balance;
             previous_balance = previous_distribution_account_balance_iter->balance_at_last_maintenance_interval;
@@ -872,19 +884,12 @@ void schedule_pending_dividend_balances(database& db,
                   delta_balance -= total_fee_per_asset_in_payout_asset;
                }
 
-               // we need to pay out the remaining delta_balance to shareholders proportional to their stake
-               // so find out what the total stake
-               share_type total_balance_of_dividend_asset;
-               for (const account_balance_object& holder_balance_object : boost::make_iterator_range(holder_balances_begin, holder_balances_end))
-                  if (holder_balance_object.owner != dividend_data.dividend_distribution_account)
-                     total_balance_of_dividend_asset += holder_balance_object.balance;
-
                dlog("There are ${count} holders of the dividend-paying asset, with a total balance of ${total}", 
                     ("count", holder_account_count)
                     ("total", total_balance_of_dividend_asset));
                share_type remaining_amount_to_distribute = delta_balance;
 
-               // credit each account with their portion
+               // credit each account with their portion, don't send any back to the dividend distribution account
                for (const account_balance_object& holder_balance_object : boost::make_iterator_range(holder_balances_begin, holder_balances_end))
                   if (holder_balance_object.owner != dividend_data.dividend_distribution_account &&
                       holder_balance_object.balance.value)
@@ -903,14 +908,14 @@ void schedule_pending_dividend_balances(database& db,
                      auto pending_payout_iter = 
                         pending_payout_balance_index.indices().get<by_dividend_payout_account>().find(boost::make_tuple(dividend_holder_asset_obj.id, payout_asset_type, holder_balance_object.owner));
                      if (pending_payout_iter == pending_payout_balance_index.indices().get<by_dividend_payout_account>().end())
-                        db.create<pending_dividend_payout_balance_object>( [&]( pending_dividend_payout_balance_object& obj ){
+                        db.create<pending_dividend_payout_balance_for_holder_object>( [&]( pending_dividend_payout_balance_for_holder_object& obj ){
                            obj.owner = holder_balance_object.owner;
                            obj.dividend_holder_asset_type = dividend_holder_asset_obj.id;
                            obj.dividend_payout_asset_type = payout_asset_type;
                            obj.pending_balance = shares_to_credit;
                         });
                      else
-                        db.modify(*pending_payout_iter, [&]( pending_dividend_payout_balance_object& pending_balance ){
+                        db.modify(*pending_payout_iter, [&]( pending_dividend_payout_balance_for_holder_object& pending_balance ){
                            pending_balance.pending_balance += shares_to_credit;
                         });
                   }
@@ -926,13 +931,13 @@ void schedule_pending_dividend_balances(database& db,
                share_type distributed_amount = delta_balance - remaining_amount_to_distribute;
                if (previous_distribution_account_balance_iter == previous_distribution_account_balance_range.second ||
                    previous_distribution_account_balance_iter->dividend_payout_asset_type != payout_asset_type)
-                  db.create<distributed_dividend_balance_object>( [&]( distributed_dividend_balance_object& obj ){
+                  db.create<total_distributed_dividend_balance_object>( [&]( total_distributed_dividend_balance_object& obj ){
                      obj.dividend_holder_asset_type = dividend_holder_asset_obj.id;
                      obj.dividend_payout_asset_type = payout_asset_type;
                      obj.balance_at_last_maintenance_interval = distributed_amount;
                   });
                else
-                  db.modify(*previous_distribution_account_balance_iter, [&]( distributed_dividend_balance_object& obj ){
+                  db.modify(*previous_distribution_account_balance_iter, [&]( total_distributed_dividend_balance_object& obj ){
                      obj.balance_at_last_maintenance_interval += distributed_amount;
                   });
             }
@@ -947,18 +952,18 @@ void schedule_pending_dividend_balances(database& db,
          {
             // some amount of the asset has been withdrawn from the dividend_distribution_account,
             // meaning the current pending payout balances will add up to more than our current balance.
-            // This should be extremely rare.
+            // This should be extremely rare (caused by an override transfer by the asset owner).
             // Reduce all pending payouts proportionally
             share_type total_pending_balances;
             auto pending_payouts_range = 
                pending_payout_balance_index.indices().get<by_dividend_payout_account>().equal_range(boost::make_tuple(dividend_holder_asset_obj.id, payout_asset_type));
 
-            for (const pending_dividend_payout_balance_object& pending_balance_object : boost::make_iterator_range(pending_payouts_range.first, pending_payouts_range.second))
+            for (const pending_dividend_payout_balance_for_holder_object& pending_balance_object : boost::make_iterator_range(pending_payouts_range.first, pending_payouts_range.second))
                total_pending_balances += pending_balance_object.pending_balance;
 
             share_type remaining_amount_to_recover = -delta_balance;
             share_type remaining_pending_balances = total_pending_balances;
-            for (const pending_dividend_payout_balance_object& pending_balance_object : boost::make_iterator_range(pending_payouts_range.first, pending_payouts_range.second))
+            for (const pending_dividend_payout_balance_for_holder_object& pending_balance_object : boost::make_iterator_range(pending_payouts_range.first, pending_payouts_range.second))
             {
                fc::uint128_t amount_to_debit(remaining_amount_to_recover.value);
                amount_to_debit *= pending_balance_object.pending_balance.value;
@@ -968,22 +973,17 @@ void schedule_pending_dividend_balances(database& db,
                remaining_amount_to_recover -= shares_to_debit;
                remaining_pending_balances -= pending_balance_object.pending_balance;
 
-               db.modify(pending_balance_object, [&]( pending_dividend_payout_balance_object& pending_balance ){
+               db.modify(pending_balance_object, [&]( pending_dividend_payout_balance_for_holder_object& pending_balance ){
                   pending_balance.pending_balance -= shares_to_debit;
                });
             }
 
-            if (previous_distribution_account_balance_iter == previous_distribution_account_balance_range.second ||
-                previous_distribution_account_balance_iter->dividend_payout_asset_type != payout_asset_type)
-               db.create<distributed_dividend_balance_object>( [&]( distributed_dividend_balance_object& obj ){
-                  obj.dividend_holder_asset_type = dividend_holder_asset_obj.id;
-                  obj.dividend_payout_asset_type = payout_asset_type;
-                  obj.balance_at_last_maintenance_interval = 0;
-               });
-            else
-               db.modify(*previous_distribution_account_balance_iter, [&]( distributed_dividend_balance_object& obj ){
-                  obj.balance_at_last_maintenance_interval = 0;
-               });
+            // if we're here, we know there must be a previous balance, so just adjust it by the
+            // amount we just reclaimed
+            db.modify(*previous_distribution_account_balance_iter, [&]( total_distributed_dividend_balance_object& obj ){
+               obj.balance_at_last_maintenance_interval += delta_balance;
+               assert(obj.balance_at_last_maintenance_interval == current_balance);
+            });
          } // end if deposit was large enough to distribute
       }
       catch (const fc::exception& e)
@@ -1016,8 +1016,8 @@ void process_dividend_assets(database& db)
    ilog("In process_dividend_assets time ${time}", ("time", db.head_block_time()));
 
    const account_balance_index& balance_index = db.get_index_type<account_balance_index>();
-   const distributed_dividend_balance_object_index& distributed_dividend_balance_index = db.get_index_type<distributed_dividend_balance_object_index>();
-   const pending_dividend_payout_balance_object_index& pending_payout_balance_index = db.get_index_type<pending_dividend_payout_balance_object_index>();
+   const total_distributed_dividend_balance_object_index& distributed_dividend_balance_index = db.get_index_type<total_distributed_dividend_balance_object_index>();
+   const pending_dividend_payout_balance_for_holder_object_index& pending_payout_balance_index = db.get_index_type<pending_dividend_payout_balance_for_holder_object_index>();
 
    // TODO: switch to iterating over only dividend assets (generalize the by_type index)
    for( const asset_object& dividend_holder_asset_obj : db.get_index_type<asset_index>().indices() )
@@ -1073,7 +1073,7 @@ void process_dividend_assets(database& db)
 
             for (auto pending_balance_object_iter = pending_payouts_range.first; pending_balance_object_iter != pending_payouts_range.second; )
             {
-               const pending_dividend_payout_balance_object& pending_balance_object = *pending_balance_object_iter;
+               const pending_dividend_payout_balance_for_holder_object& pending_balance_object = *pending_balance_object_iter;
 
                if (last_holder_account_id && *last_holder_account_id != pending_balance_object.owner)
                {
@@ -1102,7 +1102,7 @@ void process_dividend_assets(database& db)
                   last_holder_account_id = pending_balance_object.owner;
                   amounts_paid_out_by_asset[pending_balance_object.dividend_payout_asset_type] += pending_balance_object.pending_balance;
 
-                  db.modify(pending_balance_object, [&]( pending_dividend_payout_balance_object& pending_balance ){
+                  db.modify(pending_balance_object, [&]( pending_dividend_payout_balance_for_holder_object& pending_balance ){
                      pending_balance.pending_balance = 0;
                   });
                }
@@ -1135,7 +1135,7 @@ void process_dividend_assets(database& db)
                                                                                                                       asset_paid_out));
                assert(distributed_balance_iter != distributed_dividend_balance_index.indices().get<by_dividend_payout_asset>().end());
                if (distributed_balance_iter != distributed_dividend_balance_index.indices().get<by_dividend_payout_asset>().end())
-                  db.modify(*distributed_balance_iter, [&]( distributed_dividend_balance_object& obj ){
+                  db.modify(*distributed_balance_iter, [&]( total_distributed_dividend_balance_object& obj ){
                      obj.balance_at_last_maintenance_interval -= amount_paid_out; // now they've been paid out, reset to zero
                   });
 

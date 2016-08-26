@@ -48,7 +48,8 @@ namespace graphene { namespace app {
       vector<proposal_object>          proposals;
       vector<asset_id_type>            assets;
       vector<withdraw_permission_object> withdraws;
-      vector<pending_dividend_payout_balance_object> pending_dividend_payments;
+//      vector<pending_dividend_payout_balance_object> pending_dividend_payments;
+      vector<pending_dividend_payout_balance_for_holder_object> pending_dividend_payments;
    };
 
 } }

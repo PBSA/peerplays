@@ -306,7 +306,7 @@ namespace graphene { namespace chain {
    // pending dividend payouts were calculated (last maintenance interval).
    // At each maintenance interval, we will compare the current balance to the
    // balance stored here to see how much was deposited during that interval.
-   class distributed_dividend_balance_object : public abstract_object<distributed_dividend_balance_object>
+   class total_distributed_dividend_balance_object : public abstract_object<total_distributed_dividend_balance_object>
    {
       public:
          static const uint8_t space_id = implementation_ids;
@@ -318,19 +318,19 @@ namespace graphene { namespace chain {
    };
    struct by_dividend_payout_asset{};
    typedef multi_index_container<
-      distributed_dividend_balance_object,
+      total_distributed_dividend_balance_object,
       indexed_by<
          ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
          ordered_unique< tag<by_dividend_payout_asset>,
             composite_key<
-               distributed_dividend_balance_object,
-               member<distributed_dividend_balance_object, asset_id_type, &distributed_dividend_balance_object::dividend_holder_asset_type>,
-               member<distributed_dividend_balance_object, asset_id_type, &distributed_dividend_balance_object::dividend_payout_asset_type>
+               total_distributed_dividend_balance_object,
+               member<total_distributed_dividend_balance_object, asset_id_type, &total_distributed_dividend_balance_object::dividend_holder_asset_type>,
+               member<total_distributed_dividend_balance_object, asset_id_type, &total_distributed_dividend_balance_object::dividend_payout_asset_type>
             >
          >
       >
-   > distributed_dividend_balance_object_multi_index_type;
-   typedef generic_index<distributed_dividend_balance_object, distributed_dividend_balance_object_multi_index_type> distributed_dividend_balance_object_index;
+   > total_distributed_dividend_balance_object_multi_index_type;
+   typedef generic_index<total_distributed_dividend_balance_object, total_distributed_dividend_balance_object_multi_index_type> total_distributed_dividend_balance_object_index;
    
 
 
@@ -357,7 +357,7 @@ FC_REFLECT_DERIVED( graphene::chain::asset_dividend_data_object, (graphene::db::
                     (dividend_distribution_account)
                   )
 
-FC_REFLECT_DERIVED( graphene::chain::distributed_dividend_balance_object, (graphene::db::object),
+FC_REFLECT_DERIVED( graphene::chain::total_distributed_dividend_balance_object, (graphene::db::object),
                     (dividend_holder_asset_type)
                     (dividend_payout_asset_type)
                     (balance_at_last_maintenance_interval)
