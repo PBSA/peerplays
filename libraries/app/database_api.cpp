@@ -607,7 +607,7 @@ std::map<std::string, full_account> database_api_impl::get_full_accounts( const 
                     });
 
       auto pending_payouts_range = 
-         _db.get_index_type<pending_dividend_payout_balance_object_index>().indices().get<by_account_dividend_payout>().equal_range(boost::make_tuple(account->id));
+         _db.get_index_type<pending_dividend_payout_balance_for_holder_object_index>().indices().get<by_account_dividend_payout>().equal_range(boost::make_tuple(account->id));
 
       std::copy(pending_payouts_range.first, pending_payouts_range.second, std::back_inserter(acnt.pending_dividend_payments));
 

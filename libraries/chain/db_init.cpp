@@ -218,8 +218,8 @@ void database::initialize_indexes()
    add_index< primary_index< buyback_index                                > >();
 
    add_index< primary_index< simple_index< fba_accumulator_object       > > >();
-   add_index< primary_index<pending_dividend_payout_balance_object_index > >();
-   add_index< primary_index<distributed_dividend_balance_object_index > >();
+   add_index< primary_index<pending_dividend_payout_balance_for_holder_object_index > >();
+   add_index< primary_index<total_distributed_dividend_balance_object_index > >();
 }
 
 void database::init_genesis(const genesis_state_type& genesis_state)
