@@ -22,7 +22,8 @@
  * THE SOFTWARE.
  */
 #include <graphene/chain/protocol/account.hpp>
-
+#include <graphene/chain/hardfork.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 namespace graphene { namespace chain {
 
 /**
@@ -118,6 +119,12 @@ bool is_valid_name( const string& name )
           break;
        begin = end+1;
     }
+
+    // only dividend distribution accounts linked to a dividend asset can end in -dividend-distribution, and
+    // these can only be created as a side-effect of the asset_update_dividend_operation
+    if( boost::algorithm::ends_with(name, "-dividend-distribution") )
+       return false;
+
     return true;
 }
 
