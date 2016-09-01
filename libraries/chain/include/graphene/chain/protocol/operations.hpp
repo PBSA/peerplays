@@ -38,6 +38,7 @@
 #include <graphene/chain/protocol/withdraw_permission.hpp>
 #include <graphene/chain/protocol/witness.hpp>
 #include <graphene/chain/protocol/worker.hpp>
+#include <graphene/chain/protocol/tournament.hpp>
 
 namespace graphene { namespace chain {
 
@@ -91,7 +92,9 @@ namespace graphene { namespace chain {
             transfer_from_blind_operation,
             asset_settle_cancel_operation,  // VIRTUAL
             asset_claim_fees_operation,
-            fba_distribute_operation        // VIRTUAL
+            fba_distribute_operation,       // VIRTUAL
+            tournament_create_operation,
+            tournament_join_operation
          > operation;
 
    /// @} // operations group

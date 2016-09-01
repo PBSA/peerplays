@@ -1404,6 +1404,12 @@ class wallet_api
          bool broadcast /* = false */
          );
 
+      /** Creates a new tournament
+       * @param creator the accout that is paying the fee to create the tournament
+       * @param options the options detailing the specifics of the tournament
+       */
+      signed_transaction tournament_create( string creator, tournament_options options, bool broadcast = false );
+
       void dbg_make_uia(string creator, string symbol);
       void dbg_make_mia(string creator, string symbol);
       void flood_network(string prefix, uint32_t number_of_transactions);
@@ -1591,4 +1597,5 @@ FC_API( graphene::wallet::wallet_api,
         (blind_transfer)
         (blind_history)
         (receive_blind_transfer)
+        (tournament_create)
       )

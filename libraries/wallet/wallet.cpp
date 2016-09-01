@@ -4092,6 +4092,22 @@ vector<blind_receipt> wallet_api::blind_history( string key_or_account )
    return result;
 }
 
+signed_transaction wallet_api::tournament_create( string creator, tournament_options options, bool broadcast )
+{
+   FC_ASSERT( !is_locked() );
+   account_object creator_account_obj = get_account(creator);
+
+   signed_transaction tx;
+   tournament_create_operation op;
+   op.creator = creator_account_obj.get_id();
+   op.options = options;
+   tx.operations = {op};
+   my->set_operation_fees( tx, my->_remote_db->get_global_properties().parameters.current_fees );
+   tx.validate();
+
+   return my->sign_transaction( tx, broadcast );
+}
+
 // default ctor necessary for FC_REFLECT
 signed_block_with_info::signed_block_with_info()
 {

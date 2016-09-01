@@ -202,6 +202,16 @@ struct get_impacted_account_visitor
    {
       _impacted.insert( op.account_id );
    }
+   void operator()( const tournament_create_operation& op )
+   {
+      _impacted.insert( op.creator );
+      _impacted.insert( op.options.whitelist.begin(), op.options.whitelist.end() );
+   }
+   void operator()( const tournament_join_operation& op )
+   {
+      _impacted.insert( op.payer_account_id );
+      _impacted.insert( op.player_account_id );
+   }
 
 };
 
