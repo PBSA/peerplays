@@ -20,7 +20,7 @@ namespace graphene { namespace chain {
          typedef tournament_join_operation operation_type;
 
          void_result do_evaluate( const tournament_join_operation& o );
-         object_id_type do_apply( const tournament_join_operation& o );
+         void_result do_apply( const tournament_join_operation& o );
    };
 
 } }

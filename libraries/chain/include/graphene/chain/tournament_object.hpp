@@ -13,6 +13,9 @@ namespace graphene { namespace chain {
       static const uint8_t space_id = protocol_ids;
       static const uint8_t type_id  = tournament_object_type;
       
+      /// the account that created this tournament
+      account_id_type creator;
+
       /// the options set when creating the tournament 
       tournament_options options;
 
@@ -23,6 +26,9 @@ namespace graphene { namespace chain {
 
       /// List of players registered for this tournament
       flat_set<account_id_type> registered_players;
+
+      /// List of payers who have contributed to the prize pool
+      flat_map<account_id_type, share_type> payers;
 
       /// Total prize pool accumulated ((sum of buy_ins, usually registered_players.size() * buy_in_amount)
       asset prize_pool;

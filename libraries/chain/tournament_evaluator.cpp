@@ -1,8 +1,10 @@
 #include <graphene/chain/protocol/tournament.hpp>
+#include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/tournament_evaluator.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/hardfork.hpp>
+#include <graphene/chain/is_authorized_asset.hpp>
 namespace graphene { namespace chain {
 
    void_result tournament_create_evaluator::do_evaluate( const tournament_create_operation& op )
@@ -70,15 +72,57 @@ namespace graphene { namespace chain {
    
    object_id_type tournament_create_evaluator::do_apply( const tournament_create_operation& op )
    { try {
+       const tournament_object& new_tournament =
+         db().create<tournament_object>( [&]( tournament_object& t ) {
+             t.options = op.options;
+             t.creator = op.creator;
+             // t.dynamic_tournament_data_id = dyn_tournament.id;
+          });
+       return new_tournament.id;
    } FC_CAPTURE_AND_RETHROW( (op) ) }
    
    void_result tournament_join_evaluator::do_evaluate( const tournament_join_operation& op )
    { try {
+      const database& d = db();
+      const tournament_object& t = op.tournament_id(d);
+      const account_object& payer_account = op.payer_account_id(d);
+      const account_object& player_account = op.player_account_id(d);
+      const asset_object& buy_in_asset_type = op.buy_in.asset_id(d);
+
+      FC_ASSERT(t.registered_players.find(op.player_account_id) == t.registered_players.end(),
+                "Player is already registered for this tournament");
+      FC_ASSERT(op.buy_in == t.options.buy_in, "Buy-in is incorrect");
+
+      GRAPHENE_ASSERT(!buy_in_asset_type.is_transfer_restricted(),
+                      transfer_restricted_transfer_asset,
+                      "Asset {asset} has transfer_restricted flag enabled",
+                      ("asset", op.buy_in.asset_id));
+
+      GRAPHENE_ASSERT(is_authorized_asset(d, payer_account, buy_in_asset_type),
+                      transfer_from_account_not_whitelisted,
+                      "payer account ${payer} is not whitelisted for asset ${asset}",
+                      ("payer", op.payer_account_id)
+                      ("asset", op.buy_in.asset_id));
+
+      bool sufficient_balance = d.get_balance(payer_account, buy_in_asset_type).amount >= op.buy_in.amount;
+      FC_ASSERT(sufficient_balance,
+                "Insufficient Balance: paying account '${payer}' has insufficient balance to pay buy-in of ${buy_in} (balance is ${balance})", 
+                ("payer", payer_account.name)
+                ("buy_in", d.to_pretty_string(op.buy_in))
+                ("balance",d.to_pretty_string(d.get_balance(payer_account, buy_in_asset_type))));
       return void_result();
    } FC_CAPTURE_AND_RETHROW( (op) ) }
    
-   object_id_type tournament_join_evaluator::do_apply( const tournament_join_operation& op )
+   void_result tournament_join_evaluator::do_apply( const tournament_join_operation& op )
    { try {
+      const database& d = db();
+      const tournament_object& t = op.tournament_id(d);
+      db().adjust_balance(op.payer_account_id, -op.buy_in);
+      db().modify(t, [&](tournament_object& tournament_obj){
+              tournament_obj.payers[op.payer_account_id] += op.buy_in.amount;
+              tournament_obj.registered_players.insert(op.player_account_id);
+           });
+      return void_result();
    } FC_CAPTURE_AND_RETHROW( (op) ) }
    
 } }
