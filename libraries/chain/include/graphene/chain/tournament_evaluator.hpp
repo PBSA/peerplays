@@ -16,6 +16,11 @@ namespace graphene { namespace chain {
 
    class tournament_join_evaluator : public evaluator<tournament_join_evaluator>
    {
+      private:
+         const tournament_object* _tournament_obj = nullptr;
+         const tournament_details_object* _tournament_details_obj = nullptr;
+         const account_object* _payer_account = nullptr;
+         const asset_object* _buy_in_asset_type = nullptr;
       public:
          typedef tournament_join_operation operation_type;
 

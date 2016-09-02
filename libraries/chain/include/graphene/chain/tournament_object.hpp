@@ -7,6 +7,22 @@ namespace graphene { namespace chain {
    class database;
    using namespace graphene::db;
 
+   /// The tournament object has a lot of details, most of which are only of interest to anyone
+   /// involved in the tournament.  The main `tournament_object` contains all of the information
+   /// needed to display an overview of the tournament, this object contains the rest.
+   class tournament_details_object : public graphene::db::abstract_object<tournament_details_object>
+   {
+   public:
+      static const uint8_t space_id = protocol_ids;
+      static const uint8_t type_id  = impl_tournament_details_object_type;
+
+      /// List of players registered for this tournament
+      flat_set<account_id_type> registered_players;
+
+      /// List of payers who have contributed to the prize pool
+      flat_map<account_id_type, share_type> payers;
+   };
+
    class tournament_object : public graphene::db::abstract_object<tournament_object>
    {
    public:
@@ -24,16 +40,21 @@ namespace graphene { namespace chain {
       /// If the tournament has ended, the time it ended
       optional<time_point_sec> end_time;
 
-      /// List of players registered for this tournament
-      flat_set<account_id_type> registered_players;
+      /// Total prize pool accumulated 
+      /// This is the sum of all payers in the details object, and will be
+      /// registered_players.size() * buy_in_amount
+      share_type prize_pool;
 
-      /// List of payers who have contributed to the prize pool
-      flat_map<account_id_type, share_type> payers;
+      /// The number of players registered for the tournament
+      /// (same as the details object's registered_players.size(), here to avoid
+      /// the GUI having to get the details object)
+      uint32_t registered_players = 0;
 
-      /// Total prize pool accumulated ((sum of buy_ins, usually registered_players.size() * buy_in_amount)
-      asset prize_pool;
+      /// Detailed information on this tournament
+      tournament_details_id_type tournament_details_id;
    };
 
+   struct by_registration_deadline {};
    typedef multi_index_container<
       tournament_object,
       indexed_by<
@@ -44,8 +65,13 @@ namespace graphene { namespace chain {
 
 } }
 
-FC_REFLECT_DERIVED( graphene::chain::tournament_object, (graphene::db::object),
-                    (options)
-                    (start_time)
-                    (end_time) )
-
+FC_REFLECT_DERIVED(graphene::chain::tournament_details_object, (graphene::db::object),
+                   (registered_players)
+                   (payers))
+FC_REFLECT_DERIVED(graphene::chain::tournament_object, (graphene::db::object),
+                   (creator)
+                   (options)
+                   (start_time)
+                   (end_time)
+                   (prize_pool)
+                   (tournament_details_id))
