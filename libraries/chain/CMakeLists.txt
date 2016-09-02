@@ -74,6 +74,7 @@ add_library( graphene_chain
              proposal_evaluator.cpp
              market_evaluator.cpp
              vesting_balance_evaluator.cpp
+             tournament_evaluator.cpp
              withdraw_permission_evaluator.cpp
              worker_evaluator.cpp
              confidential_evaluator.cpp

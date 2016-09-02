@@ -62,6 +62,7 @@
 
 #include <graphene/app/api.hpp>
 #include <graphene/chain/asset_object.hpp>
+#include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <graphene/utilities/git_revision.hpp>
 #include <graphene/utilities/key_conversion.hpp>
@@ -4101,6 +4102,35 @@ signed_transaction wallet_api::tournament_create( string creator, tournament_opt
    tournament_create_operation op;
    op.creator = creator_account_obj.get_id();
    op.options = options;
+   tx.operations = {op};
+   my->set_operation_fees( tx, my->_remote_db->get_global_properties().parameters.current_fees );
+   tx.validate();
+
+   return my->sign_transaction( tx, broadcast );
+}
+
+signed_transaction wallet_api::tournament_join( string payer_account, 
+                                                string player_account, 
+                                                tournament_id_type tournament_id, 
+                                                string buy_in_amount, 
+                                                string buy_in_asset_symbol,
+                                                bool broadcast )
+{
+   FC_ASSERT( !is_locked() );
+   account_object payer_account_obj = get_account(payer_account);
+   account_object player_account_obj = get_account(player_account);
+   graphene::chain::tournament_object tournament_obj = my->get_object<graphene::chain::tournament_object>(tournament_id);
+
+   fc::optional<asset_object> buy_in_asset_obj = get_asset(buy_in_asset_symbol);
+   FC_ASSERT(buy_in_asset_obj, "Could not find asset matching ${asset}", ("asset", buy_in_asset_symbol));
+
+   signed_transaction tx;
+   tournament_join_operation op;
+   op.payer_account_id = payer_account_obj.get_id();
+   op.player_account_id = player_account_obj.get_id();
+   op.tournament_id = tournament_id;
+   op.buy_in = buy_in_asset_obj->amount_from_string(buy_in_amount);
+
    tx.operations = {op};
    my->set_operation_fees( tx, my->_remote_db->get_global_properties().parameters.current_fees );
    tx.validate();

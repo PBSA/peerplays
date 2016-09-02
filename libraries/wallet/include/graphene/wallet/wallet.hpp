@@ -1407,8 +1407,17 @@ class wallet_api
       /** Creates a new tournament
        * @param creator the accout that is paying the fee to create the tournament
        * @param options the options detailing the specifics of the tournament
+       * @return the signed version of the transaction
        */
       signed_transaction tournament_create( string creator, tournament_options options, bool broadcast = false );
+
+      /** Join an existing tournament
+       * @param paying_account the account that is paying the buy-in and the fee to join the tournament
+       * @param playing_account the account that will be playing in the tournament
+       * @param tournament_id the tournament the user wishes to join
+       * @return the signed version of the transaction
+       */
+      signed_transaction tournament_join( string payer_account, string player_account, tournament_id_type tournament_id, string buy_in_amount, string buy_in_asset_symbol, bool broadcast = false );
 
       void dbg_make_uia(string creator, string symbol);
       void dbg_make_mia(string creator, string symbol);
