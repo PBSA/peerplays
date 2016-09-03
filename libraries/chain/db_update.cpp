@@ -32,6 +32,7 @@
 #include <graphene/chain/transaction_object.hpp>
 #include <graphene/chain/withdraw_permission_object.hpp>
 #include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/tournament_object.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
@@ -466,6 +467,57 @@ void database::update_withdraw_permissions()
    auto& permit_index = get_index_type<withdraw_permission_index>().indices().get<by_expiration>();
    while( !permit_index.empty() && permit_index.begin()->expiration <= head_block_time() )
       remove(*permit_index.begin());
+}
+
+void database::update_tournaments()
+{
+   // First, cancel any tournaments that didn't get enough players
+   auto& registration_deadline_index = get_index_type<tournament_index>().indices().get<by_registration_deadline>();
+   // this index is sorted on state and deadline, so the tournaments awaiting registrations with the earliest
+   // deadlines will be at the beginning
+   while (registration_deadline_index.empty() &&
+          registration_deadline_index.begin()->state == tournament_state::accepting_registrations &&
+          registration_deadline_index.begin()->options.registration_deadline <= head_block_time())
+   {
+      const tournament_object& tournament_obj = *registration_deadline_index.begin();
+      fc_ilog(fc::logger::get("tournament"),
+              "Canceling tournament ${id} because its deadline expired",
+              ("id", tournament_obj.id));
+      // cancel this tournament
+      // repay everyone who paid into the prize pool
+      const tournament_details_object& details = tournament_obj.tournament_details_id(*this);
+      for (const auto& payer_pair : details.payers)
+      {
+         // TODO: create a virtual operation to record the refund
+         // we'll think of this as just releasing an asset that the user had locked up
+         // for a period of time, not as a transfer back to the user; it doesn't matter
+         // if they are currently authorized to transfer this asset, they never really 
+         // transferred it in the first place
+         adjust_balance(payer_pair.first, asset(payer_pair.second, tournament_obj.options.buy_in.asset_id));
+      }
+
+      modify(tournament_obj, [&](tournament_object& t) {
+         t.state = tournament_state::registration_period_expired;
+      });
+   }
+
+   // Next, start any tournaments that have enough players and whose start time just arrived
+   auto& start_time_index = get_index_type<tournament_index>().indices().get<by_start_time>();
+   while (1)
+   {
+      // find the first tournament waiting to start; if its start time has arrived, start it
+      auto start_iter = start_time_index.lower_bound(boost::make_tuple(tournament_state::awaiting_start));
+      if (start_iter->state == tournament_state::awaiting_start && 
+          *start_iter->start_time <= head_block_time())
+      {
+         modify(*start_iter, [&](tournament_object& t) {
+            t.state = tournament_state::in_progress;
+         });
+      }
+      else
+         break;
+   }
+
 }
 
 } }

@@ -29,7 +29,7 @@ namespace graphene { namespace chain {
 
       // TODO: make this committee-set
       const uint32_t maximum_tournament_whitelist_length = 1000;
-      FC_ASSERT(op.options.whitelist.size() != 1, "Can't create a tournament for one player");
+      FC_ASSERT(op.options.whitelist.size() >= op.options.number_of_players, "Whitelist must allow enough players to fill the tournament");
       FC_ASSERT(op.options.whitelist.size() < maximum_tournament_whitelist_length, 
                 "Whitelist must not be longer than ${maximum_tournament_whitelist_length}",
                 ("maximum_tournament_whitelist_length", maximum_tournament_whitelist_length));
@@ -76,6 +76,7 @@ namespace graphene { namespace chain {
          db().create<tournament_object>( [&]( tournament_object& t ) {
              t.options = op.options;
              t.creator = op.creator;
+             t.state = tournament_state::accepting_registrations;
              // t.dynamic_tournament_data_id = dyn_tournament.id;
           });
        return new_tournament.id;
@@ -90,6 +91,7 @@ namespace graphene { namespace chain {
       //const account_object& player_account = op.player_account_id(d);
       _buy_in_asset_type = &op.buy_in.asset_id(d);
 
+      FC_ASSERT(_tournament_obj->state == tournament_state::accepting_registrations);
       FC_ASSERT(_tournament_details_obj->registered_players.size() < _tournament_obj->options.number_of_players,
                 "Tournament is already full");
       FC_ASSERT(d.head_block_time() <= _tournament_obj->options.registration_deadline, 
@@ -125,7 +127,11 @@ namespace graphene { namespace chain {
    
    void_result tournament_join_evaluator::do_apply( const tournament_join_operation& op )
    { try {
-      bool start_tournament = _tournament_details_obj->registered_players.size() + 1 == _tournament_obj->options.number_of_players;
+      bool registration_complete = _tournament_details_obj->registered_players.size() + 1 == _tournament_obj->options.number_of_players;
+      if (registration_complete)
+          fc_ilog(fc::logger::get("tournament"),
+                  "Tournament ${id} now has enough players registered to begin",
+                  ("id", _tournament_obj->id));
       
       db().adjust_balance(op.payer_account_id, -op.buy_in);
       db().modify(*_tournament_details_obj, [&](tournament_details_object& tournament_details_obj){
@@ -135,13 +141,15 @@ namespace graphene { namespace chain {
       db().modify(*_tournament_obj, [&](tournament_object& tournament_obj){
               ++tournament_obj.registered_players;
               tournament_obj.prize_pool += op.buy_in.amount;
-              if (start_tournament)
+              if (registration_complete)
               {
                  if (tournament_obj.options.start_time)
                     tournament_obj.start_time = tournament_obj.options.start_time;
                  else
                     tournament_obj.start_time = db().head_block_time() + fc::seconds(*tournament_obj.options.start_delay);
-
+                 // even if the start time is now, mark it as awaiting; we will promote it to in_progress
+                 // in update_tournaments() called at the end of the block
+                 tournament_obj.state = tournament_state::awaiting_start;
               }
            });
       return void_result();

@@ -23,6 +23,14 @@ namespace graphene { namespace chain {
       flat_map<account_id_type, share_type> payers;
    };
 
+   enum class tournament_state
+   {
+      accepting_registrations,
+      awaiting_start,
+      in_progress,
+      registration_period_expired
+   };
+
    class tournament_object : public graphene::db::abstract_object<tournament_object>
    {
    public:
@@ -50,15 +58,30 @@ namespace graphene { namespace chain {
       /// the GUI having to get the details object)
       uint32_t registered_players = 0;
 
+      /// The current high-level status of the tournament (whether it is currently running or has been canceled, etc)
+      tournament_state state;
+
       /// Detailed information on this tournament
       tournament_details_id_type tournament_details_id;
+
+      time_point_sec get_registration_deadline() const { return options.registration_deadline; }
+
    };
 
    struct by_registration_deadline {};
+   struct by_start_time {};
    typedef multi_index_container<
       tournament_object,
       indexed_by<
-         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >
+         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
+         ordered_non_unique< tag<by_registration_deadline>, 
+            composite_key<tournament_object, 
+               member<tournament_object, tournament_state, &tournament_object::state>, 
+               const_mem_fun<tournament_object, time_point_sec, &tournament_object::get_registration_deadline> > >,
+         ordered_non_unique< tag<by_start_time>, 
+            composite_key<tournament_object, 
+               member<tournament_object, tournament_state, &tournament_object::state>, 
+               member<tournament_object, optional<time_point_sec>, &tournament_object::start_time> > >
       >
    > tournament_object_multi_index_type;
    typedef generic_index<tournament_object, tournament_object_multi_index_type> tournament_index;
@@ -74,4 +97,10 @@ FC_REFLECT_DERIVED(graphene::chain::tournament_object, (graphene::db::object),
                    (start_time)
                    (end_time)
                    (prize_pool)
+                   (state)
                    (tournament_details_id))
+FC_REFLECT_ENUM(graphene::chain::tournament_state,
+                (accepting_registrations)
+                (awaiting_start)
+                (in_progress)
+                (registration_period_expired))
