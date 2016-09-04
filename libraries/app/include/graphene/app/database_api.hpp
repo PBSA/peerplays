@@ -40,6 +40,7 @@
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/worker_object.hpp>
 #include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/tournament_object.hpp>
 
 #include <graphene/market_history/market_history_plugin.hpp>
 
@@ -548,6 +549,16 @@ class database_api
        */
       vector<blinded_balance_object> get_blinded_balances( const flat_set<commitment_type>& commitments )const;
 
+      /////////////////
+      // Tournaments //
+      /////////////////
+      /**
+       * @param account_filter if provided, this will only return tournaments the given account is
+       *                       allowed to join (public tournaments or tournaments the account is whitelisted for)
+       * @return the list of tournaments that are still accepting new registrations
+       */
+      vector<tournament_object> get_upcoming_tournaments(fc::optional<account_id_type> account_filter)const;
+
    private:
       std::shared_ptr< database_api_impl > my;
 };
@@ -648,4 +659,7 @@ FC_API(graphene::app::database_api,
 
    // Blinded balances
    (get_blinded_balances)
+
+   // Tournaments
+   (get_upcoming_tournaments)
 )

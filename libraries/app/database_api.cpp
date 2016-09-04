@@ -24,6 +24,7 @@
 
 #include <graphene/app/database_api.hpp>
 #include <graphene/chain/get_config.hpp>
+#include <graphene/chain/tournament_object.hpp>
 
 #include <fc/bloom_filter.hpp>
 #include <fc/smart_ref_impl.hpp>
@@ -136,6 +137,9 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
 
       // Blinded balances
       vector<blinded_balance_object> get_blinded_balances( const flat_set<commitment_type>& commitments )const;
+
+      // Tournaments
+      vector<tournament_object> get_upcoming_tournaments(fc::optional<account_id_type> account_filter)const;
 
    //private:
       template<typename T>
@@ -1755,6 +1759,30 @@ vector<blinded_balance_object> database_api_impl::get_blinded_balances( const fl
       if( itr != by_commitment_idx.end() )
          result.push_back( *itr );
    }
+   return result;
+}
+
+//////////////////////////////////////////////////////////////////////
+//                                                                  //
+// Tournament methods                                               //
+//                                                                  //
+//////////////////////////////////////////////////////////////////////
+
+vector<tournament_object> database_api::get_upcoming_tournaments(fc::optional<account_id_type> account_filter)const
+{
+   return my->get_upcoming_tournaments(account_filter);
+}
+
+vector<tournament_object> database_api_impl::get_upcoming_tournaments(fc::optional<account_id_type> account_filter)const
+{
+   vector<tournament_object> result;
+   const auto& registration_deadline_index = _db.get_index_type<tournament_index>().indices().get<by_registration_deadline>();
+   const auto range = registration_deadline_index.equal_range(boost::make_tuple(tournament_state::accepting_registrations));
+   for (const tournament_object& tournament_obj : boost::make_iterator_range(range.first, range.second))
+      if (tournament_obj.options.whitelist.empty() ||
+          !account_filter ||
+          tournament_obj.options.whitelist.find(*account_filter) != tournament_obj.options.whitelist.end())
+         result.emplace_back(tournament_obj);
    return result;
 }
 
