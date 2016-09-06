@@ -1,0 +1,17 @@
+file(GLOB HEADERS "include/graphene/generate_genesis/*.hpp")
+
+add_library( grapehen_generate_genesis
+             generate_genesis.cpp
+           )
+
+target_link_libraries( grapehen_generate_genesis graphene_chain graphene_app graphene_time )
+target_include_directories( grapehen_generate_genesis
+                           PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" )
+
+install( TARGETS
+   grapehen_generate_genesis
+
+   RUNTIME DESTINATION bin
+   LIBRARY DESTINATION lib
+   ARCHIVE DESTINATION lib
+)
