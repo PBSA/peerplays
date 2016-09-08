@@ -86,6 +86,13 @@ namespace graphene { namespace chain {
       /// The winner of a round in the tournament is the first to reach this number of wins
       uint32_t number_of_wins;
 
+      /// Metadata about this tournament.  This can be empty or it can contain any keys the creator desires.
+      /// The GUI will standardize on displaying a few keys, likely:
+      ///  "name"
+      ///  "description"
+      ///  "url"
+      fc::variant_object meta;
+
       /// Parameters that are specific to the type_of_game in this tournament
       game_specific_options game_options;
 

@@ -28,7 +28,8 @@ namespace graphene { namespace chain {
       accepting_registrations,
       awaiting_start,
       in_progress,
-      registration_period_expired
+      registration_period_expired,
+      concluded
    };
 
    class tournament_object : public graphene::db::abstract_object<tournament_object>
@@ -36,6 +37,11 @@ namespace graphene { namespace chain {
    public:
       static const uint8_t space_id = protocol_ids;
       static const uint8_t type_id  = tournament_object_type;
+
+      tournament_object();
+      tournament_object(const tournament_object& rhs);
+      ~tournament_object();
+      tournament_object& operator=(const tournament_object& rhs);
       
       /// the account that created this tournament
       account_id_type creator;
@@ -59,14 +65,50 @@ namespace graphene { namespace chain {
       uint32_t registered_players = 0;
 
       /// The current high-level status of the tournament (whether it is currently running or has been canceled, etc)
-      tournament_state state;
+      //tournament_state state;
 
       /// Detailed information on this tournament
       tournament_details_id_type tournament_details_id;
 
+      tournament_state get_state() const;
+
       time_point_sec get_registration_deadline() const { return options.registration_deadline; }
 
+      /// called by database maintenance code when registration for this contest has expired
+      void on_registration_deadline_passed(database& db);
+      void on_player_registered(database& db, account_id_type payer_id, account_id_type player_id);
+      void on_start_time_arrived();
+      void on_final_game_completed();
+
+   private:
+      class impl;
+      std::unique_ptr<impl> my;
    };
+
+   class match_object : public graphene::db::abstract_object<match_object>
+   {
+   public:
+      static const uint8_t space_id = protocol_ids;
+      static const uint8_t type_id  = match_object_type;
+
+      /// 
+      flat_set<account_id_type> players;
+
+      vector<flat_set<account_id_type> > game_winners;
+   };
+      
+   class game_object : public graphene::db::abstract_object<game_object>
+   {
+   public:
+      static const uint8_t space_id = protocol_ids;
+      static const uint8_t type_id  = game_object_type;
+
+      flat_set<account_id_type> players;
+
+      flat_set<account_id_type> winners;
+   };
+
+
 
    struct by_registration_deadline {};
    struct by_start_time {};
@@ -76,11 +118,11 @@ namespace graphene { namespace chain {
          ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
          ordered_non_unique< tag<by_registration_deadline>, 
             composite_key<tournament_object, 
-               member<tournament_object, tournament_state, &tournament_object::state>, 
+               const_mem_fun<tournament_object, tournament_state, &tournament_object::get_state>, 
                const_mem_fun<tournament_object, time_point_sec, &tournament_object::get_registration_deadline> > >,
          ordered_non_unique< tag<by_start_time>, 
             composite_key<tournament_object, 
-               member<tournament_object, tournament_state, &tournament_object::state>, 
+               const_mem_fun<tournament_object, tournament_state, &tournament_object::get_state>, 
                member<tournament_object, optional<time_point_sec>, &tournament_object::start_time> > >
       >
    > tournament_object_multi_index_type;
@@ -97,10 +139,11 @@ FC_REFLECT_DERIVED(graphene::chain::tournament_object, (graphene::db::object),
                    (start_time)
                    (end_time)
                    (prize_pool)
-                   (state)
                    (tournament_details_id))
 FC_REFLECT_ENUM(graphene::chain::tournament_state,
                 (accepting_registrations)
                 (awaiting_start)
                 (in_progress)
-                (registration_period_expired))
+                (registration_period_expired)
+                (concluded))
+

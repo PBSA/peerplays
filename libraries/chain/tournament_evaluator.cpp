@@ -72,12 +72,15 @@ namespace graphene { namespace chain {
    
    object_id_type tournament_create_evaluator::do_apply( const tournament_create_operation& op )
    { try {
+       const tournament_details_object& tournament_details =
+         db().create<tournament_details_object>( [&]( tournament_details_object& a ) {
+         });
+
        const tournament_object& new_tournament =
          db().create<tournament_object>( [&]( tournament_object& t ) {
              t.options = op.options;
              t.creator = op.creator;
-             t.state = tournament_state::accepting_registrations;
-             // t.dynamic_tournament_data_id = dyn_tournament.id;
+             t.tournament_details_id = tournament_details.id;
           });
        return new_tournament.id;
    } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -91,7 +94,7 @@ namespace graphene { namespace chain {
       //const account_object& player_account = op.player_account_id(d);
       _buy_in_asset_type = &op.buy_in.asset_id(d);
 
-      FC_ASSERT(_tournament_obj->state == tournament_state::accepting_registrations);
+      // TODO FC_ASSERT(_tournament_obj->state == tournament_state::accepting_registrations);
       FC_ASSERT(_tournament_details_obj->registered_players.size() < _tournament_obj->options.number_of_players,
                 "Tournament is already full");
       FC_ASSERT(d.head_block_time() <= _tournament_obj->options.registration_deadline, 
@@ -127,31 +130,9 @@ namespace graphene { namespace chain {
    
    void_result tournament_join_evaluator::do_apply( const tournament_join_operation& op )
    { try {
-      bool registration_complete = _tournament_details_obj->registered_players.size() + 1 == _tournament_obj->options.number_of_players;
-      if (registration_complete)
-          fc_ilog(fc::logger::get("tournament"),
-                  "Tournament ${id} now has enough players registered to begin",
-                  ("id", _tournament_obj->id));
-      
-      db().adjust_balance(op.payer_account_id, -op.buy_in);
-      db().modify(*_tournament_details_obj, [&](tournament_details_object& tournament_details_obj){
-              tournament_details_obj.payers[op.payer_account_id] += op.buy_in.amount;
-              tournament_details_obj.registered_players.insert(op.player_account_id);
-           });
       db().modify(*_tournament_obj, [&](tournament_object& tournament_obj){
-              ++tournament_obj.registered_players;
-              tournament_obj.prize_pool += op.buy_in.amount;
-              if (registration_complete)
-              {
-                 if (tournament_obj.options.start_time)
-                    tournament_obj.start_time = tournament_obj.options.start_time;
-                 else
-                    tournament_obj.start_time = db().head_block_time() + fc::seconds(*tournament_obj.options.start_delay);
-                 // even if the start time is now, mark it as awaiting; we will promote it to in_progress
-                 // in update_tournaments() called at the end of the block
-                 tournament_obj.state = tournament_state::awaiting_start;
-              }
-           });
+            tournament_obj.on_player_registered(db(), op.payer_account_id, op.player_account_id);
+         });
       return void_result();
    } FC_CAPTURE_AND_RETHROW( (op) ) }
    
