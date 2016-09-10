@@ -65,6 +65,11 @@ void database::update_global_dynamic_data( const signed_block& b )
 
    // dynamic global properties updating
    modify( _dgp, [&]( dynamic_global_property_object& dgp ){
+      secret_hash_type::encoder enc;       
+      fc::raw::pack( enc, dgp.random );       
+      fc::raw::pack( enc, b.previous_secret );        
+      dgp.random = enc.result();
+
       if( BOOST_UNLIKELY( b.block_num() == 1 ) )
          dgp.recently_missed_count = 0;
          else if( _checkpoints.size() && _checkpoints.rbegin()->first >= b.block_num() )
@@ -118,6 +123,8 @@ void database::update_signing_witness(const witness_object& signing_witness, con
    {
       _wit.last_aslot = new_block_aslot;
       _wit.last_confirmed_block_num = new_block.block_num();
+      _wit.previous_secret = new_block.previous_secret;
+      _wit.next_secret_hash = new_block.next_secret_hash;
    } );
 }
 
@@ -499,7 +506,7 @@ void database::update_tournaments()
           *start_iter->start_time <= head_block_time())
       {
          modify(*start_iter, [&](tournament_object& t) {
-            t.on_start_time_arrived();
+            t.on_start_time_arrived(*this);
          });
       }
       else

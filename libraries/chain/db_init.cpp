@@ -623,6 +623,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    std::for_each(genesis_state.initial_witness_candidates.begin(), genesis_state.initial_witness_candidates.end(),
                  [&](const genesis_state_type::initial_witness_type& witness) {
       witness_create_operation op;
+      op.initial_secret = secret_hash_type::hash(secret_hash_type());
       op.witness_account = get_account_id(witness.owner_name);
       op.block_signing_key = witness.block_signing_key;
       apply_operation(genesis_eval_state, op);

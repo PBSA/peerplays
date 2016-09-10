@@ -69,6 +69,7 @@ namespace graphene { namespace chain {
          static const uint8_t space_id = implementation_ids;
          static const uint8_t type_id  = impl_dynamic_global_property_object_type;
 
+         secret_hash_type  random;
          uint32_t          head_block_number = 0;
          block_id_type     head_block_id;
          time_point_sec    time;
@@ -125,6 +126,7 @@ namespace graphene { namespace chain {
 }}
 
 FC_REFLECT_DERIVED( graphene::chain::dynamic_global_property_object, (graphene::db::object),
+                    (random)
                     (head_block_number)
                     (head_block_id)
                     (time)

@@ -247,6 +247,7 @@ namespace graphene { namespace chain {
    typedef fc::sha256                                           digest_type;
    typedef fc::ecc::compact_signature                           signature_type;
    typedef safe<int64_t>                                        share_type;
+   typedef fc::ripemd160                                        secret_hash_type;
    typedef uint16_t                                             weight_type;
 
    struct public_key_type
@@ -353,6 +354,8 @@ FC_REFLECT_ENUM( graphene::chain::object_type,
                  (worker_object_type)
                  (balance_object_type)
                  (tournament_object_type)
+                 (match_object_type)
+                 (game_object_type)
                  (OBJECT_TYPE_COUNT)
                )
 FC_REFLECT_ENUM( graphene::chain::impl_object_type,

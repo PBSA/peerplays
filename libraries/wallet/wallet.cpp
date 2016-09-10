@@ -514,6 +514,7 @@ public:
       result["participation"] = (100*dynamic_props.recent_slots_filled.popcount()) / 128.0;
       result["active_witnesses"] = global_props.active_witnesses;
       result["active_committee_members"] = global_props.active_committee_members;
+      result["entropy"] = dynamic_props.random;
       return result;
    }
 
@@ -1453,6 +1454,10 @@ public:
       witness_create_op.witness_account = witness_account.id;
       witness_create_op.block_signing_key = witness_public_key;
       witness_create_op.url = url;
+      secret_hash_type::encoder enc;
+      fc::raw::pack(enc, witness_private_key);
+      fc::raw::pack(enc, secret_hash_type());
+      witness_create_op.initial_secret = secret_hash_type::hash(enc.result());
 
       if (_remote_db->get_witness_by_account(witness_create_op.witness_account))
          FC_THROW("Account ${owner_account} is already a witness", ("owner_account", owner_account));
