@@ -3,6 +3,8 @@
 #include <boost/multi_index/composite_key.hpp>
 #include <graphene/db/flat_index.hpp>
 #include <graphene/db/generic_index.hpp>
+#include <sstream>
+
 namespace graphene { namespace chain {
    class database;
    using namespace graphene::db;
@@ -14,7 +16,7 @@ namespace graphene { namespace chain {
    {
    public:
       static const uint8_t space_id = protocol_ids;
-      static const uint8_t type_id  = impl_tournament_details_object_type;
+      static const uint8_t type_id  = tournament_details_object_type;
 
       /// List of players registered for this tournament
       flat_set<account_id_type> registered_players;
@@ -74,6 +76,18 @@ namespace graphene { namespace chain {
 
       time_point_sec get_registration_deadline() const { return options.registration_deadline; }
 
+      // serialization functions:
+      // for serializing to raw, go through a temporary sstream object to avoid
+      // having to implement serialization in the header file
+      template<typename Stream>
+      friend Stream& operator<<( Stream& s, const tournament_object& tournament_obj );
+
+      template<typename Stream>
+      friend Stream& operator>>( Stream& s, tournament_object& tournament_obj );
+
+      void pack_impl(std::ostream& stream) const;
+      void unpack_impl(std::istream& stream);
+
       /// called by database maintenance code when registration for this contest has expired
       void on_registration_deadline_passed(database& db);
       void on_player_registered(database& db, account_id_type payer_id, account_id_type player_id);
@@ -128,22 +142,108 @@ namespace graphene { namespace chain {
    > tournament_object_multi_index_type;
    typedef generic_index<tournament_object, tournament_object_multi_index_type> tournament_index;
 
+   typedef multi_index_container<
+      tournament_details_object,
+      indexed_by<
+         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >      >
+   > tournament_details_object_multi_index_type;
+   typedef generic_index<tournament_details_object, tournament_details_object_multi_index_type> tournament_details_index;
+
+   template<typename Stream>
+   inline Stream& operator<<( Stream& s, const tournament_object& tournament_obj )
+   { 
+      fc_elog(fc::logger::get("tournament"), "In tournament_obj to_raw");
+      // pack all fields exposed in the header in the usual way
+      // instead of calling the derived pack, just serialize the one field in the base class
+      //   fc::raw::pack<Stream, const graphene::db::abstract_object<tournament_object> >(s, tournament_obj);
+      fc::raw::pack(s, tournament_obj.id);
+      fc::raw::pack(s, tournament_obj.creator);
+      fc::raw::pack(s, tournament_obj.options);
+      fc::raw::pack(s, tournament_obj.start_time);
+      fc::raw::pack(s, tournament_obj.end_time);
+      fc::raw::pack(s, tournament_obj.prize_pool);
+      fc::raw::pack(s, tournament_obj.registered_players);
+      fc::raw::pack(s, tournament_obj.tournament_details_id);
+
+      // fc::raw::pack the contents hidden in the impl class
+      std::ostringstream stream;
+      tournament_obj.pack_impl(stream);
+      fc::raw::pack(s, stream.str());
+
+      return s;
+   }
+   template<typename Stream>
+   inline Stream& operator>>( Stream& s, tournament_object& tournament_obj )
+   { 
+      fc_elog(fc::logger::get("tournament"), "In tournament_obj from_raw");
+      // unpack all fields exposed in the header in the usual way
+      //fc::raw::unpack<Stream, graphene::db::abstract_object<tournament_object> >(s, tournament_obj);
+      fc::raw::unpack(s, tournament_obj.id);
+      fc::raw::unpack(s, tournament_obj.creator);
+      fc::raw::unpack(s, tournament_obj.options);
+      fc::raw::unpack(s, tournament_obj.start_time);
+      fc::raw::unpack(s, tournament_obj.end_time);
+      fc::raw::unpack(s, tournament_obj.prize_pool);
+      fc::raw::unpack(s, tournament_obj.registered_players);
+      fc::raw::unpack(s, tournament_obj.tournament_details_id);
+
+      // fc::raw::unpack the contents hidden in the impl class
+      std::string stringified_stream;
+      fc::raw::unpack(s, stringified_stream);
+      std::istringstream stream(stringified_stream);
+      tournament_obj.unpack_impl(stream);
+      
+      return s;
+   }
+
 } }
 
 FC_REFLECT_DERIVED(graphene::chain::tournament_details_object, (graphene::db::object),
                    (registered_players)
                    (payers))
-FC_REFLECT_DERIVED(graphene::chain::tournament_object, (graphene::db::object),
-                   (creator)
-                   (options)
-                   (start_time)
-                   (end_time)
-                   (prize_pool)
-                   (tournament_details_id))
+FC_REFLECT_TYPENAME(graphene::chain::tournament_object) // manually serialized
 FC_REFLECT_ENUM(graphene::chain::tournament_state,
                 (accepting_registrations)
                 (awaiting_start)
                 (in_progress)
                 (registration_period_expired)
                 (concluded))
+
+namespace fc { 
+   // Manually reflect tournament_object to variant to properly reflect "state"
+   inline void to_variant(const graphene::chain::tournament_object& tournament_obj, fc::variant& v)
+   {
+      fc_elog(fc::logger::get("tournament"), "In tournament_obj to_variant");
+      elog("In tournament_obj to_variant");
+      fc::mutable_variant_object o;
+      o("id", tournament_obj.id)
+       ("creator", tournament_obj.creator)
+       ("options", tournament_obj.options)
+       ("start_time", tournament_obj.start_time)
+       ("end_time", tournament_obj.end_time)
+       ("prize_pool", tournament_obj.prize_pool)
+       ("registered_players", tournament_obj.registered_players)
+       ("tournament_details_id", tournament_obj.tournament_details_id)
+       ("state", tournament_obj.get_state());
+
+      v = o;
+   }
+
+   // Manually reflect tournament_object to variant to properly reflect "state"
+   inline void from_variant(const fc::variant& v, graphene::chain::tournament_object& tournament_obj)
+   {
+      fc_elog(fc::logger::get("tournament"), "In tournament_obj from_variant");
+      tournament_obj.id = v["id"].as<graphene::chain::tournament_id_type>();
+      tournament_obj.creator = v["creator"].as<graphene::chain::account_id_type>();
+      tournament_obj.options = v["options"].as<graphene::chain::tournament_options>();
+      tournament_obj.start_time = v["start_time"].as<optional<time_point_sec> >();
+      tournament_obj.end_time = v["end_time"].as<optional<time_point_sec> >();
+      tournament_obj.prize_pool = v["prize_pool"].as<graphene::chain::share_type>();
+      tournament_obj.registered_players = v["registered_players"].as<uint32_t>();
+      tournament_obj.tournament_details_id = v["tournament_details_id"].as<graphene::chain::tournament_details_id_type>();
+      // TODO deserialize "State"
+   }
+} //end namespace fc
+
+
 

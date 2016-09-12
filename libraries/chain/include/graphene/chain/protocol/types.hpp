@@ -135,6 +135,7 @@ namespace graphene { namespace chain {
       worker_object_type,
       balance_object_type,
       tournament_object_type,
+      tournament_details_object_type,
       match_object_type,
       game_object_type,
       OBJECT_TYPE_COUNT ///< Sentry value which contains the number of different object types
@@ -158,8 +159,7 @@ namespace graphene { namespace chain {
       impl_budget_record_object_type,
       impl_special_authority_object_type,
       impl_buyback_object_type,
-      impl_fba_accumulator_object_type,
-      impl_tournament_details_object_type
+      impl_fba_accumulator_object_type
    };
 
    //typedef fc::unsigned_int            object_id_type;
@@ -180,6 +180,7 @@ namespace graphene { namespace chain {
    class balance_object;
    class blinded_balance_object;
    class tournament_object;
+   class tournament_details_object;
    class match_object;
    class game_object;
 
@@ -198,6 +199,7 @@ namespace graphene { namespace chain {
    typedef object_id< protocol_ids, worker_object_type,             worker_object>                worker_id_type;
    typedef object_id< protocol_ids, balance_object_type,            balance_object>               balance_id_type;
    typedef object_id< protocol_ids, tournament_object_type,         tournament_object>            tournament_id_type;
+   typedef object_id< protocol_ids, tournament_details_object_type, tournament_details_object>    tournament_details_id_type;
    typedef object_id< protocol_ids, match_object_type,              match_object>                 match_id_type;
    typedef object_id< protocol_ids, game_object_type,               game_object>                  game_id_type;
 
@@ -238,7 +240,6 @@ namespace graphene { namespace chain {
    typedef object_id< implementation_ids, impl_special_authority_object_type, special_authority_object >                special_authority_id_type;
    typedef object_id< implementation_ids, impl_buyback_object_type, buyback_object >                                    buyback_id_type;
    typedef object_id< implementation_ids, impl_fba_accumulator_object_type, fba_accumulator_object >                    fba_accumulator_id_type;
-   typedef object_id< implementation_ids, impl_tournament_details_object_type, tournament_details_object >            tournament_details_id_type;
 
    typedef fc::array<char, GRAPHENE_MAX_ASSET_SYMBOL_LENGTH>    symbol_type;
    typedef fc::ripemd160                                        block_id_type;
@@ -354,6 +355,7 @@ FC_REFLECT_ENUM( graphene::chain::object_type,
                  (worker_object_type)
                  (balance_object_type)
                  (tournament_object_type)
+                 (tournament_details_object_type)
                  (match_object_type)
                  (game_object_type)
                  (OBJECT_TYPE_COUNT)
@@ -376,7 +378,6 @@ FC_REFLECT_ENUM( graphene::chain::impl_object_type,
                  (impl_special_authority_object_type)
                  (impl_buyback_object_type)
                  (impl_fba_accumulator_object_type)
-                 (impl_tournament_details_object_type)
                )
 
 FC_REFLECT_TYPENAME( graphene::chain::share_type )

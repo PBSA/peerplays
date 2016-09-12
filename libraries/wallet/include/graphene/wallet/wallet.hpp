@@ -1607,4 +1607,5 @@ FC_API( graphene::wallet::wallet_api,
         (blind_history)
         (receive_blind_transfer)
         (tournament_create)
+        (tournament_join)
       )

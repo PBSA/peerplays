@@ -482,7 +482,7 @@ void database::update_tournaments()
    auto& registration_deadline_index = get_index_type<tournament_index>().indices().get<by_registration_deadline>();
    // this index is sorted on state and deadline, so the tournaments awaiting registrations with the earliest
    // deadlines will be at the beginning
-   while (registration_deadline_index.empty() &&
+   while (!registration_deadline_index.empty() &&
           registration_deadline_index.begin()->get_state() == tournament_state::accepting_registrations &&
           registration_deadline_index.begin()->options.registration_deadline <= head_block_time())
    {

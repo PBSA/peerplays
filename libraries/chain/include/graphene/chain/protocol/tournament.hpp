@@ -162,6 +162,7 @@ FC_REFLECT( graphene::chain::tournament_options,
             (start_delay)
             (round_delay)
             (number_of_wins)
+            (meta)
             (game_options))
 FC_REFLECT( graphene::chain::tournament_create_operation,
             (fee)
