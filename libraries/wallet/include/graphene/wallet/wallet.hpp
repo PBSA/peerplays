@@ -1419,6 +1419,12 @@ class wallet_api
        */
       signed_transaction tournament_join( string payer_account, string player_account, tournament_id_type tournament_id, string buy_in_amount, string buy_in_asset_symbol, bool broadcast = false );
 
+      /** Get a list of upcoming tournaments
+       * @param player_accounts if non-empty, only return tournaments for which at least one of the named players is eligible.  If empty, return all tournaments
+       * @param limit the number of tournaments to return
+       */
+      vector<tournament_object> get_upcoming_tournaments(optional<string> player_accounts, uint32_t limit);
+
       void dbg_make_uia(string creator, string symbol);
       void dbg_make_mia(string creator, string symbol);
       void flood_network(string prefix, uint32_t number_of_transactions);
@@ -1608,4 +1614,5 @@ FC_API( graphene::wallet::wallet_api,
         (receive_blind_transfer)
         (tournament_create)
         (tournament_join)
+        (get_upcoming_tournaments)
       )

@@ -2172,6 +2172,55 @@ public:
          }
          return ss.str();
       };
+      m["get_upcoming_tournaments"] = [this](variant result, const fc::variants& a)
+      {
+         const vector<tournament_object> tournaments = result.as<vector<tournament_object> >();
+         std::stringstream ss;
+         ss << tournaments.size() << " upcoming tournaments:\n";
+         ss << "====================================================================================\n";
+         for( const tournament_object& tournament_obj : tournaments )
+         {
+            asset_object buy_in_asset = get_asset(tournament_obj.options.buy_in.asset_id);
+            ss << fc::variant(tournament_obj.id).as<std::string>() << "  " 
+               << fc::variant(game_type(tournament_obj.options.type_of_game)).as<std::string>() << "  "
+               << buy_in_asset.amount_to_pretty_string(tournament_obj.options.buy_in.amount) << "  "
+               << tournament_obj.options.number_of_players << " players\n";
+            switch (tournament_obj.get_state())
+            {
+            case tournament_state::accepting_registrations:
+               {
+                  ss << "  Waiting for players, " << tournament_obj.registered_players << " of " << tournament_obj.options.number_of_players << " have registered\n";
+                  ss << "  If enough players register, the game will start ";
+                  if (tournament_obj.options.start_time)
+                     ss << "at " << tournament_obj.options.start_time->to_iso_string() << "\n";
+                  else
+                     ss << *tournament_obj.options.start_delay << " seconds after the last player registers\n";
+                  break;
+               }
+            case tournament_state::awaiting_start:
+               {
+                  ss << "  All players have registered, tournament will start at " << tournament_obj.start_time->to_iso_string() << "\n";
+                  break;
+               }
+            case tournament_state::in_progress:
+               {
+                  ss << "  Tournament started at " << tournament_obj.start_time->to_iso_string() << "\n";
+                  break;
+               }
+            case tournament_state::registration_period_expired:
+               {
+                  ss << "  Tournament was canceled at " << tournament_obj.options.registration_deadline.to_iso_string() << ", not enough players registered\n";
+                  break;
+               }
+            case tournament_state::concluded:
+               {
+                  ss << "  Tournament finished at " << tournament_obj.end_time->to_iso_string() << "\n";
+                  break;
+               }
+            }
+         }
+         return ss.str();
+      };
 
       return m;
    }
@@ -4141,6 +4190,14 @@ signed_transaction wallet_api::tournament_join( string payer_account,
    tx.validate();
 
    return my->sign_transaction( tx, broadcast );
+}
+
+vector<tournament_object> wallet_api::get_upcoming_tournaments(fc::optional<string> player_account, uint32_t limit)
+{
+   fc::optional<account_id_type> player_account_id;
+   if (player_account)
+     player_account_id = get_account(*player_account).id;
+   return my->_remote_db->get_upcoming_tournaments(player_account_id, limit);
 }
 
 // default ctor necessary for FC_REFLECT

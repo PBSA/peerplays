@@ -3,6 +3,7 @@
 #include <boost/multi_index/composite_key.hpp>
 #include <graphene/db/flat_index.hpp>
 #include <graphene/db/generic_index.hpp>
+#include <fc/crypto/hex.hpp>
 #include <sstream>
 
 namespace graphene { namespace chain {
@@ -168,6 +169,9 @@ namespace graphene { namespace chain {
       // fc::raw::pack the contents hidden in the impl class
       std::ostringstream stream;
       tournament_obj.pack_impl(stream);
+      std::string stringified_stream(stream.str());
+      fc_elog(fc::logger::get("tournament"), "Serialized state ${state} to bytes ${bytes}", 
+              ("state", tournament_obj.get_state())("bytes", fc::to_hex(stringified_stream.c_str(), stringified_stream.size())));
       fc::raw::pack(s, stream.str());
 
       return s;
@@ -192,6 +196,8 @@ namespace graphene { namespace chain {
       fc::raw::unpack(s, stringified_stream);
       std::istringstream stream(stringified_stream);
       tournament_obj.unpack_impl(stream);
+      fc_elog(fc::logger::get("tournament"), "Deserialized state ${state} from bytes ${bytes}", 
+              ("state", tournament_obj.get_state())("bytes", fc::to_hex(stringified_stream.c_str(), stringified_stream.size())));
       
       return s;
    }

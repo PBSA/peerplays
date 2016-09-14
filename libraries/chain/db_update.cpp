@@ -502,7 +502,8 @@ void database::update_tournaments()
    {
       // find the first tournament waiting to start; if its start time has arrived, start it
       auto start_iter = start_time_index.lower_bound(boost::make_tuple(tournament_state::awaiting_start));
-      if (start_iter->get_state() == tournament_state::awaiting_start && 
+      if (start_iter != start_time_index.end() &&
+          start_iter->get_state() == tournament_state::awaiting_start && 
           *start_iter->start_time <= head_block_time())
       {
          modify(*start_iter, [&](tournament_object& t) {

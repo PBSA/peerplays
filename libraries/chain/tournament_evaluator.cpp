@@ -93,69 +93,52 @@ namespace graphene { namespace chain {
    
    void_result tournament_join_evaluator::do_evaluate( const tournament_join_operation& op )
    { try {
-      fc_ilog(fc::logger::get("tournament"), ".",);
       const database& d = db();
-      fc_ilog(fc::logger::get("tournament"), ".",);
       _tournament_obj = &op.tournament_id(d);
       fc_ilog(fc::logger::get("tournament"), "details_id = ${id}",("id", _tournament_obj->tournament_details_id));
       _tournament_details_obj = &_tournament_obj->tournament_details_id(d);
-      fc_ilog(fc::logger::get("tournament"), ".",);
       _payer_account = &op.payer_account_id(d);
-      fc_ilog(fc::logger::get("tournament"), ".",);
       //const account_object& player_account = op.player_account_id(d);
       _buy_in_asset_type = &op.buy_in.asset_id(d);
-      fc_ilog(fc::logger::get("tournament"), ".",);
 
       // TODO FC_ASSERT(_tournament_obj->state == tournament_state::accepting_registrations);
       FC_ASSERT(_tournament_details_obj->registered_players.size() < _tournament_obj->options.number_of_players,
                 "Tournament is already full");
-      fc_ilog(fc::logger::get("tournament"), ".",);
       FC_ASSERT(d.head_block_time() <= _tournament_obj->options.registration_deadline, 
                 "Registration deadline has already passed");
 
-      fc_ilog(fc::logger::get("tournament"), ".",);
       FC_ASSERT(_tournament_obj->options.whitelist.empty() ||
                 _tournament_obj->options.whitelist.find(op.player_account_id) == _tournament_obj->options.whitelist.end(),
                 "Player is not on the whitelist for this tournament");
-      fc_ilog(fc::logger::get("tournament"), ".",);
 
       FC_ASSERT(_tournament_details_obj->registered_players.find(op.player_account_id) == _tournament_details_obj->registered_players.end(),
                 "Player is already registered for this tournament");
-      fc_ilog(fc::logger::get("tournament"), ".",);
       FC_ASSERT(op.buy_in == _tournament_obj->options.buy_in, "Buy-in is incorrect");
 
-      fc_ilog(fc::logger::get("tournament"), ".",);
       GRAPHENE_ASSERT(!_buy_in_asset_type->is_transfer_restricted(),
                       transfer_restricted_transfer_asset,
                       "Asset {asset} has transfer_restricted flag enabled",
                       ("asset", op.buy_in.asset_id));
 
-      fc_ilog(fc::logger::get("tournament"), ".",);
       GRAPHENE_ASSERT(is_authorized_asset(d, *_payer_account, *_buy_in_asset_type),
                       transfer_from_account_not_whitelisted,
                       "payer account ${payer} is not whitelisted for asset ${asset}",
                       ("payer", op.payer_account_id)
                       ("asset", op.buy_in.asset_id));
 
-      fc_ilog(fc::logger::get("tournament"), ".",);
       bool sufficient_balance = d.get_balance(*_payer_account, *_buy_in_asset_type).amount >= op.buy_in.amount;
-      fc_ilog(fc::logger::get("tournament"), ".",);
       FC_ASSERT(sufficient_balance,
                 "Insufficient Balance: paying account '${payer}' has insufficient balance to pay buy-in of ${buy_in} (balance is ${balance})", 
                 ("payer", _payer_account->name)
                 ("buy_in", d.to_pretty_string(op.buy_in))
                 ("balance",d.to_pretty_string(d.get_balance(*_payer_account, *_buy_in_asset_type))));
-      fc_ilog(fc::logger::get("tournament"), ".",);
       return void_result();
    } FC_CAPTURE_AND_RETHROW( (op) ) }
    
    void_result tournament_join_evaluator::do_apply( const tournament_join_operation& op )
    { try {
-      fc_ilog(fc::logger::get("tournament"), "in do_apply",);
       db().modify(*_tournament_obj, [&](tournament_object& tournament_obj){
-            fc_ilog(fc::logger::get("tournament"), "in do_apply's modify",);
             tournament_obj.on_player_registered(db(), op.payer_account_id, op.player_account_id);
-            fc_ilog(fc::logger::get("tournament"), "in do_apply's modify after event",);
          });
       return void_result();
    } FC_CAPTURE_AND_RETHROW( (op) ) }

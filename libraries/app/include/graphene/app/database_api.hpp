@@ -557,7 +557,7 @@ class database_api
        *                       allowed to join (public tournaments or tournaments the account is whitelisted for)
        * @return the list of tournaments that are still accepting new registrations
        */
-      vector<tournament_object> get_upcoming_tournaments(fc::optional<account_id_type> account_filter)const;
+      vector<tournament_object> get_upcoming_tournaments(fc::optional<account_id_type> account_filter, uint32_t limit)const;
 
    private:
       std::shared_ptr< database_api_impl > my;
