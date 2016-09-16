@@ -206,6 +206,8 @@ void database::initialize_indexes()
 
    add_index< primary_index<tournament_index> >();
    add_index< primary_index<tournament_details_index> >();
+   add_index< primary_index<match_index> >();
+   add_index< primary_index<game_index> >();
 
    //Implementation object indexes
    add_index< primary_index<transaction_index                             > >();

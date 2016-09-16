@@ -1425,6 +1425,11 @@ class wallet_api
        */
       vector<tournament_object> get_upcoming_tournaments(optional<string> player_accounts, uint32_t limit);
 
+      /** Get specific information about a tournament
+       * @param tournament_id the ID of the tournament 
+       */
+      tournament_object get_tournament(tournament_id_type id);
+
       void dbg_make_uia(string creator, string symbol);
       void dbg_make_mia(string creator, string symbol);
       void flood_network(string prefix, uint32_t number_of_transactions);
@@ -1615,4 +1620,5 @@ FC_API( graphene::wallet::wallet_api,
         (tournament_create)
         (tournament_join)
         (get_upcoming_tournaments)
+        (get_tournament)
       )

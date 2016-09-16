@@ -173,6 +173,7 @@ FC_REFLECT( graphene::chain::tournament_join_operation,
             (fee)
             (payer_account_id)
             (player_account_id)
+            (tournament_id)
             (buy_in)
             (extensions))
 FC_REFLECT( graphene::chain::tournament_create_operation::fee_parameters_type, (fee) )

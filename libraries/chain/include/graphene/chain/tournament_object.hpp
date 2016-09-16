@@ -7,6 +7,15 @@
 #include <sstream>
 
 namespace graphene { namespace chain {
+   class tournament_object;
+} }
+
+namespace fc { 
+   void to_variant(const graphene::chain::tournament_object& tournament_obj, fc::variant& v);
+   void from_variant(const fc::variant& v, graphene::chain::tournament_object& tournament_obj);
+} //end namespace fc
+
+namespace graphene { namespace chain {
    class database;
    using namespace graphene::db;
 
@@ -24,6 +33,11 @@ namespace graphene { namespace chain {
 
       /// List of payers who have contributed to the prize pool
       flat_map<account_id_type, share_type> payers;
+
+      /// List of all matches in this tournament.  When the tournament starts, all matches
+      /// are created.  Matches in the first round will have players, matches in later
+      /// rounds will not be populated.
+      vector<match_id_type> matches;
    };
 
    enum class tournament_state
@@ -86,6 +100,9 @@ namespace graphene { namespace chain {
       template<typename Stream>
       friend Stream& operator>>( Stream& s, tournament_object& tournament_obj );
 
+      friend void ::fc::to_variant(const graphene::chain::tournament_object& tournament_obj, fc::variant& v);
+      friend void ::fc::from_variant(const fc::variant& v, graphene::chain::tournament_object& tournament_obj);
+
       void pack_impl(std::ostream& stream) const;
       void unpack_impl(std::istream& stream);
 
@@ -106,10 +123,19 @@ namespace graphene { namespace chain {
       static const uint8_t space_id = protocol_ids;
       static const uint8_t type_id  = match_object_type;
 
+      tournament_id_type tournament_id;
       /// 
-      flat_set<account_id_type> players;
+      vector<account_id_type> players;
 
+      vector<game_id_type> games;
       vector<flat_set<account_id_type> > game_winners;
+
+      /// the time the match started
+      time_point_sec start_time;
+      /// If the match has ended, the time it ended
+      optional<time_point_sec> end_time;
+
+      game_id_type start_next_game(database& db, match_id_type match_id);
    };
       
    class game_object : public graphene::db::abstract_object<game_object>
@@ -118,7 +144,9 @@ namespace graphene { namespace chain {
       static const uint8_t space_id = protocol_ids;
       static const uint8_t type_id  = game_object_type;
 
-      flat_set<account_id_type> players;
+      match_id_type match_id;
+
+      vector<account_id_type> players;
 
       flat_set<account_id_type> winners;
    };
@@ -149,6 +177,20 @@ namespace graphene { namespace chain {
          ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >      >
    > tournament_details_object_multi_index_type;
    typedef generic_index<tournament_details_object, tournament_details_object_multi_index_type> tournament_details_index;
+
+   typedef multi_index_container<
+      match_object,
+      indexed_by<
+         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >      >
+   > match_object_multi_index_type;
+   typedef generic_index<match_object, match_object_multi_index_type> match_index;
+
+   typedef multi_index_container<
+      game_object,
+      indexed_by<
+         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >      >
+   > game_object_multi_index_type;
+   typedef generic_index<game_object, game_object_multi_index_type> game_index;
 
    template<typename Stream>
    inline Stream& operator<<( Stream& s, const tournament_object& tournament_obj )
@@ -206,7 +248,8 @@ namespace graphene { namespace chain {
 
 FC_REFLECT_DERIVED(graphene::chain::tournament_details_object, (graphene::db::object),
                    (registered_players)
-                   (payers))
+                   (payers)
+                   (matches))
 FC_REFLECT_TYPENAME(graphene::chain::tournament_object) // manually serialized
 FC_REFLECT_ENUM(graphene::chain::tournament_state,
                 (accepting_registrations)
@@ -215,41 +258,15 @@ FC_REFLECT_ENUM(graphene::chain::tournament_state,
                 (registration_period_expired)
                 (concluded))
 
-namespace fc { 
-   // Manually reflect tournament_object to variant to properly reflect "state"
-   inline void to_variant(const graphene::chain::tournament_object& tournament_obj, fc::variant& v)
-   {
-      fc_elog(fc::logger::get("tournament"), "In tournament_obj to_variant");
-      elog("In tournament_obj to_variant");
-      fc::mutable_variant_object o;
-      o("id", tournament_obj.id)
-       ("creator", tournament_obj.creator)
-       ("options", tournament_obj.options)
-       ("start_time", tournament_obj.start_time)
-       ("end_time", tournament_obj.end_time)
-       ("prize_pool", tournament_obj.prize_pool)
-       ("registered_players", tournament_obj.registered_players)
-       ("tournament_details_id", tournament_obj.tournament_details_id)
-       ("state", tournament_obj.get_state());
-
-      v = o;
-   }
-
-   // Manually reflect tournament_object to variant to properly reflect "state"
-   inline void from_variant(const fc::variant& v, graphene::chain::tournament_object& tournament_obj)
-   {
-      fc_elog(fc::logger::get("tournament"), "In tournament_obj from_variant");
-      tournament_obj.id = v["id"].as<graphene::chain::tournament_id_type>();
-      tournament_obj.creator = v["creator"].as<graphene::chain::account_id_type>();
-      tournament_obj.options = v["options"].as<graphene::chain::tournament_options>();
-      tournament_obj.start_time = v["start_time"].as<optional<time_point_sec> >();
-      tournament_obj.end_time = v["end_time"].as<optional<time_point_sec> >();
-      tournament_obj.prize_pool = v["prize_pool"].as<graphene::chain::share_type>();
-      tournament_obj.registered_players = v["registered_players"].as<uint32_t>();
-      tournament_obj.tournament_details_id = v["tournament_details_id"].as<graphene::chain::tournament_details_id_type>();
-      // TODO deserialize "State"
-   }
-} //end namespace fc
-
-
+FC_REFLECT_DERIVED(graphene::chain::match_object, (graphene::db::object),
+                   (tournament_id)
+                   (players)
+                   (games)
+                   (game_winners)
+                   (start_time)
+                   (end_time))
+FC_REFLECT_DERIVED(graphene::chain::game_object, (graphene::db::object),
+                   (match_id)
+                   (players)
+                   (winners))
 

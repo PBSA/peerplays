@@ -48,6 +48,13 @@ namespace graphene { namespace chain {
       uint32_t time_per_reveal_move;
    };
 
+   struct rock_paper_scissors_game_details
+   {
+
+
+   };
+   typedef fc::static_variant<rock_paper_scissors_game_options> game_specific_details;
+
 } }
 
 FC_REFLECT( graphene::chain::rock_paper_scissors_game_options, (insurance_enabled)(time_per_commit_move)(time_per_reveal_move) )

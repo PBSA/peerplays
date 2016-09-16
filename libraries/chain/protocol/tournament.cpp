@@ -27,8 +27,8 @@ namespace graphene { namespace chain {
 
 void tournament_options::validate() const
 {
-   FC_ASSERT( number_of_players >= 2 && (number_of_players & (number_of_players - 1)) == 0,
-              "Number of players must be a power of two" );
+   //FC_ASSERT( number_of_players >= 2 && (number_of_players & (number_of_players - 1)) == 0,
+   //           "Number of players must be a power of two" );
 }
 
 share_type tournament_create_operation::calculate_fee(const fee_parameters_type& k)const

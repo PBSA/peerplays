@@ -33,6 +33,7 @@
 #include <boost/version.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/multiprecision/integer.hpp>
 
 #include <boost/range/adaptor/map.hpp>
 #include <boost/range/algorithm_ext/erase.hpp>
@@ -2176,7 +2177,7 @@ public:
       {
          const vector<tournament_object> tournaments = result.as<vector<tournament_object> >();
          std::stringstream ss;
-         ss << tournaments.size() << " upcoming tournaments:\n";
+         ss << "ID       GAME                  BUY IN    PLAYERS\n";
          ss << "====================================================================================\n";
          for( const tournament_object& tournament_obj : tournaments )
          {
@@ -2217,6 +2218,80 @@ public:
                   ss << "  Tournament finished at " << tournament_obj.end_time->to_iso_string() << "\n";
                   break;
                }
+            }
+         }
+         return ss.str();
+      };
+      m["get_tournament"] = [this](variant result, const fc::variants& a)
+      {
+         std::stringstream ss;
+
+         tournament_object tournament = result.as<tournament_object>();
+         tournament_details_object tournament_details = _remote_db->get_objects({result["tournament_details_id"].as<object_id_type>()})[0].as<tournament_details_object>();
+         tournament_state state = tournament.get_state();
+         if (state == tournament_state::awaiting_start)
+         {
+            ss << "Tournament starts at " << tournament.start_time->to_iso_string() << "\n";
+            ss << "Players:\n";
+            for (const account_id_type& player : tournament_details.registered_players)
+               ss << "\t" << get_account(player).name << "\n";
+         }
+         else if (state == tournament_state::in_progress || 
+                  state == tournament_state::concluded)
+         {
+            unsigned num_matches = tournament_details.matches.size();
+            uint32_t num_rounds = boost::multiprecision::detail::find_msb(tournament_details.matches.size() + 1);
+            unsigned num_rows = (num_matches + 1) * 2 - 1;
+            for (unsigned row = 0; row < num_rows; ++row)
+            {
+               for (unsigned round = 0; round <= num_rounds; ++round)
+               {
+                  unsigned row_offset = (1 << round) - 1;
+                  unsigned row_vertical_spacing = 1 << (round + 1);
+                  if (row >= row_offset && 
+                      (row - row_offset) % row_vertical_spacing == 0)
+                  {
+                     unsigned player_number_in_round = (row - row_offset) / row_vertical_spacing;
+                     unsigned first_player_in_round = (num_matches - (num_matches >> round)) * 2;
+                     unsigned player_number = first_player_in_round + player_number_in_round;
+
+                     unsigned match_number = player_number / 2;
+                     unsigned player_in_match = player_number % 2;
+                     idump((match_number)(player_in_match));
+
+                     match_object match = _remote_db->get_objects({tournament_details.matches[match_number]})[0].as<match_object>();
+                     std::string player_name;
+                     if (round != num_rounds &&
+                         !match.players.empty())
+                     {
+                        if (player_in_match < match.players.size())
+                           player_name = get_account(match.players[player_in_match]).name;
+                        else
+                           player_name = "[bye]";
+                     }
+                     ss << "__";
+                     ss << std::setfill('_') << std::setw(10) << player_name.substr(0,10);
+                     ss << "__";
+                  }
+                  else
+                     ss << "              ";
+
+                  if (round != num_rounds)
+                  {
+                     unsigned round_horizontal_spacing = 1 << round;
+                     unsigned next_row_vertical_spacing = 1 << (round + 2);
+                     for (unsigned i = 0; i < round_horizontal_spacing; ++i)
+                     {
+                        if ((row - 1 - i - row_offset) % next_row_vertical_spacing == 0)
+                           ss << "\\";
+                        else if ((row - row_vertical_spacing + i - row_offset) % next_row_vertical_spacing == 0)
+                           ss << "/";
+                        else
+                           ss << " ";
+                     }
+                  }
+               }
+               ss << "\n";
             }
          }
          return ss.str();
@@ -4198,6 +4273,11 @@ vector<tournament_object> wallet_api::get_upcoming_tournaments(fc::optional<stri
    if (player_account)
      player_account_id = get_account(*player_account).id;
    return my->_remote_db->get_upcoming_tournaments(player_account_id, limit);
+}
+
+tournament_object wallet_api::get_tournament(tournament_id_type id)
+{
+   return my->_remote_db->get_objects({id})[0].as<tournament_object>();
 }
 
 // default ctor necessary for FC_REFLECT
