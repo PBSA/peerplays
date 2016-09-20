@@ -1,5 +1,6 @@
 #pragma once
 #include <graphene/chain/protocol/tournament.hpp>
+#include <graphene/chain/rock_paper_scissors.hpp>
 #include <boost/multi_index/composite_key.hpp>
 #include <graphene/db/flat_index.hpp>
 #include <graphene/db/generic_index.hpp>
@@ -112,32 +113,12 @@ namespace graphene { namespace chain {
       void on_start_time_arrived(database& db);
       void on_final_game_completed();
 
+      void check_for_new_matches_to_start(database& db) const;
    private:
       class impl;
       std::unique_ptr<impl> my;
    };
 
-   class match_object : public graphene::db::abstract_object<match_object>
-   {
-   public:
-      static const uint8_t space_id = protocol_ids;
-      static const uint8_t type_id  = match_object_type;
-
-      tournament_id_type tournament_id;
-      /// 
-      vector<account_id_type> players;
-
-      vector<game_id_type> games;
-      vector<flat_set<account_id_type> > game_winners;
-
-      /// the time the match started
-      time_point_sec start_time;
-      /// If the match has ended, the time it ended
-      optional<time_point_sec> end_time;
-
-      game_id_type start_next_game(database& db, match_id_type match_id);
-   };
-      
    class game_object : public graphene::db::abstract_object<game_object>
    {
    public:
@@ -149,9 +130,9 @@ namespace graphene { namespace chain {
       vector<account_id_type> players;
 
       flat_set<account_id_type> winners;
+
+      game_specific_details game_details;
    };
-
-
 
    struct by_registration_deadline {};
    struct by_start_time {};
@@ -177,13 +158,6 @@ namespace graphene { namespace chain {
          ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >      >
    > tournament_details_object_multi_index_type;
    typedef generic_index<tournament_details_object, tournament_details_object_multi_index_type> tournament_details_index;
-
-   typedef multi_index_container<
-      match_object,
-      indexed_by<
-         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >      >
-   > match_object_multi_index_type;
-   typedef generic_index<match_object, match_object_multi_index_type> match_index;
 
    typedef multi_index_container<
       game_object,
@@ -258,15 +232,9 @@ FC_REFLECT_ENUM(graphene::chain::tournament_state,
                 (registration_period_expired)
                 (concluded))
 
-FC_REFLECT_DERIVED(graphene::chain::match_object, (graphene::db::object),
-                   (tournament_id)
-                   (players)
-                   (games)
-                   (game_winners)
-                   (start_time)
-                   (end_time))
 FC_REFLECT_DERIVED(graphene::chain::game_object, (graphene::db::object),
                    (match_id)
                    (players)
-                   (winners))
+                   (winners)
+                   (game_details))
 

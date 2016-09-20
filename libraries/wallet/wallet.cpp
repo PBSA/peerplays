@@ -64,6 +64,7 @@
 #include <graphene/app/api.hpp>
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/tournament_object.hpp>
+#include <graphene/chain/match_object.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <graphene/utilities/git_revision.hpp>
 #include <graphene/utilities/key_conversion.hpp>
@@ -2257,7 +2258,6 @@ public:
 
                      unsigned match_number = player_number / 2;
                      unsigned player_in_match = player_number % 2;
-                     idump((match_number)(player_in_match));
 
                      match_object match = _remote_db->get_objects({tournament_details.matches[match_number]})[0].as<match_object>();
                      std::string player_name;

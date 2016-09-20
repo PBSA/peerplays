@@ -476,44 +476,93 @@ void database::update_withdraw_permissions()
       remove(*permit_index.begin());
 }
 
-void database::update_tournaments()
+void process_finished_games(database& db)
+{
+   //auto& games_index = db.get_index_type<game_index>().indices().get<by_id>();
+}
+
+void process_finished_matches(database& db)
+{
+}
+
+void process_in_progress_tournaments(database& db)
+{
+   auto& start_time_index = db.get_index_type<tournament_index>().indices().get<by_start_time>();
+   auto start_iter = start_time_index.lower_bound(boost::make_tuple(tournament_state::in_progress));
+   while (start_iter != start_time_index.end() &&
+          start_iter->get_state() == tournament_state::in_progress)
+   {
+      auto next_iter = std::next(start_iter);
+      start_iter->check_for_new_matches_to_start(db);
+      start_iter = next_iter;
+   }
+}
+
+void cancel_expired_tournaments(database& db)
 {
    // First, cancel any tournaments that didn't get enough players
-   auto& registration_deadline_index = get_index_type<tournament_index>().indices().get<by_registration_deadline>();
+   auto& registration_deadline_index = db.get_index_type<tournament_index>().indices().get<by_registration_deadline>();
    // this index is sorted on state and deadline, so the tournaments awaiting registrations with the earliest
    // deadlines will be at the beginning
    while (!registration_deadline_index.empty() &&
           registration_deadline_index.begin()->get_state() == tournament_state::accepting_registrations &&
-          registration_deadline_index.begin()->options.registration_deadline <= head_block_time())
+          registration_deadline_index.begin()->options.registration_deadline <= db.head_block_time())
    {
       const tournament_object& tournament_obj = *registration_deadline_index.begin();
       fc_ilog(fc::logger::get("tournament"),
               "Canceling tournament ${id} because its deadline expired",
               ("id", tournament_obj.id));
       // cancel this tournament
-      modify(tournament_obj, [&](tournament_object& t) {
-         t.on_registration_deadline_passed(*this);
+      db.modify(tournament_obj, [&](tournament_object& t) {
+         t.on_registration_deadline_passed(db);
       });
    }
+}
 
+void start_fully_registered_tournaments(database& db)
+{
    // Next, start any tournaments that have enough players and whose start time just arrived
-   auto& start_time_index = get_index_type<tournament_index>().indices().get<by_start_time>();
+   auto& start_time_index = db.get_index_type<tournament_index>().indices().get<by_start_time>();
    while (1)
    {
       // find the first tournament waiting to start; if its start time has arrived, start it
       auto start_iter = start_time_index.lower_bound(boost::make_tuple(tournament_state::awaiting_start));
       if (start_iter != start_time_index.end() &&
           start_iter->get_state() == tournament_state::awaiting_start && 
-          *start_iter->start_time <= head_block_time())
+          *start_iter->start_time <= db.head_block_time())
       {
-         modify(*start_iter, [&](tournament_object& t) {
-            t.on_start_time_arrived(*this);
+         db.modify(*start_iter, [&](tournament_object& t) {
+            t.on_start_time_arrived(db);
          });
       }
       else
          break;
    }
+}
 
+void initiate_next_round_of_matches(database& db)
+{
+}
+
+void initiate_next_games(database& db)
+{
+}
+
+void database::update_tournaments()
+{
+   // Process as follows:
+   // - Process games
+   // - Process matches
+   // - Process tournaments
+   // - Process matches
+   // - Process games
+   process_finished_games(*this);
+   process_finished_matches(*this);
+   cancel_expired_tournaments(*this);
+   start_fully_registered_tournaments(*this);
+   process_in_progress_tournaments(*this);
+   initiate_next_round_of_matches(*this);
+   initiate_next_games(*this);
 }
 
 } }

@@ -52,6 +52,27 @@ struct genesis_state_type {
       public_key_type active_key;
       bool is_lifetime_member = false;
    };
+   struct initial_bts_account_type {
+      struct initial_authority {
+         uint32_t                               weight_threshold;
+         flat_map<string, weight_type>          account_auths; // uses account name instead of account id
+         flat_map<public_key_type, weight_type> key_auths;
+         flat_map<address, weight_type>         address_auths;
+      };
+      initial_bts_account_type(const string& name = string(),
+                               const initial_authority& owner_authority = initial_authority(),
+                               const initial_authority& active_authority = initial_authority(),
+                               const share_type& core_balance = share_type())
+         : name(name),
+           owner_authority(owner_authority),
+           active_authority(active_authority),
+           core_balance(core_balance)
+      {}
+      string name;
+      initial_authority owner_authority;
+      initial_authority active_authority;
+      share_type core_balance;
+   };
    struct initial_asset_type {
       struct initial_collateral_position {
          address owner;
@@ -103,6 +124,7 @@ struct genesis_state_type {
    share_type                               max_core_supply = GRAPHENE_MAX_SHARE_SUPPLY;
    chain_parameters                         initial_parameters;
    immutable_chain_parameters               immutable_parameters;
+   vector<initial_bts_account_type>         initial_bts_accounts;
    vector<initial_account_type>             initial_accounts;
    vector<initial_asset_type>               initial_assets;
    vector<initial_balance_type>             initial_balances;
@@ -147,8 +169,20 @@ FC_REFLECT(graphene::chain::genesis_state_type::initial_committee_member_type, (
 
 FC_REFLECT(graphene::chain::genesis_state_type::initial_worker_type, (owner_name)(daily_pay))
 
+FC_REFLECT(graphene::chain::genesis_state_type::initial_bts_account_type::initial_authority,
+           (weight_threshold)
+           (account_auths)
+           (key_auths)
+           (address_auths))
+
+FC_REFLECT(graphene::chain::genesis_state_type::initial_bts_account_type,
+           (name)
+           (owner_authority)
+           (active_authority)
+           (core_balance))
+
 FC_REFLECT(graphene::chain::genesis_state_type,
-           (initial_timestamp)(max_core_supply)(initial_parameters)(initial_accounts)(initial_assets)(initial_balances)
+           (initial_timestamp)(max_core_supply)(initial_parameters)(initial_bts_accounts)(initial_accounts)(initial_assets)(initial_balances)
            (initial_vesting_balances)(initial_active_witnesses)(initial_witness_candidates)
            (initial_committee_candidates)(initial_worker_candidates)
            (initial_chain_id)

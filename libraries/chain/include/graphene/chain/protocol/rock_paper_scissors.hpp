@@ -40,20 +40,15 @@ namespace graphene { namespace chain {
       bool insurance_enabled;
       /// The number of seconds users are given to commit their next move, counted from the beginning
       /// of the hand (during the game, a hand begins immediately on the block containing the 
-      /// second player's reveal or where the time_per_reveal move has expired)
+      /// second player's reveal or where the time_per_reveal move has expired).
+      /// Note, if these times aren't an even multiple of the block interval, they will be rounded
+      /// up.
       uint32_t time_per_commit_move;
 
       /// The number of seconds users are given to reveal their move, counted from the time of the
       /// block containing the second commit or the where the time_per_commit_move expired
       uint32_t time_per_reveal_move;
    };
-
-   struct rock_paper_scissors_game_details
-   {
-
-
-   };
-   typedef fc::static_variant<rock_paper_scissors_game_options> game_specific_details;
 
 } }
 
