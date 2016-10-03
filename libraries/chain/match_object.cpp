@@ -30,6 +30,7 @@
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/msm/back/tools.hpp>
+#include <boost/range/algorithm/copy.hpp>
 
 namespace graphene { namespace chain {
 
@@ -67,10 +68,13 @@ namespace graphene { namespace chain {
          {
             void on_entry(const initiate_match& event, match_state_machine_& fsm)
             {
-               fsm.match_obj->players = event.players;
+               match_object& match = *fsm.match_obj;
+               match.players = event.players;
+               match.start_time = event.db.head_block_time();
+
                fc_ilog(fc::logger::get("tournament"),
                        "Match ${id} is now in progress",
-                       ("id", fsm.match_obj->id));
+                       ("id", match.id));
             }
          };
          struct match_complete : public msm::front::state<>
@@ -80,6 +84,17 @@ namespace graphene { namespace chain {
                fc_ilog(fc::logger::get("tournament"),
                        "Match ${id} is complete",
                        ("id", fsm.match_obj->id));
+            }
+            void on_entry(const initiate_match& event, match_state_machine_& fsm)
+            {
+               match_object& match = *fsm.match_obj;
+               fc_ilog(fc::logger::get("tournament"),
+                       "Match ${id} is complete, it was a buy",
+                       ("id", match));
+               match.players = event.players;
+               boost::copy(event.players, std::inserter(match.match_winners, match.match_winners.end()));
+               match.start_time = event.db.head_block_time();
+               match.end_time = event.db.head_block_time();
             }
          };
          typedef waiting_on_previous_matches initial_state;
@@ -95,6 +110,11 @@ namespace graphene { namespace chain {
             return false;
             //return match_obj->registered_players == match_obj->options.number_of_players - 1;
          }
+
+         bool match_is_a_buy(const initiate_match& event)
+         {
+            return event.players.size() < 2;
+         }
          
          void start_next_game(const game_complete& event)
          {
@@ -106,7 +126,8 @@ namespace graphene { namespace chain {
          struct transition_table : mpl::vector<
          //    Start                          Event                     Next                         Action                Guard
          //  +-------------------------------+-------------------------+----------------------------+---------------------+----------------------+
-         _row  < waiting_on_previous_matches, initiate_match         ,  match_in_progress >,
+         _row  < waiting_on_previous_matches, initiate_match,           match_in_progress >,
+         g_row < waiting_on_previous_matches, initiate_match,           match_complete,                                    &x::match_is_a_buy >,
          //  +-------------------------------+-------------------------+----------------------------+---------------------+----------------------+
          a_row < match_in_progress,           game_complete,            match_in_progress,           &x::start_next_game >,
          g_row < match_in_progress,           game_complete,            match_complete,                                    &x::was_final_game >
