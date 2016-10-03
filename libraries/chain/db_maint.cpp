@@ -369,6 +369,7 @@ void database::initialize_budget_record( fc::time_point_sec now, budget_record& 
  */
 void database::process_budget()
 {
+   return;
    try
    {
       const global_property_object& gpo = get_global_properties();
@@ -405,9 +406,9 @@ void database::process_budget()
       rec.witness_budget = witness_budget;
       available_funds -= witness_budget;
 
-      fc::uint128_t worker_budget_u128 = gpo.parameters.worker_budget_per_day.value;
-      worker_budget_u128 *= uint64_t(time_to_maint);
-      worker_budget_u128 /= 60*60*24;
+      fc::uint128_t worker_budget_u128 = uint64_t(1); //DLN Q&D HACK gpo.parameters.worker_budget_per_day.value;
+      //DLN worker_budget_u128 *= uint64_t(time_to_maint);
+      //DLN worker_budget_u128 /= 60*60*24;
 
       share_type worker_budget;
       if( worker_budget_u128 >= available_funds.value )

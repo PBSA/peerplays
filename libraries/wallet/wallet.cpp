@@ -339,6 +339,69 @@ private:
       }
    }
 
+   fc::mutex _subscribed_object_changed_mutex;
+   void subscribed_object_changed(const variant& changed_objects_variant)
+   {
+      fc::scoped_lock<fc::mutex> lock(_resync_mutex);
+      fc::variants changed_objects = changed_objects_variant.get_array();
+      for (const variant& changed_object_variant : changed_objects)
+      {
+         // changed_object_variant is either the object, or just the id if the object was removed
+         if (changed_object_variant.is_object())
+         {
+            try
+            {
+               object_id_type id = changed_object_variant["id"].as<tournament_id_type>();
+               tournament_object current_tournament_obj = changed_object_variant.as<tournament_object>();
+               auto tournament_cache_iter = tournament_cache.find(id);
+               if (tournament_cache_iter != tournament_cache.end())
+               {
+                  const tournament_object& cached_tournament_obj = *tournament_cache_iter;
+                  if (cached_tournament_obj.get_state() != current_tournament_obj.get_state())
+                  {
+                     ilog("Tournament ${id} changed state from ${old} to ${new}",
+                          ("id", id)
+                          ("old", cached_tournament_obj.get_state())
+                          ("new", current_tournament_obj.get_state()));
+                     if (current_tournament_obj.get_state() == tournament_state::in_progress)
+                        monitor_matches_in_tournament(current_tournament_obj);
+                  }
+                  tournament_cache.modify(tournament_cache_iter, [&](tournament_object& obj) { obj = current_tournament_obj; });
+               }
+               continue;
+            }
+            catch (const fc::exception& e)
+            {
+            //   idump((e));
+            }
+            try
+            {
+               object_id_type id = changed_object_variant["id"].as<match_id_type>();
+               match_object current_match_obj = changed_object_variant.as<match_object>();
+               auto match_cache_iter = match_cache.find(id);
+               if (match_cache_iter != match_cache.end())
+               {
+                  const match_object& cached_match_obj = *match_cache_iter;
+                  if (cached_match_obj.get_state() != current_match_obj.get_state())
+                  {
+                     ilog("match ${id} changed state from ${old} to ${new}",
+                          ("id", id)
+                          ("old", cached_match_obj.get_state())
+                          ("new", current_match_obj.get_state()));
+                     match_in_new_state(current_match_obj);
+                  }
+                  match_cache.modify(match_cache_iter, [&](match_object& obj) { obj = current_match_obj; });
+               }
+               continue;
+            }
+            catch (const fc::exception& e)
+            {
+            //   idump((e));
+            }
+         }
+      }
+   }
+
    void enable_umask_protection()
    {
 #ifdef __unix__
@@ -411,10 +474,16 @@ public:
          on_block_applied( block_id );
       } );
 
+      _remote_db->set_subscribe_callback( [this](const variant& object )
+      {
+         on_subscribe_callback( object );
+      }, false );
+
       _wallet.chain_id = _chain_id;
       _wallet.ws_server = initial_data.ws_server;
       _wallet.ws_user = initial_data.ws_user;
       _wallet.ws_password = initial_data.ws_password;
+
    }
    virtual ~wallet_api_impl()
    {
@@ -447,6 +516,12 @@ public:
    void on_block_applied( const variant& block_id )
    {
       fc::async([this]{resync();}, "Resync after block");
+   }
+
+   void on_subscribe_callback( const variant& object )
+   {
+      //idump((object));
+      fc::async([this, object]{subscribed_object_changed(object);}, "Object changed");
    }
 
    bool copy_wallet_file( string destination_filename )
@@ -712,6 +787,35 @@ public:
 
    vector< signed_transaction > import_balance( string name_or_id, const vector<string>& wif_keys, bool broadcast );
 
+   void match_in_new_state(const match_object& match_obj)
+   {
+      if (match_obj.get_state() == match_state::match_in_progress)
+      {
+         for (const account_id_type& account_id : match_obj.players)
+         {
+            if (_wallet.my_accounts.find(account_id) != _wallet.my_accounts.end())
+            {
+               ilog("Match ${match} is now in progress for player ${account}",
+                    ("match", match_obj.id)("account", get_account(account_id).name));
+            }
+         }
+      }
+   }
+
+   // Cache all matches in the tournament, which will also register us for 
+   // updates on those matches
+   void monitor_matches_in_tournament(const tournament_object& tournament_obj)
+   {
+      tournament_details_object tournament_details = get_object<tournament_details_object>(tournament_obj.tournament_details_id);
+      for (const match_id_type& match_id : tournament_details.matches)
+      {
+         match_object match_obj = get_object<match_object>(match_id);
+         auto insert_result = match_cache.insert(match_obj);
+         if (insert_result.second)
+            match_in_new_state(match_obj);
+      }
+   }
+
    bool load_wallet_file(string wallet_filename = "")
    {
       // TODO:  Merge imported wallet with existing wallet,
@@ -770,6 +874,29 @@ public:
             _wallet.update_account( *acct );
             i++;
          }
+      }
+
+      // check to see if any of our accounts are registered for tournaments
+      // the real purpose of this is to ensure that we are subscribed for callbacks on these tournaments
+      ilog("Checking my accounts for active tournaments",);
+      for (const account_object& my_account : _wallet.my_accounts)
+      {
+         std::vector<tournament_object> tournaments = _remote_db->get_active_tournaments(my_account.id, 100);
+         std::vector<tournament_id_type> tournament_ids;
+         for (const tournament_object& tournament : tournaments)
+         {
+            auto insert_result = tournament_cache.insert(tournament);
+            if (insert_result.second)
+            {
+               // then this is the first time we've seen this tournament
+               monitor_matches_in_tournament(tournament);
+            }
+            tournament_ids.push_back(tournament.id);
+         }
+         if (!tournaments.empty())
+            ilog("Account ${my_account} is registered for tournaments: ${tournaments}", ("my_account", my_account.name)("tournaments", tournament_ids));
+         else
+            ilog("Account ${my_account} is not registered for any tournaments", ("my_account", my_account.name));
       }
 
       return true;
@@ -2583,6 +2710,18 @@ public:
    flat_map<string, operation> _prototype_ops;
 
    static_variant_map _operation_which_map = create_static_variant_map< operation >();
+
+   typedef multi_index_container<
+      tournament_object,
+      indexed_by<
+         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > > > > tournament_index_type;
+   tournament_index_type tournament_cache;
+
+   typedef multi_index_container<
+      match_object,
+      indexed_by<
+         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > > > > match_index_type;
+   match_index_type match_cache;
 
 #ifdef __unix__
    mode_t                  _old_umask;

@@ -559,6 +559,12 @@ class database_api
        */
       vector<tournament_object> get_upcoming_tournaments(fc::optional<account_id_type> account_filter, uint32_t limit)const;
 
+      /**
+       * @return the list of tournaments that are either in-progress or fully-registered and just waiting on their start
+       * time to arrive
+       */
+      vector<tournament_object> get_active_tournaments(fc::optional<account_id_type> account_filter, uint32_t limit)const;
+
    private:
       std::shared_ptr< database_api_impl > my;
 };
@@ -662,4 +668,5 @@ FC_API(graphene::app::database_api,
 
    // Tournaments
    (get_upcoming_tournaments)
+   (get_active_tournaments)
 )

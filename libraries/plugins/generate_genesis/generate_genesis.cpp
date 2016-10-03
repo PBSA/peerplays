@@ -21,12 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <graphene/generate_genesis/generate_genesis.hpp>
+#include <graphene/generate_genesis/generate_genesis_plugin.hpp>
 
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/genesis_state.hpp>
 #include <graphene/chain/witness_object.hpp>
-#include <graphene/time/time.hpp>
 
 #include <graphene/utilities/key_conversion.hpp>
 
@@ -47,7 +46,7 @@ void generate_genesis_plugin::plugin_set_program_options(
 {
    command_line_options.add_options()
          ("output-genesis-file,o", bpo::value<std::string>()->default_value("genesis.json"), "Genesis file to create")
-         ("snapshot-block-number", bpo::value<uint32_t>()->default_value(1), "Block number at which to snapshot balances")
+         ("snapshot-block-number", bpo::value<uint32_t>()->default_value(0), "Block number at which to snapshot balances")
          ;
    config_file_options.add(command_line_options);
 }
@@ -95,17 +94,134 @@ void generate_genesis_plugin::block_applied(const graphene::chain::signed_block&
    }
 }
 
+std::string modify_account_name(const std::string& name)
+{
+   return std::string("bts-") + name;
+}
+
+bool is_special_account(const graphene::chain::account_id_type& account_id)
+{
+   return account_id.instance < 100;
+}
+
+bool is_exchange(const std::string& account_name)
+{
+   return account_name == "poloniexcoldstorage" ||
+          account_name == "btc38-public-for-bts-cold" ||
+          account_name == "poloniexwallet" ||
+          account_name == "btercom" || 
+          account_name == "yunbi-cold-wallet" ||
+          account_name == "btc38-btsx-octo-72722" || 
+          account_name == "bittrex-deposit" ||
+          account_name == "btc38btsxwithdrawal";
+}
+
 void generate_genesis_plugin::generate_snapshot()
 {
    ilog("generate genesis plugin: generating snapshot now");
    graphene::chain::genesis_state_type new_genesis_state;
    chain::database& d = database();
+
+
+   // we'll distribute 5% of 1,000,000 tokens, so:
+   graphene::chain::share_type total_amount_to_distribute = 50000 * GRAPHENE_BLOCKCHAIN_PRECISION;
+
+   // walk through the balances; this index has the largest BTS balances first
+   // First, calculate the combined value of all BTS
+   auto& balance_index = d.get_index_type<graphene::chain::account_balance_index>().indices().get<graphene::chain::by_asset_balance>();
+   graphene::chain::share_type total_bts_balance;
+   graphene::chain::share_type total_shares_dropped;
+   for (auto balance_iter = balance_index.begin(); balance_iter != balance_index.end() && balance_iter->asset_type == graphene::chain::asset_id_type(); ++balance_iter)
+      if (!is_special_account(balance_iter->owner) && !is_exchange(balance_iter->owner(d).name))
+         total_bts_balance += balance_iter->balance;
+
+   // Now, we assume we're distributing balances to all BTS holders proportionally, figure 
+   // the smallest balance we can distribute and still assign the user a satoshi of the share drop
+   graphene::chain::share_type effective_total_bts_balance;
+   auto balance_iter = balance_index.begin();
+   for (; balance_iter != balance_index.end() && balance_iter->asset_type == graphene::chain::asset_id_type(); ++balance_iter)
+      if (!is_special_account(balance_iter->owner) && !is_exchange(balance_iter->owner(d).name))
+      {
+         fc::uint128 share_drop_amount = total_amount_to_distribute.value;
+         share_drop_amount *= balance_iter->balance.value;
+         share_drop_amount /= total_bts_balance.value;
+         if (!share_drop_amount.to_uint64())
+            break; // balances are decreasing, so every balance after will also round to zero
+         total_shares_dropped += share_drop_amount.to_uint64();
+         effective_total_bts_balance += balance_iter->balance;
+      }
+
+   // our iterator is just after the smallest balance we will process, 
+   // walk it backwards towards the larger balances, distributing the sharedrop as we go
+   graphene::chain::share_type remaining_amount_to_distribute = total_amount_to_distribute;
+   graphene::chain::share_type bts_balance_remaining = effective_total_bts_balance;
+   std::map<graphene::chain::account_id_type, graphene::chain::share_type> sharedrop_balances;
+
+   do {
+      --balance_iter;
+      if (!is_special_account(balance_iter->owner) && !is_exchange(balance_iter->owner(d).name))
+      {
+         fc::uint128 share_drop_amount = remaining_amount_to_distribute.value;
+         share_drop_amount *= balance_iter->balance.value;
+         share_drop_amount /= bts_balance_remaining.value;
+         graphene::chain::share_type amount_distributed =  share_drop_amount.to_uint64();
+         sharedrop_balances[balance_iter->owner] = amount_distributed;
+
+         remaining_amount_to_distribute -= amount_distributed;
+         bts_balance_remaining -= balance_iter->balance.value;
+      }
+   } while (balance_iter != balance_index.begin());
+   assert(remaining_amount_to_distribute == 0);
+
    auto& account_index = d.get_index_type<graphene::chain::account_index>();
    auto& account_by_id_index = account_index.indices().get<graphene::chain::by_id>();
-   for (const graphene::chain::account_object& account_obj : account_by_id_index)
+   // inefficient way of crawling the graph, but we only do it once
+   std::set<graphene::chain::account_id_type> already_generated;
+   for (;;)
    {
-      //new_genesis_state.initial_accounts.emplace_back(genesis_state_type::initial_account_type(account_obj.name, account
+      unsigned accounts_generated_this_round = 0;
+      for (const auto& sharedrop_value : sharedrop_balances)
+      {
+         const graphene::chain::account_id_type& account_id = sharedrop_value.first;
+         const graphene::chain::share_type& sharedrop_amount = sharedrop_value.second;
+         const graphene::chain::account_object& account_obj = account_id(d);
+         if (already_generated.find(account_id) == already_generated.end())
+         {
+            graphene::chain::genesis_state_type::initial_bts_account_type::initial_authority owner;
+            owner.weight_threshold = account_obj.owner.weight_threshold;
+            owner.key_auths = account_obj.owner.key_auths;
+            for (const auto& value : account_obj.owner.account_auths)
+            {
+               owner.account_auths.insert(std::make_pair(modify_account_name(value.first(d).name), value.second));
+               sharedrop_balances[value.first] += 0; // make sure the account is generated, even if it has a zero balance
+            }
+            owner.key_auths = account_obj.owner.key_auths;
+            owner.address_auths = account_obj.owner.address_auths;
+            
+            graphene::chain::genesis_state_type::initial_bts_account_type::initial_authority active;
+            active.weight_threshold = account_obj.active.weight_threshold;
+            active.key_auths = account_obj.active.key_auths;
+            for (const auto& value : account_obj.active.account_auths)
+            {
+               active.account_auths.insert(std::make_pair(modify_account_name(value.first(d).name), value.second));
+               sharedrop_balances[value.first] += 0; // make sure the account is generated, even if it has a zero balance
+            }
+            active.key_auths = account_obj.active.key_auths;
+            active.address_auths = account_obj.active.address_auths;
+
+            new_genesis_state.initial_bts_accounts.emplace_back(
+               graphene::chain::genesis_state_type::initial_bts_account_type(modify_account_name(account_obj.name),
+                                                                             owner, active, 
+                                                                             sharedrop_amount));
+            already_generated.insert(account_id);
+            ++accounts_generated_this_round;
+         }
+      }
+      if (accounts_generated_this_round == 0)
+         break;
    }
+   fc::json::save_to_file(new_genesis_state, _genesis_filename);
+   ilog("New genesis state written to file ${filename}", ("filename", _genesis_filename));
 }
 
 void generate_genesis_plugin::plugin_shutdown()

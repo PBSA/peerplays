@@ -416,6 +416,19 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    } );
    create<block_summary_object>([&](block_summary_object&) {});
 
+   // Create initial accounts from graphene-based chains
+   // graphene accounts can refer to other accounts in their authorities, so
+   // we first create all accounts with dummy authorities, then go back and 
+   // set up the authorities once the accounts all have ids assigned.
+   for( const auto& account : genesis_state.initial_bts_accounts )
+   {
+      account_create_operation cop;
+      cop.name = account.name;
+      cop.registrar = GRAPHENE_TEMP_ACCOUNT;
+      cop.owner = authority(1, GRAPHENE_TEMP_ACCOUNT, 1);
+      account_id_type account_id(apply_operation(genesis_eval_state, cop).get<object_id_type>());
+   }
+
    // Create initial accounts
    for( const auto& account : genesis_state.initial_accounts )
    {
@@ -453,6 +466,32 @@ void database::init_genesis(const genesis_state_type& genesis_state)
                 ("acct", name));
       return itr->get_id();
    };
+
+   for( const auto& account : genesis_state.initial_bts_accounts )
+   {
+      account_update_operation op;
+      op.account = get_account_id(account.name);
+
+      authority owner_authority;
+      owner_authority.weight_threshold = account.owner_authority.weight_threshold;
+      for (const auto& value : account.owner_authority.account_auths)
+         owner_authority.account_auths.insert(std::make_pair(get_account_id(value.first), value.second));
+      owner_authority.key_auths = account.owner_authority.key_auths;
+      owner_authority.address_auths = account.owner_authority.address_auths;
+
+      op.owner = std::move(owner_authority);
+
+      authority active_authority;
+      active_authority.weight_threshold = account.active_authority.weight_threshold;
+      for (const auto& value : account.active_authority.account_auths)
+         active_authority.account_auths.insert(std::make_pair(get_account_id(value.first), value.second));
+      active_authority.key_auths = account.active_authority.key_auths;
+      active_authority.address_auths = account.active_authority.address_auths;
+      
+      op.active = std::move(active_authority);
+
+      apply_operation(genesis_eval_state, op);
+   }
 
    // Helper function to get asset ID by symbol
    const auto& assets_by_symbol = get_index_type<asset_index>().indices().get<by_symbol>();
@@ -538,6 +577,14 @@ void database::init_genesis(const genesis_state_type& genesis_state)
          a.bitasset_data_id = bitasset_data_id;
       });
    }
+
+   // Create balances for all bts accounts
+   for( const auto& account : genesis_state.initial_bts_accounts )
+      if (account.core_balance != share_type())
+         create<account_balance_object>([&](account_balance_object& b) {
+            b.owner = get_account_id(account.name);
+            b.balance = account.core_balance;
+         });
 
    // Create initial balances
    share_type total_allocation;

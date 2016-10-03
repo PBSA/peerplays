@@ -140,6 +140,8 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
 
       // Tournaments
       vector<tournament_object> get_upcoming_tournaments(fc::optional<account_id_type> account_filter, uint32_t limit)const;
+      vector<tournament_object> get_active_tournaments(fc::optional<account_id_type> account_filter, uint32_t limit)const;
+
 
    //private:
       template<typename T>
@@ -1783,7 +1785,46 @@ vector<tournament_object> database_api_impl::get_upcoming_tournaments(fc::option
       if (tournament_obj.options.whitelist.empty() ||
           !account_filter ||
           tournament_obj.options.whitelist.find(*account_filter) != tournament_obj.options.whitelist.end())
+      {
          result.emplace_back(tournament_obj);
+         subscribe_to_item( tournament_obj.id );
+      }
+
+      if (result.size() >= limit)
+         break;
+   }
+   return result;
+}
+
+vector<tournament_object> database_api::get_active_tournaments(fc::optional<account_id_type> account_filter, uint32_t limit)const
+{
+   return my->get_active_tournaments(account_filter, limit);
+}
+
+vector<tournament_object> database_api_impl::get_active_tournaments(fc::optional<account_id_type> account_filter, uint32_t limit)const
+{
+   vector<tournament_object> result;
+   const auto& start_time_index = _db.get_index_type<tournament_index>().indices().get<by_start_time>();
+
+   const auto begin = start_time_index.lower_bound(boost::make_tuple(tournament_state::awaiting_start));
+   const auto end = start_time_index.upper_bound(boost::make_tuple(tournament_state::in_progress));
+   for (const tournament_object& tournament_obj : boost::make_iterator_range(begin, end))
+   {
+      if (account_filter)
+      {
+         const tournament_details_object& tournament_details_obj = tournament_obj.tournament_details_id(_db);
+         if (tournament_details_obj.registered_players.find(*account_filter) != tournament_details_obj.registered_players.end())
+         {
+            result.emplace_back(tournament_obj);
+            subscribe_to_item( tournament_obj.id );
+         }
+      }
+      else
+      {
+         result.emplace_back(tournament_obj);
+         subscribe_to_item( tournament_obj.id );
+      }
+
       if (result.size() >= limit)
          break;
    }

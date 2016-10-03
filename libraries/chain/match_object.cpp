@@ -39,14 +39,15 @@ namespace graphene { namespace chain {
    namespace 
    {
       // Events
-      struct previous_round_complete
+      struct initiate_match
       {
          database& db;
          vector<account_id_type> players;
-         previous_round_complete(database& db, const vector<account_id_type> players) :
+         initiate_match(database& db, const vector<account_id_type>& players) :
             db(db), players(players)
          {}
       };
+
       struct game_complete 
       {
          database& db;
@@ -64,7 +65,7 @@ namespace graphene { namespace chain {
          struct waiting_on_previous_matches : public msm::front::state<>{};
          struct match_in_progress : public msm::front::state<>
          {
-            void on_entry(const game_complete& event, match_state_machine_& fsm)
+            void on_entry(const initiate_match& event, match_state_machine_& fsm)
             {
                fc_ilog(fc::logger::get("tournament"),
                        "Match ${id} is now in progress",
@@ -104,7 +105,7 @@ namespace graphene { namespace chain {
          struct transition_table : mpl::vector<
          //    Start                          Event                     Next                         Action                Guard
          //  +-------------------------------+-------------------------+----------------------------+---------------------+----------------------+
-         _row  < waiting_on_previous_matches, previous_round_complete,  match_in_progress >,
+         _row  < waiting_on_previous_matches, initiate_match         ,  match_in_progress >,
          //  +-------------------------------+-------------------------+----------------------------+---------------------+----------------------+
          a_row < match_in_progress,           game_complete,            match_in_progress,           &x::start_next_game >,
          g_row < match_in_progress,           game_complete,            match_complete,                                    &x::was_final_game >
@@ -214,6 +215,11 @@ namespace graphene { namespace chain {
    {
       boost::archive::binary_iarchive ia(stream, boost::archive::no_header|boost::archive::no_codecvt|boost::archive::no_xml_tag_checking);
       ia >> my->state_machine;
+   }
+
+   void match_object::on_initiate_match(database& db, const vector<account_id_type>& players)
+   {
+      my->state_machine.process_event(initiate_match(db, players));
    }
 
    game_id_type match_object::start_next_game(database& db, match_id_type match_id)

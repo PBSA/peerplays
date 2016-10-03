@@ -152,21 +152,7 @@ namespace detail {
          else
          {
             vector<string> seeds = {
-               "faucet.bitshares.org:1776",
-               "bitshares.openledger.info:1776",
-               "114.92.254.159:62015",
-               "seed.blocktrades.us:1776",
-               "seed04.bitsharesnodes.com:1776", // thom
-               "seed05.bitsharesnodes.com:1776", // thom
-               "seed06.bitsharesnodes.com:1776", // thom
-               "seed07.bitsharesnodes.com:1776", // thom
-               "128.199.131.4:1777", // cube 
-               "54.85.252.77:39705", // lafona
-               "104.236.144.84:1777", // puppies
-               "40.127.190.171:1777", // betax
-               "185.25.22.21:1776", // liondani (greece)
-               "23.95.43.126:50696", // iHashFury
-               "109.73.172.144:50696" // iHashFury
+               "peerplays.blocktrades.info:2776"
             };
             for( const string& endpoint_string : seeds )
             {
