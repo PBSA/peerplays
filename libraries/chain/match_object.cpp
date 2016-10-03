@@ -67,6 +67,7 @@ namespace graphene { namespace chain {
          {
             void on_entry(const initiate_match& event, match_state_machine_& fsm)
             {
+               fsm.match_obj->players = event.players;
                fc_ilog(fc::logger::get("tournament"),
                        "Match ${id} is now in progress",
                        ("id", fsm.match_obj->id));
