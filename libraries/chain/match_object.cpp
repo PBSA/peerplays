@@ -24,6 +24,7 @@
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/match_object.hpp>
+#include <graphene/chain/game_object.hpp>
 
 #include <boost/msm/back/state_machine.hpp>
 #include <boost/msm/front/state_machine_def.hpp>

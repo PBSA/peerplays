@@ -119,21 +119,6 @@ namespace graphene { namespace chain {
       std::unique_ptr<impl> my;
    };
 
-   class game_object : public graphene::db::abstract_object<game_object>
-   {
-   public:
-      static const uint8_t space_id = protocol_ids;
-      static const uint8_t type_id  = game_object_type;
-
-      match_id_type match_id;
-
-      vector<account_id_type> players;
-
-      flat_set<account_id_type> winners;
-
-      game_specific_details game_details;
-   };
-
    struct by_registration_deadline {};
    struct by_start_time {};
    typedef multi_index_container<
@@ -159,12 +144,6 @@ namespace graphene { namespace chain {
    > tournament_details_object_multi_index_type;
    typedef generic_index<tournament_details_object, tournament_details_object_multi_index_type> tournament_details_index;
 
-   typedef multi_index_container<
-      game_object,
-      indexed_by<
-         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >      >
-   > game_object_multi_index_type;
-   typedef generic_index<game_object, game_object_multi_index_type> game_index;
 
    template<typename Stream>
    inline Stream& operator<<( Stream& s, const tournament_object& tournament_obj )
@@ -231,10 +210,4 @@ FC_REFLECT_ENUM(graphene::chain::tournament_state,
                 (in_progress)
                 (registration_period_expired)
                 (concluded))
-
-FC_REFLECT_DERIVED(graphene::chain::game_object, (graphene::db::object),
-                   (match_id)
-                   (players)
-                   (winners)
-                   (game_details))
 

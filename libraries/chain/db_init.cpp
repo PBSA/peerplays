@@ -48,6 +48,7 @@
 #include <graphene/chain/worker_object.hpp>
 #include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/match_object.hpp>
+#include <graphene/chain/game_object.hpp>
 
 #include <graphene/chain/account_evaluator.hpp>
 #include <graphene/chain/asset_evaluator.hpp>
