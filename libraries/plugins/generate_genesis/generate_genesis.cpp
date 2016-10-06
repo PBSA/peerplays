@@ -32,6 +32,8 @@
 #include <fc/smart_ref_impl.hpp>
 #include <fc/thread/thread.hpp>
 
+#include <graphene/chain/market_object.hpp>
+
 #include <iostream>
 
 using namespace graphene::generate_genesis_plugin;
@@ -122,25 +124,56 @@ void generate_genesis_plugin::generate_snapshot()
    graphene::chain::genesis_state_type new_genesis_state;
    chain::database& d = database();
 
-
    // we'll distribute 5% of 1,000,000 tokens, so:
    graphene::chain::share_type total_amount_to_distribute = 50000 * GRAPHENE_BLOCKCHAIN_PRECISION;
 
-   // walk through the balances; this index has the largest BTS balances first
-   // First, calculate the combined value of all BTS
+   // we need collection of mutable objects
+   std::vector<graphene::chain::account_balance_object> db_balances;
+   // copy const objects to our collection
    auto& balance_index = d.get_index_type<graphene::chain::account_balance_index>().indices().get<graphene::chain::by_asset_balance>();
-   graphene::chain::share_type total_bts_balance;
-   graphene::chain::share_type total_shares_dropped;
    for (auto balance_iter = balance_index.begin(); balance_iter != balance_index.end() && balance_iter->asset_type == graphene::chain::asset_id_type(); ++balance_iter)
       if (!is_special_account(balance_iter->owner) && !is_exchange(balance_iter->owner(d).name))
-         total_bts_balance += balance_iter->balance;
+         db_balances.emplace_back(*balance_iter);
 
-   // Now, we assume we're distributing balances to all BTS holders proportionally, figure 
+
+   // walk through the balances; this index has the largest BTS balances first
+   // first, update BTS
+   // second, calculate the combined value of all BTS
+   graphene::chain::share_type total_bts_balance;
+   for (auto balance_iter = db_balances.begin(); balance_iter != db_balances.end(); ++balance_iter)
+      {
+         // BTS tied up in market orders
+         auto order_range = d.get_index_type<graphene::chain::limit_order_index>().indices().get<graphene::chain::by_account>().equal_range(balance_iter->owner);
+         std::for_each(order_range.first, order_range.second,
+                       [&balance_iter] (const graphene::chain::limit_order_object& order) {
+                          balance_iter->balance += order.amount_to_receive().amount; // ?
+                       });
+         // BTS tied up in collateral for SmartCoins
+         auto collateral_range = d.get_index_type<graphene::chain::call_order_index>().indices().get<graphene::chain::by_account>().equal_range(balance_iter->owner);
+
+         std::for_each(collateral_range.first, collateral_range.second,
+                       [&balance_iter] (const graphene::chain::call_order_object& order) {
+                          balance_iter->balance += order.collateral; // ?
+                       });
+
+         total_bts_balance += balance_iter->balance;
+       }
+
+   // todo : sort only if neccessary ?
+   sort(db_balances.begin(), db_balances.end(),
+       [](const graphene::chain::account_balance_object & a, const graphene::chain::account_balance_object & b) -> bool
+      {
+        return a.balance > b.balance;
+      });
+
+   graphene::chain::share_type total_shares_dropped;
+   // Now, we assume we're distributing balances to all BTS holders proportionally, figure
    // the smallest balance we can distribute and still assign the user a satoshi of the share drop
    graphene::chain::share_type effective_total_bts_balance;
-   auto balance_iter = balance_index.begin();
-   for (; balance_iter != balance_index.end() && balance_iter->asset_type == graphene::chain::asset_id_type(); ++balance_iter)
-      if (!is_special_account(balance_iter->owner) && !is_exchange(balance_iter->owner(d).name))
+   auto balance_iter = db_balances.begin(); // balance_index.begin();
+   //for (; balance_iter != balance_index.end() && balance_iter->asset_type == graphene::chain::asset_id_type(); ++balance_iter)
+   for (balance_iter = db_balances.begin(); balance_iter != db_balances.end(); ++balance_iter)
+   if (!is_special_account(balance_iter->owner) && !is_exchange(balance_iter->owner(d).name))
       {
          fc::uint128 share_drop_amount = total_amount_to_distribute.value;
          share_drop_amount *= balance_iter->balance.value;
@@ -170,11 +203,11 @@ void generate_genesis_plugin::generate_snapshot()
          remaining_amount_to_distribute -= amount_distributed;
          bts_balance_remaining -= balance_iter->balance.value;
       }
-   } while (balance_iter != balance_index.begin());
+   } while (balance_iter != db_balances.begin());
    assert(remaining_amount_to_distribute == 0);
 
-   auto& account_index = d.get_index_type<graphene::chain::account_index>();
-   auto& account_by_id_index = account_index.indices().get<graphene::chain::by_id>();
+   //auto& account_index = d.get_index_type<graphene::chain::account_index>();
+   //auto& account_by_id_index = account_index.indices().get<graphene::chain::by_id>();
    // inefficient way of crawling the graph, but we only do it once
    std::set<graphene::chain::account_id_type> already_generated;
    for (;;)
