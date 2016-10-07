@@ -119,9 +119,6 @@ bool is_exchange(const std::string& account_name)
           account_name == "btc38btsxwithdrawal";
 }
 
-
-
-
 class my_account_balance_object : public graphene::chain::account_balance_object
 {
 public:
@@ -153,9 +150,7 @@ void generate_genesis_plugin::generate_snapshot()
 
    // walk through the balances; this index has the largest BTS balances first
    // first, calculate orders and collaterals
-   // second, print CSV
-   // third, update balance
-   // fourth, calculate the combined value of all BTS
+   // second, update balance
    graphene::chain::share_type  orders;
    graphene::chain::share_type  collaterals;
    graphene::chain::share_type total_bts_balance;
@@ -203,10 +198,8 @@ void generate_genesis_plugin::generate_snapshot()
    // Now, we assume we're distributing balances to all BTS holders proportionally, figure
    // the smallest balance we can distribute and still assign the user a satoshi of the share drop
    graphene::chain::share_type effective_total_bts_balance;
-   auto balance_iter = db_balances.begin(); // balance_index.begin();
-   //for (; balance_iter != balance_index.end() && balance_iter->asset_type == graphene::chain::asset_id_type(); ++balance_iter)
+   auto balance_iter = db_balances.begin();
    for (balance_iter = db_balances.begin(); balance_iter != db_balances.end(); ++balance_iter)
-   if (!is_special_account(balance_iter->owner) && !is_exchange(balance_iter->owner(d).name))
       {
          fc::uint128 share_drop_amount = total_amount_to_distribute.value;
          share_drop_amount *= balance_iter->balance.value;
@@ -217,6 +210,12 @@ void generate_genesis_plugin::generate_snapshot()
          effective_total_bts_balance += balance_iter->balance;
       }
 
+   // cosmetic, otherwise mess in tail of log
+   for (auto iter = balance_iter; iter != db_balances.end(); ++iter)
+      {
+        iter->sharedrop = 0;
+      }
+
    // our iterator is just after the smallest balance we will process, 
    // walk it backwards towards the larger balances, distributing the sharedrop as we go
    graphene::chain::share_type remaining_amount_to_distribute = total_amount_to_distribute;
@@ -224,9 +223,7 @@ void generate_genesis_plugin::generate_snapshot()
    std::map<graphene::chain::account_id_type, graphene::chain::share_type> sharedrop_balances;
 
    do {
-      --balance_iter;
-      if (!is_special_account(balance_iter->owner) && !is_exchange(balance_iter->owner(d).name))
-      {
+         --balance_iter;
          fc::uint128 share_drop_amount = remaining_amount_to_distribute.value;
          share_drop_amount *= balance_iter->balance.value;
          share_drop_amount /= bts_balance_remaining.value;
@@ -236,7 +233,6 @@ void generate_genesis_plugin::generate_snapshot()
 
          remaining_amount_to_distribute -= amount_distributed;
          bts_balance_remaining -= balance_iter->balance.value;
-      }
    } while (balance_iter != db_balances.begin());
    assert(remaining_amount_to_distribute == 0);
 
