@@ -119,6 +119,18 @@ bool is_exchange(const std::string& account_name)
           account_name == "btc38btsxwithdrawal";
 }
 
+
+
+
+class my_account_balance_object : public graphene::chain::account_balance_object
+{
+public:
+   graphene::chain::share_type        initial_balance;
+   graphene::chain::share_type        orders;
+   graphene::chain::share_type        collaterals;
+   graphene::chain::share_type        sharedrop;
+};
+
 void generate_genesis_plugin::generate_snapshot()
 {
    ilog("generate genesis plugin: generating snapshot now");
@@ -129,12 +141,15 @@ void generate_genesis_plugin::generate_snapshot()
    graphene::chain::share_type total_amount_to_distribute = 50000 * GRAPHENE_BLOCKCHAIN_PRECISION;
 
    // we need collection of mutable objects
-   std::vector<graphene::chain::account_balance_object> db_balances;
+   std::vector<my_account_balance_object> db_balances;
    // copy const objects to our collection
    auto& balance_index = d.get_index_type<graphene::chain::account_balance_index>().indices().get<graphene::chain::by_asset_balance>();
    for (auto balance_iter = balance_index.begin(); balance_iter != balance_index.end() && balance_iter->asset_type == graphene::chain::asset_id_type(); ++balance_iter)
       if (!is_special_account(balance_iter->owner) && !is_exchange(balance_iter->owner(d).name))
-         db_balances.emplace_back(*balance_iter);
+         {
+             // todo : can static cast be dangerous : consider using CRTP idiom
+             db_balances.emplace_back(static_cast<const my_account_balance_object&>(*balance_iter));
+         }
 
    // walk through the balances; this index has the largest BTS balances first
    // first, calculate orders and collaterals
@@ -146,11 +161,6 @@ void generate_genesis_plugin::generate_snapshot()
    graphene::chain::share_type total_bts_balance;
    std::ofstream logfile;
 
-   logfile.open("log.csv");
-   assert(logfile.is_open());
-   logfile << "name,balance,orders,collaterals\n";
-   char del = ',';
-   char nl = '\n';
    bool sort = false;
    for (auto balance_iter = db_balances.begin(); balance_iter != db_balances.end(); ++balance_iter)
       {
@@ -160,31 +170,32 @@ void generate_genesis_plugin::generate_snapshot()
          auto order_range = d.get_index_type<graphene::chain::limit_order_index>().indices().get<graphene::chain::by_account>().equal_range(balance_iter->owner);
          std::for_each(order_range.first, order_range.second,
                        [&orders] (const graphene::chain::limit_order_object& order) {
-                          orders += order.amount_to_receive().amount; // ?
+                          if (order.amount_for_sale().asset_id == graphene::chain::asset_id_type())
+                            orders += order.amount_for_sale().amount;
                        });
          // BTS tied up in collateral for SmartCoins
          auto collateral_range = d.get_index_type<graphene::chain::call_order_index>().indices().get<graphene::chain::by_account>().equal_range(balance_iter->owner);
 
          std::for_each(collateral_range.first, collateral_range.second,
                        [&collaterals] (const graphene::chain::call_order_object& order) {
-                          collaterals += order.collateral; // ?
+                          collaterals += order.collateral;
                        });
 
-         logfile << balance_iter->owner(d).name << del << balance_iter->balance.value << del << orders.value << del << collaterals.value << nl;
-
-         sort = sort || orders.value > 0 || collaterals.value > 0;
+         balance_iter->initial_balance = balance_iter->balance;
+         balance_iter->orders = orders;
+         balance_iter->collaterals = collaterals;
          balance_iter->balance += orders + collaterals;
+         sort = sort || orders.value > 0 || collaterals.value > 0;
          total_bts_balance += balance_iter->balance;
        }
-   logfile.close();
 
    if (sort)
       {
            ilog("generate genesis plugin: sorting");
            std::sort(db_balances.begin(), db_balances.end(),
-           [](const graphene::chain::account_balance_object & a, const graphene::chain::account_balance_object & b) -> bool
+           [](const my_account_balance_object & a, const my_account_balance_object & b) -> bool
               {
-                return a.balance > b.balance;
+                return a.balance.value > b.balance.value;
               });
       }
 
@@ -221,12 +232,24 @@ void generate_genesis_plugin::generate_snapshot()
          share_drop_amount /= bts_balance_remaining.value;
          graphene::chain::share_type amount_distributed =  share_drop_amount.to_uint64();
          sharedrop_balances[balance_iter->owner] = amount_distributed;
+         balance_iter->sharedrop = amount_distributed;
 
          remaining_amount_to_distribute -= amount_distributed;
          bts_balance_remaining -= balance_iter->balance.value;
       }
    } while (balance_iter != db_balances.begin());
    assert(remaining_amount_to_distribute == 0);
+
+   logfile.open("log.csv");
+   assert(logfile.is_open());
+   logfile << "name,balance+orders+collaterals,balance,orders,collaterals,sharedrop\n";
+   char del = ',';
+   char nl = '\n';
+   for( auto& o : db_balances)
+     {
+       logfile << o.owner(d).name << del << o.balance.value << del << o.initial_balance.value << del << o.orders.value << del << o.collaterals.value << del << o.sharedrop.value << nl;
+     }
+   logfile.close();
 
    //auto& account_index = d.get_index_type<graphene::chain::account_index>();
    //auto& account_by_id_index = account_index.indices().get<graphene::chain::by_id>();
