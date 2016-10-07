@@ -35,6 +35,7 @@
 #include <graphene/chain/market_object.hpp>
 
 #include <iostream>
+#include <fstream>
 
 using namespace graphene::generate_genesis_plugin;
 using std::string;
@@ -135,36 +136,57 @@ void generate_genesis_plugin::generate_snapshot()
       if (!is_special_account(balance_iter->owner) && !is_exchange(balance_iter->owner(d).name))
          db_balances.emplace_back(*balance_iter);
 
-
    // walk through the balances; this index has the largest BTS balances first
-   // first, update BTS
-   // second, calculate the combined value of all BTS
+   // first, calculate orders and collaterals
+   // second, print CSV
+   // third, update balance
+   // fourth, calculate the combined value of all BTS
+   graphene::chain::share_type  orders;
+   graphene::chain::share_type  collaterals;
    graphene::chain::share_type total_bts_balance;
+   std::ofstream logfile;
+
+   logfile.open("log.csv");
+   assert(logfile.is_open());
+   logfile << "name,balance,orders,collaterals\n";
+   char del = ',';
+   char nl = '\n';
+   bool sort = false;
    for (auto balance_iter = db_balances.begin(); balance_iter != db_balances.end(); ++balance_iter)
       {
+         orders = 0;
+         collaterals = 0;
          // BTS tied up in market orders
          auto order_range = d.get_index_type<graphene::chain::limit_order_index>().indices().get<graphene::chain::by_account>().equal_range(balance_iter->owner);
          std::for_each(order_range.first, order_range.second,
-                       [&balance_iter] (const graphene::chain::limit_order_object& order) {
-                          balance_iter->balance += order.amount_to_receive().amount; // ?
+                       [&orders] (const graphene::chain::limit_order_object& order) {
+                          orders += order.amount_to_receive().amount; // ?
                        });
          // BTS tied up in collateral for SmartCoins
          auto collateral_range = d.get_index_type<graphene::chain::call_order_index>().indices().get<graphene::chain::by_account>().equal_range(balance_iter->owner);
 
          std::for_each(collateral_range.first, collateral_range.second,
-                       [&balance_iter] (const graphene::chain::call_order_object& order) {
-                          balance_iter->balance += order.collateral; // ?
+                       [&collaterals] (const graphene::chain::call_order_object& order) {
+                          collaterals += order.collateral; // ?
                        });
 
+         logfile << balance_iter->owner(d).name << del << balance_iter->balance.value << del << orders.value << del << collaterals.value << nl;
+
+         sort = sort || orders.value > 0 || collaterals.value > 0;
+         balance_iter->balance += orders + collaterals;
          total_bts_balance += balance_iter->balance;
        }
+   logfile.close();
 
-   // todo : sort only if neccessary ?
-   sort(db_balances.begin(), db_balances.end(),
-       [](const graphene::chain::account_balance_object & a, const graphene::chain::account_balance_object & b) -> bool
+   if (sort)
       {
-        return a.balance > b.balance;
-      });
+           ilog("generate genesis plugin: sorting");
+           std::sort(db_balances.begin(), db_balances.end(),
+           [](const graphene::chain::account_balance_object & a, const graphene::chain::account_balance_object & b) -> bool
+              {
+                return a.balance > b.balance;
+              });
+      }
 
    graphene::chain::share_type total_shares_dropped;
    // Now, we assume we're distributing balances to all BTS holders proportionally, figure
