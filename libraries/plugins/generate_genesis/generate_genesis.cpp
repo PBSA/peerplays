@@ -119,15 +119,6 @@ bool is_exchange(const std::string& account_name)
           account_name == "btc38btsxwithdrawal";
 }
 
-class my_account_balance_object : public graphene::chain::account_balance_object
-{
-public:
-   graphene::chain::share_type        initial_balance;
-   graphene::chain::share_type        orders;
-   graphene::chain::share_type        collaterals;
-   graphene::chain::share_type        sharedrop;
-};
-
 void generate_genesis_plugin::generate_snapshot()
 {
    ilog("generate genesis plugin: generating snapshot now");
@@ -144,8 +135,8 @@ void generate_genesis_plugin::generate_snapshot()
    for (auto balance_iter = balance_index.begin(); balance_iter != balance_index.end() && balance_iter->asset_type == graphene::chain::asset_id_type(); ++balance_iter)
       if (!is_special_account(balance_iter->owner) && !is_exchange(balance_iter->owner(d).name))
          {
-             // todo : can static cast be dangerous : consider using CRTP idiom
-             db_balances.emplace_back(static_cast<const my_account_balance_object&>(*balance_iter));
+             // it is possible due to constructor
+             db_balances.emplace_back(*balance_iter);
          }
 
    // walk through the balances; this index has the largest BTS balances first
@@ -208,12 +199,6 @@ void generate_genesis_plugin::generate_snapshot()
             break; // balances are decreasing, so every balance after will also round to zero
          total_shares_dropped += share_drop_amount.to_uint64();
          effective_total_bts_balance += balance_iter->balance;
-      }
-
-   // cosmetic, otherwise mess in tail of log
-   for (auto iter = balance_iter; iter != db_balances.end(); ++iter)
-      {
-        iter->sharedrop = 0;
       }
 
    // our iterator is just after the smallest balance we will process, 
