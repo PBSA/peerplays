@@ -54,6 +54,7 @@ private:
 
    uint32_t _block_to_snapshot;
    std::string _genesis_filename;
+   std::string _csvlog_filename;
 };
 
 class my_account_balance_object : public graphene::chain::account_balance_object
