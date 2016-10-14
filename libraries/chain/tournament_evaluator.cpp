@@ -1,5 +1,6 @@
 #include <graphene/chain/protocol/tournament.hpp>
 #include <graphene/chain/tournament_object.hpp>
+#include <graphene/chain/game_object.hpp>
 #include <graphene/chain/tournament_evaluator.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/exceptions.hpp>
@@ -101,7 +102,7 @@ namespace graphene { namespace chain {
       //const account_object& player_account = op.player_account_id(d);
       _buy_in_asset_type = &op.buy_in.asset_id(d);
 
-      // TODO FC_ASSERT(_tournament_obj->state == tournament_state::accepting_registrations);
+      FC_ASSERT(_tournament_obj->get_state() == tournament_state::accepting_registrations);
       FC_ASSERT(_tournament_details_obj->registered_players.size() < _tournament_obj->options.number_of_players,
                 "Tournament is already full");
       FC_ASSERT(d.head_block_time() <= _tournament_obj->options.registration_deadline, 
@@ -143,6 +144,21 @@ namespace graphene { namespace chain {
       return void_result();
    } FC_CAPTURE_AND_RETHROW( (op) ) }
    
+   void_result game_move_evaluator::do_evaluate( const game_move_operation& o )
+   { try {
+      const database& d = db();
+      _game_obj = &o.game_id(d);
+      _game_obj->evaluate_move_operation(d, o);
+      return void_result();
+   } FC_CAPTURE_AND_RETHROW( (o) ) }
+
+   void_result game_move_evaluator::do_apply( const game_move_operation& o )
+   { try {
+      db().modify(*_game_obj, [&](game_object& game_obj){
+        game_obj.on_move(db(), o);
+         });
+      return void_result();
+   } FC_CAPTURE_AND_RETHROW( (o) ) }
 } }
 
 

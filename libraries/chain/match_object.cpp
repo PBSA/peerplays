@@ -53,8 +53,8 @@ namespace graphene { namespace chain {
       struct game_complete 
       {
          database& db;
-         game_id_type game_id;
-         game_complete(database& db, game_id_type game_id) : db(db), game_id(game_id) {};
+         const game_object& game;
+         game_complete(database& db, const game_object& game) : db(db), game(game) {};
       };
 
       struct match_state_machine_ : public msm::front::state_machine_def<match_state_machine_>
@@ -67,24 +67,40 @@ namespace graphene { namespace chain {
          struct waiting_on_previous_matches : public msm::front::state<>{};
          struct match_in_progress : public msm::front::state<>
          {
+            void on_entry(const game_complete& event, match_state_machine_& fsm)
+            {
+               fc_ilog(fc::logger::get("tournament"),
+                       "Game ${game_id} in match ${id} is complete",
+                       ("game_id", event.game.id)("id", fsm.match_obj->id));
+            }
             void on_entry(const initiate_match& event, match_state_machine_& fsm)
             {
                match_object& match = *fsm.match_obj;
-               match.players = event.players;
-               match.start_time = event.db.head_block_time();
 
                fc_ilog(fc::logger::get("tournament"),
                        "Match ${id} is now in progress",
                        ("id", match.id));
+               match.players = event.players;
+               match.number_of_wins.resize(match.players.size());
+               match.start_time = event.db.head_block_time();
+
+               fsm.start_next_game(event.db);
             }
          };
          struct match_complete : public msm::front::state<>
          {
             void on_entry(const game_complete& event, match_state_machine_& fsm)
             {
+               match_object& match = *fsm.match_obj;
                fc_ilog(fc::logger::get("tournament"),
                        "Match ${id} is complete",
-                       ("id", fsm.match_obj->id));
+                       ("id", match.id));
+
+               const tournament_object& tournament_obj = match.tournament_id(event.db);
+               event.db.modify(tournament_obj, [&](tournament_object& tournament) {
+                     tournament.on_final_game_completed();
+                     });
+
             }
             void on_entry(const initiate_match& event, match_state_machine_& fsm)
             {
@@ -93,6 +109,7 @@ namespace graphene { namespace chain {
                        "Match ${id} is complete, it was a buy",
                        ("id", match));
                match.players = event.players;
+               match.number_of_wins.resize(match.players.size());
                boost::copy(event.players, std::inserter(match.match_winners, match.match_winners.end()));
                match.start_time = event.db.head_block_time();
                match.end_time = event.db.head_block_time();
@@ -105,11 +122,17 @@ namespace graphene { namespace chain {
          // Guards
          bool was_final_game(const game_complete& event)
          {
-            fc_ilog(fc::logger::get("tournament"),
-                    "In was_final_game guard, returning ${value}",
-                    ("value", false));// match_obj->registered_players == match_obj->options.number_of_players - 1));
+            const tournament_object& tournament_obj = match_obj->tournament_id(event.db);
+
+            for (unsigned i = 0; i < match_obj->players.size(); ++i)
+            {
+               // this guard is called before the winner of the current game factored in to our running totals,
+               // so we must add the current game to our count
+               uint32_t win_for_this_game = event.game.winners.find(match_obj->players[i]) != event.game.winners.end() ? 1 : 0;
+               if (match_obj->number_of_wins[i] + win_for_this_game >= tournament_obj.options.number_of_wins)
+                  return true;
+            }
             return false;
-            //return match_obj->registered_players == match_obj->options.number_of_players - 1;
          }
 
          bool match_is_a_buy(const initiate_match& event)
@@ -117,10 +140,35 @@ namespace graphene { namespace chain {
             return event.players.size() < 2;
          }
          
-         void start_next_game(const game_complete& event)
+         void record_completed_game(const game_complete& event)
+         {
+            if (event.game.winners.empty())
+               ++match_obj->number_of_ties;
+            else
+               for (unsigned i = 0; i < match_obj->players.size(); ++i)
+                  if (event.game.winners.find(match_obj->players[i]) != event.game.winners.end())
+                     ++match_obj->number_of_wins[i];
+            match_obj->game_winners.emplace_back(event.game.winners);
+         }
+
+         void start_next_game(database& db)
          {
             fc_ilog(fc::logger::get("tournament"),
-                    "In start_next_game action");
+                    "In start_next_game");
+            const game_object& game =
+               db.create<game_object>( [&]( game_object& game ) {
+                  game.match_id = match_obj->id;
+                  game.players = match_obj->players;
+                  game.game_details = rock_paper_scissors_game_details();
+                  game.start_game(db, game.players);
+               });
+            match_obj->games.push_back(game.id);
+         }
+
+         void record_and_start_next_game(const game_complete& event)
+         {
+            record_completed_game(event);
+            start_next_game(event.db);
          }
 
          // Transition table for tournament
@@ -130,8 +178,8 @@ namespace graphene { namespace chain {
          _row  < waiting_on_previous_matches, initiate_match,           match_in_progress >,
          g_row < waiting_on_previous_matches, initiate_match,           match_complete,                                    &x::match_is_a_buy >,
          //  +-------------------------------+-------------------------+----------------------------+---------------------+----------------------+
-         a_row < match_in_progress,           game_complete,            match_in_progress,           &x::start_next_game >,
-         g_row < match_in_progress,           game_complete,            match_complete,                                    &x::was_final_game >
+         a_row < match_in_progress,           game_complete,            match_in_progress,           &x::record_and_start_next_game >,
+         row   < match_in_progress,           game_complete,            match_complete,              &x::record_completed_game, &x::was_final_game >
          //  +---------------------------+-----------------------------+----------------------------+---------------------+----------------------+
          > {};
 
@@ -156,9 +204,12 @@ namespace graphene { namespace chain {
 
    match_object::match_object(const match_object& rhs) : 
       graphene::db::abstract_object<match_object>(rhs),
+      tournament_id(rhs.tournament_id),
       players(rhs.players),
       games(rhs.games),
       game_winners(rhs.game_winners),
+      number_of_wins(rhs.number_of_wins),
+      number_of_ties(rhs.number_of_ties),
       match_winners(rhs.match_winners),
       start_time(rhs.start_time),
       end_time(rhs.end_time),
@@ -172,9 +223,12 @@ namespace graphene { namespace chain {
    {
       //graphene::db::abstract_object<match_object>::operator=(rhs);
       id = rhs.id;
+      tournament_id = rhs.tournament_id;
       players = rhs.players;
       games = rhs.games;
       game_winners = rhs.game_winners;
+      number_of_wins = rhs.number_of_wins;
+      number_of_ties = rhs.number_of_ties;
       match_winners = rhs.match_winners;
       start_time = rhs.start_time;
       end_time = rhs.end_time;
@@ -245,6 +299,11 @@ namespace graphene { namespace chain {
       my->state_machine.process_event(initiate_match(db, players));
    }
 
+   void match_object::on_game_complete(database& db, const game_object& game)
+   {
+      my->state_machine.process_event(game_complete(db, game));
+   }
+#if 0
    game_id_type match_object::start_next_game(database& db, match_id_type match_id)
    {
       const game_object& game =
@@ -254,42 +313,49 @@ namespace graphene { namespace chain {
          });
       return game.id;
    }
+#endif
 
 } } // graphene::chain
 
 namespace fc { 
    // Manually reflect match_object to variant to properly reflect "state"
    void to_variant(const graphene::chain::match_object& match_obj, fc::variant& v)
-   {
+   { try {
       fc_elog(fc::logger::get("tournament"), "In match_obj to_variant");
       elog("In match_obj to_variant");
       fc::mutable_variant_object o;
       o("id", match_obj.id)
+       ("tournament_id", match_obj.tournament_id)
        ("players", match_obj.players)
        ("games", match_obj.games)
        ("game_winners", match_obj.game_winners)
+       ("number_of_wins", match_obj.number_of_wins)
+       ("number_of_ties", match_obj.number_of_ties)
        ("match_winners", match_obj.match_winners)
        ("start_time", match_obj.start_time)
        ("end_time", match_obj.end_time)
        ("state", match_obj.get_state());
 
       v = o;
-   }
+   } FC_RETHROW_EXCEPTIONS(warn, "") }
 
    // Manually reflect match_object to variant to properly reflect "state"
    void from_variant(const fc::variant& v, graphene::chain::match_object& match_obj)
-   {
+   { try {
       fc_elog(fc::logger::get("tournament"), "In match_obj from_variant");
       match_obj.id = v["id"].as<graphene::chain::match_id_type>();
+      match_obj.tournament_id = v["tournament_id"].as<graphene::chain::tournament_id_type>();
       match_obj.players = v["players"].as<std::vector<graphene::chain::account_id_type> >();
       match_obj.games = v["games"].as<std::vector<graphene::chain::game_id_type> >();
       match_obj.game_winners = v["game_winners"].as<std::vector<flat_set<graphene::chain::account_id_type> > >();
+      match_obj.number_of_wins = v["number_of_wins"].as<std::vector<uint32_t> >();
+      match_obj.number_of_ties = v["number_of_ties"].as<uint32_t>();
       match_obj.match_winners = v["match_winners"].as<flat_set<graphene::chain::account_id_type> >();
       match_obj.start_time = v["start_time"].as<time_point_sec>();
       match_obj.end_time = v["end_time"].as<optional<time_point_sec> >();
       graphene::chain::match_state state = v["state"].as<graphene::chain::match_state>();
       const_cast<int*>(match_obj.my->state_machine.current_state())[0] = (int)state;
-   }
+   } FC_RETHROW_EXCEPTIONS(warn, "") }
 } //end namespace fc
 
 

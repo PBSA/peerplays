@@ -102,6 +102,7 @@ namespace graphene { namespace chain {
                   db.create<match_object>( [&]( match_object& match ) {
                      match.tournament_id = tournament_id;
                      match.players = players;
+                     match.number_of_wins.resize(match.players.size());
                      match.start_time = db.head_block_time();
                      if (match.players.size() == 1)
                      {
@@ -443,6 +444,12 @@ namespace graphene { namespace chain {
 
          }
       }
+   }
+
+   fc::sha256 rock_paper_scissors_throw::calculate_hash() const
+   {
+      std::vector<char> full_throw_packed(fc::raw::pack(*this));
+      return fc::sha256::hash(full_throw_packed.data(), full_throw_packed.size());
    }
 
 } } // graphene::chain

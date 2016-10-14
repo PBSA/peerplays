@@ -1932,7 +1932,8 @@ void database_api_impl::on_objects_changed(const vector<object_id_type>& ids)
    /// if a connection hangs then this could get backed up and result in
    /// a failure to exit cleanly.
    fc::async([capture_this,this,updates,market_broadcast_queue](){
-      if( _subscribe_callback ) _subscribe_callback( updates );
+      if( _subscribe_callback ) 
+         _subscribe_callback( updates );
 
       for( const auto& item : market_broadcast_queue )
       {

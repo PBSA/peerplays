@@ -23,6 +23,8 @@ namespace graphene { namespace chain {
    enum class game_state
    {
       game_in_progress,
+      expecting_commit_moves,
+      expecting_reveal_moves,
       game_complete
    };
 
@@ -46,6 +48,10 @@ namespace graphene { namespace chain {
       game_object(const game_object& rhs);
       ~game_object();
       game_object& operator=(const game_object& rhs);
+
+      void evaluate_move_operation(const database& db, const game_move_operation& op) const;
+      void on_move(database& db, const game_move_operation& op);
+      void start_game(database& db, const std::vector<account_id_type>& players);
       
       // serialization functions:
       // for serializing to raw, go through a temporary sstream object to avoid
@@ -118,6 +124,8 @@ namespace graphene { namespace chain {
 
 FC_REFLECT_ENUM(graphene::chain::game_state,
                 (game_in_progress)
+                (expecting_commit_moves)
+                (expecting_reveal_moves)
                 (game_complete))
 
 FC_REFLECT_TYPENAME(graphene::chain::game_object) // manually serialized

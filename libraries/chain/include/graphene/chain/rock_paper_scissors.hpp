@@ -33,55 +33,24 @@
 #include <fc/array.hpp>
 
 namespace graphene { namespace chain {
-   enum class rock_paper_scissors_throw
-   {
-      rock,
-      paper,
-      scissors
-   };
-   struct rock_paper_scissors_move
-   {
-      uint64_t nonce1;
-      uint64_t nonce2;
-      rock_paper_scissors_throw move;
-   };
-   struct rock_paper_scissors_commit
-   {
-      uint64_t nonce1;
-      fc::sha256 move_hash;
-   };
-   struct rock_paper_scissors_reveal
-   {
-      uint64_t nonce2;
-      rock_paper_scissors_throw move;
-   };
-
    struct rock_paper_scissors_game_details
    {
-      fc::array<fc::optional<rock_paper_scissors_commit>, 2> commit_moves;
-      fc::array<fc::optional<rock_paper_scissors_reveal>, 2> reveal_moves;
+      // note: I wanted to declare these as fixed arrays, but they don't serialize properly
+      //fc::array<fc::optional<rock_paper_scissors_throw_commit>, 2> commit_moves;
+      //fc::array<fc::optional<rock_paper_scissors_throw_reveal>, 2> reveal_moves;
+      std::vector<fc::optional<rock_paper_scissors_throw_commit> > commit_moves;
+      std::vector<fc::optional<rock_paper_scissors_throw_reveal> > reveal_moves;
+      rock_paper_scissors_game_details() :
+         commit_moves(2),
+         reveal_moves(2)
+      {
+      }
    };
 
    typedef fc::static_variant<rock_paper_scissors_game_details> game_specific_details;
-
 } }
-
-FC_REFLECT_ENUM( graphene::chain::rock_paper_scissors_throw,
-                 (rock)
-                 (paper)
-                 (scissors))
-
-FC_REFLECT( graphene::chain::rock_paper_scissors_move,
-            (nonce1)
-            (nonce2)
-            (move) )
-
-FC_REFLECT( graphene::chain::rock_paper_scissors_commit,
-            (nonce1)
-            (move_hash) )
-
-FC_REFLECT( graphene::chain::rock_paper_scissors_reveal,
-            (nonce2)(move) )
 
 FC_REFLECT( graphene::chain::rock_paper_scissors_game_details,
             (commit_moves)(reveal_moves) )
+FC_REFLECT_TYPENAME( graphene::chain::game_specific_details )
+

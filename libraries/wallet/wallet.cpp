@@ -60,11 +60,17 @@
 #include <fc/crypto/hex.hpp>
 #include <fc/thread/mutex.hpp>
 #include <fc/thread/scoped_lock.hpp>
+#include <fc/crypto/rand.hpp>
 
 #include <graphene/app/api.hpp>
 #include <graphene/chain/asset_object.hpp>
+
 #include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/match_object.hpp>
+#include <graphene/chain/game_object.hpp>
+#include <graphene/chain/protocol/rock_paper_scissors.hpp>
+#include <graphene/chain/rock_paper_scissors.hpp>
+
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <graphene/utilities/git_revision.hpp>
 #include <graphene/utilities/key_conversion.hpp>
@@ -339,6 +345,16 @@ private:
       }
    }
 
+   // return true if any of my_accounts are players in this tournament
+   bool tournament_is_relevant_to_my_accounts(const tournament_object& tournament_obj)
+   {
+      tournament_details_object tournament_details = get_object<tournament_details_object>(tournament_obj.tournament_details_id);
+      for (const account_object& account_obj : _wallet.my_accounts)
+         if (tournament_details.registered_players.find(account_obj.id) != tournament_details.registered_players.end())
+            return true;
+      return false;
+   }
+
    fc::mutex _subscribed_object_changed_mutex;
    void subscribed_object_changed(const variant& changed_objects_variant)
    {
@@ -368,6 +384,14 @@ private:
                   }
                   tournament_cache.modify(tournament_cache_iter, [&](tournament_object& obj) { obj = current_tournament_obj; });
                }
+               else if (tournament_is_relevant_to_my_accounts(current_tournament_obj))
+               {
+                  ilog ("We were just notified about an in-progress tournament ${id} relevant to our accounts",
+                        ("id", current_tournament_obj.id));
+                  tournament_cache.insert(current_tournament_obj);
+                  if (current_tournament_obj.get_state() == tournament_state::in_progress)
+                     monitor_matches_in_tournament(current_tournament_obj);
+               }
                continue;
             }
             catch (const fc::exception& e)
@@ -391,6 +415,30 @@ private:
                      match_in_new_state(current_match_obj);
                   }
                   match_cache.modify(match_cache_iter, [&](match_object& obj) { obj = current_match_obj; });
+               }
+               continue;
+            }
+            catch (const fc::exception& e)
+            {
+            //   idump((e));
+            }
+            try
+            {
+               object_id_type id = changed_object_variant["id"].as<game_id_type>();
+               game_object current_game_obj = changed_object_variant.as<game_object>();
+               auto game_cache_iter = game_cache.find(id);
+               if (game_cache_iter != game_cache.end())
+               {
+                  const game_object& cached_game_obj = *game_cache_iter;
+                  if (cached_game_obj.get_state() != current_game_obj.get_state())
+                  {
+                     ilog("game ${id} changed state from ${old} to ${new}",
+                          ("id", id)
+                          ("old", cached_game_obj.get_state())
+                          ("new", current_game_obj.get_state()));
+                     game_in_new_state(current_game_obj);
+                  }
+                  game_cache.modify(game_cache_iter, [&](game_object& obj) { obj = current_game_obj; });
                }
                continue;
             }
@@ -787,8 +835,77 @@ public:
 
    vector< signed_transaction > import_balance( string name_or_id, const vector<string>& wif_keys, bool broadcast );
 
+   void game_in_new_state(const game_object& game_obj)
+   { try {
+      if (game_obj.get_state() == game_state::expecting_commit_moves)
+      {
+         if (game_obj.players.size() != 2) // we only support RPS, a 2 player game
+            return;
+         const rock_paper_scissors_game_details& rps_details = game_obj.game_details.get<rock_paper_scissors_game_details>();
+         for (unsigned i = 0; i < 2; ++i)
+         {
+            if (!rps_details.commit_moves.at(i)) // if this player hasn't committed their move
+            {
+               const account_id_type& account_id = game_obj.players[i];
+               if (_wallet.my_accounts.find(account_id) != _wallet.my_accounts.end()) // and they're us
+               {
+                  ilog("Game ${game_id}: it is ${account_name}'s turn to commit their move",
+                       ("game_id", game_obj.id)
+                       ("account_name", get_account(account_id).name));
+               }
+            }
+         }
+      }
+      else if (game_obj.get_state() == game_state::expecting_reveal_moves)
+      {
+         if (game_obj.players.size() != 2) // we only support RPS, a 2 player game
+            return;
+         const rock_paper_scissors_game_details& rps_details = game_obj.game_details.get<rock_paper_scissors_game_details>();
+         for (unsigned i = 0; i < 2; ++i)
+         {
+            if (rps_details.commit_moves.at(i) && 
+                !rps_details.reveal_moves.at(i)) // if this player has committed but not revealed
+            {
+               const account_id_type& account_id = game_obj.players[i];
+               if (_wallet.my_accounts.find(account_id) != _wallet.my_accounts.end()) // and they're us
+               {
+                  if (self.is_locked())
+                     ilog("Game ${game_id}: unable to broadcast ${account_name}'s reveal because the wallet is locked",
+                          ("game_id", game_obj.id)
+                          ("account_name", get_account(account_id).name));
+                  else
+                  {
+                     ilog("Game ${game_id}: it is ${account_name}'s turn to reveal their move",
+                          ("game_id", game_obj.id)
+                          ("account_name", get_account(account_id).name));
+
+                     auto iter = _wallet.committed_game_moves.find(*rps_details.commit_moves.at(i));
+                     if (iter != _wallet.committed_game_moves.end())
+                     {
+                        const rock_paper_scissors_throw_reveal& reveal = iter->second;
+                        
+                        game_move_operation move_operation;
+                        move_operation.game_id = game_obj.id;
+                        move_operation.player_account_id = account_id;
+                        move_operation.move = reveal;
+
+                        signed_transaction trx;
+                        trx.operations = {move_operation};
+                        set_operation_fees( trx, _remote_db->get_global_properties().parameters.current_fees);
+                        trx.validate();
+                        ilog("Broadcasting reveal...");
+                        trx = sign_transaction(trx, true);
+                        ilog("Reveal broadcast, transaction id is ${id}", ("id", trx.id()));
+                     }
+                  }
+               }
+            }
+         }
+      }
+   } FC_RETHROW_EXCEPTIONS(warn, "") }
+
    void match_in_new_state(const match_object& match_obj)
-   {
+   { try {
       if (match_obj.get_state() == match_state::match_in_progress)
       {
          for (const account_id_type& account_id : match_obj.players)
@@ -797,15 +914,22 @@ public:
             {
                ilog("Match ${match} is now in progress for player ${account}",
                     ("match", match_obj.id)("account", get_account(account_id).name));
+               for (const game_id_type& game_id : match_obj.games)
+               {
+                  game_object game_obj = get_object<game_object>(game_id);
+                  auto insert_result = game_cache.insert(game_obj);
+                  if (insert_result.second)
+                     game_in_new_state(game_obj);
+               }
             }
          }
       }
-   }
+   } FC_RETHROW_EXCEPTIONS(warn, "") }
 
    // Cache all matches in the tournament, which will also register us for 
    // updates on those matches
    void monitor_matches_in_tournament(const tournament_object& tournament_obj)
-   {
+   { try {
       tournament_details_object tournament_details = get_object<tournament_details_object>(tournament_obj.tournament_details_id);
       for (const match_id_type& match_id : tournament_details.matches)
       {
@@ -813,6 +937,42 @@ public:
          auto insert_result = match_cache.insert(match_obj);
          if (insert_result.second)
             match_in_new_state(match_obj);
+      }
+   } FC_RETHROW_EXCEPTIONS(warn, "") }
+
+   void resync_active_tournaments()
+   {
+      // check to see if any of our accounts are registered for tournaments
+      // the real purpose of this is to ensure that we are subscribed for callbacks on these tournaments
+      ilog("Checking my accounts for active tournaments",);
+      tournament_cache.clear();
+      match_cache.clear();
+      game_cache.clear();
+      for (const account_object& my_account : _wallet.my_accounts)
+      {
+         std::vector<tournament_object> tournaments = _remote_db->get_active_tournaments(my_account.id, 100);
+         std::vector<tournament_id_type> tournament_ids;
+         for (const tournament_object& tournament : tournaments)
+         {
+            try
+            {
+               auto insert_result = tournament_cache.insert(tournament);
+               if (insert_result.second)
+               {
+                  // then this is the first time we've seen this tournament
+                  monitor_matches_in_tournament(tournament);
+               }
+               tournament_ids.push_back(tournament.id);
+            }
+            catch (const fc::exception& e)
+            {
+               edump((e)(tournament));
+            }
+         }
+         if (!tournaments.empty())
+            ilog("Account ${my_account} is registered for tournaments: ${tournaments}", ("my_account", my_account.name)("tournaments", tournament_ids));
+         else
+            ilog("Account ${my_account} is not registered for any tournaments", ("my_account", my_account.name));
       }
    }
 
@@ -876,28 +1036,7 @@ public:
          }
       }
 
-      // check to see if any of our accounts are registered for tournaments
-      // the real purpose of this is to ensure that we are subscribed for callbacks on these tournaments
-      ilog("Checking my accounts for active tournaments",);
-      for (const account_object& my_account : _wallet.my_accounts)
-      {
-         std::vector<tournament_object> tournaments = _remote_db->get_active_tournaments(my_account.id, 100);
-         std::vector<tournament_id_type> tournament_ids;
-         for (const tournament_object& tournament : tournaments)
-         {
-            auto insert_result = tournament_cache.insert(tournament);
-            if (insert_result.second)
-            {
-               // then this is the first time we've seen this tournament
-               monitor_matches_in_tournament(tournament);
-            }
-            tournament_ids.push_back(tournament.id);
-         }
-         if (!tournaments.empty())
-            ilog("Account ${my_account} is registered for tournaments: ${tournaments}", ("my_account", my_account.name)("tournaments", tournament_ids));
-         else
-            ilog("Account ${my_account} is not registered for any tournaments", ("my_account", my_account.name));
-      }
+      resync_active_tournaments();
 
       return true;
    }
@@ -2723,6 +2862,12 @@ public:
          ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > > > > match_index_type;
    match_index_type match_cache;
 
+   typedef multi_index_container<
+      game_object,
+      indexed_by<
+         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > > > > game_index_type;
+   game_index_type game_cache;
+
 #ifdef __unix__
    mode_t                  _old_umask;
 #endif
@@ -3666,6 +3811,7 @@ void wallet_api::unlock(string password)
    my->_keys = std::move(pk.keys);
    my->_checksum = pk.checksum;
    my->self.lock_changed(false);
+   my->resync_active_tournaments();
 } FC_CAPTURE_AND_RETHROW() }
 
 void wallet_api::set_password( string password )
@@ -4417,6 +4563,55 @@ vector<tournament_object> wallet_api::get_upcoming_tournaments(fc::optional<stri
 tournament_object wallet_api::get_tournament(tournament_id_type id)
 {
    return my->_remote_db->get_objects({id})[0].as<tournament_object>();
+}
+
+signed_transaction wallet_api::rps_throw(game_id_type game_id,
+                                         string player_account,
+                                         rock_paper_scissors_gesture gesture,
+                                         bool broadcast)
+{
+   FC_ASSERT( !is_locked() );
+
+   // check whether the gesture is appropriate for the game we're playing
+   graphene::chain::game_object game_obj = my->get_object<graphene::chain::game_object>(game_id);
+   graphene::chain::match_object match_obj = my->get_object<graphene::chain::match_object>(game_obj.match_id);
+   graphene::chain::tournament_object tournament_obj = my->get_object<graphene::chain::tournament_object>(match_obj.tournament_id);
+   graphene::chain::rock_paper_scissors_game_options game_options = 
+      tournament_obj.options.game_options.get<graphene::chain::rock_paper_scissors_game_options>();
+   if ((int)gesture >= game_options.number_of_gestures)
+      FC_THROW("Gesture ${gesture} not supported in this game", ("gesture", gesture));
+
+   account_object player_account_obj = get_account(player_account);
+
+   // construct the complete throw, the commit, and reveal
+   rock_paper_scissors_throw full_throw;
+   fc::rand_bytes((char*)&full_throw.nonce1, sizeof(full_throw.nonce1));
+   fc::rand_bytes((char*)&full_throw.nonce2, sizeof(full_throw.nonce2));
+   full_throw.gesture = gesture;
+
+   rock_paper_scissors_throw_commit commit_throw;
+   commit_throw.nonce1 = full_throw.nonce1;
+   std::vector<char> full_throw_packed(fc::raw::pack(full_throw));
+   commit_throw.throw_hash = fc::sha256::hash(full_throw_packed.data(), full_throw_packed.size());
+
+   rock_paper_scissors_throw_reveal reveal_throw;
+   reveal_throw.nonce2 = full_throw.nonce2;
+   reveal_throw.gesture = full_throw.gesture;
+
+   // store off the reveal for transmitting after both players commit
+   my->_wallet.committed_game_moves[commit_throw] = reveal_throw;
+
+   // broadcast the commit
+   signed_transaction tx;
+   game_move_operation move_operation;
+   move_operation.game_id = game_id;
+   move_operation.player_account_id = player_account_obj.id;
+   move_operation.move = commit_throw;
+   tx.operations = {move_operation};
+   my->set_operation_fees( tx, my->_remote_db->get_global_properties().parameters.current_fees );
+   tx.validate();
+
+   return my->sign_transaction( tx, broadcast );
 }
 
 // default ctor necessary for FC_REFLECT

@@ -49,6 +49,12 @@ namespace graphene { namespace chain {
       /// information about a match without having to request all game objects
       vector<flat_set<account_id_type> > game_winners;
 
+      /// A count of the number of wins for each player
+      vector<uint32_t> number_of_wins;
+
+      /// the total number of games that ended up in a tie/draw/stalemate
+      uint32_t number_of_ties;
+
       // If the match is not yet complete, this will be empty
       // If the match is in the "match_complete" state, it will contain the
       // list of winners.
@@ -84,6 +90,7 @@ namespace graphene { namespace chain {
       void pack_impl(std::ostream& stream) const;
       void unpack_impl(std::istream& stream);
       void on_initiate_match(database& db, const vector<account_id_type>& players);
+      void on_game_complete(database& db, const game_object& game);
       game_id_type start_next_game(database& db, match_id_type match_id);
 
       class impl;
@@ -104,9 +111,12 @@ namespace graphene { namespace chain {
       // instead of calling the derived pack, just serialize the one field in the base class
       //   fc::raw::pack<Stream, const graphene::db::abstract_object<match_object> >(s, match_obj);
       fc::raw::pack(s, match_obj.id);
+      fc::raw::pack(s, match_obj.tournament_id);
       fc::raw::pack(s, match_obj.players);
       fc::raw::pack(s, match_obj.games);
       fc::raw::pack(s, match_obj.game_winners);
+      fc::raw::pack(s, match_obj.number_of_wins);
+      fc::raw::pack(s, match_obj.number_of_ties);
       fc::raw::pack(s, match_obj.match_winners);
       fc::raw::pack(s, match_obj.start_time);
       fc::raw::pack(s, match_obj.end_time);
@@ -126,9 +136,12 @@ namespace graphene { namespace chain {
       // unpack all fields exposed in the header in the usual way
       //fc::raw::unpack<Stream, graphene::db::abstract_object<match_object> >(s, match_obj);
       fc::raw::unpack(s, match_obj.id);
+      fc::raw::unpack(s, match_obj.tournament_id);
       fc::raw::unpack(s, match_obj.players);
       fc::raw::unpack(s, match_obj.games);
       fc::raw::unpack(s, match_obj.game_winners);
+      fc::raw::unpack(s, match_obj.number_of_wins);
+      fc::raw::unpack(s, match_obj.number_of_ties);
       fc::raw::unpack(s, match_obj.match_winners);
       fc::raw::unpack(s, match_obj.start_time);
       fc::raw::unpack(s, match_obj.end_time);

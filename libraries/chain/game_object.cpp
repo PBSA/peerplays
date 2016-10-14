@@ -23,6 +23,8 @@
  */
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/game_object.hpp>
+#include <graphene/chain/tournament_object.hpp>
+#include <graphene/chain/match_object.hpp>
 
 #include <boost/msm/back/state_machine.hpp>
 #include <boost/msm/front/state_machine_def.hpp>
@@ -48,11 +50,13 @@ namespace graphene { namespace chain {
          {}
       };
 
-      struct game_complete 
+      struct game_move
       {
          database& db;
-         game_id_type game_id;
-         game_complete(database& db, game_id_type game_id) : db(db), game_id(game_id) {};
+         const game_move_operation& move;
+         game_move(database& db, const game_move_operation& move) :
+            db(db), move(move)
+         {}
       };
 
       struct game_state_machine_ : public msm::front::state_machine_def<game_state_machine_>
@@ -62,53 +66,129 @@ namespace graphene { namespace chain {
          typedef int no_message_queue;
 
          // States
-         struct waiting_on_previous_gamees : public msm::front::state<>{};
-         struct game_in_progress : public msm::front::state<>
+         struct waiting_for_game_to_start : public msm::front::state<> {};
+         struct expecting_commit_moves : public msm::front::state<>
          {
             void on_entry(const initiate_game& event, game_state_machine_& fsm)
             {
                game_object& game = *fsm.game_obj;
 
                fc_ilog(fc::logger::get("tournament"),
-                       "game ${id} is now in progress",
+                       "game ${id} is now in progress, expecting commit moves",
                        ("id", game.id));
+               fc_ilog(fc::logger::get("tournament"),
+                       "game ${id} is associtated with match ${match_id}",
+                       ("id", game.id)
+                       ("match_id", game.match_id));
+            }
+            void on_entry(const game_move& event, game_state_machine_& fsm)
+            {
+               game_object& game = *fsm.game_obj;
+
+               fc_ilog(fc::logger::get("tournament"),
+                       "game ${id} received a commit move, still expecting another commit move",
+                       ("id", game.id));
+            }
+         };
+         struct expecting_reveal_moves : public msm::front::state<>
+         {
+            void on_entry(const game_move& event, game_state_machine_& fsm)
+            {
+               game_object& game = *fsm.game_obj;
+
+               if (event.move.move.which() == game_specific_moves::tag<rock_paper_scissors_throw_commit>::value)
+                  fc_ilog(fc::logger::get("tournament"),
+                          "game ${id} received a commit move, now expecting reveal moves",
+                          ("id", game.id));
+               else
+                  fc_ilog(fc::logger::get("tournament"),
+                          "game ${id} received a reveal move, still expecting reveal moves",
+                          ("id", game.id));
             }
          };
          struct game_complete : public msm::front::state<>
          {
-            void on_entry(const game_complete& event, game_state_machine_& fsm)
-            {
-               fc_ilog(fc::logger::get("tournament"),
-                       "game ${id} is complete",
-                       ("id", fsm.game_obj->id));
-            }
-            void on_entry(const initiate_game& event, game_state_machine_& fsm)
+            void on_entry(const game_move& event, game_state_machine_& fsm)
             {
                game_object& game = *fsm.game_obj;
                fc_ilog(fc::logger::get("tournament"),
-                       "game ${id} is complete, it was a buy",
-                       ("id", game));
+                       "received a reveal move, game ${id} is complete",
+                       ("id", fsm.game_obj->id));
+
+               // we now know who played what, figure out if we have a winner
+               const rock_paper_scissors_game_details& game_details = game.game_details.get<rock_paper_scissors_game_details>();
+               if (game_details.reveal_moves[0]->gesture == game_details.reveal_moves[1]->gesture)
+                  ilog("The game was a tie, both players threw ${gesture}", ("gesture", game_details.reveal_moves[0]->gesture));
+               else 
+               {
+                  const match_object& match_obj = game.match_id(event.db);
+                  const tournament_object& tournament_obj = match_obj.tournament_id(event.db);
+                  const rock_paper_scissors_game_options& game_options = tournament_obj.options.game_options.get<rock_paper_scissors_game_options>();
+
+                  unsigned winner = ((((int)game_details.reveal_moves[0]->gesture - 
+                                       (int)game_details.reveal_moves[1]->gesture +
+                                       game_options.number_of_gestures) % game_options.number_of_gestures) + 1) % 2;
+                  ilog("${gesture1} vs ${gesture2}, ${winner} wins",
+                       ("gesture1", game_details.reveal_moves[1]->gesture)
+                       ("gesture2", game_details.reveal_moves[0]->gesture)
+                       ("winner", game_details.reveal_moves[winner]->gesture));
+                  game.winners.insert(game.players[winner]);
+               }
+
+            
+               const match_object& match_obj = game.match_id(event.db);
+               event.db.modify(match_obj, [&](match_object& match) {
+                  match.on_game_complete(event.db, game);
+                  });
             }
          };
-         typedef waiting_on_previous_gamees initial_state;
+         typedef waiting_for_game_to_start initial_state;
 
          typedef game_state_machine_ x; // makes transition table cleaner
-         
+
          // Guards
-         bool was_final_game(const game_complete& event)
+         bool already_have_other_commit(const game_move& event)
          {
-            fc_ilog(fc::logger::get("tournament"),
-                    "In was_final_game guard, returning ${value}",
-                    ("value", false));// game_obj->registered_players == game_obj->options.number_of_players - 1));
-            return false;
-            //return game_obj->registered_players == game_obj->options.number_of_players - 1;
+            auto iter = std::find(game_obj->players.begin(), game_obj->players.end(),
+                                  event.move.player_account_id);
+            unsigned player_index = std::distance(game_obj->players.begin(), iter);
+            // hard-coded here for two-player games
+            unsigned other_player_index = player_index == 0 ? 1 : 0;
+            const rock_paper_scissors_game_details& game_details = game_obj->game_details.get<rock_paper_scissors_game_details>();
+            return game_details.commit_moves.at(other_player_index).valid();
          }
 
-         bool game_is_a_buy(const initiate_game& event)
+         bool already_have_other_reveal(const game_move& event)
          {
-            return event.players.size() < 2;
+            auto iter = std::find(game_obj->players.begin(), game_obj->players.end(),
+                                  event.move.player_account_id);
+            unsigned player_index = std::distance(game_obj->players.begin(), iter);
+            // hard-coded here for two-player games
+            unsigned other_player_index = player_index == 0 ? 1 : 0;
+            const rock_paper_scissors_game_details& game_details = game_obj->game_details.get<rock_paper_scissors_game_details>();
+            return game_details.reveal_moves.at(other_player_index).valid();
          }
-         
+
+         void apply_commit_move(const game_move& event)
+         {
+            auto iter = std::find(game_obj->players.begin(), game_obj->players.end(),
+                                  event.move.player_account_id);
+            unsigned player_index = std::distance(game_obj->players.begin(), iter);
+
+            rock_paper_scissors_game_details& details = game_obj->game_details.get<rock_paper_scissors_game_details>();
+            details.commit_moves[player_index] = event.move.move.get<rock_paper_scissors_throw_commit>();
+         }
+
+         void apply_reveal_move(const game_move& event)
+         {
+            auto iter = std::find(game_obj->players.begin(), game_obj->players.end(),
+                                  event.move.player_account_id);
+            unsigned player_index = std::distance(game_obj->players.begin(), iter);
+
+            rock_paper_scissors_game_details& details = game_obj->game_details.get<rock_paper_scissors_game_details>();
+            details.reveal_moves[player_index] = event.move.move.get<rock_paper_scissors_throw_reveal>();
+         }
+
          void start_next_game(const game_complete& event)
          {
             fc_ilog(fc::logger::get("tournament"),
@@ -118,12 +198,17 @@ namespace graphene { namespace chain {
          // Transition table for tournament
          struct transition_table : mpl::vector<
          //    Start                          Event                     Next                         Action                Guard
+         //    +-------------------------------+-------------------------+----------------------------+---------------------+----------------------+
+         _row  < waiting_for_game_to_start, initiate_game,           expecting_commit_moves >,
          //  +-------------------------------+-------------------------+----------------------------+---------------------+----------------------+
-         _row  < waiting_on_previous_gamees, initiate_game,           game_in_progress >,
-         g_row < waiting_on_previous_gamees, initiate_game,           game_complete,                                    &x::game_is_a_buy >,
+        a_row < expecting_commit_moves,    game_move,               expecting_commit_moves,        &x::apply_commit_move >,
+        row   < expecting_commit_moves,    game_move,               expecting_reveal_moves,        &x::apply_commit_move, &x::already_have_other_commit >,
          //  +-------------------------------+-------------------------+----------------------------+---------------------+----------------------+
-         a_row < game_in_progress,           game_complete,            game_in_progress,           &x::start_next_game >,
-         g_row < game_in_progress,           game_complete,            game_complete,                                    &x::was_final_game >
+        a_row < expecting_reveal_moves,    game_move,               expecting_reveal_moves,        &x::apply_reveal_move >,
+        row   < expecting_reveal_moves,    game_move,               game_complete,                 &x::apply_reveal_move, &x::already_have_other_reveal >
+         //  +-------------------------------+-------------------------+----------------------------+---------------------+----------------------+
+         //a_row < game_in_progress,           game_complete,            game_in_progress,           &x::start_next_game >,
+         //g_row < game_in_progress,           game_complete,            game_complete,                                    &x::was_final_game >
          //  +---------------------------+-----------------------------+----------------------------+---------------------+----------------------+
          > {};
 
@@ -148,6 +233,7 @@ namespace graphene { namespace chain {
 
    game_object::game_object(const game_object& rhs) : 
       graphene::db::abstract_object<game_object>(rhs),
+      match_id(rhs.match_id),
       players(rhs.players),
       winners(rhs.winners),
       game_details(rhs.game_details),
@@ -161,6 +247,7 @@ namespace graphene { namespace chain {
    {
       //graphene::db::abstract_object<game_object>::operator=(rhs);
       id = rhs.id;
+      match_id = rhs.match_id;
       players = rhs.players;
       winners = rhs.winners;
       game_details = rhs.game_details;
@@ -214,6 +301,99 @@ namespace graphene { namespace chain {
       return state;  
    }
 
+   void game_object::evaluate_move_operation(const database& db, const game_move_operation& op) const
+   {
+      const match_object& match_obj = match_id(db);
+
+      if (game_details.which() == game_specific_details::tag<rock_paper_scissors_game_details>::value)
+      {
+         if (op.move.which() == game_specific_moves::tag<rock_paper_scissors_throw_commit>::value)
+         {
+            // Is this move made by a player in the match
+            auto iter = std::find(players.begin(), players.end(),
+                                  op.player_account_id);
+            if (iter == players.end())
+               FC_THROW("Player ${account_id} is not a player in game ${game}",
+                        ("account_id", op.player_account_id)
+                        ("game", id));
+            unsigned player_index = std::distance(players.begin(), iter);
+
+            //const rock_paper_scissors_throw_commit& commit = op.move.get<rock_paper_scissors_throw_commit>();
+            
+            // are we expecting commits?
+            if (get_state() != game_state::expecting_commit_moves)
+               FC_THROW("Game ${game} is not accepting any commit moves", ("game", id));
+
+            // has this player committed already?
+            const rock_paper_scissors_game_details& details = game_details.get<rock_paper_scissors_game_details>();
+            if (details.commit_moves.at(player_index))
+               FC_THROW("Player ${account_id} has already committed their move for game ${game}",
+                        ("account_id", op.player_account_id)
+                        ("game", id));
+            // if all the above checks pass, then the move is accepted
+         }    
+         else if (op.move.which() == game_specific_moves::tag<rock_paper_scissors_throw_reveal>::value)
+         {
+            // Is this move made by a player in the match
+            auto iter = std::find(players.begin(), players.end(),
+                                  op.player_account_id);
+            if (iter == players.end())
+               FC_THROW("Player ${account_id} is not a player in game ${game}",
+                        ("account_id", op.player_account_id)
+                        ("game", id));
+            unsigned player_index = std::distance(players.begin(), iter);
+
+            // has this player committed already?
+            const rock_paper_scissors_game_details& details = game_details.get<rock_paper_scissors_game_details>();
+            if (!details.commit_moves.at(player_index))
+               FC_THROW("Player ${account_id} cannot reveal a move which they did not commit in game ${game}",
+                        ("account_id", op.player_account_id)
+                        ("game", id));
+
+            // are we expecting reveals?
+            if (get_state() != game_state::expecting_reveal_moves)
+               FC_THROW("Game ${game} is not accepting any reveal moves", ("game", id));
+
+            const rock_paper_scissors_throw_commit& commit = *details.commit_moves.at(player_index);
+            const rock_paper_scissors_throw_reveal& reveal = op.move.get<rock_paper_scissors_throw_reveal>();
+
+            // does the reveal match the commit?
+            rock_paper_scissors_throw reconstructed_throw;
+            reconstructed_throw.nonce1 = commit.nonce1;
+            reconstructed_throw.nonce2 = reveal.nonce2;
+            reconstructed_throw.gesture = reveal.gesture;
+            fc::sha256 reconstructed_hash = reconstructed_throw.calculate_hash();
+
+            if (commit.throw_hash != reconstructed_hash)
+               FC_THROW("Reveal does not match commit's hash of ${commit_hash}", 
+                        ("commit_hash", commit.throw_hash));
+
+            // is the throw valid for this game
+            const match_object& match_obj = match_id(db);
+            const tournament_object& tournament_obj = match_obj.tournament_id(db);
+            const rock_paper_scissors_game_options& game_options = tournament_obj.options.game_options.get<rock_paper_scissors_game_options>();
+            if ((unsigned)reveal.gesture >= game_options.number_of_gestures)
+               FC_THROW("Gesture ${gesture_int} is not valid for this game", ("gesture", (unsigned)reveal.gesture));
+            // if all the above checks pass, then the move is accepted
+         }
+         else
+            FC_THROW("The only valid moves in a rock-paper-scissors game are commit and reveal, not ${type}", 
+                     ("type", op.move.which()));
+      }
+      else
+         FC_THROW("Game of type ${type} not supported", ("type", game_details.which()));
+   }
+
+   void game_object::on_move(database& db, const game_move_operation& op)
+   {
+      my->state_machine.process_event(game_move(db, op));
+   }
+
+   void game_object::start_game(database& db, const std::vector<account_id_type>& players)
+   {
+      my->state_machine.process_event(initiate_game(db, players));
+   }
+
    void game_object::pack_impl(std::ostream& stream) const
    {
       boost::archive::binary_oarchive oa(stream, boost::archive::no_header|boost::archive::no_codecvt|boost::archive::no_xml_tag_checking);
@@ -236,6 +416,7 @@ namespace fc {
       elog("In game_obj to_variant");
       fc::mutable_variant_object o;
       o("id", game_obj.id)
+       ("match_id", game_obj.match_id)
        ("players", game_obj.players)
        ("winners", game_obj.winners)
        ("game_details", game_obj.game_details)
@@ -249,6 +430,7 @@ namespace fc {
    {
       fc_elog(fc::logger::get("tournament"), "In game_obj from_variant");
       game_obj.id = v["id"].as<graphene::chain::game_id_type>();
+      game_obj.match_id = v["match_id"].as<graphene::chain::match_id_type>();
       game_obj.players = v["players"].as<std::vector<graphene::chain::account_id_type> >();
       game_obj.winners = v["winners"].as<flat_set<graphene::chain::account_id_type> >();
       game_obj.game_details = v["game_details"].as<graphene::chain::game_specific_details>();

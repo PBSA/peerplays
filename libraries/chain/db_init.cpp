@@ -177,6 +177,7 @@ void database::initialize_evaluators()
    register_evaluator<asset_claim_fees_evaluator>();
    register_evaluator<tournament_create_evaluator>();
    register_evaluator<tournament_join_evaluator>();
+   register_evaluator<game_move_evaluator>();
 }
 
 void database::initialize_indexes()
