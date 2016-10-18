@@ -36,6 +36,8 @@
 #include <graphene/db/simple_index.hpp>
 #include <fc/signals.hpp>
 
+#include <fc/crypto/hash_ctr_rng.hpp>
+
 #include <graphene/chain/protocol/protocol.hpp>
 
 #include <fc/log/logger.hpp>
@@ -249,6 +251,8 @@ namespace graphene { namespace chain {
          const dynamic_global_property_object&  get_dynamic_global_properties()const;
          const node_property_object&            get_node_properties()const;
          const fee_schedule&                    current_fee_schedule()const;
+
+         uint64_t                               get_random_bits( uint64_t bound );
 
          time_point_sec   head_block_time()const;
          uint32_t         head_block_num()const;
@@ -488,6 +492,7 @@ namespace graphene { namespace chain {
          flat_map<uint32_t,block_id_type>  _checkpoints;
 
          node_property_object              _node_property_object;
+         fc::hash_ctr_rng<secret_hash_type, 20> _random_number_generator;
    };
 
    namespace detail

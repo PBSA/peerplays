@@ -98,7 +98,7 @@ namespace graphene { namespace chain {
 
                const tournament_object& tournament_obj = match.tournament_id(event.db);
                event.db.modify(tournament_obj, [&](tournament_object& tournament) {
-                     tournament.on_final_game_completed();
+                     tournament.on_match_completed(event.db, match);
                      });
 
             }

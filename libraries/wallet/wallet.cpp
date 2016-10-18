@@ -406,7 +406,8 @@ private:
                if (match_cache_iter != match_cache.end())
                {
                   const match_object& cached_match_obj = *match_cache_iter;
-                  if (cached_match_obj.get_state() != current_match_obj.get_state())
+                  if (cached_match_obj.get_state() != current_match_obj.get_state() ||
+                      cached_match_obj.games.size() != current_match_obj.games.size())
                   {
                      ilog("match ${id} changed state from ${old} to ${new}",
                           ("id", id)

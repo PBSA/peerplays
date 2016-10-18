@@ -31,8 +31,6 @@
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/msm/back/tools.hpp>
 
-#include <fc/crypto/hash_ctr_rng.hpp>
-
 namespace graphene { namespace chain {
 
    namespace msm = boost::msm;
@@ -60,7 +58,13 @@ namespace graphene { namespace chain {
          database& db;
          start_time_arrived(database& db) : db(db) {};
       };
-      struct final_game_completed {};
+
+      struct match_completed 
+      {
+         database& db;
+         const match_object& match;
+         match_completed(database& db, const match_object& match) : db(db), match(match) {}
+      };
 
       struct tournament_state_machine_ : public msm::front::state_machine_def<tournament_state_machine_>
       {
@@ -120,9 +124,6 @@ namespace graphene { namespace chain {
                        ("id", fsm.tournament_obj->id));
                const tournament_details_object& tournament_details_obj = fsm.tournament_obj->tournament_details_id(event.db);
 
-               // TODO hoist the rng to reset once per block?
-               fc::hash_ctr_rng<secret_hash_type, 20> rng(event.db.get_dynamic_global_properties().random.data());
-
                // Create the "seeding" order for the tournament as a random shuffle of the players.
                //
                // If this were a game of skill where players were ranked, this algorithm expects the 
@@ -131,7 +132,7 @@ namespace graphene { namespace chain {
                                                       tournament_details_obj.registered_players.end());
                for (unsigned i = seeded_players.size() - 1; i >= 1; --i)
                {
-                  unsigned j = (unsigned)rng(i + 1);
+                  unsigned j = (unsigned)event.db.get_random_bits(i + 1);
                   std::swap(seeded_players[i], seeded_players[j]);
                }
 
@@ -178,6 +179,12 @@ namespace graphene { namespace chain {
                   tournament_details_obj.matches = matches;
                });
             }
+            void on_entry(const match_completed& event, tournament_state_machine_& fsm)
+            {
+               fc_ilog(fc::logger::get("tournament"),
+                       "Tournament ${id} is still in progress, maybe should start a new match here",
+                       ("id", fsm.tournament_obj->id));
+            }
          };
          struct registration_period_expired : public msm::front::state<>
          {
@@ -199,7 +206,17 @@ namespace graphene { namespace chain {
                }
             }
          };
-         struct concluded : public msm::front::state<>{};
+
+         struct concluded : public msm::front::state<>
+         {
+            void on_entry(const match_completed& event, tournament_state_machine_& fsm)
+            {
+               fc_ilog(fc::logger::get("tournament"),
+                       "Tournament ${id} is complete",
+                       ("id", fsm.tournament_obj->id));
+            }
+         };
+
 
          typedef accepting_registrations initial_state;
 
@@ -212,6 +229,15 @@ namespace graphene { namespace chain {
                     "In will_be_fully_registered guard, returning ${value}",
                     ("value", tournament_obj->registered_players == tournament_obj->options.number_of_players - 1));
             return tournament_obj->registered_players == tournament_obj->options.number_of_players - 1;
+         }
+         
+         bool was_final_match(const match_completed& event)
+         {
+            const tournament_details_object& tournament_details_obj = tournament_obj->tournament_details_id(event.db);
+            fc_ilog(fc::logger::get("tournament"),
+                    "In was_final_match guard, returning ${value}",
+                    ("value", event.match.id == tournament_details_obj.matches[tournament_details_obj.matches.size()]));
+            return event.match.id == tournament_details_obj.matches[tournament_details_obj.matches.size() - 1];
          }
          
          void register_player(const player_registered& event)
@@ -235,12 +261,13 @@ namespace graphene { namespace chain {
          //    Start                       Event                         Next                       Action               Guard
          //  +---------------------------+-----------------------------+----------------------------+---------------------+----------------------+
          a_row < accepting_registrations, player_registered,            accepting_registrations,     &x::register_player >,
-         row   < accepting_registrations, player_registered,            awaiting_start,              &x::register_player, &x::will_be_fully_registered >,
+         row   < accepting_registrations, player_registered,            awaiting_start,              &x::register_player,  &x::will_be_fully_registered >,
          _row  < accepting_registrations, registration_deadline_passed, registration_period_expired >,
          //  +---------------------------+-----------------------------+----------------------------+---------------------+----------------------+
          _row  < awaiting_start,          start_time_arrived,           in_progress >,
          //  +---------------------------+-----------------------------+----------------------------+---------------------+----------------------+
-         _row  < in_progress,             final_game_completed,         concluded >
+         _row  < in_progress,             match_completed,              in_progress >,
+         g_row < in_progress,             match_completed,              concluded,                                         &x::was_final_match >
          //  +---------------------------+-----------------------------+----------------------------+---------------------+----------------------+
          > {};
 
@@ -366,9 +393,9 @@ namespace graphene { namespace chain {
       my->state_machine.process_event(start_time_arrived(db));
    }
 
-   void tournament_object::on_final_game_completed()
+   void tournament_object::on_match_completed(database& db, const match_object& match)
    {
-      my->state_machine.process_event(final_game_completed());
+      my->state_machine.process_event(match_completed(db, match));
    }
 
    void tournament_object::check_for_new_matches_to_start(database& db) const

@@ -111,7 +111,7 @@ namespace graphene { namespace chain {
       void on_registration_deadline_passed(database& db);
       void on_player_registered(database& db, account_id_type payer_id, account_id_type player_id);
       void on_start_time_arrived(database& db);
-      void on_final_game_completed();
+      void on_match_completed(database& db, const match_object& match);
 
       void check_for_new_matches_to_start(database& db) const;
    private:

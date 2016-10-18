@@ -41,6 +41,8 @@ namespace graphene { namespace chain {
       flat_set<account_id_type> winners;
 
       game_specific_details game_details;
+
+      fc::optional<time_point_sec> next_timeout;
       
       game_state get_state() const;
 
@@ -50,7 +52,11 @@ namespace graphene { namespace chain {
       game_object& operator=(const game_object& rhs);
 
       void evaluate_move_operation(const database& db, const game_move_operation& op) const;
+      void make_automatic_moves(database& db);
+      void determine_winner(database& db);
+
       void on_move(database& db, const game_move_operation& op);
+      void on_timeout(database& db);
       void start_game(database& db, const std::vector<account_id_type>& players);
       
       // serialization functions:
@@ -72,10 +78,15 @@ namespace graphene { namespace chain {
       std::unique_ptr<impl> my;
    };
 
+   struct by_next_timeout {};
    typedef multi_index_container<
       game_object,
       indexed_by<
-         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >      >
+         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
+         ordered_unique< tag<by_next_timeout>, 
+            composite_key<game_object, 
+               member<game_object, optional<time_point_sec>, &game_object::next_timeout>,
+               member<object, object_id_type, &object::id> > > >
    > game_object_multi_index_type;
    typedef generic_index<game_object, game_object_multi_index_type> game_index;
 
@@ -90,6 +101,7 @@ namespace graphene { namespace chain {
       fc::raw::pack(s, game_obj.players);
       fc::raw::pack(s, game_obj.winners);
       fc::raw::pack(s, game_obj.game_details);
+      fc::raw::pack(s, game_obj.next_timeout);
 
       // fc::raw::pack the contents hidden in the impl class
       std::ostringstream stream;
@@ -110,6 +122,7 @@ namespace graphene { namespace chain {
       fc::raw::unpack(s, game_obj.players);
       fc::raw::unpack(s, game_obj.winners);
       fc::raw::unpack(s, game_obj.game_details);
+      fc::raw::unpack(s, game_obj.next_timeout);
 
       // fc::raw::unpack the contents hidden in the impl class
       std::string stringified_stream;
