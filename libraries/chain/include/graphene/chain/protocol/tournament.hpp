@@ -36,15 +36,6 @@
 
 namespace graphene { namespace chain {
 
-   /**
-    * @brief List of games currently supported on the blockchain
-    */
-   enum game_type
-   {
-      rock_paper_scissors,
-      GAME_TYPE_COUNT
-   };
-
    typedef fc::static_variant<rock_paper_scissors_game_options> game_specific_options;
 
    /**
@@ -52,9 +43,6 @@ namespace graphene { namespace chain {
     */
    struct tournament_options
    {
-      /// The type of game in this tournament
-      uint16_t type_of_game; /* actually a game_type, but that doesn't reflect properly */
-
       /// If there aren't enough players registered for the tournament before this time,
       /// the tournament is canceled
       fc::time_point_sec registration_deadline;
@@ -94,6 +82,8 @@ namespace graphene { namespace chain {
       fc::variant_object meta;
 
       /// Parameters that are specific to the type_of_game in this tournament
+      /// The type stored in this static_variant field determines what type of game is being
+      /// played, so each different supported game must have a unique game_options data type
       game_specific_options game_options;
 
       void validate() const;
@@ -175,11 +165,9 @@ namespace graphene { namespace chain {
 
 } }
 
-FC_REFLECT_ENUM( graphene::chain::game_type, (rock_paper_scissors)(GAME_TYPE_COUNT) )
 FC_REFLECT_TYPENAME( graphene::chain::game_specific_options )
 FC_REFLECT_TYPENAME( graphene::chain::game_specific_moves )
 FC_REFLECT( graphene::chain::tournament_options, 
-            (type_of_game)
             (registration_deadline)
             (number_of_players)
             (buy_in)

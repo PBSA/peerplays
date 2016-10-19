@@ -11,8 +11,6 @@ namespace graphene { namespace chain {
    void_result tournament_create_evaluator::do_evaluate( const tournament_create_operation& op )
    { try {
       database& d = db();
-      FC_ASSERT(op.options.type_of_game == rock_paper_scissors, "Unsupported game type ${type}", ("type", op.options.type_of_game));
-
       FC_ASSERT(op.options.registration_deadline >= d.head_block_time(), "Registration deadline has already passed");
 
       // TODO: make this committee-set

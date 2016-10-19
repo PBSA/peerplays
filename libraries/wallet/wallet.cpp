@@ -2451,7 +2451,6 @@ public:
          {
             asset_object buy_in_asset = get_asset(tournament_obj.options.buy_in.asset_id);
             ss << fc::variant(tournament_obj.id).as<std::string>() << "  " 
-               << fc::variant(game_type(tournament_obj.options.type_of_game)).as<std::string>() << "  "
                << buy_in_asset.amount_to_pretty_string(tournament_obj.options.buy_in.amount) << "  "
                << tournament_obj.options.number_of_players << " players\n";
             switch (tournament_obj.get_state())
