@@ -553,17 +553,14 @@ class database_api
       // Tournaments //
       /////////////////
       /**
-       * @param account_filter if provided, this will only return tournaments the given account is
-       *                       allowed to join (public tournaments or tournaments the account is whitelisted for)
-       * @return the list of tournaments that are still accepting new registrations
+       * @return the list of tournaments in the given state
        */
-      vector<tournament_object> get_upcoming_tournaments(fc::optional<account_id_type> account_filter, uint32_t limit)const;
+      vector<tournament_object> get_tournaments_in_state(tournament_state state, uint32_t limit) const;
 
       /**
-       * @return the list of tournaments that are either in-progress or fully-registered and just waiting on their start
-       * time to arrive
+       * @return the list of tournaments that a given account is registered to play in
        */
-      vector<tournament_object> get_active_tournaments(fc::optional<account_id_type> account_filter, uint32_t limit)const;
+      vector<tournament_id_type> get_registered_tournaments(account_id_type account_filter, uint32_t limit) const;
 
    private:
       std::shared_ptr< database_api_impl > my;
@@ -667,6 +664,6 @@ FC_API(graphene::app::database_api,
    (get_blinded_balances)
 
    // Tournaments
-   (get_upcoming_tournaments)
-   (get_active_tournaments)
+   (get_tournaments_in_state)
+   (get_registered_tournaments)
 )

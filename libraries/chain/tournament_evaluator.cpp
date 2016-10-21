@@ -84,6 +84,12 @@ namespace graphene { namespace chain {
             t.tournament_details_id = tournament_details.id;
           });
 
+      // TODO: look up how to do this in the initial create
+      db().modify(tournament_details, [&]( tournament_details_object& a ) {
+            a.tournament_id = new_tournament.id;
+          });
+
+
       fc_ilog(fc::logger::get("tournament"),
               "Created tournament ${id} with details id ${details_id}", 
               ("id", new_tournament.id)("details_id", tournament_details.id));
@@ -107,7 +113,7 @@ namespace graphene { namespace chain {
                 "Registration deadline has already passed");
 
       FC_ASSERT(_tournament_obj->options.whitelist.empty() ||
-                _tournament_obj->options.whitelist.find(op.player_account_id) == _tournament_obj->options.whitelist.end(),
+                _tournament_obj->options.whitelist.find(op.player_account_id) != _tournament_obj->options.whitelist.end(),
                 "Player is not on the whitelist for this tournament");
 
       FC_ASSERT(_tournament_details_obj->registered_players.find(op.player_account_id) == _tournament_details_obj->registered_players.end(),

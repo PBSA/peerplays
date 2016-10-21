@@ -139,8 +139,8 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       vector<blinded_balance_object> get_blinded_balances( const flat_set<commitment_type>& commitments )const;
 
       // Tournaments
-      vector<tournament_object> get_upcoming_tournaments(fc::optional<account_id_type> account_filter, uint32_t limit)const;
-      vector<tournament_object> get_active_tournaments(fc::optional<account_id_type> account_filter, uint32_t limit)const;
+      vector<tournament_object> get_tournaments_in_state(tournament_state state, uint32_t limit) const;
+      vector<tournament_id_type> get_registered_tournaments(account_id_type account_filter, uint32_t limit) const;
 
 
    //private:
@@ -1769,26 +1769,20 @@ vector<blinded_balance_object> database_api_impl::get_blinded_balances( const fl
 // Tournament methods                                               //
 //                                                                  //
 //////////////////////////////////////////////////////////////////////
-
-vector<tournament_object> database_api::get_upcoming_tournaments(fc::optional<account_id_type> account_filter, uint32_t limit)const
+vector<tournament_object> database_api::get_tournaments_in_state(tournament_state state, uint32_t limit) const
 {
-   return my->get_upcoming_tournaments(account_filter, limit);
+   return my->get_tournaments_in_state(state, limit);
 }
 
-vector<tournament_object> database_api_impl::get_upcoming_tournaments(fc::optional<account_id_type> account_filter, uint32_t limit)const
+vector<tournament_object> database_api_impl::get_tournaments_in_state(tournament_state state, uint32_t limit) const
 {
    vector<tournament_object> result;
    const auto& registration_deadline_index = _db.get_index_type<tournament_index>().indices().get<by_registration_deadline>();
-   const auto range = registration_deadline_index.equal_range(boost::make_tuple(tournament_state::accepting_registrations));
+   const auto range = registration_deadline_index.equal_range(boost::make_tuple(state));
    for (const tournament_object& tournament_obj : boost::make_iterator_range(range.first, range.second))
    {
-      if (tournament_obj.options.whitelist.empty() ||
-          !account_filter ||
-          tournament_obj.options.whitelist.find(*account_filter) != tournament_obj.options.whitelist.end())
-      {
-         result.emplace_back(tournament_obj);
-         subscribe_to_item( tournament_obj.id );
-      }
+      result.emplace_back(tournament_obj);
+      subscribe_to_item( tournament_obj.id );
 
       if (result.size() >= limit)
          break;
@@ -1796,39 +1790,21 @@ vector<tournament_object> database_api_impl::get_upcoming_tournaments(fc::option
    return result;
 }
 
-vector<tournament_object> database_api::get_active_tournaments(fc::optional<account_id_type> account_filter, uint32_t limit)const
+vector<tournament_id_type> database_api::get_registered_tournaments(account_id_type account_filter, uint32_t limit) const
 {
-   return my->get_active_tournaments(account_filter, limit);
+   return my->get_registered_tournaments(account_filter, limit);
 }
 
-vector<tournament_object> database_api_impl::get_active_tournaments(fc::optional<account_id_type> account_filter, uint32_t limit)const
+vector<tournament_id_type> database_api_impl::get_registered_tournaments(account_id_type account_filter, uint32_t limit) const
 {
-   vector<tournament_object> result;
-   const auto& start_time_index = _db.get_index_type<tournament_index>().indices().get<by_start_time>();
+   const auto& tournament_details_idx = _db.get_index_type<tournament_details_index>();
+   const auto& tournament_details_primary_idx = dynamic_cast<const primary_index<tournament_details_index>&>(tournament_details_idx);
+   const auto& players_idx = tournament_details_primary_idx.get_secondary_index<graphene::chain::tournament_players_index>();
 
-   const auto begin = start_time_index.lower_bound(boost::make_tuple(tournament_state::awaiting_start));
-   const auto end = start_time_index.upper_bound(boost::make_tuple(tournament_state::in_progress));
-   for (const tournament_object& tournament_obj : boost::make_iterator_range(begin, end))
-   {
-      if (account_filter)
-      {
-         const tournament_details_object& tournament_details_obj = tournament_obj.tournament_details_id(_db);
-         if (tournament_details_obj.registered_players.find(*account_filter) != tournament_details_obj.registered_players.end())
-         {
-            result.emplace_back(tournament_obj);
-            subscribe_to_item( tournament_obj.id );
-         }
-      }
-      else
-      {
-         result.emplace_back(tournament_obj);
-         subscribe_to_item( tournament_obj.id );
-      }
-
-      if (result.size() >= limit)
-         break;
-   }
-   return result;
+   vector<tournament_id_type> tournament_ids = players_idx.get_registered_tournaments_for_account(account_filter);
+   if (tournament_ids.size() >= limit)
+      tournament_ids.resize(limit);
+   return tournament_ids;
 }
 
 //////////////////////////////////////////////////////////////////////

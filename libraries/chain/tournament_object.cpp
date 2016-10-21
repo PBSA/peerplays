@@ -479,6 +479,73 @@ namespace graphene { namespace chain {
       return fc::sha256::hash(full_throw_packed.data(), full_throw_packed.size());
    }
 
+
+   vector<tournament_id_type> tournament_players_index::get_registered_tournaments_for_account( const account_id_type& a )const
+   {
+      auto iter = account_to_joined_tournaments.find(a);
+      if (iter != account_to_joined_tournaments.end())
+         return vector<tournament_id_type>(iter->second.begin(), iter->second.end());
+      return vector<tournament_id_type>();
+   }
+
+   void tournament_players_index::object_inserted(const object& obj)
+   {
+       assert( dynamic_cast<const tournament_details_object*>(&obj) ); // for debug only
+       const tournament_details_object& details = static_cast<const tournament_details_object&>(obj);
+
+       for (const account_id_type& account_id : details.registered_players)
+          account_to_joined_tournaments[account_id].insert(details.tournament_id);
+   }
+
+   void tournament_players_index::object_removed(const object& obj)
+   {
+       assert( dynamic_cast<const tournament_details_object*>(&obj) ); // for debug only
+       const tournament_details_object& details = static_cast<const tournament_details_object&>(obj);
+
+       for (const account_id_type& account_id : details.registered_players)
+       {
+          auto iter = account_to_joined_tournaments.find(account_id);
+          if (iter != account_to_joined_tournaments.end())
+             iter->second.erase(details.tournament_id);
+       }
+   }
+
+   void tournament_players_index::about_to_modify(const object& before)
+   {
+      assert( dynamic_cast<const tournament_details_object*>(&before) ); // for debug only
+      const tournament_details_object& details = static_cast<const tournament_details_object&>(before);
+      before_account_ids = details.registered_players;
+   }
+
+   void tournament_players_index::object_modified(const object& after)
+   {
+      assert( dynamic_cast<const tournament_details_object*>(&after) ); // for debug only
+      const tournament_details_object& details = static_cast<const tournament_details_object&>(after);
+
+      {
+         vector<account_id_type> newly_registered_players(details.registered_players.size());
+         auto end_iter = std::set_difference(details.registered_players.begin(), details.registered_players.end(),
+                                             before_account_ids.begin(), before_account_ids.end(), 
+                                             newly_registered_players.begin());
+         newly_registered_players.resize(end_iter - newly_registered_players.begin());
+         for (const account_id_type& account_id : newly_registered_players)
+            account_to_joined_tournaments[account_id].insert(details.tournament_id);
+      }
+
+      {
+         vector<account_id_type> newly_unregistered_players(before_account_ids.size());
+         auto end_iter = std::set_difference(before_account_ids.begin(), before_account_ids.end(), 
+                                             details.registered_players.begin(), details.registered_players.end(),
+                                             newly_unregistered_players.begin());
+         newly_unregistered_players.resize(end_iter - newly_unregistered_players.begin());
+         for (const account_id_type& account_id : newly_unregistered_players)
+         {
+            auto iter = account_to_joined_tournaments.find(account_id);
+            if (iter != account_to_joined_tournaments.end())
+               iter->second.erase(details.tournament_id);
+         }
+      }
+   }
 } } // graphene::chain
 
 namespace fc { 

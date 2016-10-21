@@ -208,7 +208,8 @@ void database::initialize_indexes()
    add_index< primary_index<blinded_balance_index> >();
 
    add_index< primary_index<tournament_index> >();
-   add_index< primary_index<tournament_details_index> >();
+   auto tournament_details_idx = add_index< primary_index<tournament_details_index> >();
+   tournament_details_idx->add_secondary_index<tournament_players_index>();
    add_index< primary_index<match_index> >();
    add_index< primary_index<game_index> >();
 

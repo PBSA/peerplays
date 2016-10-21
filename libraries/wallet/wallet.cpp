@@ -951,12 +951,12 @@ public:
       game_cache.clear();
       for (const account_object& my_account : _wallet.my_accounts)
       {
-         std::vector<tournament_object> tournaments = _remote_db->get_active_tournaments(my_account.id, 100);
-         std::vector<tournament_id_type> tournament_ids;
-         for (const tournament_object& tournament : tournaments)
+         std::vector<tournament_id_type> tournament_ids = _remote_db->get_registered_tournaments(my_account.id, 100);
+         for (const tournament_id_type& tournament_id : tournament_ids)
          {
             try
             {
+               tournament_object tournament = get_object<tournament_object>(tournament_id);
                auto insert_result = tournament_cache.insert(tournament);
                if (insert_result.second)
                {
@@ -967,10 +967,10 @@ public:
             }
             catch (const fc::exception& e)
             {
-               edump((e)(tournament));
+               edump((e)(tournament_id));
             }
          }
-         if (!tournaments.empty())
+         if (!tournament_ids.empty())
             ilog("Account ${my_account} is registered for tournaments: ${tournaments}", ("my_account", my_account.name)("tournaments", tournament_ids));
          else
             ilog("Account ${my_account} is not registered for any tournaments", ("my_account", my_account.name));
@@ -4552,12 +4552,9 @@ signed_transaction wallet_api::tournament_join( string payer_account,
    return my->sign_transaction( tx, broadcast );
 }
 
-vector<tournament_object> wallet_api::get_upcoming_tournaments(fc::optional<string> player_account, uint32_t limit)
+vector<tournament_object> wallet_api::get_upcoming_tournaments(uint32_t limit)
 {
-   fc::optional<account_id_type> player_account_id;
-   if (player_account)
-     player_account_id = get_account(*player_account).id;
-   return my->_remote_db->get_upcoming_tournaments(player_account_id, limit);
+   return my->_remote_db->get_tournaments_in_state(tournament_state::accepting_registrations, limit);
 }
 
 tournament_object wallet_api::get_tournament(tournament_id_type id)

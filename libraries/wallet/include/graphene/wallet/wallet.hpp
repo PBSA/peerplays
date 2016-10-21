@@ -1422,10 +1422,9 @@ class wallet_api
       signed_transaction tournament_join( string payer_account, string player_account, tournament_id_type tournament_id, string buy_in_amount, string buy_in_asset_symbol, bool broadcast = false );
 
       /** Get a list of upcoming tournaments
-       * @param player_accounts if non-empty, only return tournaments for which at least one of the named players is eligible.  If empty, return all tournaments
        * @param limit the number of tournaments to return
        */
-      vector<tournament_object> get_upcoming_tournaments(optional<string> player_accounts, uint32_t limit);
+      vector<tournament_object> get_upcoming_tournaments(uint32_t limit);
 
       /** Get specific information about a tournament
        * @param tournament_id the ID of the tournament 
