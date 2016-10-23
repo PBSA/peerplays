@@ -89,7 +89,7 @@ namespace graphene { namespace chain {
 
       void pack_impl(std::ostream& stream) const;
       void unpack_impl(std::istream& stream);
-      void on_initiate_match(database& db, const vector<account_id_type>& players);
+      void on_initiate_match(database& db);
       void on_game_complete(database& db, const game_object& game);
       game_id_type start_next_game(database& db, match_id_type match_id);
 

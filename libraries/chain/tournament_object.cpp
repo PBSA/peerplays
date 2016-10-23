@@ -172,7 +172,8 @@ namespace graphene { namespace chain {
                   if (paired_players[2 * i + 1] != account_id_type())
                      players.emplace_back(paired_players[2 * i + 1]);
                   event.db.modify(matches[i](event.db), [&](match_object& match) {
-                     match.on_initiate_match(event.db, players);
+                     match.players = players;
+                     match.on_initiate_match(event.db);
                      });
                }
                event.db.modify(tournament_details_obj, [&](tournament_details_object& tournament_details_obj){
@@ -181,11 +182,50 @@ namespace graphene { namespace chain {
             }
             void on_entry(const match_completed& event, tournament_state_machine_& fsm)
             {
+               tournament_object& tournament = *fsm.tournament_obj;
                fc_ilog(fc::logger::get("tournament"),
-                       "Tournament ${id} is still in progress, maybe should start a new match here",
-                       ("id", fsm.tournament_obj->id));
+                       "Match ${match_id} in tournament tournament ${tournament_id} is still in progress",
+                       ("match_id", event.match.id)("tournament_id", tournament.id));
+
+               // this wasn't the final match that just finished, so figure out if we can start the next match.
+               // The next match can start if both this match and the previous match have completed
+               const tournament_details_object& tournament_details_obj = fsm.tournament_obj->tournament_details_id(event.db);
+               unsigned num_matches = tournament_details_obj.matches.size();
+               auto this_match_iter = std::find(tournament_details_obj.matches.begin(), tournament_details_obj.matches.end(), event.match.id);
+               assert(this_match_iter != tournament_details_obj.matches.end());
+               unsigned this_match_index = std::distance(tournament_details_obj.matches.begin(), this_match_iter);
+               // TODO: we currently create all matches at startup, so they are numbered sequentially.  We could get the index
+               // by subtracting match.id as long as this behavior doesn't change
+
+               unsigned next_round_match_index = (this_match_index + num_matches + 1) / 2;
+               assert(next_round_match_index < num_matches);
+               const match_object& next_round_match = tournament_details_obj.matches[next_round_match_index](event.db);
+
+               // each match will have two players, match.players[0] and match.players[1].
+               // for consistency, we want to feed the winner of this match into the correct
+               // slot in the next match 
+               unsigned winner_index_in_next_match = (this_match_index + num_matches + 1) % 2;
+               unsigned other_match_index = num_matches - ((num_matches - next_round_match_index) * 2 + winner_index_in_next_match);
+               const match_object& other_match = tournament_details_obj.matches[other_match_index](event.db);
+
+               // the winners of the matches event.match and other_match will play in next_round_match
+
+               assert(event.match.match_winners.size() <= 1);
+
+               event.db.modify(next_round_match, [&](match_object& next_match_obj) {
+                  if (!event.match.match_winners.empty()) // if there is a winner
+                  {
+                     if (winner_index_in_next_match == 0)
+                        next_match_obj.players.insert(next_match_obj.players.begin(), *event.match.match_winners.begin());
+                     else
+                        next_match_obj.players.push_back(*event.match.match_winners.begin());
+                  }
+                  if (other_match.get_state() == match_state::match_complete)
+                     next_match_obj.on_initiate_match(event.db);
+               });
             }
          };
+
          struct registration_period_expired : public msm::front::state<>
          {
             void on_entry(const registration_deadline_passed& event, tournament_state_machine_& fsm)

@@ -44,9 +44,8 @@ namespace graphene { namespace chain {
       struct initiate_match
       {
          database& db;
-         vector<account_id_type> players;
-         initiate_match(database& db, const vector<account_id_type>& players) :
-            db(db), players(players)
+         initiate_match(database& db) :
+            db(db)
          {}
       };
 
@@ -80,7 +79,6 @@ namespace graphene { namespace chain {
                fc_ilog(fc::logger::get("tournament"),
                        "Match ${id} is now in progress",
                        ("id", match.id));
-               match.players = event.players;
                match.number_of_wins.resize(match.players.size());
                match.start_time = event.db.head_block_time();
 
@@ -96,6 +94,24 @@ namespace graphene { namespace chain {
                        "Match ${id} is complete",
                        ("id", match.id));
 
+               std::map<account_id_type, unsigned> scores_by_player;
+               for (const flat_set<account_id_type>& game_winners : match.game_winners)
+                  for (const account_id_type& account_id : game_winners)
+                     ++scores_by_player[account_id];
+               
+               optional<account_id_type> high_scoring_account;
+               unsigned high_score = 0;
+               for (const auto& value : scores_by_player)
+                  if (value.second > high_score)
+                  {
+                     high_score = value.second;
+                     high_scoring_account = value.first;
+                  }
+
+               if (high_scoring_account)
+                  match.match_winners.insert(*high_scoring_account);
+
+               match.end_time = event.db.head_block_time();
                const tournament_object& tournament_obj = match.tournament_id(event.db);
                event.db.modify(tournament_obj, [&](tournament_object& tournament) {
                      tournament.on_match_completed(event.db, match);
@@ -108,11 +124,13 @@ namespace graphene { namespace chain {
                fc_ilog(fc::logger::get("tournament"),
                        "Match ${id} is complete, it was a buy",
                        ("id", match));
-               match.players = event.players;
                match.number_of_wins.resize(match.players.size());
-               boost::copy(event.players, std::inserter(match.match_winners, match.match_winners.end()));
+               boost::copy(match.players, std::inserter(match.match_winners, match.match_winners.end()));
                match.start_time = event.db.head_block_time();
                match.end_time = event.db.head_block_time();
+               // NOTE: when the match is a buy, we don't send a match completed event to
+               // the tournament_obj, because it is already in the middle of handling
+               // an event; it will figure out that the match has completed on its own.
             }
          };
          typedef waiting_on_previous_matches initial_state;
@@ -137,7 +155,7 @@ namespace graphene { namespace chain {
 
          bool match_is_a_buy(const initiate_match& event)
          {
-            return event.players.size() < 2;
+            return match_obj->players.size() < 2;
          }
          
          void record_completed_game(const game_complete& event)
@@ -294,9 +312,9 @@ namespace graphene { namespace chain {
       ia >> my->state_machine;
    }
 
-   void match_object::on_initiate_match(database& db, const vector<account_id_type>& players)
+   void match_object::on_initiate_match(database& db)
    {
-      my->state_machine.process_event(initiate_match(db, players));
+      my->state_machine.process_event(initiate_match(db));
    }
 
    void match_object::on_game_complete(database& db, const game_object& game)

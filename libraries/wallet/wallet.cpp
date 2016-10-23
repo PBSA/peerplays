@@ -2525,16 +2525,29 @@ public:
                      unsigned match_number = player_number / 2;
                      unsigned player_in_match = player_number % 2;
 
-                     match_object match = _remote_db->get_objects({tournament_details.matches[match_number]})[0].as<match_object>();
                      std::string player_name;
-                     if (round != num_rounds &&
-                         !match.players.empty())
+                     if (round == num_rounds)
                      {
-                        if (player_in_match < match.players.size())
-                           player_name = get_account(match.players[player_in_match]).name;
-                        else
-                           player_name = "[bye]";
+                        match_object match = get_object<match_object>(tournament_details.matches[num_matches - 1]);
+                        if (match.get_state() == match_state::match_complete && 
+                            !match.match_winners.empty())
+                        {
+                           assert(match.match_winners.size() == 1);
+                           player_name = get_account(*match.match_winners.begin()).name;
+                        }
                      }
+                     else
+                     {
+                        match_object match = get_object<match_object>(tournament_details.matches[match_number]);
+                        if (!match.players.empty())
+                        {
+                           if (player_in_match < match.players.size())
+                              player_name = get_account(match.players[player_in_match]).name;
+                           else
+                              player_name = "[bye]";
+                        }
+                     }
+
                      ss << "__";
                      ss << std::setfill('_') << std::setw(10) << player_name.substr(0,10);
                      ss << "__";
