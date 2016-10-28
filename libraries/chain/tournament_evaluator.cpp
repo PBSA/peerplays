@@ -78,21 +78,21 @@ namespace graphene { namespace chain {
       // time_per_commit_move constraints
       const uint32_t minimum_time_per_commit_move = d.get_global_properties().parameters.min_time_per_commit_move;
       FC_ASSERT(game_options.time_per_commit_move >= minimum_time_per_commit_move,
-                "Time to commit the next move must not be less then ${min}",
+                "Time to commit the next move must not be less than ${min}",
                 ("min", minimum_time_per_commit_move));
       const uint32_t maximum_time_per_commit_move = d.get_global_properties().parameters.max_time_per_commit_move;
       FC_ASSERT(game_options.time_per_commit_move <= maximum_time_per_commit_move,
-                "Time to commit the next move must not be greater then ${max}",
+                "Time to commit the next move must not be greater than ${max}",
                 ("max", maximum_time_per_commit_move));
 
       // time_per_commit_reveal constraints
       const uint32_t minimum_time_per_reveal_move = d.get_global_properties().parameters.min_time_per_reveal_move;
       FC_ASSERT(game_options.time_per_reveal_move >= minimum_time_per_reveal_move,
-                "Time to reveal the move must not be less then ${min}",
+                "Time to reveal the move must not be less than ${min}",
                 ("min", minimum_time_per_reveal_move));
       const uint32_t maximum_time_per_reveal_move = d.get_global_properties().parameters.max_time_per_reveal_move;
       FC_ASSERT(game_options.time_per_reveal_move <= maximum_time_per_reveal_move,
-                "Time to reveal the move must not be greater then ${max}",
+                "Time to reveal the move must not be greater than ${max}",
                 ("max", maximum_time_per_reveal_move));
 
       return void_result();
