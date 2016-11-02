@@ -90,6 +90,12 @@ struct get_impacted_account_visitor
    }
 
    void operator()( const asset_update_bitasset_operation& op ) {}
+   void operator()( const asset_update_dividend_operation& op ) {}
+   void operator()( const asset_dividend_distribution_operation& op ) 
+   {
+      _impacted.insert( op.account_id );
+   }
+
    void operator()( const asset_update_feed_producers_operation& op ) {}
 
    void operator()( const asset_issue_operation& op )

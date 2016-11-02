@@ -162,5 +162,6 @@ FC_REFLECT_ENUM(graphene::chain::match_state,
                 (match_in_progress)
                 (match_complete))
 
-FC_REFLECT_TYPENAME(graphene::chain::match_object) // manually serialized
+//FC_REFLECT_TYPENAME(graphene::chain::match_object) // manually serialized
+FC_REFLECT(graphene::chain::match_object, (players))
 

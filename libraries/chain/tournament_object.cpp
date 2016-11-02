@@ -254,9 +254,29 @@ namespace graphene { namespace chain {
                fc_ilog(fc::logger::get("tournament"),
                        "Tournament ${id} is complete",
                        ("id", fsm.tournament_obj->id));
+
+               // Distribute prize money when a tournament ends
+#ifndef NDEBUG
+               const tournament_details_object& details = fsm.tournament_obj->tournament_details_id(event.db);
+               share_type total_prize = 0;
+               for (const auto& payer_pair : details.payers)
+               {
+                    total_prize += payer_pair.second;
+               }
+               assert(total_prize == fsm.tournament_obj->prize_pool);
+#endif
+               assert(event.match.match_winners.size() ==  1);
+               const account_id_type& winner = *event.match.match_winners.begin();
+               uint16_t rake_fee_percentage = event.db.get_global_properties().parameters.rake_fee_percentage;
+               share_type rake_amount = (fc::uint128_t(fsm.tournament_obj->prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT).to_uint64();
+#ifdef TOURNAMENT_RAKE_FEE_ACCOUNT_ID
+               event.db.adjust_balance(account_id_type(TOURNAMENT_RAKE_FEE_ACCOUNT_ID),
+                                       asset(rake_amount, fsm.tournament_obj->options.buy_in.asset_id));
+#endif
+               event.db.adjust_balance(winner, asset(fsm.tournament_obj->prize_pool - rake_amount,
+                                                             fsm.tournament_obj->options.buy_in.asset_id));
             }
          };
-
 
          typedef accepting_registrations initial_state;
 

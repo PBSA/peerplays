@@ -27,6 +27,7 @@
 
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/global_property_object.hpp>
+#include <graphene/chain/hardfork.hpp>
 #include <graphene/chain/market_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/transaction_object.hpp>
@@ -47,7 +48,12 @@ void database::update_global_dynamic_data( const signed_block& b )
       dynamic_global_property_id_type(0)(*this);
 
    uint32_t missed_blocks = get_slot_at_time( b.timestamp );
+//#define DIRTY_TRICK // problem with missed_blocks can occur when "maintenance_interval" set to few minutes
+#ifdef DIRTY_TRICK
+   if (missed_blocks != 0) {
+#else
    assert( missed_blocks != 0 );
+#endif
    missed_blocks--;
    for( uint32_t i = 0; i < missed_blocks; ++i ) {
       const auto& witness_missed = get_scheduled_witness( i+1 )(*this);
@@ -63,7 +69,9 @@ void database::update_global_dynamic_data( const signed_block& b )
          });
       } 
    }
-
+#ifdef DIRTY_TRICK
+   }
+#endif
    // dynamic global properties updating
    modify( _dgp, [&]( dynamic_global_property_object& dgp ){
       secret_hash_type::encoder enc;       
@@ -445,7 +453,12 @@ void database::update_expired_feeds()
       assert( a.is_market_issued() );
 
       const asset_bitasset_data_object& b = a.bitasset_data(*this);
-      if( b.feed_is_expired(head_block_time()) )
+      bool feed_is_expired;
+      if( head_block_time() < HARDFORK_615_TIME )
+         feed_is_expired = b.feed_is_expired_before_hardfork_615( head_block_time() );
+      else
+         feed_is_expired = b.feed_is_expired( head_block_time() );
+      if( feed_is_expired )
       {
          modify(b, [this](asset_bitasset_data_object& a) {
             a.update_median_feeds(head_block_time());
