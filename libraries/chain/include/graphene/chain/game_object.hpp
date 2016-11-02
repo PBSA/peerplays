@@ -141,6 +141,7 @@ FC_REFLECT_ENUM(graphene::chain::game_state,
                 (expecting_reveal_moves)
                 (game_complete))
 
-FC_REFLECT_TYPENAME(graphene::chain::game_object) // manually serialized
+//FC_REFLECT_TYPENAME(graphene::chain::game_object) // manually serialized
+FC_REFLECT(graphene::chain::game_object, (players))
 
 

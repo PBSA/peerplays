@@ -14,7 +14,7 @@ namespace graphene { namespace chain {
       FC_ASSERT(op.options.registration_deadline >= d.head_block_time(), "Registration deadline has already passed");
 
       // TODO: make this committee-set
-      const fc::time_point_sec maximum_registration_deadline = d.head_block_time() + fc::days(30);
+      const fc::time_point_sec maximum_registration_deadline = d.head_block_time() + d.get_global_properties().parameters.maximum_registration_deadline;
       FC_ASSERT(op.options.registration_deadline <= maximum_registration_deadline, 
                 "Registration deadline must be before ${maximum_registration_deadline}", 
                 ("maximum_registration_deadline", maximum_registration_deadline));
@@ -94,6 +94,7 @@ namespace graphene { namespace chain {
       FC_ASSERT(game_options.time_per_reveal_move <= maximum_time_per_reveal_move,
                 "Time to reveal the move must not be greater than ${max}",
                 ("max", maximum_time_per_reveal_move));
+
 
       return void_result();
    } FC_CAPTURE_AND_RETHROW( (op) ) }
