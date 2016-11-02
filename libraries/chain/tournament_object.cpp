@@ -254,6 +254,8 @@ namespace graphene { namespace chain {
                fc_ilog(fc::logger::get("tournament"),
                        "Tournament ${id} is complete",
                        ("id", fsm.tournament_obj->id));
+               tournament_object& tournament = *fsm.tournament_obj;
+               tournament.end_time = event.db.head_block_time();
             }
          };
 
