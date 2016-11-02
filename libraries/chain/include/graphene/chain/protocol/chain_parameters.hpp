@@ -69,6 +69,13 @@ namespace graphene { namespace chain {
       uint16_t                accounts_per_fee_scale              = GRAPHENE_DEFAULT_ACCOUNTS_PER_FEE_SCALE; ///< number of accounts between fee scalings
       uint8_t                 account_fee_scale_bitshifts         = GRAPHENE_DEFAULT_ACCOUNT_FEE_SCALE_BITSHIFTS; ///< number of times to left bitshift account registration fee at each scaling
       uint8_t                 max_authority_depth                 = GRAPHENE_MAX_SIG_CHECK_DEPTH;
+      /* rps tournament parameters constraints */
+      uint32_t                min_round_delay                     = 0; ///< miniaml delay between games
+      uint32_t                max_round_delay                     = 600; ///< maxiaml delay between games
+      uint32_t                min_time_per_commit_move            = 0; ///< minimal time to commit the next move
+      uint32_t                max_time_per_commit_move            = 600; ///< maximal time to commit the next move
+      uint32_t                min_time_per_reveal_move            = 0; ///< minimal time to reveal move
+      uint32_t                max_time_per_reveal_move            = 600; ///< maximal time to reveal move
       extensions_type         extensions;
 
       /** defined in fee_schedule.cpp */
@@ -106,5 +113,11 @@ FC_REFLECT( graphene::chain::chain_parameters,
             (accounts_per_fee_scale)
             (account_fee_scale_bitshifts)
             (max_authority_depth)
+            (min_round_delay)
+            (max_round_delay)
+            (min_time_per_commit_move)
+            (max_time_per_commit_move)
+            (min_time_per_reveal_move)
+            (max_time_per_reveal_move)
             (extensions)
           )

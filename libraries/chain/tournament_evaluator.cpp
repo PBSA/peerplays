@@ -1,5 +1,6 @@
 #include <graphene/chain/protocol/tournament.hpp>
 #include <graphene/chain/tournament_object.hpp>
+#include <graphene/chain/game_object.hpp>
 #include <graphene/chain/tournament_evaluator.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/exceptions.hpp>
@@ -10,8 +11,6 @@ namespace graphene { namespace chain {
    void_result tournament_create_evaluator::do_evaluate( const tournament_create_operation& op )
    { try {
       database& d = db();
-      FC_ASSERT(op.options.type_of_game == rock_paper_scissors, "Unsupported game type ${type}", ("type", op.options.type_of_game));
-
       FC_ASSERT(op.options.registration_deadline >= d.head_block_time(), "Registration deadline has already passed");
 
       // TODO: make this committee-set
@@ -58,16 +57,43 @@ namespace graphene { namespace chain {
           FC_THROW("Must specify either a fixed start time or a delay");
 
       // TODO: make this committee-set
-      const uint32_t maximum_round_delay = 60 * 60; // one hour
-      FC_ASSERT(op.options.round_delay < maximum_round_delay, 
-                "Round delay is too long");
-
-      // TODO: make this committee-set
       const uint32_t maximum_tournament_number_of_wins = 100;
       FC_ASSERT(op.options.number_of_wins > 0);
       FC_ASSERT(op.options.number_of_wins <= maximum_tournament_number_of_wins, 
                 "Matches may not require more than ${number_of_wins} wins", 
                 ("number_of_wins", maximum_tournament_number_of_wins));
+
+      // round_delay constraints
+      const uint32_t minimum_round_delay = d.get_global_properties().parameters.min_round_delay;
+      FC_ASSERT(op.options.round_delay >= minimum_round_delay,
+                "Delay between games must not be less then ${min}",
+                ("min", minimum_round_delay));
+      const uint32_t maximum_round_delay = d.get_global_properties().parameters.max_round_delay;
+      FC_ASSERT(op.options.round_delay <= maximum_round_delay,
+                "Delay between games must not be greater then ${max}",
+                ("max", maximum_round_delay));
+
+      const rock_paper_scissors_game_options& game_options = op.options.game_options.get<rock_paper_scissors_game_options>();
+
+      // time_per_commit_move constraints
+      const uint32_t minimum_time_per_commit_move = d.get_global_properties().parameters.min_time_per_commit_move;
+      FC_ASSERT(game_options.time_per_commit_move >= minimum_time_per_commit_move,
+                "Time to commit the next move must not be less than ${min}",
+                ("min", minimum_time_per_commit_move));
+      const uint32_t maximum_time_per_commit_move = d.get_global_properties().parameters.max_time_per_commit_move;
+      FC_ASSERT(game_options.time_per_commit_move <= maximum_time_per_commit_move,
+                "Time to commit the next move must not be greater than ${max}",
+                ("max", maximum_time_per_commit_move));
+
+      // time_per_commit_reveal constraints
+      const uint32_t minimum_time_per_reveal_move = d.get_global_properties().parameters.min_time_per_reveal_move;
+      FC_ASSERT(game_options.time_per_reveal_move >= minimum_time_per_reveal_move,
+                "Time to reveal the move must not be less than ${min}",
+                ("min", minimum_time_per_reveal_move));
+      const uint32_t maximum_time_per_reveal_move = d.get_global_properties().parameters.max_time_per_reveal_move;
+      FC_ASSERT(game_options.time_per_reveal_move <= maximum_time_per_reveal_move,
+                "Time to reveal the move must not be greater than ${max}",
+                ("max", maximum_time_per_reveal_move));
 
       return void_result();
    } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -85,6 +111,12 @@ namespace graphene { namespace chain {
             t.tournament_details_id = tournament_details.id;
           });
 
+      // TODO: look up how to do this in the initial create
+      db().modify(tournament_details, [&]( tournament_details_object& a ) {
+            a.tournament_id = new_tournament.id;
+          });
+
+
       fc_ilog(fc::logger::get("tournament"),
               "Created tournament ${id} with details id ${details_id}", 
               ("id", new_tournament.id)("details_id", tournament_details.id));
@@ -101,14 +133,14 @@ namespace graphene { namespace chain {
       //const account_object& player_account = op.player_account_id(d);
       _buy_in_asset_type = &op.buy_in.asset_id(d);
 
-      // TODO FC_ASSERT(_tournament_obj->state == tournament_state::accepting_registrations);
+      FC_ASSERT(_tournament_obj->get_state() == tournament_state::accepting_registrations);
       FC_ASSERT(_tournament_details_obj->registered_players.size() < _tournament_obj->options.number_of_players,
                 "Tournament is already full");
       FC_ASSERT(d.head_block_time() <= _tournament_obj->options.registration_deadline, 
                 "Registration deadline has already passed");
 
       FC_ASSERT(_tournament_obj->options.whitelist.empty() ||
-                _tournament_obj->options.whitelist.find(op.player_account_id) == _tournament_obj->options.whitelist.end(),
+                _tournament_obj->options.whitelist.find(op.player_account_id) != _tournament_obj->options.whitelist.end(),
                 "Player is not on the whitelist for this tournament");
 
       FC_ASSERT(_tournament_details_obj->registered_players.find(op.player_account_id) == _tournament_details_obj->registered_players.end(),
@@ -143,6 +175,21 @@ namespace graphene { namespace chain {
       return void_result();
    } FC_CAPTURE_AND_RETHROW( (op) ) }
    
+   void_result game_move_evaluator::do_evaluate( const game_move_operation& o )
+   { try {
+      const database& d = db();
+      _game_obj = &o.game_id(d);
+      _game_obj->evaluate_move_operation(d, o);
+      return void_result();
+   } FC_CAPTURE_AND_RETHROW( (o) ) }
+
+   void_result game_move_evaluator::do_apply( const game_move_operation& o )
+   { try {
+      db().modify(*_game_obj, [&](game_object& game_obj){
+        game_obj.on_move(db(), o);
+         });
+      return void_result();
+   } FC_CAPTURE_AND_RETHROW( (o) ) }
 } }
 
 

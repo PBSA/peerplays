@@ -77,6 +77,7 @@ add_library( graphene_chain
              tournament_evaluator.cpp
              tournament_object.cpp
              match_object.cpp
+             game_object.cpp
              withdraw_permission_evaluator.cpp
              worker_evaluator.cpp
              confidential_evaluator.cpp

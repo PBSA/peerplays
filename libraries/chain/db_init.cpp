@@ -48,6 +48,7 @@
 #include <graphene/chain/worker_object.hpp>
 #include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/match_object.hpp>
+#include <graphene/chain/game_object.hpp>
 
 #include <graphene/chain/account_evaluator.hpp>
 #include <graphene/chain/asset_evaluator.hpp>
@@ -176,6 +177,7 @@ void database::initialize_evaluators()
    register_evaluator<asset_claim_fees_evaluator>();
    register_evaluator<tournament_create_evaluator>();
    register_evaluator<tournament_join_evaluator>();
+   register_evaluator<game_move_evaluator>();
 }
 
 void database::initialize_indexes()
@@ -206,7 +208,8 @@ void database::initialize_indexes()
    add_index< primary_index<blinded_balance_index> >();
 
    add_index< primary_index<tournament_index> >();
-   add_index< primary_index<tournament_details_index> >();
+   auto tournament_details_idx = add_index< primary_index<tournament_details_index> >();
+   tournament_details_idx->add_secondary_index<tournament_players_index>();
    add_index< primary_index<match_index> >();
    add_index< primary_index<game_index> >();
 

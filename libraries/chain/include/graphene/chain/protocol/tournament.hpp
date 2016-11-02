@@ -36,15 +36,6 @@
 
 namespace graphene { namespace chain {
 
-   /**
-    * @brief List of games currently supported on the blockchain
-    */
-   enum game_type
-   {
-      rock_paper_scissors,
-      GAME_TYPE_COUNT
-   };
-
    typedef fc::static_variant<rock_paper_scissors_game_options> game_specific_options;
 
    /**
@@ -52,9 +43,6 @@ namespace graphene { namespace chain {
     */
    struct tournament_options
    {
-      /// The type of game in this tournament
-      uint16_t type_of_game; /* actually a game_type, but that doesn't reflect properly */
-
       /// If there aren't enough players registered for the tournament before this time,
       /// the tournament is canceled
       fc::time_point_sec registration_deadline;
@@ -94,6 +82,8 @@ namespace graphene { namespace chain {
       fc::variant_object meta;
 
       /// Parameters that are specific to the type_of_game in this tournament
+      /// The type stored in this static_variant field determines what type of game is being
+      /// played, so each different supported game must have a unique game_options data type
       game_specific_options game_options;
 
       void validate() const;
@@ -148,12 +138,36 @@ namespace graphene { namespace chain {
       void            validate()const;
    };
 
+   typedef fc::static_variant<rock_paper_scissors_throw_commit, rock_paper_scissors_throw_reveal> game_specific_moves;
+
+   struct game_move_operation : public base_operation
+   {
+      struct fee_parameters_type { 
+         share_type fee = GRAPHENE_BLOCKCHAIN_PRECISION;
+      };
+      asset fee;
+
+      /// the id of the game 
+      game_id_type game_id;
+
+      /// The account of the player making this move
+      account_id_type player_account_id;
+
+      /// the move itself
+      game_specific_moves move;
+
+      extensions_type extensions;
+
+      account_id_type fee_payer()const { return player_account_id; }
+      share_type calculate_fee(const fee_parameters_type& k)const;
+      void            validate()const;
+   };
+
 } }
 
-FC_REFLECT_ENUM( graphene::chain::game_type, (rock_paper_scissors)(GAME_TYPE_COUNT) )
 FC_REFLECT_TYPENAME( graphene::chain::game_specific_options )
+FC_REFLECT_TYPENAME( graphene::chain::game_specific_moves )
 FC_REFLECT( graphene::chain::tournament_options, 
-            (type_of_game)
             (registration_deadline)
             (number_of_players)
             (buy_in)
@@ -176,6 +190,13 @@ FC_REFLECT( graphene::chain::tournament_join_operation,
             (tournament_id)
             (buy_in)
             (extensions))
+FC_REFLECT( graphene::chain::game_move_operation,
+            (fee)
+            (game_id)
+            (player_account_id)
+            (move)
+            (extensions))
 FC_REFLECT( graphene::chain::tournament_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::tournament_join_operation::fee_parameters_type, (fee) )
+FC_REFLECT( graphene::chain::game_move_operation::fee_parameters_type, (fee) )
 

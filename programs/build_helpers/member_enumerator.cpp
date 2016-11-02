@@ -110,6 +110,37 @@ void class_processor::process_class( const static_variant< T... >* dummy )
    }
 }
 
+template<typename IsEnum = fc::false_type>
+struct if_enum
+{
+   template< typename T >
+   static void process_class( class_processor* proc, const T* dummy )
+   {
+      std::string tname = fc::get_typename<T>::name();
+      if( proc->result.find( tname ) != proc->result.end() )
+         return;
+      ilog( "processing class ${c}", ("c", tname) );
+      // need this to keep from recursing on same class
+      proc->result.emplace( tname, std::vector< std::string >() );
+
+      member_visitor<T> vtor( proc );
+      fc::reflector<T>::visit( vtor );
+      ilog( "members of class ${c} are ${m}", ("c", tname)("m", vtor.members) );
+      proc->result[tname] = vtor.members;
+   }
+};
+
+template<>
+struct if_enum<fc::true_type>
+{
+   template< typename T >
+   static void process_class( class_processor* proc, const T* dummy )
+   {
+      std::string tname = fc::get_typename<T>::name();
+      std::cerr << "skipping reflected enum " << tname << std::endl;
+   }
+};
+
 template<typename IsReflected=fc::false_type>
 struct if_reflected
 {
@@ -127,17 +158,7 @@ struct if_reflected<fc::true_type>
    template< typename T >
    static void process_class( class_processor* proc, const T* dummy )
    {
-      std::string tname = fc::get_typename<T>::name();
-      if( proc->result.find( tname ) != proc->result.end() )
-         return;
-      ilog( "processing class ${c}", ("c", tname) );
-      // need this to keep from recursing on same class
-      proc->result.emplace( tname, std::vector< std::string >() );
-
-      member_visitor<T> vtor( proc );
-      fc::reflector<T>::visit( vtor );
-      ilog( "members of class ${c} are ${m}", ("c", tname)("m", vtor.members) );
-      proc->result[tname] = vtor.members;
+      if_enum< typename fc::reflector<T>::is_enum >::process_class(proc, dummy);
    }
 };
 

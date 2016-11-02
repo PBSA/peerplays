@@ -29,6 +29,9 @@ namespace graphene { namespace chain {
       static const uint8_t space_id = protocol_ids;
       static const uint8_t type_id  = tournament_details_object_type;
 
+      /// the tournament object for which this is the details
+      tournament_id_type tournament_id;
+
       /// List of players registered for this tournament
       flat_set<account_id_type> registered_players;
 
@@ -111,27 +114,12 @@ namespace graphene { namespace chain {
       void on_registration_deadline_passed(database& db);
       void on_player_registered(database& db, account_id_type payer_id, account_id_type player_id);
       void on_start_time_arrived(database& db);
-      void on_final_game_completed();
+      void on_match_completed(database& db, const match_object& match);
 
       void check_for_new_matches_to_start(database& db) const;
    private:
       class impl;
       std::unique_ptr<impl> my;
-   };
-
-   class game_object : public graphene::db::abstract_object<game_object>
-   {
-   public:
-      static const uint8_t space_id = protocol_ids;
-      static const uint8_t type_id  = game_object_type;
-
-      match_id_type match_id;
-
-      vector<account_id_type> players;
-
-      flat_set<account_id_type> winners;
-
-      game_specific_details game_details;
    };
 
    struct by_registration_deadline {};
@@ -159,12 +147,6 @@ namespace graphene { namespace chain {
    > tournament_details_object_multi_index_type;
    typedef generic_index<tournament_details_object, tournament_details_object_multi_index_type> tournament_details_index;
 
-   typedef multi_index_container<
-      game_object,
-      indexed_by<
-         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >      >
-   > game_object_multi_index_type;
-   typedef generic_index<game_object, game_object_multi_index_type> game_index;
 
    template<typename Stream>
    inline Stream& operator<<( Stream& s, const tournament_object& tournament_obj )
@@ -218,9 +200,35 @@ namespace graphene { namespace chain {
       return s;
    }
 
+   /**
+    *  @brief This secondary index will allow a reverse lookup of all tournaments 
+    *  a particular account has registered for.  This will be attached
+    *  to the tournament details index because the registrations are contained
+    *  in the tournament details object, but it will index the tournament ids
+    *  since that is most useful to the GUI.
+    */
+   class tournament_players_index : public secondary_index
+   {
+      public:
+         virtual void object_inserted( const object& obj ) override;
+         virtual void object_removed( const object& obj ) override;
+         virtual void about_to_modify( const object& before ) override;
+         virtual void object_modified( const object& after  ) override;
+
+         /** given an account, map it to the set of tournaments in which that account is registered as a player */
+         map< account_id_type, flat_set<tournament_id_type> > account_to_joined_tournaments;
+
+         vector<tournament_id_type> get_registered_tournaments_for_account( const account_id_type& a )const;
+      protected:
+
+         flat_set<account_id_type> before_account_ids;
+   };
+
+
 } }
 
 FC_REFLECT_DERIVED(graphene::chain::tournament_details_object, (graphene::db::object),
+                   (tournament_id)
                    (registered_players)
                    (payers)
                    (matches))
@@ -231,10 +239,4 @@ FC_REFLECT_ENUM(graphene::chain::tournament_state,
                 (in_progress)
                 (registration_period_expired)
                 (concluded))
-
-FC_REFLECT_DERIVED(graphene::chain::game_object, (graphene::db::object),
-                   (match_id)
-                   (players)
-                   (winners)
-                   (game_details))
 

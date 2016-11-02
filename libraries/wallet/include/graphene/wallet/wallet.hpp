@@ -191,6 +191,8 @@ struct wallet_data
    key_label_index_type                                              labeled_keys;
    blind_receipt_index_type                                          blind_receipts;
 
+   std::map<rock_paper_scissors_throw_commit, rock_paper_scissors_throw_reveal> committed_game_moves;
+
    string                    ws_server = "ws://localhost:8090";
    string                    ws_user;
    string                    ws_password;
@@ -1420,15 +1422,25 @@ class wallet_api
       signed_transaction tournament_join( string payer_account, string player_account, tournament_id_type tournament_id, string buy_in_amount, string buy_in_asset_symbol, bool broadcast = false );
 
       /** Get a list of upcoming tournaments
-       * @param player_accounts if non-empty, only return tournaments for which at least one of the named players is eligible.  If empty, return all tournaments
        * @param limit the number of tournaments to return
        */
-      vector<tournament_object> get_upcoming_tournaments(optional<string> player_accounts, uint32_t limit);
+      vector<tournament_object> get_upcoming_tournaments(uint32_t limit);
 
       /** Get specific information about a tournament
        * @param tournament_id the ID of the tournament 
        */
       tournament_object get_tournament(tournament_id_type id);
+
+      /** Play a move in the rock-paper-scissors game
+       * @param game_id the id of the game
+       * @param player_account the name of the player
+       * @param gesture rock, paper, or scissors
+       * @return the signed version of the transaction
+       */
+      signed_transaction rps_throw(game_id_type game_id,
+                                   string player_account,
+                                   rock_paper_scissors_gesture gesture,
+                                   bool broadcast);
 
       void dbg_make_uia(string creator, string symbol);
       void dbg_make_mia(string creator, string symbol);
@@ -1472,6 +1484,7 @@ FC_REFLECT( graphene::wallet::wallet_data,
             (pending_account_registrations)(pending_witness_registrations)
             (labeled_keys)
             (blind_receipts)
+            (committed_game_moves)
             (ws_server)
             (ws_user)
             (ws_password)
@@ -1619,6 +1632,7 @@ FC_API( graphene::wallet::wallet_api,
         (receive_blind_transfer)
         (tournament_create)
         (tournament_join)
+        (rps_throw)
         (get_upcoming_tournaments)
         (get_tournament)
       )

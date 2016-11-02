@@ -94,7 +94,8 @@ namespace graphene { namespace chain {
             asset_claim_fees_operation,
             fba_distribute_operation,       // VIRTUAL
             tournament_create_operation,
-            tournament_join_operation
+            tournament_join_operation,
+            game_move_operation
          > operation;
 
    /// @} // operations group

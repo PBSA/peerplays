@@ -37,6 +37,8 @@
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/worker_object.hpp>
 #include <graphene/chain/tournament_object.hpp>
+#include <graphene/chain/match_object.hpp>
+#include <graphene/chain/game_object.hpp>
 
 #include <fc/smart_ref_impl.hpp>
 #include <iostream>
@@ -344,32 +346,49 @@ class register_member_visitor
       }
 };
 
+template <typename T, typename IsEnum = fc::false_type>
+struct serializer_init_helper {
+  static void init()
+  {
+    auto name = js_name<T>::name();
+    if( st.find(name) == st.end() )
+    {
+       fc::reflector<T>::visit( register_member_visitor() );
+       register_serializer( name, [=](){ generate(); } );
+    }
+  }
+  static void generate()
+  {
+     auto name = remove_namespace( js_name<T>::name() );
+     if( name == "int64" ) return;
+     std::cout << "" << name
+               << " = new Serializer( \n"
+               << "    \"" + name + "\"\n";
+
+     fc::reflector<T>::visit( serialize_member_visitor() );
+
+     std::cout <<")\n\n";
+  }
+};
+
+template <typename T>
+struct serializer_init_helper<T, fc::true_type> {
+  static void init()
+  {
+  }
+};
+
+
 template<typename T, bool reflected>
 struct serializer
 {
    static_assert( fc::reflector<T>::is_defined::value == reflected, "invalid template arguments" );
+
    static void init()
    {
-      auto name = js_name<T>::name();
-      if( st.find(name) == st.end() )
-      {
-         fc::reflector<T>::visit( register_member_visitor() );
-         register_serializer( name, [=](){ generate(); } );
-      }
+     serializer_init_helper< T, typename fc::reflector<T>::is_enum >::init();
    }
 
-   static void generate()
-   {
-      auto name = remove_namespace( js_name<T>::name() );
-      if( name == "int64" ) return;
-      std::cout << "" << name
-                << " = new Serializer( \n"
-                << "    \"" + name + "\"\n";
-
-      fc::reflector<T>::visit( serialize_member_visitor() );
-
-      std::cout <<")\n\n";
-   }
 };
 
 } // namespace detail_ns

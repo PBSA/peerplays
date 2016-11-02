@@ -31,8 +31,6 @@
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/msm/back/tools.hpp>
 
-#include <fc/crypto/hash_ctr_rng.hpp>
-
 namespace graphene { namespace chain {
 
    namespace msm = boost::msm;
@@ -60,7 +58,13 @@ namespace graphene { namespace chain {
          database& db;
          start_time_arrived(database& db) : db(db) {};
       };
-      struct final_game_completed {};
+
+      struct match_completed 
+      {
+         database& db;
+         const match_object& match;
+         match_completed(database& db, const match_object& match) : db(db), match(match) {}
+      };
 
       struct tournament_state_machine_ : public msm::front::state_machine_def<tournament_state_machine_>
       {
@@ -102,6 +106,7 @@ namespace graphene { namespace chain {
                   db.create<match_object>( [&]( match_object& match ) {
                      match.tournament_id = tournament_id;
                      match.players = players;
+                     match.number_of_wins.resize(match.players.size());
                      match.start_time = db.head_block_time();
                      if (match.players.size() == 1)
                      {
@@ -119,9 +124,6 @@ namespace graphene { namespace chain {
                        ("id", fsm.tournament_obj->id));
                const tournament_details_object& tournament_details_obj = fsm.tournament_obj->tournament_details_id(event.db);
 
-               // TODO hoist the rng to reset once per block?
-               fc::hash_ctr_rng<secret_hash_type, 20> rng(event.db.get_dynamic_global_properties().random.data());
-
                // Create the "seeding" order for the tournament as a random shuffle of the players.
                //
                // If this were a game of skill where players were ranked, this algorithm expects the 
@@ -130,7 +132,7 @@ namespace graphene { namespace chain {
                                                       tournament_details_obj.registered_players.end());
                for (unsigned i = seeded_players.size() - 1; i >= 1; --i)
                {
-                  unsigned j = (unsigned)rng(i + 1);
+                  unsigned j = (unsigned)event.db.get_random_bits(i + 1);
                   std::swap(seeded_players[i], seeded_players[j]);
                }
 
@@ -170,14 +172,60 @@ namespace graphene { namespace chain {
                   if (paired_players[2 * i + 1] != account_id_type())
                      players.emplace_back(paired_players[2 * i + 1]);
                   event.db.modify(matches[i](event.db), [&](match_object& match) {
-                     match.on_initiate_match(event.db, players);
+                     match.players = players;
+                     match.on_initiate_match(event.db);
                      });
                }
                event.db.modify(tournament_details_obj, [&](tournament_details_object& tournament_details_obj){
                   tournament_details_obj.matches = matches;
                });
             }
+            void on_entry(const match_completed& event, tournament_state_machine_& fsm)
+            {
+               tournament_object& tournament = *fsm.tournament_obj;
+               fc_ilog(fc::logger::get("tournament"),
+                       "Match ${match_id} in tournament tournament ${tournament_id} is still in progress",
+                       ("match_id", event.match.id)("tournament_id", tournament.id));
+
+               // this wasn't the final match that just finished, so figure out if we can start the next match.
+               // The next match can start if both this match and the previous match have completed
+               const tournament_details_object& tournament_details_obj = fsm.tournament_obj->tournament_details_id(event.db);
+               unsigned num_matches = tournament_details_obj.matches.size();
+               auto this_match_iter = std::find(tournament_details_obj.matches.begin(), tournament_details_obj.matches.end(), event.match.id);
+               assert(this_match_iter != tournament_details_obj.matches.end());
+               unsigned this_match_index = std::distance(tournament_details_obj.matches.begin(), this_match_iter);
+               // TODO: we currently create all matches at startup, so they are numbered sequentially.  We could get the index
+               // by subtracting match.id as long as this behavior doesn't change
+
+               unsigned next_round_match_index = (this_match_index + num_matches + 1) / 2;
+               assert(next_round_match_index < num_matches);
+               const match_object& next_round_match = tournament_details_obj.matches[next_round_match_index](event.db);
+
+               // each match will have two players, match.players[0] and match.players[1].
+               // for consistency, we want to feed the winner of this match into the correct
+               // slot in the next match 
+               unsigned winner_index_in_next_match = (this_match_index + num_matches + 1) % 2;
+               unsigned other_match_index = num_matches - ((num_matches - next_round_match_index) * 2 + winner_index_in_next_match);
+               const match_object& other_match = tournament_details_obj.matches[other_match_index](event.db);
+
+               // the winners of the matches event.match and other_match will play in next_round_match
+
+               assert(event.match.match_winners.size() <= 1);
+
+               event.db.modify(next_round_match, [&](match_object& next_match_obj) {
+                  if (!event.match.match_winners.empty()) // if there is a winner
+                  {
+                     if (winner_index_in_next_match == 0)
+                        next_match_obj.players.insert(next_match_obj.players.begin(), *event.match.match_winners.begin());
+                     else
+                        next_match_obj.players.push_back(*event.match.match_winners.begin());
+                  }
+                  if (other_match.get_state() == match_state::match_complete)
+                     next_match_obj.on_initiate_match(event.db);
+               });
+            }
          };
+
          struct registration_period_expired : public msm::front::state<>
          {
             void on_entry(const registration_deadline_passed& event, tournament_state_machine_& fsm)
@@ -198,7 +246,17 @@ namespace graphene { namespace chain {
                }
             }
          };
-         struct concluded : public msm::front::state<>{};
+
+         struct concluded : public msm::front::state<>
+         {
+            void on_entry(const match_completed& event, tournament_state_machine_& fsm)
+            {
+               fc_ilog(fc::logger::get("tournament"),
+                       "Tournament ${id} is complete",
+                       ("id", fsm.tournament_obj->id));
+            }
+         };
+
 
          typedef accepting_registrations initial_state;
 
@@ -211,6 +269,15 @@ namespace graphene { namespace chain {
                     "In will_be_fully_registered guard, returning ${value}",
                     ("value", tournament_obj->registered_players == tournament_obj->options.number_of_players - 1));
             return tournament_obj->registered_players == tournament_obj->options.number_of_players - 1;
+         }
+         
+         bool was_final_match(const match_completed& event)
+         {
+            const tournament_details_object& tournament_details_obj = tournament_obj->tournament_details_id(event.db);
+            fc_ilog(fc::logger::get("tournament"),
+                    "In was_final_match guard, returning ${value}",
+                    ("value", event.match.id == tournament_details_obj.matches[tournament_details_obj.matches.size()]));
+            return event.match.id == tournament_details_obj.matches[tournament_details_obj.matches.size() - 1];
          }
          
          void register_player(const player_registered& event)
@@ -234,12 +301,13 @@ namespace graphene { namespace chain {
          //    Start                       Event                         Next                       Action               Guard
          //  +---------------------------+-----------------------------+----------------------------+---------------------+----------------------+
          a_row < accepting_registrations, player_registered,            accepting_registrations,     &x::register_player >,
-         row   < accepting_registrations, player_registered,            awaiting_start,              &x::register_player, &x::will_be_fully_registered >,
+         row   < accepting_registrations, player_registered,            awaiting_start,              &x::register_player,  &x::will_be_fully_registered >,
          _row  < accepting_registrations, registration_deadline_passed, registration_period_expired >,
          //  +---------------------------+-----------------------------+----------------------------+---------------------+----------------------+
          _row  < awaiting_start,          start_time_arrived,           in_progress >,
          //  +---------------------------+-----------------------------+----------------------------+---------------------+----------------------+
-         _row  < in_progress,             final_game_completed,         concluded >
+         _row  < in_progress,             match_completed,              in_progress >,
+         g_row < in_progress,             match_completed,              concluded,                                         &x::was_final_match >
          //  +---------------------------+-----------------------------+----------------------------+---------------------+----------------------+
          > {};
 
@@ -365,9 +433,9 @@ namespace graphene { namespace chain {
       my->state_machine.process_event(start_time_arrived(db));
    }
 
-   void tournament_object::on_final_game_completed()
+   void tournament_object::on_match_completed(database& db, const match_object& match)
    {
-      my->state_machine.process_event(final_game_completed());
+      my->state_machine.process_event(match_completed(db, match));
    }
 
    void tournament_object::check_for_new_matches_to_start(database& db) const
@@ -445,6 +513,79 @@ namespace graphene { namespace chain {
       }
    }
 
+   fc::sha256 rock_paper_scissors_throw::calculate_hash() const
+   {
+      std::vector<char> full_throw_packed(fc::raw::pack(*this));
+      return fc::sha256::hash(full_throw_packed.data(), full_throw_packed.size());
+   }
+
+
+   vector<tournament_id_type> tournament_players_index::get_registered_tournaments_for_account( const account_id_type& a )const
+   {
+      auto iter = account_to_joined_tournaments.find(a);
+      if (iter != account_to_joined_tournaments.end())
+         return vector<tournament_id_type>(iter->second.begin(), iter->second.end());
+      return vector<tournament_id_type>();
+   }
+
+   void tournament_players_index::object_inserted(const object& obj)
+   {
+       assert( dynamic_cast<const tournament_details_object*>(&obj) ); // for debug only
+       const tournament_details_object& details = static_cast<const tournament_details_object&>(obj);
+
+       for (const account_id_type& account_id : details.registered_players)
+          account_to_joined_tournaments[account_id].insert(details.tournament_id);
+   }
+
+   void tournament_players_index::object_removed(const object& obj)
+   {
+       assert( dynamic_cast<const tournament_details_object*>(&obj) ); // for debug only
+       const tournament_details_object& details = static_cast<const tournament_details_object&>(obj);
+
+       for (const account_id_type& account_id : details.registered_players)
+       {
+          auto iter = account_to_joined_tournaments.find(account_id);
+          if (iter != account_to_joined_tournaments.end())
+             iter->second.erase(details.tournament_id);
+       }
+   }
+
+   void tournament_players_index::about_to_modify(const object& before)
+   {
+      assert( dynamic_cast<const tournament_details_object*>(&before) ); // for debug only
+      const tournament_details_object& details = static_cast<const tournament_details_object&>(before);
+      before_account_ids = details.registered_players;
+   }
+
+   void tournament_players_index::object_modified(const object& after)
+   {
+      assert( dynamic_cast<const tournament_details_object*>(&after) ); // for debug only
+      const tournament_details_object& details = static_cast<const tournament_details_object&>(after);
+
+      {
+         vector<account_id_type> newly_registered_players(details.registered_players.size());
+         auto end_iter = std::set_difference(details.registered_players.begin(), details.registered_players.end(),
+                                             before_account_ids.begin(), before_account_ids.end(), 
+                                             newly_registered_players.begin());
+         newly_registered_players.resize(end_iter - newly_registered_players.begin());
+         for (const account_id_type& account_id : newly_registered_players)
+            account_to_joined_tournaments[account_id].insert(details.tournament_id);
+      }
+
+      {
+         vector<account_id_type> newly_unregistered_players(before_account_ids.size());
+         auto end_iter = std::set_difference(before_account_ids.begin(), before_account_ids.end(), 
+                                             details.registered_players.begin(), details.registered_players.end(),
+                                             newly_unregistered_players.begin());
+         newly_unregistered_players.resize(end_iter - newly_unregistered_players.begin());
+         for (const account_id_type& account_id : newly_unregistered_players)
+         {
+            auto iter = account_to_joined_tournaments.find(account_id);
+            if (iter != account_to_joined_tournaments.end())
+               iter->second.erase(details.tournament_id);
+         }
+      }
+   }
 } } // graphene::chain
 
 namespace fc { 

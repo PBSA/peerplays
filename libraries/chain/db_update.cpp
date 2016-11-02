@@ -33,6 +33,7 @@
 #include <graphene/chain/withdraw_permission_object.hpp>
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/tournament_object.hpp>
+#include <graphene/chain/game_object.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
@@ -69,6 +70,8 @@ void database::update_global_dynamic_data( const signed_block& b )
       fc::raw::pack( enc, dgp.random );       
       fc::raw::pack( enc, b.previous_secret );        
       dgp.random = enc.result();
+
+      _random_number_generator = fc::hash_ctr_rng<secret_hash_type, 20>(dgp.random.data());
 
       if( BOOST_UNLIKELY( b.block_num() == 1 ) )
          dgp.recently_missed_count = 0;
@@ -476,6 +479,11 @@ void database::update_withdraw_permissions()
       remove(*permit_index.begin());
 }
 
+uint64_t database::get_random_bits( uint64_t bound )
+{
+   return _random_number_generator(bound);
+}
+
 void process_finished_games(database& db)
 {
    //auto& games_index = db.get_index_type<game_index>().indices().get<by_id>();
@@ -546,6 +554,24 @@ void initiate_next_round_of_matches(database& db)
 
 void initiate_next_games(database& db)
 {
+   // Next, trigger timeouts on any games which have been waiting too long for commit or
+   // reveal moves
+   auto& next_timeout_index = db.get_index_type<game_index>().indices().get<by_next_timeout>();
+   while (1)
+   {
+      // empty time_points are sorted to the beginning, so upper_bound takes us to the first 
+      // non-empty time_point
+      auto start_iter = next_timeout_index.upper_bound(boost::make_tuple(optional<time_point_sec>()));
+      if (start_iter != next_timeout_index.end() &&
+          *start_iter->next_timeout <= db.head_block_time())
+      {
+         db.modify(*start_iter, [&](game_object& game) {
+            game.on_timeout(db);
+         });
+      }
+      else
+         break;
+   }
 }
 
 void database::update_tournaments()

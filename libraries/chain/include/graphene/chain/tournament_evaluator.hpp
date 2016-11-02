@@ -28,4 +28,16 @@ namespace graphene { namespace chain {
          void_result do_apply( const tournament_join_operation& o );
    };
 
+   class game_move_evaluator : public evaluator<game_move_evaluator>
+   {
+      private:
+         const game_object* _game_obj = nullptr;
+      public:
+         typedef game_move_operation operation_type;
+
+         void_result do_evaluate( const game_move_operation& o );
+         void_result do_apply( const game_move_operation& o );
+   };
+
+
 } }
