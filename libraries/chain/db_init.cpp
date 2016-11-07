@@ -518,7 +518,6 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    const auto& accounts_by_name = get_index_type<account_index>().indices().get<by_name>();
    auto get_account_id = [&accounts_by_name](const string& name) {
       auto itr = accounts_by_name.find(name);
-      if (itr == accounts_by_name.end()) return GRAPHENE_NULL_ACCOUNT;
       FC_ASSERT(itr != accounts_by_name.end(),
                 "Unable to find account '${acct}'. Did you forget to add a record for it to initial_accounts?",
                 ("acct", name));
