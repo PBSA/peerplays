@@ -372,6 +372,16 @@ void database::init_genesis(const genesis_state_type& genesis_state)
        a.network_fee_percentage = 0;
        a.lifetime_referrer_fee_percentage = GRAPHENE_100_PERCENT;
    }).get_id() == GRAPHENE_PROXY_TO_SELF_ACCOUNT);
+   FC_ASSERT(create<account_object>([this](account_object& a) {
+       a.name = "default-dividend-distribution";
+       a.statistics = create<account_statistics_object>([&](account_statistics_object& s){s.owner = a.id;}).id;
+       a.owner.weight_threshold = 1;
+       a.active.weight_threshold = 1;
+       a.registrar = a.lifetime_referrer = a.referrer = GRAPHENE_PROXY_TO_SELF_ACCOUNT;
+       a.membership_expiration_date = time_point_sec::maximum();
+       a.network_fee_percentage = 0;
+       a.lifetime_referrer_fee_percentage = GRAPHENE_100_PERCENT;
+   }).get_id() == TOURNAMENT_RAKE_FEE_ACCOUNT_ID);
 
    // Create more special accounts
    while( true )
@@ -414,6 +424,46 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       });
    assert( asset_id_type(core_asset.id) == asset().asset_id );
    assert( get_balance(account_id_type(), asset_id_type()) == asset(dyn_asset.current_supply) );
+
+   // Create default dividend asset
+   const asset_dynamic_data_object& dyn_asset1 =
+      create<asset_dynamic_data_object>([&](asset_dynamic_data_object& a) {
+           a.current_supply = GRAPHENE_MAX_SHARE_SUPPLY;
+      });
+   const asset_dividend_data_object& div_asset1 =
+      create<asset_dividend_data_object>([&](asset_dividend_data_object& a) {
+           a.options.minimum_distribution_interval = 3*24*60*60;
+           a.options.minimum_fee_percentage = 10*GRAPHENE_1_PERCENT;
+           a.options.next_payout_time = genesis_state.initial_timestamp + fc::hours(1);
+           a.options.payout_interval = 7*24*60*60;
+           a.dividend_distribution_account = TOURNAMENT_RAKE_FEE_ACCOUNT_ID;
+      });
+   const asset_bitasset_data_object& bit_asset1 =
+      create<asset_bitasset_data_object>([&](asset_bitasset_data_object& a) {
+           a.current_feed.maintenance_collateral_ratio = 1750;
+           a.current_feed.maximum_short_squeeze_ratio = 1500;
+           a.current_feed_publication_time = genesis_state.initial_timestamp + fc::hours(1);
+      });
+
+   const asset_object& default_asset =
+     create<asset_object>( [&]( asset_object& a ) {
+         a.symbol = "DEF";
+         a.options.max_market_fee =
+         a.options.max_supply = genesis_state.max_core_supply;
+         a.precision = GRAPHENE_BLOCKCHAIN_PRECISION_DIGITS;
+         a.options.flags = 0;
+         a.options.issuer_permissions = 79;
+         a.issuer = TOURNAMENT_RAKE_FEE_ACCOUNT_ID;
+         a.options.core_exchange_rate.base.amount = 1;
+         a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
+         a.options.core_exchange_rate.quote.amount = 1;
+         a.options.core_exchange_rate.quote.asset_id = asset_id_type(1);
+         a.dynamic_asset_data_id = dyn_asset1.id;
+         a.dividend_data_id = div_asset1.id;
+         a.bitasset_data_id = bit_asset1.id;
+      });
+   assert( default_asset.id == asset_id_type(1) );
+
    // Create more special assets
    while( true )
    {
@@ -503,6 +553,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    const auto& accounts_by_name = get_index_type<account_index>().indices().get<by_name>();
    auto get_account_id = [&accounts_by_name](const string& name) {
       auto itr = accounts_by_name.find(name);
+      if (itr == accounts_by_name.end()) return GRAPHENE_NULL_ACCOUNT;
       FC_ASSERT(itr != accounts_by_name.end(),
                 "Unable to find account '${acct}'. Did you forget to add a record for it to initial_accounts?",
                 ("acct", name));
@@ -635,6 +686,8 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    {
        total_supplies[ asset_id_type(0) ] = GRAPHENE_MAX_SHARE_SUPPLY;
    }
+   total_debts[ asset_id_type(1) ] =
+   total_supplies[ asset_id_type(1) ] = 0;
 
    const auto& idx = get_index_type<asset_index>().indices().get<by_symbol>();
    auto it = idx.begin();
@@ -654,6 +707,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
             elog( "Genesis for asset ${aname} is not balanced\n"
                   "   Debt is ${debt}\n"
                   "   Supply is ${supply}\n",
+                  ("aname", debt_itr->first)
                   ("debt", debt_itr->second)
                   ("supply", supply_itr->second)
                 );

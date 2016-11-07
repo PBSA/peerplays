@@ -595,6 +595,8 @@ FC_REFLECT( graphene::chain::asset_options,
 FC_REFLECT( graphene::chain::dividend_asset_options,
             (next_payout_time)
             (payout_interval)
+            (minimum_fee_percentage)
+            (minimum_distribution_interval)
             (extensions)
           )
 
