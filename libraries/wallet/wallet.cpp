@@ -2411,6 +2411,46 @@ public:
       return sign_transaction(tx, broadcast);
    }
 
+   signed_transaction propose_dividend_asset_update(
+      const string& proposing_account,
+      fc::time_point_sec expiration_time,
+      const variant_object& changed_values,
+      bool broadcast = false)
+   {
+      FC_ASSERT( changed_values.contains("asset_to_update") );
+
+      const chain_parameters& current_params = get_global_properties().parameters;
+      asset_update_dividend_operation changed_op;
+      fc::reflector<asset_update_dividend_operation>::visit(
+         fc::from_variant_visitor<asset_update_dividend_operation>( changed_values, changed_op )
+         );
+
+      optional<asset_object> asset_to_update = find_asset(changed_op.asset_to_update);
+      if (!asset_to_update)
+        FC_THROW("No asset with that symbol exists!");
+
+      asset_update_dividend_operation update_op;
+      update_op.issuer = asset_to_update->issuer;
+      update_op.asset_to_update = asset_to_update->id;
+      update_op.new_options = changed_op.new_options;
+
+      proposal_create_operation prop_op;
+
+      prop_op.expiration_time = expiration_time;
+      prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+      prop_op.fee_paying_account = get_account(proposing_account).id;
+
+      prop_op.proposed_ops.emplace_back( update_op );
+      current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+      signed_transaction tx;
+      tx.operations.push_back(prop_op);
+      set_operation_fees(tx, current_params.current_fees);
+      tx.validate();
+
+      return sign_transaction(tx, broadcast);
+   }
+
    signed_transaction approve_proposal(
       const string& fee_paying_account,
       const string& proposal_id,
@@ -3524,6 +3564,16 @@ signed_transaction wallet_api::propose_fee_change(
    return my->propose_fee_change( proposing_account, expiration_time, changed_fees, broadcast );
 }
 
+signed_transaction wallet_api::propose_dividend_asset_update(
+   const string& proposing_account,
+   fc::time_point_sec expiration_time,
+   const variant_object& changed_fees,
+   bool broadcast /* = false */
+   )
+{
+   return my->propose_dividend_asset_update( proposing_account, expiration_time, changed_fees, broadcast );
+}
+
 signed_transaction wallet_api::approve_proposal(
    const string& fee_paying_account,
    const string& proposal_id,
@@ -3533,6 +3583,9 @@ signed_transaction wallet_api::approve_proposal(
 {
    return my->approve_proposal( fee_paying_account, proposal_id, delta, broadcast );
 }
+
+
+
 
 global_property_object wallet_api::get_global_properties() const
 {

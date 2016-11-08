@@ -415,7 +415,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
          a.precision = GRAPHENE_BLOCKCHAIN_PRECISION_DIGITS;
          a.options.flags = 0;
          a.options.issuer_permissions = 0;
-         a.issuer = GRAPHENE_NULL_ACCOUNT;
+         a.issuer = GRAPHENE_COMMITTEE_ACCOUNT;
          a.options.core_exchange_rate.base.amount = 1;
          a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
          a.options.core_exchange_rate.quote.amount = 1;
