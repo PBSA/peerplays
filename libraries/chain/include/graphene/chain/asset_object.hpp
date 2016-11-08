@@ -352,6 +352,8 @@ FC_REFLECT_DERIVED( graphene::chain::asset_dividend_data_object, (graphene::db::
                     (options)
                     (last_scheduled_payout_time)                      
                     (last_payout_time )
+                    (last_scheduled_distribution_time)
+                    (last_distribution_time)
                     (dividend_distribution_account)
                   )
 
@@ -369,4 +371,5 @@ FC_REFLECT_DERIVED( graphene::chain::asset_object, (graphene::db::object),
                     (dynamic_asset_data_id)
                     (bitasset_data_id)
                     (buyback_account)
+                    (dividend_data_id)
                   )

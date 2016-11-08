@@ -268,13 +268,12 @@ namespace graphene { namespace chain {
                assert(event.match.match_winners.size() ==  1);
                const account_id_type& winner = *event.match.match_winners.begin();
                uint16_t rake_fee_percentage = event.db.get_global_properties().parameters.rake_fee_percentage;
-               share_type rake_amount = (fc::uint128_t(fsm.tournament_obj->prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT).to_uint64();
+               share_type rake_amount = (fc::uint128_t(fsm.tournament_obj->prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
                event.db.adjust_balance(account_id_type(TOURNAMENT_RAKE_FEE_ACCOUNT_ID),
                                        asset(rake_amount, fsm.tournament_obj->options.buy_in.asset_id));
                event.db.adjust_balance(winner, asset(fsm.tournament_obj->prize_pool - rake_amount,
                                                              fsm.tournament_obj->options.buy_in.asset_id));
-               tournament_object& tournament = *fsm.tournament_obj;
-               tournament.end_time = event.db.head_block_time();
+               fsm.tournament_obj->end_time = event.db.head_block_time();
             }
          };
 

@@ -54,6 +54,19 @@ private:
 
    uint32_t _block_to_snapshot;
    std::string _genesis_filename;
+   std::string _csvlog_filename;
+};
+
+class my_account_balance_object : public graphene::chain::account_balance_object
+{
+public:
+   // constructor copying from base class
+   my_account_balance_object(const graphene::chain::account_balance_object& abo) : graphene::chain::account_balance_object(abo) {}
+
+   graphene::chain::share_type        initial_balance;
+   graphene::chain::share_type        orders;
+   graphene::chain::share_type        collaterals;
+   graphene::chain::share_type        sharedrop;
 };
 
 } } //graphene::generate_genesis_plugin
