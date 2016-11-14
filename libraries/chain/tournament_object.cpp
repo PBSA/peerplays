@@ -179,6 +179,35 @@ namespace graphene { namespace chain {
                event.db.modify(tournament_details_obj, [&](tournament_details_object& tournament_details_obj){
                   tournament_details_obj.matches = matches;
                });
+
+               // OLEK
+               for (unsigned i = 0; i < num_matches_in_first_round; ++i)
+               {
+                  const match_object& match = matches[i](event.db);
+                  if (match.players.size() == 1) // is bye
+                  {
+                      unsigned tournament_num_matches = tournament_details_obj.matches.size();
+                      unsigned next_round_match_index = (i + tournament_num_matches + 1) / 2;
+                      assert(next_round_match_index < tournament_num_matches);
+                      const match_object& next_round_match = tournament_details_obj.matches[next_round_match_index](event.db);
+                      event.db.modify(next_round_match, [&](match_object& next_match) {
+                         next_match.players.emplace_back(match.players[0]);
+                         if (next_match.players.size() > 1) // bye + bye
+                            next_match.on_initiate_match(event.db);
+
+                     });
+                   }
+               }
+
+               // OLEK
+               wdump((tournament_details_obj.matches[tournament_details_obj.matches.size() - 1]));
+
+               for( match_id_type mid : tournament_details_obj.matches )
+               {
+                   wdump((mid(event.db)));
+               }
+
+
             }
             void on_entry(const match_completed& event, tournament_state_machine_& fsm)
             {
@@ -213,15 +242,40 @@ namespace graphene { namespace chain {
                assert(event.match.match_winners.size() <= 1);
 
                event.db.modify(next_round_match, [&](match_object& next_match_obj) {
-                  if (!event.match.match_winners.empty()) // if there is a winner
+
+                   // OLEK
+                   wdump((event.match.get_state()));
+                   wdump((event.match));
+                   wdump((other_match.get_state()));
+                   wdump((other_match));
+
+                   if (!event.match.match_winners.empty()) // if there is a winner
                   {
                      if (winner_index_in_next_match == 0)
                         next_match_obj.players.insert(next_match_obj.players.begin(), *event.match.match_winners.begin());
                      else
                         next_match_obj.players.push_back(*event.match.match_winners.begin());
                   }
-                  if (other_match.get_state() == match_state::match_complete)
+
+                  //if (other_match.get_state() == match_state::match_complete)
+                  // OLEK
+                  if (!other_match.match_winners.empty())
+                  {
+//                      // if other match was buy
+//                      if (other_match.games.size() == 0 /*&& next_match_obj.players.size() < 2*/)
+//                      {
+//                            if (winner_index_in_next_match != 0)
+//                               next_match_obj.players.insert(next_match_obj.players.begin(), *other_match.match_winners.begin());
+//                            else
+//                               next_match_obj.players.push_back(*other_match.match_winners.begin());
+//                     }
+                     // OLEK
+                     wdump((next_match_obj.get_state()));
+                     wdump((next_match_obj));
+
                      next_match_obj.on_initiate_match(event.db);
+                  }
+
                });
             }
          };
@@ -296,9 +350,45 @@ namespace graphene { namespace chain {
             fc_ilog(fc::logger::get("tournament"),
                     "In was_final_match guard, returning ${value}",
                     ("value", event.match.id == tournament_details_obj.matches[tournament_details_obj.matches.size()]));
+
+            // OLEK
+            wdump((event.match.id));
+            wdump((tournament_details_obj.matches[tournament_details_obj.matches.size() - 1]));
+
+            for( match_id_type mid : tournament_details_obj.matches )
+            {
+                wdump((mid(event.db)));
+            }
+
             return event.match.id == tournament_details_obj.matches[tournament_details_obj.matches.size() - 1];
          }
-         
+
+#if 0
+         // OLEK
+         bool was_buy_match(const match_completed& event)
+         {
+            const tournament_details_object& tournament_details_obj = tournament_obj->tournament_details_id(event.db);
+            fc_ilog(fc::logger::get("tournament"),
+                    "In was_buy_match guard, returning ${value}",
+                    ("value", event.match.id == tournament_details_obj.matches[tournament_details_obj.matches.size()]));
+
+            // OLEK
+            wdump((event.match.id));
+            wdump((event.match));
+
+            /*
+            wdump((tournament_details_obj.matches[tournament_details_obj.matches.size() - 1]));
+
+            for( match_id_type mid : tournament_details_obj.matches )
+            {
+                wdump((mid(event.db)));
+            }
+
+            return event.match.id == tournament_details_obj.matches[tournament_details_obj.matches.size() - 1];
+            */
+            return true;
+         }
+#endif
          void register_player(const player_registered& event)
          {
             fc_ilog(fc::logger::get("tournament"),
@@ -326,6 +416,7 @@ namespace graphene { namespace chain {
          _row  < awaiting_start,          start_time_arrived,           in_progress >,
          //  +---------------------------+-----------------------------+----------------------------+---------------------+----------------------+
          _row  < in_progress,             match_completed,              in_progress >,
+         //g_row  < in_progress,            match_completed,              in_progress,                                       &x::was_buy_match >,
          g_row < in_progress,             match_completed,              concluded,                                         &x::was_final_match >
          //  +---------------------------+-----------------------------+----------------------------+---------------------+----------------------+
          > {};
