@@ -36,6 +36,7 @@
 #include <graphene/chain/market_object.hpp>
 #include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/tournament_object.hpp>
 
 #include <graphene/utilities/tempdir.hpp>
 
@@ -154,10 +155,16 @@ void database_fixture::verify_asset_supplies( const database& db )
    const simple_index<account_statistics_object>& statistics_index = db.get_index_type<simple_index<account_statistics_object>>();
    const auto& balance_index = db.get_index_type<account_balance_index>().indices();
    const auto& settle_index = db.get_index_type<force_settlement_index>().indices();
+   const auto& tournaments_index = db.get_index_type<tournament_index>().indices();
+
    map<asset_id_type,share_type> total_balances;
    map<asset_id_type,share_type> total_debts;
    share_type core_in_orders;
    share_type reported_core_in_orders;
+
+   for( const tournament_object& t : tournaments_index )
+      if (t.get_state() != tournament_state::concluded)
+        total_balances[t.options.buy_in.asset_id] += t.prize_pool;
 
    for( const account_balance_object& b : balance_index )
       total_balances[b.asset_type] += b.balance;
