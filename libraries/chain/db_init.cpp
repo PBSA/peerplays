@@ -408,6 +408,16 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       create<asset_dynamic_data_object>([&](asset_dynamic_data_object& a) {
          a.current_supply = GRAPHENE_MAX_SHARE_SUPPLY;
       });
+
+   const asset_dividend_data_object& div_asset =
+      create<asset_dividend_data_object>([&](asset_dividend_data_object& a) {
+           a.options.minimum_distribution_interval = 3*24*60*60;
+           a.options.minimum_fee_percentage = 10*GRAPHENE_1_PERCENT;
+           a.options.next_payout_time = genesis_state.initial_timestamp + fc::hours(1);
+           a.options.payout_interval = 7*24*60*60;
+           a.dividend_distribution_account = TOURNAMENT_RAKE_FEE_ACCOUNT_ID;
+      });
+
    const asset_object& core_asset =
      create<asset_object>( [&]( asset_object& a ) {
          a.symbol = GRAPHENE_SYMBOL;
@@ -421,7 +431,8 @@ void database::init_genesis(const genesis_state_type& genesis_state)
          a.options.core_exchange_rate.quote.amount = 1;
          a.options.core_exchange_rate.quote.asset_id = asset_id_type(0);
          a.dynamic_asset_data_id = dyn_asset.id;
-      });
+         a.dividend_data_id = div_asset.id;
+   });
    assert( asset_id_type(core_asset.id) == asset().asset_id );
    assert( get_balance(account_id_type(), asset_id_type()) == asset(dyn_asset.current_supply) );
 
@@ -437,12 +448,6 @@ void database::init_genesis(const genesis_state_type& genesis_state)
            a.options.next_payout_time = genesis_state.initial_timestamp + fc::hours(1);
            a.options.payout_interval = 7*24*60*60;
            a.dividend_distribution_account = TOURNAMENT_RAKE_FEE_ACCOUNT_ID;
-      });
-   const asset_bitasset_data_object& bit_asset1 =
-      create<asset_bitasset_data_object>([&](asset_bitasset_data_object& a) {
-           a.current_feed.maintenance_collateral_ratio = 1750;
-           a.current_feed.maximum_short_squeeze_ratio = 1500;
-           a.current_feed_publication_time = genesis_state.initial_timestamp + fc::hours(1);
       });
 
    const asset_object& default_asset =
@@ -460,7 +465,6 @@ void database::init_genesis(const genesis_state_type& genesis_state)
          a.options.core_exchange_rate.quote.asset_id = asset_id_type(1);
          a.dynamic_asset_data_id = dyn_asset1.id;
          a.dividend_data_id = div_asset1.id;
-         a.bitasset_data_id = bit_asset1.id;
       });
    assert( default_asset.id == asset_id_type(1) );
 
