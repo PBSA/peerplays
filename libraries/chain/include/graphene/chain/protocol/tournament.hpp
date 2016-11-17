@@ -163,6 +163,28 @@ namespace graphene { namespace chain {
       void            validate()const;
    };
 
+   struct tournament_payout_operation : public base_operation
+   {
+      struct fee_parameters_type {};
+
+      asset fee;
+
+      /// The account of the the tournament winner
+      account_id_type winner_account_id;
+
+      /// The won tournament
+      tournament_id_type tournament_id;
+
+      /// The buy-in paid by the `payer_account_id`
+      asset won_prize;
+
+      extensions_type extensions;
+
+      account_id_type fee_payer()const { return winner_account_id; }
+      share_type calculate_fee(const fee_parameters_type&)const { return 0; }
+      void            validate()const {}
+   };
+
 } }
 
 FC_REFLECT_TYPENAME( graphene::chain::game_specific_options )
@@ -196,7 +218,15 @@ FC_REFLECT( graphene::chain::game_move_operation,
             (player_account_id)
             (move)
             (extensions))
+FC_REFLECT( graphene::chain::tournament_payout_operation,
+            (fee)
+            (winner_account_id)
+            (tournament_id)
+            (won_prize)
+            (extensions))
+
 FC_REFLECT( graphene::chain::tournament_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::tournament_join_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::game_move_operation::fee_parameters_type, (fee) )
+FC_REFLECT( graphene::chain::tournament_payout_operation::fee_parameters_type,  )
 
