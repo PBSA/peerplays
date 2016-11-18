@@ -72,6 +72,7 @@ database_fixture::database_fixture()
       if( arg == "--show-test-names" )
          std::cout << "running test " << boost::unit_test::framework::current_test_case().p_name << std::endl;
    }
+
    auto ahplugin = app.register_plugin<graphene::account_history::account_history_plugin>();
    auto mhplugin = app.register_plugin<graphene::market_history::market_history_plugin>();
    init_account_pub_key = init_account_priv_key.get_public_key();
@@ -81,7 +82,7 @@ database_fixture::database_fixture()
    genesis_state.initial_timestamp = time_point_sec( GRAPHENE_TESTING_GENESIS_TIMESTAMP );
 
    genesis_state.initial_active_witnesses = 10;
-   for( unsigned i = 0; i < genesis_state.initial_active_witnesses; ++i )
+   for( int i = 0; i < genesis_state.initial_active_witnesses; ++i )
    {
       auto name = "init"+fc::to_string(i);
       genesis_state.initial_accounts.emplace_back(name,
