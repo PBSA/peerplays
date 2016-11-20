@@ -48,6 +48,7 @@ public:
     tournaments_helper(database_fixture& df) : df(df)
     {
         assets.insert(asset_id_type());
+        current_asset_idx = 0;
         players.insert(TOURNAMENT_RAKE_FEE_ACCOUNT_ID);
     }
 
@@ -84,6 +85,33 @@ public:
                 players_fees[player_id][asset_id] = 0;
             }
         }
+    }
+
+    void create_asset(const account_id_type& issuer_account_id,
+                      const string& symbol,
+                      uint8_t precision,
+                      asset_options& common,
+                      const fc::ecc::private_key& sig_priv_key)
+    {
+        graphene::chain::database& db = df.db;
+        const chain_parameters& params = db.get_global_properties().parameters;
+        signed_transaction tx;
+        asset_create_operation op;
+        op.issuer = issuer_account_id;
+        op.symbol = symbol;
+        op.precision = precision;
+        op.common_options = common;
+
+        tx.operations = {op};
+        for( auto& op : tx.operations )
+            db.current_fee_schedule().set_fee(op);
+        tx.validate();
+        tx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
+        df.sign(tx, sig_priv_key);
+        PUSH_TX(db, tx);
+
+        assets.insert(asset_id_type(++current_asset_idx));
+
     }
 
     const tournament_id_type create_tournament (const account_id_type& creator,
@@ -297,6 +325,8 @@ private:
     database_fixture& df;
     // index of last created tournament
     fc::optional<uint64_t> current_tournament_idx;
+    // index of last asset
+    uint64_t current_asset_idx;
     // assets : core and maybe others
     std::set<asset_id_type> assets;
     // tournaments to be played
@@ -323,8 +353,8 @@ private:
 
 // Test of basic functionality creating two tournamenst, joinig players,
 // playing tournaments to completion, distributing prize.
-// Can be used to test of "bye" matches handling if "bye" matches fix available.
-// Number of players 2+1 4+1 8+1 ... seem to be most critical for handling of "bye" matches.
+// Testing of "bye" matches handling can be performed if "bye" matches fix is available.
+// Numbers of players 2+1 4+1 8+1 ... seem to be most critical for handling of "bye" matches.
 // Moves are generated automatically.
 BOOST_FIXTURE_TEST_CASE( simple, database_fixture )
 {
@@ -499,11 +529,132 @@ BOOST_FIXTURE_TEST_CASE( simple, database_fixture )
     }
 }
 
+// Test of few concurrently played tournaments having the same constant number of players.
+// Tournament/s having even number use the core asset.
+// Tournament/s having odd number use another asset.
+// Moves are generated randomly.
+// Checking prizes distribution for both assets is performed.
+BOOST_FIXTURE_TEST_CASE( assets, database_fixture )
+{
+    try
+    {
+        #define PLAYERS_NUMBER 8
+        #define TOURNAMENTS_NUMBER 3
+        #define DEF_SYMBOL "NEXT"
+
+        BOOST_TEST_MESSAGE("Hello two assets tournament test");
+
+        ACTORS((nathan));
+        fc::ecc::private_key nathan_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+        transfer(committee_account, nathan_id, asset(1000000000));
+        upgrade_to_lifetime_member(nathan);
+        BOOST_CHECK(nathan.is_lifetime_member());
+
+        tournaments_helper tournament_helper(*this);
+        // creating new asset
+        asset_options aoptions;
+        aoptions.max_market_fee = aoptions.max_supply = GRAPHENE_MAX_SHARE_SUPPLY;
+        aoptions.flags = 0;
+        aoptions.issuer_permissions = 79;
+        aoptions.core_exchange_rate.base.amount = 1;
+        aoptions.core_exchange_rate.base.asset_id = asset_id_type(0);
+        aoptions.core_exchange_rate.quote.amount = 1;
+        aoptions.core_exchange_rate.quote.asset_id = asset_id_type(1);
+        tournament_helper.create_asset(nathan_id, DEF_SYMBOL, 5, aoptions, nathan_priv_key);
+        issue_uia(nathan_id, asset(GRAPHENE_MAX_SHARE_SUPPLY/2, asset_id_type(1)));
+
+#if 0
+        auto tas = get_asset(GRAPHENE_SYMBOL); wdump((tas));
+        auto das = get_asset(DEF_SYMBOL); wdump((das));
+
+        auto nac = nathan_id(db); wdump(("# nathan's account") (nac));
+
+        auto nab0 = db.get_balance(nathan_id, asset_id_type(0)); wdump(("# nathans's balance 0") (nab0));
+        auto nab1 = db.get_balance(nathan_id, asset_id_type(1)); wdump(("# nathans's balance 1") (nab1));
+#endif
+
+        // creating actors
+        std::vector<std::tuple<std::string, account_id_type, fc::ecc::private_key>> actors;
+        for(unsigned i = 0; i < PLAYERS_NUMBER; ++i)
+        {
+            std::string name = "account" + std::to_string(i);
+            auto priv_key = generate_private_key(name);
+            const auto& account = create_account(name, priv_key.get_public_key());
+            actors.emplace_back(name, account.id, priv_key);
+            transfer(committee_account, account.id,  asset((uint64_t)100000000 * PLAYERS_NUMBER + 10000000 * (i+1)));
+            transfer(nathan_id, account.id, asset((uint64_t)200000000 * PLAYERS_NUMBER + 20000000 * (i+1), asset_id_type(1)));
+        }
+
+        // creating tournaments, registering players
+        for(unsigned i = 0; i < TOURNAMENTS_NUMBER; ++i)
+        {
+            asset buy_in = asset(1000 * PLAYERS_NUMBER + 100 * i, asset_id_type(i%2));
+            tournament_id_type tournament_id;
+            tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, PLAYERS_NUMBER, 30, 30);
+
+            for (unsigned j = 0; j < PLAYERS_NUMBER; ++j)
+            {
+                auto a = actors[j];
+                tournament_helper.join_tournament(tournament_id, std::get<1>(a), std::get<1>(a), std::get<2>(a), buy_in);
+            }
+        }
+
+        uint16_t tournaments_to_complete = TOURNAMENTS_NUMBER;
+        std::set<tournament_id_type> tournaments = tournament_helper.list_tournaments();
+        std::map<account_id_type, std::map<asset_id_type, share_type>> players_balances = tournament_helper.list_players_balances();
+        uint16_t rake_fee_percentage = db.get_global_properties().parameters.rake_fee_percentage;
+
+        BOOST_TEST_MESSAGE( "Generating blocks, waiting for tournaments' completion");
+        while(tournaments_to_complete > 0)
+        {
+            generate_block();
+            tournament_helper.play_games();
+            for(const auto& tournament_id: tournaments)
+            {
+                const tournament_object& tournament = tournament_id(db);
+                if (tournament.get_state() == tournament_state::concluded) {
+                    const tournament_details_object& tournament_details = tournament.tournament_details_id(db);
+                    const match_object& final_match = (tournament_details.matches[tournament_details.matches.size() - 1])(db);
+
+                    assert(final_match.match_winners.size() == 1);
+                    const account_id_type& winner_id = *final_match.match_winners.begin();
+                    BOOST_TEST_MESSAGE( "The winner of " + std::string(object_id_type(tournament_id))  + " is " + winner_id(db).name + " " +  std::string(object_id_type(winner_id)));
+                    share_type rake_amount = (fc::uint128_t(tournament.prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
+                    players_balances[TOURNAMENT_RAKE_FEE_ACCOUNT_ID][tournament.options.buy_in.asset_id] += rake_amount;
+                    players_balances[winner_id][tournament.options.buy_in.asset_id] += tournament.prize_pool - rake_amount;
+
+                    tournaments.erase(tournament_id);
+                    --tournaments_to_complete;
+                    break;
+                }
+            }
+            sleep(1);
+        }
+        BOOST_CHECK(tournaments.size() == 0);
+        // checking if prizes were distributed correctly
+        std::map<account_id_type, std::map<asset_id_type, share_type>> last_players_balances = tournament_helper.list_players_balances();
+        for (auto a: last_players_balances)
+        {
+            BOOST_TEST_MESSAGE( "Checking " + a.first(db).name + "'s " + GRAPHENE_SYMBOL + " balance " + std::to_string((uint64_t) (a.second[asset_id_type()].value)));
+            BOOST_CHECK(a.second[asset_id_type()] == players_balances[a.first][asset_id_type()]);
+            BOOST_TEST_MESSAGE( "Checking " + a.first(db).name + "'s " + DEF_SYMBOL + " balance " + std::to_string((uint64_t) (a.second[asset_id_type(1)].value)));
+            BOOST_CHECK(a.second[asset_id_type(1)] == players_balances[a.first][asset_id_type(1)]);
+        }
+
+        BOOST_TEST_MESSAGE("Bye two assets tournament test\n");
+    }
+    catch (fc::exception& e)
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
 // Test of concurrently played tournaments having
 // 2, 4, 8 ... 64 players randomly registered from global pool
 // generates random moves,
-// checks prizes distribution and fees calculation,
-// no "bye" matches.
+// checks prizes distribution and fees calculation.
+// No "bye" matches.
 BOOST_FIXTURE_TEST_CASE( basic, database_fixture )
 {
     try
@@ -633,7 +784,7 @@ BOOST_FIXTURE_TEST_CASE( basic, database_fixture )
 // randomized number of players registered from global pool,
 // generates random moves,
 // checks prizes distribution.
-// "bye" matches fix required
+// "bye" matches fix is required.
 BOOST_FIXTURE_TEST_CASE( massive, database_fixture )
 {
     try
