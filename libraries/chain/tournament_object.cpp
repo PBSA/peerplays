@@ -198,7 +198,6 @@ namespace graphene { namespace chain {
                      });
                    }
                }
-
             }
             void on_entry(const match_completed& event, tournament_state_machine_& fsm)
             {
@@ -243,7 +242,9 @@ namespace graphene { namespace chain {
                   }
 
                   if (other_match.get_state() == match_state::match_complete)
+                  {
                      next_match_obj.on_initiate_match(event.db);
+                  }
 
                });
             }
@@ -274,29 +275,37 @@ namespace graphene { namespace chain {
          {
             void on_entry(const match_completed& event, tournament_state_machine_& fsm)
             {
+               tournament_object& tournament_obj = *fsm.tournament_obj;
                fc_ilog(fc::logger::get("tournament"),
                        "Tournament ${id} is complete",
-                       ("id", fsm.tournament_obj->id));
+                       ("id", tournament_obj.id));
 
                // Distribute prize money when a tournament ends
 #ifndef NDEBUG
-               const tournament_details_object& details = fsm.tournament_obj->tournament_details_id(event.db);
+               const tournament_details_object& details = tournament_obj.tournament_details_id(event.db);
                share_type total_prize = 0;
                for (const auto& payer_pair : details.payers)
                {
                     total_prize += payer_pair.second;
                }
-               assert(total_prize == fsm.tournament_obj->prize_pool);
+               assert(total_prize == tournament_obj.prize_pool);
 #endif
                assert(event.match.match_winners.size() ==  1);
                const account_id_type& winner = *event.match.match_winners.begin();
                uint16_t rake_fee_percentage = event.db.get_global_properties().parameters.rake_fee_percentage;
-               share_type rake_amount = (fc::uint128_t(fsm.tournament_obj->prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
+               share_type rake_amount = (fc::uint128_t(tournament_obj.prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
                event.db.adjust_balance(account_id_type(TOURNAMENT_RAKE_FEE_ACCOUNT_ID),
-                                       asset(rake_amount, fsm.tournament_obj->options.buy_in.asset_id));
-               event.db.adjust_balance(winner, asset(fsm.tournament_obj->prize_pool - rake_amount,
-                                                             fsm.tournament_obj->options.buy_in.asset_id));
-               fsm.tournament_obj->end_time = event.db.head_block_time();
+                                       asset(rake_amount, tournament_obj.options.buy_in.asset_id));
+               asset won_prize(tournament_obj.prize_pool - rake_amount, tournament_obj.options.buy_in.asset_id);
+               event.db.adjust_balance(winner, won_prize);
+               tournament_obj.end_time = event.db.head_block_time();
+
+               // Generating a virtual operation that shows the payment
+               tournament_payout_operation op;
+               op.tournament_id = tournament_obj.id;
+               op.won_prize = won_prize;
+               op.winner_account_id = winner;
+               event.db.push_applied_operation(op);
             }
          };
 
