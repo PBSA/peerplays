@@ -652,6 +652,7 @@ BOOST_FIXTURE_TEST_CASE( assets, database_fixture )
 
 // Test of concurrently played tournaments having
 // 2, 4, 8 ... 64 players randomly registered from global pool
+// and randomized number of wins,
 // generates random moves,
 // checks prizes distribution and fees calculation.
 // No "bye" matches.
@@ -661,6 +662,9 @@ BOOST_FIXTURE_TEST_CASE( basic, database_fixture )
     {
         #define MIN_PLAYERS_NUMBER 2
         #define MAX_PLAYERS_NUMBER 64
+
+        #define MIN_WINS_NUMBER 2
+        #define MAX_WINS_NUMBER 5
 
         BOOST_TEST_MESSAGE("Hello basic tournament test");
 
@@ -702,11 +706,12 @@ BOOST_FIXTURE_TEST_CASE( basic, database_fixture )
         for (unsigned i = 0; i < players.size(); ++i)
         {
             auto number_of_players = players[i];
-            BOOST_TEST_MESSAGE( "Preparing tournament #" + std::to_string(i) + " with " + std::to_string(number_of_players) + " players");
+            auto number_of_wins = std::rand() % (MAX_WINS_NUMBER - 1) + MIN_WINS_NUMBER;
+            BOOST_TEST_MESSAGE( "Preparing tournament with " + std::to_string(number_of_players)  + " players and " + std::to_string(number_of_wins) + " wins" );
 
             asset buy_in = asset(1000 * number_of_players + 100 * i);
             tournament_id_type tournament_id;
-            tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, number_of_players, 30, 30);
+            tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, number_of_players, 30, 30, number_of_wins);
 
             for (unsigned j = 0; j < actors.size() && number_of_players > 0; ++j)
             {
@@ -726,7 +731,9 @@ BOOST_FIXTURE_TEST_CASE( basic, database_fixture )
         wlog( "Prepared tournaments:");
         for(const tournament_id_type& tid: tournament_helper.list_tournaments())
         {
-            wlog(" # ${i}, players count ${c}", ("i", tid.instance) ("c", tid(db).registered_players));
+            const tournament_object tournament = tid(db);
+            //const tournament_details_object details = tournament.tournament_details_id(db);
+            wlog(" # ${i}, players count ${c}, wins number ${w}", ("i", tid.instance) ("c", tournament.registered_players) ("w", tournament.options.number_of_wins ));
         }
 
 #endif
@@ -782,6 +789,7 @@ BOOST_FIXTURE_TEST_CASE( basic, database_fixture )
 #ifdef BYE_MATCHES_FIXED
 // Test of several concurrently played tournaments having
 // randomized number of players registered from global pool,
+// and randomized number of wins,
 // generates random moves,
 // checks prizes distribution.
 // "bye" matches fix is required.
@@ -794,6 +802,9 @@ BOOST_FIXTURE_TEST_CASE( massive, database_fixture )
 
         #define MIN_PLAYERS_NUMBER 2
         #define MAX_PLAYERS_NUMBER 64
+
+        #define MIN_WINS_NUMBER 2
+        #define MAX_WINS_NUMBER 5
 
         BOOST_TEST_MESSAGE("Hello massive tournament test");
 
@@ -820,11 +831,12 @@ BOOST_FIXTURE_TEST_CASE( massive, database_fixture )
         for(unsigned i = 0; i < number_of_tournaments; ++i)
         {
             unsigned number_of_players = std::rand() % (MAX_PLAYERS_NUMBER - 1) + MIN_PLAYERS_NUMBER;
-            BOOST_TEST_MESSAGE( "Preparing tournament with " + std::to_string(number_of_players)  + " players");
+            unsigned number_of_wins = std::rand() % (MAX_WINS_NUMBER - 1) + MIN_WINS_NUMBER;
+            BOOST_TEST_MESSAGE( "Preparing tournament with " + std::to_string(number_of_players)  + " players and " + std::to_string(number_of_wins) + " wins" );
 
             asset buy_in = asset(1000 * number_of_players + 100 * i);
             tournament_id_type tournament_id;
-            tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, number_of_players, 30, 30);
+            tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, number_of_players, 30, 30, number_of_wins);
 
             for (unsigned j = 0; j < actors.size() && number_of_players > 0; ++j)
             {
@@ -872,7 +884,8 @@ BOOST_FIXTURE_TEST_CASE( massive, database_fixture )
         for(const tournament_id_type& tid: tournament_helper.list_tournaments())
         {
             const tournament_object tournament = tid(db);
-            wlog(" # ${i}, players count ${c}", ("i", tid.instance) ("c", tournament.registered_players));
+            //const tournament_details_object details = tournament.tournament_details_id(db);
+            wlog(" # ${i}, players count ${c}, wins number ${w}", ("i", tid.instance) ("c", tournament.registered_players) ("w", tournament.options.number_of_wins ));
         }
 #endif
         // checking if prizes were distributed correctly
