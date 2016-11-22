@@ -200,7 +200,7 @@ namespace graphene { namespace chain {
 
             const rock_paper_scissors_game_details& game_details = game_obj->game_details.get<rock_paper_scissors_game_details>();
             for (unsigned i = 0; i < game_details.commit_moves.size(); ++i)
-               if (!game_details.reveal_moves[i] && i != this_reveal_index)
+               if (game_details.commit_moves[i] && !game_details.reveal_moves[i] && i != this_reveal_index)
                   return false;
             return true;
          }
