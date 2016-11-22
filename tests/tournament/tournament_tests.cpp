@@ -37,6 +37,8 @@ using namespace graphene::chain;
 // defined if "bye" matches fix available
 #define BYE_MATCHES_FIXED
 
+#define RAND_MAX_MIN(MAX, MIN) (std::rand() % ((MAX) - (MIN) + 1) + (MIN))
+
 BOOST_AUTO_TEST_SUITE(tournament_tests)
 
 // class performing operations necessary for creating tournaments,
@@ -706,7 +708,7 @@ BOOST_FIXTURE_TEST_CASE( basic, database_fixture )
         for (unsigned i = 0; i < players.size(); ++i)
         {
             auto number_of_players = players[i];
-            auto number_of_wins = std::rand() % (MAX_WINS_NUMBER - 1) + MIN_WINS_NUMBER;
+            auto number_of_wins = RAND_MAX_MIN(MAX_WINS_NUMBER,  MIN_WINS_NUMBER);
             BOOST_TEST_MESSAGE( "Preparing tournament with " + std::to_string(number_of_players)  + " players and " + std::to_string(number_of_wins) + " wins" );
 
             asset buy_in = asset(1000 * number_of_players + 100 * i);
@@ -827,11 +829,11 @@ BOOST_FIXTURE_TEST_CASE( massive, database_fixture )
 
         // creating tournaments, registering players
         tournaments_helper tournament_helper(*this);
-        unsigned number_of_tournaments = std::rand() % (MAX_TOURNAMENTS_NUMBER - 1) + MIN_TOURNAMENTS_NUMBER;
+        unsigned number_of_tournaments = RAND_MAX_MIN(MAX_TOURNAMENTS_NUMBER, MIN_TOURNAMENTS_NUMBER);
         for(unsigned i = 0; i < number_of_tournaments; ++i)
         {
-            unsigned number_of_players = std::rand() % (MAX_PLAYERS_NUMBER - 1) + MIN_PLAYERS_NUMBER;
-            unsigned number_of_wins = std::rand() % (MAX_WINS_NUMBER - 1) + MIN_WINS_NUMBER;
+            unsigned number_of_players = RAND_MAX_MIN(MAX_PLAYERS_NUMBER, MIN_PLAYERS_NUMBER);
+            unsigned number_of_wins = RAND_MAX_MIN(MAX_WINS_NUMBER, MIN_WINS_NUMBER);
             BOOST_TEST_MESSAGE( "Preparing tournament with " + std::to_string(number_of_players)  + " players and " + std::to_string(number_of_wins) + " wins" );
 
             asset buy_in = asset(1000 * number_of_players + 100 * i);
