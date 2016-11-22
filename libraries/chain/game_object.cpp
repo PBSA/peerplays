@@ -106,7 +106,6 @@ namespace graphene { namespace chain {
                fc_ilog(fc::logger::get("tournament"),
                        "game ${id} received a commit move, still expecting another commit move",
                        ("id", game.id));
-               set_next_timeout(event.db, game);
             }
          };
          struct expecting_reveal_moves : public msm::front::state<>
@@ -131,14 +130,16 @@ namespace graphene { namespace chain {
                game_object& game = *fsm.game_obj;
 
                if (event.move.move.which() == game_specific_moves::tag<rock_paper_scissors_throw_commit>::value)
+               {
                   fc_ilog(fc::logger::get("tournament"),
                           "game ${id} received a commit move, now expecting reveal moves",
                           ("id", game.id));
+                  set_next_timeout(event.db, game);
+               }
                else
                   fc_ilog(fc::logger::get("tournament"),
                           "game ${id} received a reveal move, still expecting reveal moves",
                           ("id", game.id));
-               set_next_timeout(event.db, game);
             }
          };
 
