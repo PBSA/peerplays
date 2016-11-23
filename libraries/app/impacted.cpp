@@ -224,7 +224,7 @@ struct get_impacted_account_visitor
    }
    void operator()( const tournament_payout_operation& op )
    {
-      _impacted.insert( op.winner_account_id );
+      _impacted.insert( op.payout_account_id );
    }
 };
 

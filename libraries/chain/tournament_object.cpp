@@ -198,6 +198,7 @@ namespace graphene { namespace chain {
                      });
                    }
                }
+
             }
             void on_entry(const match_completed& event, tournament_state_machine_& fsm)
             {
@@ -266,7 +267,16 @@ namespace graphene { namespace chain {
                   // for a period of time, not as a transfer back to the user; it doesn't matter
                   // if they are currently authorized to transfer this asset, they never really 
                   // transferred it in the first place
-                  event.db.adjust_balance(payer_pair.first, asset(payer_pair.second, fsm.tournament_obj->options.buy_in.asset_id));
+                  asset amount(payer_pair.second, fsm.tournament_obj->options.buy_in.asset_id);
+                  event.db.adjust_balance(payer_pair.first, amount);
+
+                  // Generating a virtual operation that shows the payment
+                  tournament_payout_operation op;
+                  op.tournament_id = fsm.tournament_obj->id;
+                  op.payout_amount = amount;
+                  op.payout_account_id = payer_pair.first;
+                  op.type = payout_type::buyin_refund;
+                  event.db.push_applied_operation(op);
                }
             }
          };
@@ -294,17 +304,25 @@ namespace graphene { namespace chain {
                const account_id_type& winner = *event.match.match_winners.begin();
                uint16_t rake_fee_percentage = event.db.get_global_properties().parameters.rake_fee_percentage;
                share_type rake_amount = (fc::uint128_t(tournament_obj.prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
-               event.db.adjust_balance(account_id_type(TOURNAMENT_RAKE_FEE_ACCOUNT_ID),
-                                       asset(rake_amount, tournament_obj.options.buy_in.asset_id));
+
+               asset rake(rake_amount, tournament_obj.options.buy_in.asset_id);
+               event.db.adjust_balance(account_id_type(TOURNAMENT_RAKE_FEE_ACCOUNT_ID), rake);
+
                asset won_prize(tournament_obj.prize_pool - rake_amount, tournament_obj.options.buy_in.asset_id);
                event.db.adjust_balance(winner, won_prize);
                tournament_obj.end_time = event.db.head_block_time();
 
-               // Generating a virtual operation that shows the payment
+               // Generating a virtual operations that show the payments
                tournament_payout_operation op;
                op.tournament_id = tournament_obj.id;
-               op.won_prize = won_prize;
-               op.winner_account_id = winner;
+               op.payout_amount = won_prize;
+               op.payout_account_id = winner;
+               op.type = payout_type::prize_award;
+               event.db.push_applied_operation(op);
+
+               op.payout_amount = rake;
+               op.payout_account_id = TOURNAMENT_RAKE_FEE_ACCOUNT_ID;
+               op.type = payout_type::rake_fee;
                event.db.push_applied_operation(op);
             }
          };

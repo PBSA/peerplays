@@ -3208,8 +3208,13 @@ std::string operation_printer::operator()(const asset_dividend_distribution_oper
 
 std::string operation_printer::operator()(const tournament_payout_operation& op)const
 {
-    out << "Tournament Payout Account '" << wallet.get_account(op.winner_account_id).name
-        << "', Amount " << std::to_string(op.won_prize.amount.value) << " " << wallet.get_asset(op.won_prize.asset_id).symbol;
+    asset_object payout_asset = wallet.get_asset(op.payout_amount.asset_id);
+
+    out << "Tournament #" << std::string(object_id_type(op.tournament_id)) << " Payout : "
+        << "Account '" << wallet.get_account(op.payout_account_id).name
+        << "', Amount " <<  payout_asset.amount_to_pretty_string(op.payout_amount) << ", Type "
+        << (op.type == payout_type::buyin_refund ? "buyin refund" : (op.type == payout_type::rake_fee ? "rake fee" : "prize award"))
+        << ".";
     return "";
 }
 
