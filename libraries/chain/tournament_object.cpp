@@ -303,16 +303,22 @@ namespace graphene { namespace chain {
                assert(event.match.match_winners.size() ==  1);
                const account_id_type& winner = *event.match.match_winners.begin();
                uint16_t rake_fee_percentage = event.db.get_global_properties().parameters.rake_fee_percentage;
-               share_type rake_amount = (fc::uint128_t(tournament_obj.prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
+               share_type rake_amount = 0;
 
-               asset rake(rake_amount, tournament_obj.options.buy_in.asset_id);
-               event.db.adjust_balance(account_id_type(TOURNAMENT_RAKE_FEE_ACCOUNT_ID), rake);
+               const asset_object & asset_obj = tournament_obj.options.buy_in.asset_id(event.db);
+               optional<asset_dividend_data_id_type> dividend_id = asset_obj.dividend_data_id;
 
+               if (dividend_id.valid())
+               {
+                    rake_amount = (fc::uint128_t(tournament_obj.prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
+               }
+
+               // Adjusting balance of winner
                asset won_prize(tournament_obj.prize_pool - rake_amount, tournament_obj.options.buy_in.asset_id);
                event.db.adjust_balance(winner, won_prize);
                tournament_obj.end_time = event.db.head_block_time();
 
-               // Generating a virtual operations that show the payments
+               // Generating a virtual operation that shows the payment
                tournament_payout_operation op;
                op.tournament_id = tournament_obj.id;
                op.payout_amount = won_prize;
@@ -320,10 +326,21 @@ namespace graphene { namespace chain {
                op.type = payout_type::prize_award;
                event.db.push_applied_operation(op);
 
-               op.payout_amount = rake;
-               op.payout_account_id = TOURNAMENT_RAKE_FEE_ACCOUNT_ID;
-               op.type = payout_type::rake_fee;
-               event.db.push_applied_operation(op);
+               if (dividend_id.valid())
+               {
+                   // Adjusting balance of dividend_distribution_account
+                   const asset_dividend_data_id_type& asset_dividend_data_id_= *dividend_id;
+                   const asset_dividend_data_object& dividend_obj = asset_dividend_data_id_(event.db);
+                   const account_id_type& rake_account_id = dividend_obj.dividend_distribution_account;
+                   asset rake(rake_amount, tournament_obj.options.buy_in.asset_id);
+                   event.db.adjust_balance(rake_account_id, rake);
+
+                   // Generating a virtual operation that shows the payment
+                   op.payout_amount = rake;
+                   op.payout_account_id = rake_account_id;
+                   op.type = payout_type::rake_fee;
+                   event.db.push_applied_operation(op);
+               }
             }
          };
 
