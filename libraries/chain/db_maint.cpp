@@ -800,18 +800,6 @@ void schedule_pending_dividend_balances(database& db,
          auto itr = vesting_amounts.find(holder_balance_object.owner);
          if (itr != vesting_amounts.end())
              total_balance_of_dividend_asset += itr->second;
-//         // working, but potential performance gap?
-//         auto vesting_range = vesting_index.indices().get<by_account>().equal_range(holder_balance_object.owner);
-//         for (const vesting_balance_object& vesting_balance : boost::make_iterator_range(vesting_range.first, vesting_range.second)
-//         {
-//              if (vesting_balance.balance.asset_id == dividend_holder_asset_obj.id)
-//              {
-//                  total_balance_of_dividend_asset += vesting_balance.balance.amount;
-//                  dlog("Vesting balances for account: ${owner}, amount: ${amount}",
-//                       ("owner", vesting_balance.owner(db).name)
-//                       ("amount", vesting_balance.balance.amount));
-//              }
-//         }
       }
    // loop through all of the assets currently or previously held in the distribution account
    while (current_distribution_account_balance_iter != current_distribution_account_balance_range.second ||
@@ -939,7 +927,6 @@ void schedule_pending_dividend_balances(database& db,
                // credit each account with their portion, don't send any back to the dividend distribution account
                for (const account_balance_object& holder_balance_object : boost::make_iterator_range(holder_balances_begin, holder_balances_end))
                {
-                  //if (holder_balance_object.owner != dividend_data.dividend_distribution_account && holder_balance_object.balance.value)
                   if (holder_balance_object.owner == dividend_data.dividend_distribution_account) continue;
 
                   auto holder_balance = holder_balance_object.balance;
@@ -947,18 +934,6 @@ void schedule_pending_dividend_balances(database& db,
                   auto itr = vesting_amounts.find(holder_balance_object.owner);
                   if (itr != vesting_amounts.end())
                       holder_balance += itr->second;
-//                  // working, but potential performance gap?
-//                  auto vesting_range = vesting_index.indices().get<by_account>().equal_range(holder_balance_object.owner);
-//                  for (const vesting_balance_object& vesting_balance : boost::make_iterator_range(vesting_range.first, vesting_range.second))
-//                  {
-//                        if (vesting_balance.balance.asset_id == dividend_holder_asset_obj.id)
-//                        {
-//                             holder_balance += vesting_balance.balance.amount;
-//                             dlog("Vesting balances for account: ${owner}, amount: ${amount}",
-//                                  ("owner", vesting_balance.owner(db).name)
-//                                  ("amount", vesting_balance.balance.amount));
-//                        }
-//                  }
                   if (holder_balance.value)
                   {
                       fc::uint128_t amount_to_credit(delta_balance.value);
@@ -1304,18 +1279,6 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
             auto itr = vesting_amounts.find(stake_account.id);
             if (itr != vesting_amounts.end())
                 voting_stake += itr->second.value;
-//                  // working, but potential performance gap?
-//            auto vesting_range = d.get_index_type<vesting_balance_index>().indices().get<by_account>().equal_range(stake_account.id);
-//            for (const vesting_balance_object& vesting_balance : boost::make_iterator_range(vesting_range.first, vesting_range.second))
-//            {
-//                   if (vesting_balance.balance.asset_id == asset_id_type())
-//                   {
-//                       voting_stake += vesting_balance.balance.amount.value;
-//                       dlog("Vote_tally_helper vesting balances for account: ${owner}, amount: ${amount}",
-//                            ("owner", vesting_balance.owner(d).name)
-//                            ("amount", vesting_balance.balance.amount));
-//                   }
-//            }
             for( vote_id_type id : opinion_account.options.votes )
             {
                uint32_t offset = id.instance();
