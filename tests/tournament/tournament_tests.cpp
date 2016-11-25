@@ -51,7 +51,9 @@ public:
     {
         assets.insert(asset_id_type());
         current_asset_idx = 0;
-        players.insert(TOURNAMENT_RAKE_FEE_ACCOUNT_ID);
+        optional<account_id_type> dividend_account = get_asset_dividend_account(asset_id_type());
+        if (dividend_account.valid())
+            players.insert(*dividend_account);
     }
 
     const std::set<tournament_id_type>& list_tournaments()
@@ -113,7 +115,46 @@ public:
         PUSH_TX(db, tx);
 
         assets.insert(asset_id_type(++current_asset_idx));
+    }
 
+    void update_dividend_asset(const asset_id_type asset_to_update_id,
+                               dividend_asset_options new_options,
+                               const fc::ecc::private_key& sig_priv_key)
+    {
+        graphene::chain::database& db = df.db;
+        const chain_parameters& params = db.get_global_properties().parameters;
+        signed_transaction tx;
+        asset_update_dividend_operation update_op;
+
+        update_op.issuer = asset_to_update_id(db).issuer;
+        update_op.asset_to_update = asset_to_update_id;
+        update_op.new_options = new_options;
+
+        tx.operations = {update_op};
+        for( auto& op : tx.operations )
+           db.current_fee_schedule().set_fee(op);
+        tx.validate();
+        tx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
+        df.sign(tx, sig_priv_key);
+        PUSH_TX(db, tx);
+
+        optional<account_id_type> dividend_account = get_asset_dividend_account(asset_to_update_id);
+        if (dividend_account.valid())
+          players.insert(*dividend_account);
+    }
+
+    optional<account_id_type> get_asset_dividend_account(const asset_id_type& asset_id)
+    {
+        graphene::chain::database& db = df.db;
+        optional<account_id_type> result;
+        const asset_object& asset_obj = asset_id(db);
+
+        if (asset_obj.dividend_data_id.valid())
+        {
+           const asset_dividend_data_object& dividend_data = (*asset_obj.dividend_data_id)(db);
+           result = dividend_data.dividend_distribution_account;
+        }
+        return result;
     }
 
     const tournament_id_type create_tournament (const account_id_type& creator,
@@ -123,6 +164,7 @@ public:
                                                 uint32_t time_per_commit_move = 3,
                                                 uint32_t time_per_reveal_move = 1,
                                                 uint32_t number_of_wins = 3,
+                                                uint32_t registration_deadline = 3600,
                                                 uint32_t start_delay = 3,
                                                 uint32_t round_delay = 3,
                                                 bool insurance_enabled = false
@@ -145,7 +187,7 @@ public:
         game_options.time_per_reveal_move = time_per_reveal_move;
         game_options.insurance_enabled = insurance_enabled;
 
-        options.registration_deadline = db.head_block_time() + fc::hours(1 + *current_tournament_idx);
+        options.registration_deadline = db.head_block_time() + fc::seconds(registration_deadline + *current_tournament_idx);
         options.buy_in = buy_in;
         options.number_of_players = number_of_players;
         options.start_delay = start_delay;
@@ -500,7 +542,9 @@ BOOST_FIXTURE_TEST_CASE( simple, database_fixture )
                         BOOST_TEST_MESSAGE( "The winner is " + winner.name );
 
                         share_type rake_amount = (fc::uint128_t(tournament.prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
-                        players_balances[TOURNAMENT_RAKE_FEE_ACCOUNT_ID][tournament.options.buy_in.asset_id] += rake_amount;
+                        optional<account_id_type> dividend_account = tournament_helper.get_asset_dividend_account(tournament.options.buy_in.asset_id);
+                        if (dividend_account.valid())
+                            players_balances[*dividend_account][tournament.options.buy_in.asset_id] += rake_amount;
                         players_balances[winner_id][tournament.options.buy_in.asset_id] += tournament.prize_pool - rake_amount;
 
                         tournaments.erase(tournament_id);
@@ -523,6 +567,83 @@ BOOST_FIXTURE_TEST_CASE( simple, database_fixture )
             }
             BOOST_TEST_MESSAGE("Bye simple tournament test\n");
 
+    }
+    catch (fc::exception& e)
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+// Test of canceled tournament
+// Checking buyin refund.
+BOOST_FIXTURE_TEST_CASE( canceled, database_fixture )
+{
+    try
+    {
+        BOOST_TEST_MESSAGE("Hello canceled tournament test");
+        ACTORS((nathan)(alice)(bob));
+
+        tournaments_helper tournament_helper(*this);
+        fc::ecc::private_key nathan_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+
+        BOOST_TEST_MESSAGE( "Giving folks some money" );
+        transfer(committee_account, nathan_id, asset(1000000000));
+        transfer(committee_account, alice_id,  asset(2000000));
+        transfer(committee_account, bob_id,    asset(3000000));
+
+        BOOST_TEST_MESSAGE( "Preparing nathan" );
+        upgrade_to_lifetime_member(nathan);
+
+        uint16_t tournaments_to_complete = 0;
+        asset buy_in = asset(12340);
+        tournament_id_type tournament_id;
+
+        BOOST_TEST_MESSAGE( "Preparing a tournament" );
+        tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, 3, 30, 30, 3, 5);
+        BOOST_REQUIRE(tournament_id == tournament_id_type());
+
+        tournament_helper.join_tournament(tournament_id, alice_id, alice_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("alice"))), buy_in);
+        tournament_helper.join_tournament(tournament_id, bob_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in);
+        ++tournaments_to_complete;
+        BOOST_TEST_MESSAGE( "Generating blocks, waiting for tournament's completion");
+        std::set<tournament_id_type> tournaments = tournament_helper.list_tournaments();
+        std::map<account_id_type, std::map<asset_id_type, share_type>> players_balances = tournament_helper.list_players_balances();
+
+        while(tournaments_to_complete > 0)
+        {
+            for(const auto& tournament_id: tournaments)
+            {
+                const tournament_object& tournament = tournament_id(db);
+                BOOST_REQUIRE(tournament.get_state() != tournament_state::concluded);
+
+                if (tournament.get_state() == tournament_state::registration_period_expired) {
+
+
+                    const tournament_details_object& tournament_details = tournament.tournament_details_id(db);
+                    for(auto payer : tournament_details.payers)
+                    {
+                        players_balances[payer.first][tournament.options.buy_in.asset_id] += payer.second;
+                    }
+
+                    tournaments.erase(tournament_id);
+                    --tournaments_to_complete;
+                    break;
+                }
+            }
+            generate_block();
+            sleep(1);
+        }
+
+        // checking if buyins were refunded correctly
+        BOOST_CHECK(tournaments.size() == 0);
+        std::map<account_id_type, std::map<asset_id_type, share_type>> last_players_balances = tournament_helper.list_players_balances();
+        for (auto a: last_players_balances)
+        {
+            BOOST_TEST_MESSAGE( "Checking " + a.first(db).name + "'s balance " + std::to_string((uint64_t)(a.second[asset_id_type()].value)) );
+            BOOST_CHECK(a.second[asset_id_type()] == players_balances[a.first][asset_id_type()]);
+        }
+        BOOST_TEST_MESSAGE("Bye canceled tournament test\n");
     }
     catch (fc::exception& e)
     {
@@ -563,11 +684,25 @@ BOOST_FIXTURE_TEST_CASE( assets, database_fixture )
         aoptions.core_exchange_rate.quote.amount = 1;
         aoptions.core_exchange_rate.quote.asset_id = asset_id_type(1);
         tournament_helper.create_asset(nathan_id, DEF_SYMBOL, 5, aoptions, nathan_priv_key);
+
         issue_uia(nathan_id, asset(GRAPHENE_MAX_SHARE_SUPPLY/2, asset_id_type(1)));
+
+        dividend_asset_options doptions;
+        doptions.minimum_distribution_interval = 3*24*60*60;
+        doptions.minimum_fee_percentage = 10*GRAPHENE_1_PERCENT;
+        doptions.next_payout_time = db.head_block_time() + fc::hours(1);
+        doptions.payout_interval = 7*24*60*60;
+        tournament_helper.update_dividend_asset(asset_id_type(1), doptions, nathan_priv_key);
 
 #if 0
         auto tas = get_asset(GRAPHENE_SYMBOL); wdump((tas));
         auto das = get_asset(DEF_SYMBOL); wdump((das));
+
+        if (das.dividend_data_id.valid())
+        {
+            auto div = (*das.dividend_data_id)(db); wdump((div));
+            auto dda = div.dividend_distribution_account(db); wdump((dda));
+        }
 
         auto nac = nathan_id(db); wdump(("# nathan's account") (nac));
 
@@ -622,8 +757,9 @@ BOOST_FIXTURE_TEST_CASE( assets, database_fixture )
                     const account_id_type& winner_id = *final_match.match_winners.begin();
                     BOOST_TEST_MESSAGE( "The winner of " + std::string(object_id_type(tournament_id))  + " is " + winner_id(db).name + " " +  std::string(object_id_type(winner_id)));
                     share_type rake_amount = (fc::uint128_t(tournament.prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
-                    players_balances[TOURNAMENT_RAKE_FEE_ACCOUNT_ID][tournament.options.buy_in.asset_id] += rake_amount;
-                    players_balances[winner_id][tournament.options.buy_in.asset_id] += tournament.prize_pool - rake_amount;
+                    optional<account_id_type> dividend_account = tournament_helper.get_asset_dividend_account(tournament.options.buy_in.asset_id);
+                    if (dividend_account.valid())
+                        players_balances[*dividend_account][tournament.options.buy_in.asset_id] += rake_amount;                    players_balances[winner_id][tournament.options.buy_in.asset_id] += tournament.prize_pool - rake_amount;
 
                     tournaments.erase(tournament_id);
                     --tournaments_to_complete;
@@ -757,7 +893,9 @@ BOOST_FIXTURE_TEST_CASE( basic, database_fixture )
                     const account_id_type& winner_id = *final_match.match_winners.begin();
                     BOOST_TEST_MESSAGE( "The winner of " + std::string(object_id_type(tournament_id))  + " is " + winner_id(db).name + " " +  std::string(object_id_type(winner_id)));
                     share_type rake_amount = (fc::uint128_t(tournament.prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
-                    players_initial_balances[TOURNAMENT_RAKE_FEE_ACCOUNT_ID][tournament.options.buy_in.asset_id] += rake_amount;
+                    optional<account_id_type> dividend_account = tournament_helper.get_asset_dividend_account(tournament.options.buy_in.asset_id);
+                    if (dividend_account.valid())
+                        players_initial_balances[*dividend_account][tournament.options.buy_in.asset_id] += rake_amount;
                     players_initial_balances[winner_id][tournament.options.buy_in.asset_id] += tournament.prize_pool - rake_amount;
 
                     tournaments.erase(tournament_id);
@@ -870,7 +1008,9 @@ BOOST_FIXTURE_TEST_CASE( massive, database_fixture )
                     const account_id_type& winner_id = *final_match.match_winners.begin();
                     BOOST_TEST_MESSAGE( "The winner of " + std::string(object_id_type(tournament_id))  + " is " + winner_id(db).name + " " +  std::string(object_id_type(winner_id)));
                     share_type rake_amount = (fc::uint128_t(tournament.prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
-                    players_balances[TOURNAMENT_RAKE_FEE_ACCOUNT_ID][tournament.options.buy_in.asset_id] += rake_amount;
+                    optional<account_id_type> dividend_account = tournament_helper.get_asset_dividend_account(tournament.options.buy_in.asset_id);
+                    if (dividend_account.valid())
+                        players_balances[*dividend_account][tournament.options.buy_in.asset_id] += rake_amount;
                     players_balances[winner_id][tournament.options.buy_in.asset_id] += tournament.prize_pool - rake_amount;
 
                     tournaments.erase(tournament_id);

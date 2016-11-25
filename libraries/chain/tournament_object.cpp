@@ -289,6 +289,7 @@ namespace graphene { namespace chain {
                fc_ilog(fc::logger::get("tournament"),
                        "Tournament ${id} is complete",
                        ("id", tournament_obj.id));
+               tournament_obj.end_time = event.db.head_block_time();
 
                // Distribute prize money when a tournament ends
 #ifndef NDEBUG
@@ -312,21 +313,23 @@ namespace graphene { namespace chain {
                {
                     rake_amount = (fc::uint128_t(tournament_obj.prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
                }
-
-               // Adjusting balance of winner
                asset won_prize(tournament_obj.prize_pool - rake_amount, tournament_obj.options.buy_in.asset_id);
-               event.db.adjust_balance(winner, won_prize);
-               tournament_obj.end_time = event.db.head_block_time();
-
-               // Generating a virtual operation that shows the payment
                tournament_payout_operation op;
-               op.tournament_id = tournament_obj.id;
-               op.payout_amount = won_prize;
-               op.payout_account_id = winner;
-               op.type = payout_type::prize_award;
-               event.db.push_applied_operation(op);
 
-               if (dividend_id.valid())
+               if (won_prize.amount.value)
+               {
+                   // Adjusting balance of winner
+                   event.db.adjust_balance(winner, won_prize);
+
+                   // Generating a virtual operation that shows the payment
+                   op.tournament_id = tournament_obj.id;
+                   op.payout_amount = won_prize;
+                   op.payout_account_id = winner;
+                   op.type = payout_type::prize_award;
+                   event.db.push_applied_operation(op);
+               }
+
+               if (dividend_id.valid() && rake_amount.value)
                {
                    // Adjusting balance of dividend_distribution_account
                    const asset_dividend_data_id_type& asset_dividend_data_id_= *dividend_id;

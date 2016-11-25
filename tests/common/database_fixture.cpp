@@ -164,7 +164,7 @@ void database_fixture::verify_asset_supplies( const database& db )
    share_type reported_core_in_orders;
 
    for( const tournament_object& t : tournaments_index )
-      if (t.get_state() != tournament_state::concluded)
+      if (t.get_state() != tournament_state::concluded && t.get_state() != tournament_state::registration_period_expired)
         total_balances[t.options.buy_in.asset_id] += t.prize_pool;
 
    for( const account_balance_object& b : balance_index )
