@@ -949,9 +949,10 @@ void schedule_pending_dividend_balances(database& db,
                }
 
                for (const auto& pending_payout : pending_payout_balance_index.indices())
-                  dlog("Pending payout: ${account_name}   ->   ${amount}", 
-                       ("account_name", pending_payout.owner(db).name)
-                       ("amount", asset(pending_payout.pending_balance, pending_payout.dividend_payout_asset_type)));
+                  if (pending_payout.pending_balance.value)
+                      dlog("Pending payout: ${account_name}   ->   ${amount}",
+                           ("account_name", pending_payout.owner(db).name)
+                           ("amount", asset(pending_payout.pending_balance, pending_payout.dividend_payout_asset_type)));
                dlog("Remaining balance not paid out: ${amount}", 
                     ("amount", asset(remaining_amount_to_distribute, payout_asset_type)));
 
@@ -1103,7 +1104,7 @@ void process_dividend_assets(database& db)
             {
                const pending_dividend_payout_balance_for_holder_object& pending_balance_object = *pending_balance_object_iter;
 
-               if (last_holder_account_id && *last_holder_account_id != pending_balance_object.owner)
+               if (last_holder_account_id && *last_holder_account_id != pending_balance_object.owner && payouts_for_this_holder.size())
                {
                   // we've moved on to a new account, generate the dividend payment virtual op for the previous one
                   db.push_applied_operation(asset_dividend_distribution_operation(dividend_holder_asset_obj.id, 
@@ -1115,14 +1116,15 @@ void process_dividend_assets(database& db)
                }
 
 
-               if (is_authorized_asset(db, pending_balance_object.owner(db), pending_balance_object.dividend_payout_asset_type(db)) &&
+               if (pending_balance_object.pending_balance.value &&
+                   is_authorized_asset(db, pending_balance_object.owner(db), pending_balance_object.dividend_payout_asset_type(db)) &&
                    is_asset_approved_for_distribution_account(pending_balance_object.dividend_payout_asset_type))
                {
                   dlog("Processing payout of ${asset} to account ${account}", 
                        ("asset", asset(pending_balance_object.pending_balance, pending_balance_object.dividend_payout_asset_type))
                        ("account", pending_balance_object.owner(db).name));
 
-                  db.adjust_balance(pending_balance_object.owner, 
+                  db.adjust_balance(pending_balance_object.owner,
                                     asset(pending_balance_object.pending_balance, 
                                           pending_balance_object.dividend_payout_asset_type));
                   payouts_for_this_holder.insert(asset(pending_balance_object.pending_balance, 
@@ -1138,7 +1140,7 @@ void process_dividend_assets(database& db)
                ++pending_balance_object_iter;
             }
             // we will always be left with the last holder's data, generate the virtual op for it now.
-            if (last_holder_account_id)
+            if (last_holder_account_id && payouts_for_this_holder.size())
             {
                // we've moved on to a new account, generate the dividend payment virtual op for the previous one
                db.push_applied_operation(asset_dividend_distribution_operation(dividend_holder_asset_obj.id, 
