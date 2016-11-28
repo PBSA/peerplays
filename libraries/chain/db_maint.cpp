@@ -919,13 +919,13 @@ void schedule_pending_dividend_balances(database& db,
                   if (itr != vesting_amounts.end())
                       holder_balance += itr->second;
 
-                  if (holder_balance.value)
+                  fc::uint128_t amount_to_credit(delta_balance.value);
+                  amount_to_credit *= holder_balance.value;
+                  amount_to_credit /= total_balance_of_dividend_asset.value;
+                  share_type shares_to_credit((int64_t)amount_to_credit.to_uint64());
+                  if (shares_to_credit.value)
                   {
-                      fc::uint128_t amount_to_credit(delta_balance.value);
-                     amount_to_credit *= holder_balance.value;
-                     amount_to_credit /= total_balance_of_dividend_asset.value;
                      wdump((delta_balance.value)(holder_balance)(total_balance_of_dividend_asset));
-                     share_type shares_to_credit((int64_t)amount_to_credit.to_uint64());
 
                      remaining_amount_to_distribute -= shares_to_credit;
 
