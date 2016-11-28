@@ -36,6 +36,13 @@
 
 namespace graphene { namespace chain {
 
+    enum class payout_type
+    {
+        prize_award,
+        buyin_refund,
+        rake_fee
+    };
+
    typedef fc::static_variant<rock_paper_scissors_game_options> game_specific_options;
 
    /**
@@ -163,7 +170,37 @@ namespace graphene { namespace chain {
       void            validate()const;
    };
 
+   struct tournament_payout_operation : public base_operation
+   {
+      struct fee_parameters_type {};
+
+      asset fee;
+
+      /// The account received payout
+      account_id_type payout_account_id;
+
+      /// The tournament generated payout
+      tournament_id_type tournament_id;
+
+      /// The payout amount
+      asset payout_amount;
+
+      payout_type type;
+
+      extensions_type extensions;
+
+      account_id_type fee_payer()const { return payout_account_id; }
+      share_type calculate_fee(const fee_parameters_type&)const { return 0; }
+      void            validate()const {}
+   };
+
 } }
+
+FC_REFLECT_ENUM(graphene::chain::payout_type,
+                (prize_award)
+                (buyin_refund)
+                (rake_fee)
+                )
 
 FC_REFLECT_TYPENAME( graphene::chain::game_specific_options )
 FC_REFLECT_TYPENAME( graphene::chain::game_specific_moves )
@@ -196,7 +233,16 @@ FC_REFLECT( graphene::chain::game_move_operation,
             (player_account_id)
             (move)
             (extensions))
+FC_REFLECT( graphene::chain::tournament_payout_operation,
+            (fee)
+            (payout_account_id)
+            (tournament_id)
+            (payout_amount)
+            (type)
+            (extensions))
+
 FC_REFLECT( graphene::chain::tournament_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::tournament_join_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::game_move_operation::fee_parameters_type, (fee) )
+FC_REFLECT( graphene::chain::tournament_payout_operation::fee_parameters_type,  )
 

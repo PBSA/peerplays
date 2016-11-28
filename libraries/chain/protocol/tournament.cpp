@@ -61,5 +61,4 @@ void  game_move_operation::validate()const
 {
 }
 
-
 } } // namespace graphene::chain

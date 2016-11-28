@@ -134,6 +134,7 @@ public:
    std::string operator()(const account_update_operation& op)const;
    std::string operator()(const asset_create_operation& op)const;
    std::string operator()(const asset_dividend_distribution_operation& op)const;
+   std::string operator()(const tournament_payout_operation& op)const;
 };
 
 template<class T>
@@ -3203,6 +3204,18 @@ std::string operation_printer::operator()(const asset_dividend_distribution_oper
    }
    out << boost::algorithm::join(pretty_payout_amounts, ", ");
    return "";
+}
+
+std::string operation_printer::operator()(const tournament_payout_operation& op)const
+{
+    asset_object payout_asset = wallet.get_asset(op.payout_amount.asset_id);
+
+    out << "Tournament #" << std::string(object_id_type(op.tournament_id)) << " Payout : "
+        << "Account '" << wallet.get_account(op.payout_account_id).name
+        << "', Amount " <<  payout_asset.amount_to_pretty_string(op.payout_amount) << ", Type "
+        << (op.type == payout_type::buyin_refund ? "buyin refund" : (op.type == payout_type::rake_fee ? "rake fee" : "prize award"))
+        << ".";
+    return "";
 }
 
 std::string operation_result_printer::operator()(const void_result& x) const

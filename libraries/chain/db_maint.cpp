@@ -47,8 +47,6 @@
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/worker_object.hpp>
 
-#define USE_VESTING_OBJECT_BY_ASSET_BALANCE_INDEX // vesting_balance_object by_asset_balance index needed
-
 namespace graphene { namespace chain {
 
 template<class Index>
@@ -756,7 +754,6 @@ void schedule_pending_dividend_balances(database& db,
    uint64_t total_fee_per_asset_in_core = distribution_base_fee + holder_account_count * (uint64_t)distribution_fee_per_holder;
 
    std::map<account_id_type, share_type> vesting_amounts;
-#ifdef USE_VESTING_OBJECT_BY_ASSET_BALANCE_INDEX
    // get only once a collection of accounts that hold nonzero vesting balances of the dividend asset
    auto vesting_balances_begin =
       vesting_index.indices().get<by_asset_balance>().lower_bound(boost::make_tuple(dividend_holder_asset_obj.id));
@@ -769,20 +766,6 @@ void schedule_pending_dividend_balances(database& db,
              ("owner", vesting_balance_obj.owner(db).name)
              ("amount", vesting_balance_obj.balance.amount));
    }
-#else
-   // get only once a collection of accounts that hold nonzero vesting balances of the dividend asset
-   const auto& vesting_balances = vesting_index.indices().get<by_id>();
-   for (const vesting_balance_object& vesting_balance_obj : vesting_balances)
-   {
-        if (vesting_balance_obj.balance.asset_id == dividend_holder_asset_obj.id && vesting_balance_obj.balance.amount)
-        {
-            vesting_amounts[vesting_balance_obj.owner] += vesting_balance_obj.balance.amount;
-            dlog("Vesting balance for account: ${owner}, amount: ${amount}",
-                 ("owner", vesting_balance_obj.owner(db).name)
-                 ("amount", vesting_balance_obj.balance.amount));
-        }
-   }
-#endif
 
    auto current_distribution_account_balance_iter = current_distribution_account_balance_range.first;
    auto previous_distribution_account_balance_iter = previous_distribution_account_balance_range.first;
@@ -801,18 +784,6 @@ void schedule_pending_dividend_balances(database& db,
          auto itr = vesting_amounts.find(holder_balance_object.owner);
          if (itr != vesting_amounts.end())
              total_balance_of_dividend_asset += itr->second;
-//         // working, but potential performance gap?
-//         auto vesting_range = vesting_index.indices().get<by_account>().equal_range(holder_balance_object.owner);
-//         for (const vesting_balance_object& vesting_balance : boost::make_iterator_range(vesting_range.first, vesting_range.second)
-//         {
-//              if (vesting_balance.balance.asset_id == dividend_holder_asset_obj.id)
-//              {
-//                  total_balance_of_dividend_asset += vesting_balance.balance.amount;
-//                  dlog("Vesting balances for account: ${owner}, amount: ${amount}",
-//                       ("owner", vesting_balance.owner(db).name)
-//                       ("amount", vesting_balance.balance.amount));
-//              }
-//         }
       }
    // loop through all of the assets currently or previously held in the distribution account
    while (current_distribution_account_balance_iter != current_distribution_account_balance_range.second ||
@@ -940,7 +911,6 @@ void schedule_pending_dividend_balances(database& db,
                // credit each account with their portion, don't send any back to the dividend distribution account
                for (const account_balance_object& holder_balance_object : boost::make_iterator_range(holder_balances_begin, holder_balances_end))
                {
-                  //if (holder_balance_object.owner != dividend_data.dividend_distribution_account && holder_balance_object.balance.value)
                   if (holder_balance_object.owner == dividend_data.dividend_distribution_account) continue;
 
                   auto holder_balance = holder_balance_object.balance;
@@ -948,25 +918,14 @@ void schedule_pending_dividend_balances(database& db,
                   auto itr = vesting_amounts.find(holder_balance_object.owner);
                   if (itr != vesting_amounts.end())
                       holder_balance += itr->second;
-//                  // working, but potential performance gap?
-//                  auto vesting_range = vesting_index.indices().get<by_account>().equal_range(holder_balance_object.owner);
-//                  for (const vesting_balance_object& vesting_balance : boost::make_iterator_range(vesting_range.first, vesting_range.second))
-//                  {
-//                        if (vesting_balance.balance.asset_id == dividend_holder_asset_obj.id)
-//                        {
-//                             holder_balance += vesting_balance.balance.amount;
-//                             dlog("Vesting balances for account: ${owner}, amount: ${amount}",
-//                                  ("owner", vesting_balance.owner(db).name)
-//                                  ("amount", vesting_balance.balance.amount));
-//                        }
-//                  }
-                  if (holder_balance.value)
+
+                  fc::uint128_t amount_to_credit(delta_balance.value);
+                  amount_to_credit *= holder_balance.value;
+                  amount_to_credit /= total_balance_of_dividend_asset.value;
+                  share_type shares_to_credit((int64_t)amount_to_credit.to_uint64());
+                  if (shares_to_credit.value)
                   {
-                      fc::uint128_t amount_to_credit(delta_balance.value);
-                     amount_to_credit *= holder_balance.value;
-                     amount_to_credit /= total_balance_of_dividend_asset.value;
                      wdump((delta_balance.value)(holder_balance)(total_balance_of_dividend_asset));
-                     share_type shares_to_credit((int64_t)amount_to_credit.to_uint64());
 
                      remaining_amount_to_distribute -= shares_to_credit;
 
@@ -990,9 +949,10 @@ void schedule_pending_dividend_balances(database& db,
                }
 
                for (const auto& pending_payout : pending_payout_balance_index.indices())
-                  dlog("Pending payout: ${account_name}   ->   ${amount}", 
-                       ("account_name", pending_payout.owner(db).name)
-                       ("amount", asset(pending_payout.pending_balance, pending_payout.dividend_payout_asset_type)));
+                  if (pending_payout.pending_balance.value)
+                      dlog("Pending payout: ${account_name}   ->   ${amount}",
+                           ("account_name", pending_payout.owner(db).name)
+                           ("amount", asset(pending_payout.pending_balance, pending_payout.dividend_payout_asset_type)));
                dlog("Remaining balance not paid out: ${amount}", 
                     ("amount", asset(remaining_amount_to_distribute, payout_asset_type)));
 
@@ -1144,7 +1104,7 @@ void process_dividend_assets(database& db)
             {
                const pending_dividend_payout_balance_for_holder_object& pending_balance_object = *pending_balance_object_iter;
 
-               if (last_holder_account_id && *last_holder_account_id != pending_balance_object.owner)
+               if (last_holder_account_id && *last_holder_account_id != pending_balance_object.owner && payouts_for_this_holder.size())
                {
                   // we've moved on to a new account, generate the dividend payment virtual op for the previous one
                   db.push_applied_operation(asset_dividend_distribution_operation(dividend_holder_asset_obj.id, 
@@ -1156,14 +1116,15 @@ void process_dividend_assets(database& db)
                }
 
 
-               if (is_authorized_asset(db, pending_balance_object.owner(db), pending_balance_object.dividend_payout_asset_type(db)) &&
+               if (pending_balance_object.pending_balance.value &&
+                   is_authorized_asset(db, pending_balance_object.owner(db), pending_balance_object.dividend_payout_asset_type(db)) &&
                    is_asset_approved_for_distribution_account(pending_balance_object.dividend_payout_asset_type))
                {
                   dlog("Processing payout of ${asset} to account ${account}", 
                        ("asset", asset(pending_balance_object.pending_balance, pending_balance_object.dividend_payout_asset_type))
                        ("account", pending_balance_object.owner(db).name));
 
-                  db.adjust_balance(pending_balance_object.owner, 
+                  db.adjust_balance(pending_balance_object.owner,
                                     asset(pending_balance_object.pending_balance, 
                                           pending_balance_object.dividend_payout_asset_type));
                   payouts_for_this_holder.insert(asset(pending_balance_object.pending_balance, 
@@ -1179,7 +1140,7 @@ void process_dividend_assets(database& db)
                ++pending_balance_object_iter;
             }
             // we will always be left with the last holder's data, generate the virtual op for it now.
-            if (last_holder_account_id)
+            if (last_holder_account_id && payouts_for_this_holder.size())
             {
                // we've moved on to a new account, generate the dividend payment virtual op for the previous one
                db.push_applied_operation(asset_dividend_distribution_operation(dividend_holder_asset_obj.id, 
@@ -1259,7 +1220,6 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
          d._total_voting_stake = 0;
 
          const vesting_balance_index& vesting_index = d.get_index_type<vesting_balance_index>();
-#ifdef USE_VESTING_OBJECT_BY_ASSET_BALANCE_INDEX
          auto vesting_balances_begin =
               vesting_index.indices().get<by_asset_balance>().lower_bound(boost::make_tuple(asset_id_type()));
          auto vesting_balances_end =
@@ -1271,19 +1231,6 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
                  ("owner", vesting_balance_obj.owner(d).name)
                  ("amount", vesting_balance_obj.balance.amount));
          }
-#else
-         const auto& vesting_balances = vesting_index.indices().get<by_id>();
-         for (const vesting_balance_object& vesting_balance_obj : vesting_balances)
-         {
-            if (vesting_balance_obj.balance.asset_id == asset_id_type() && vesting_balance_obj.balance.amount)
-            {
-                vesting_amounts[vesting_balance_obj.owner] += vesting_balance_obj.balance.amount;
-                dlog("Vesting balance for account: ${owner}, amount: ${amount}",
-                     ("owner", vesting_balance_obj.owner(d).name)
-                     ("amount", vesting_balance_obj.balance.amount));
-            }
-         }
-#endif
       }
 
       void operator()(const account_object& stake_account) {
@@ -1305,18 +1252,7 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
             auto itr = vesting_amounts.find(stake_account.id);
             if (itr != vesting_amounts.end())
                 voting_stake += itr->second.value;
-//                  // working, but potential performance gap?
-//            auto vesting_range = d.get_index_type<vesting_balance_index>().indices().get<by_account>().equal_range(stake_account.id);
-//            for (const vesting_balance_object& vesting_balance : boost::make_iterator_range(vesting_range.first, vesting_range.second))
-//            {
-//                   if (vesting_balance.balance.asset_id == asset_id_type())
-//                   {
-//                       voting_stake += vesting_balance.balance.amount.value;
-//                       dlog("Vote_tally_helper vesting balances for account: ${owner}, amount: ${amount}",
-//                            ("owner", vesting_balance.owner(d).name)
-//                            ("amount", vesting_balance.balance.amount));
-//                   }
-//            }
+
             for( vote_id_type id : opinion_account.options.votes )
             {
                uint32_t offset = id.instance();

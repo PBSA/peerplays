@@ -470,7 +470,8 @@ namespace graphene { namespace chain {
    {
       // we now know who played what, figure out if we have a winner
       const rock_paper_scissors_game_details& rps_game_details = game_details.get<rock_paper_scissors_game_details>();
-      if (rps_game_details.reveal_moves[0]->gesture == rps_game_details.reveal_moves[1]->gesture)
+      if (rps_game_details.reveal_moves[0] && rps_game_details.reveal_moves[1] &&
+          rps_game_details.reveal_moves[0]->gesture == rps_game_details.reveal_moves[1]->gesture)
          ilog("The game was a tie, both players threw ${gesture}", ("gesture", rps_game_details.reveal_moves[0]->gesture));
       else 
       {

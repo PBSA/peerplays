@@ -180,11 +180,11 @@ namespace graphene { namespace chain {
                   tournament_details_obj.matches = matches;
                });
 
-               // OLEK
+               // find "bye" matches, complete missing player in the next match
                for (unsigned i = 0; i < num_matches_in_first_round; ++i)
                {
                   const match_object& match = matches[i](event.db);
-                  if (match.players.size() == 1) // is bye
+                  if (match.players.size() == 1) // is "bye"
                   {
                       unsigned tournament_num_matches = tournament_details_obj.matches.size();
                       unsigned next_round_match_index = (i + tournament_num_matches + 1) / 2;
@@ -192,21 +192,19 @@ namespace graphene { namespace chain {
                       const match_object& next_round_match = tournament_details_obj.matches[next_round_match_index](event.db);
                       event.db.modify(next_round_match, [&](match_object& next_match) {
                          next_match.players.emplace_back(match.players[0]);
-                         if (next_match.players.size() > 1) // bye + bye
+                         if (next_match.players.size() > 1) // both previous matches were "bye"
                             next_match.on_initiate_match(event.db);
 
                      });
                    }
                }
 
-               // OLEK
+#ifdef HELPFULL_DUMP_WHEN_SOLVING_BYE_MATCH_PROBLEM
+               wlog("###");
                wdump((tournament_details_obj.matches[tournament_details_obj.matches.size() - 1]));
-
                for( match_id_type mid : tournament_details_obj.matches )
-               {
                    wdump((mid(event.db)));
-               }
-
+#endif
 
             }
             void on_entry(const match_completed& event, tournament_state_machine_& fsm)
@@ -243,13 +241,13 @@ namespace graphene { namespace chain {
 
                event.db.modify(next_round_match, [&](match_object& next_match_obj) {
 
-                   // OLEK
+#ifdef HELPFULL_DUMP_WHEN_SOLVING_BYE_MATCH_PROBLEM
                    wdump((event.match.get_state()));
                    wdump((event.match));
                    wdump((other_match.get_state()));
                    wdump((other_match));
-
-                   if (!event.match.match_winners.empty()) // if there is a winner
+#endif
+                  if (!event.match.match_winners.empty()) // if there is a winner
                   {
                      if (winner_index_in_next_match == 0)
                         next_match_obj.players.insert(next_match_obj.players.begin(), *event.match.match_winners.begin());
@@ -257,22 +255,12 @@ namespace graphene { namespace chain {
                         next_match_obj.players.push_back(*event.match.match_winners.begin());
                   }
 
-                  //if (other_match.get_state() == match_state::match_complete)
-                  // OLEK
-                  if (!other_match.match_winners.empty())
+                  if (other_match.get_state() == match_state::match_complete)
                   {
-//                      // if other match was buy
-//                      if (other_match.games.size() == 0 /*&& next_match_obj.players.size() < 2*/)
-//                      {
-//                            if (winner_index_in_next_match != 0)
-//                               next_match_obj.players.insert(next_match_obj.players.begin(), *other_match.match_winners.begin());
-//                            else
-//                               next_match_obj.players.push_back(*other_match.match_winners.begin());
-//                     }
-                     // OLEK
+#ifdef HELPFULL_DUMP_WHEN_SOLVING_BYE_MATCH_PROBLEM
                      wdump((next_match_obj.get_state()));
                      wdump((next_match_obj));
-
+#endif
                      next_match_obj.on_initiate_match(event.db);
                   }
 
@@ -296,7 +284,16 @@ namespace graphene { namespace chain {
                   // for a period of time, not as a transfer back to the user; it doesn't matter
                   // if they are currently authorized to transfer this asset, they never really 
                   // transferred it in the first place
-                  event.db.adjust_balance(payer_pair.first, asset(payer_pair.second, fsm.tournament_obj->options.buy_in.asset_id));
+                  asset amount(payer_pair.second, fsm.tournament_obj->options.buy_in.asset_id);
+                  event.db.adjust_balance(payer_pair.first, amount);
+
+                  // Generating a virtual operation that shows the payment
+                  tournament_payout_operation op;
+                  op.tournament_id = fsm.tournament_obj->id;
+                  op.payout_amount = amount;
+                  op.payout_account_id = payer_pair.first;
+                  op.type = payout_type::buyin_refund;
+                  event.db.push_applied_operation(op);
                }
             }
          };
@@ -305,29 +302,65 @@ namespace graphene { namespace chain {
          {
             void on_entry(const match_completed& event, tournament_state_machine_& fsm)
             {
+               tournament_object& tournament_obj = *fsm.tournament_obj;
                fc_ilog(fc::logger::get("tournament"),
                        "Tournament ${id} is complete",
-                       ("id", fsm.tournament_obj->id));
+                       ("id", tournament_obj.id));
+               tournament_obj.end_time = event.db.head_block_time();
 
                // Distribute prize money when a tournament ends
 #ifndef NDEBUG
-               const tournament_details_object& details = fsm.tournament_obj->tournament_details_id(event.db);
+               const tournament_details_object& details = tournament_obj.tournament_details_id(event.db);
                share_type total_prize = 0;
                for (const auto& payer_pair : details.payers)
                {
                     total_prize += payer_pair.second;
                }
-               assert(total_prize == fsm.tournament_obj->prize_pool);
+               assert(total_prize == tournament_obj.prize_pool);
 #endif
                assert(event.match.match_winners.size() ==  1);
                const account_id_type& winner = *event.match.match_winners.begin();
                uint16_t rake_fee_percentage = event.db.get_global_properties().parameters.rake_fee_percentage;
-               share_type rake_amount = (fc::uint128_t(fsm.tournament_obj->prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
-               event.db.adjust_balance(account_id_type(TOURNAMENT_RAKE_FEE_ACCOUNT_ID),
-                                       asset(rake_amount, fsm.tournament_obj->options.buy_in.asset_id));
-               event.db.adjust_balance(winner, asset(fsm.tournament_obj->prize_pool - rake_amount,
-                                                             fsm.tournament_obj->options.buy_in.asset_id));
-               fsm.tournament_obj->end_time = event.db.head_block_time();
+               share_type rake_amount = 0;
+
+               const asset_object & asset_obj = tournament_obj.options.buy_in.asset_id(event.db);
+               optional<asset_dividend_data_id_type> dividend_id = asset_obj.dividend_data_id;
+
+               if (dividend_id.valid())
+               {
+                    rake_amount = (fc::uint128_t(tournament_obj.prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
+               }
+               asset won_prize(tournament_obj.prize_pool - rake_amount, tournament_obj.options.buy_in.asset_id);
+               tournament_payout_operation op;
+
+               if (won_prize.amount.value)
+               {
+                   // Adjusting balance of winner
+                   event.db.adjust_balance(winner, won_prize);
+
+                   // Generating a virtual operation that shows the payment
+                   op.tournament_id = tournament_obj.id;
+                   op.payout_amount = won_prize;
+                   op.payout_account_id = winner;
+                   op.type = payout_type::prize_award;
+                   event.db.push_applied_operation(op);
+               }
+
+               if (dividend_id.valid() && rake_amount.value)
+               {
+                   // Adjusting balance of dividend_distribution_account
+                   const asset_dividend_data_id_type& asset_dividend_data_id_= *dividend_id;
+                   const asset_dividend_data_object& dividend_obj = asset_dividend_data_id_(event.db);
+                   const account_id_type& rake_account_id = dividend_obj.dividend_distribution_account;
+                   asset rake(rake_amount, tournament_obj.options.buy_in.asset_id);
+                   event.db.adjust_balance(rake_account_id, rake);
+
+                   // Generating a virtual operation that shows the payment
+                   op.payout_amount = rake;
+                   op.payout_account_id = rake_account_id;
+                   op.type = payout_type::rake_fee;
+                   event.db.push_applied_operation(op);
+               }
             }
          };
 
@@ -350,45 +383,16 @@ namespace graphene { namespace chain {
             fc_ilog(fc::logger::get("tournament"),
                     "In was_final_match guard, returning ${value}",
                     ("value", event.match.id == tournament_details_obj.matches[tournament_details_obj.matches.size()]));
-
-            // OLEK
+#ifdef HELPFULL_DUMP_WHEN_SOLVING_BYE_MATCH_PROBLEM
+            wlog("###");
             wdump((event.match.id));
             wdump((tournament_details_obj.matches[tournament_details_obj.matches.size() - 1]));
-
             for( match_id_type mid : tournament_details_obj.matches )
-            {
                 wdump((mid(event.db)));
-            }
-
-            return event.match.id == tournament_details_obj.matches[tournament_details_obj.matches.size() - 1];
-         }
-
-#if 0
-         // OLEK
-         bool was_buy_match(const match_completed& event)
-         {
-            const tournament_details_object& tournament_details_obj = tournament_obj->tournament_details_id(event.db);
-            fc_ilog(fc::logger::get("tournament"),
-                    "In was_buy_match guard, returning ${value}",
-                    ("value", event.match.id == tournament_details_obj.matches[tournament_details_obj.matches.size()]));
-
-            // OLEK
-            wdump((event.match.id));
-            wdump((event.match));
-
-            /*
-            wdump((tournament_details_obj.matches[tournament_details_obj.matches.size() - 1]));
-
-            for( match_id_type mid : tournament_details_obj.matches )
-            {
-                wdump((mid(event.db)));
-            }
-
-            return event.match.id == tournament_details_obj.matches[tournament_details_obj.matches.size() - 1];
-            */
-            return true;
-         }
 #endif
+            return event.match.id == tournament_details_obj.matches[tournament_details_obj.matches.size() - 1];
+         }
+
          void register_player(const player_registered& event)
          {
             fc_ilog(fc::logger::get("tournament"),
@@ -416,7 +420,6 @@ namespace graphene { namespace chain {
          _row  < awaiting_start,          start_time_arrived,           in_progress >,
          //  +---------------------------+-----------------------------+----------------------------+---------------------+----------------------+
          _row  < in_progress,             match_completed,              in_progress >,
-         //g_row  < in_progress,            match_completed,              in_progress,                                       &x::was_buy_match >,
          g_row < in_progress,             match_completed,              concluded,                                         &x::was_final_match >
          //  +---------------------------+-----------------------------+----------------------------+---------------------+----------------------+
          > {};

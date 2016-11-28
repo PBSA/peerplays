@@ -72,6 +72,7 @@ database_fixture::database_fixture()
       if( arg == "--show-test-names" )
          std::cout << "running test " << boost::unit_test::framework::current_test_case().p_name << std::endl;
    }
+
    auto ahplugin = app.register_plugin<graphene::account_history::account_history_plugin>();
    auto mhplugin = app.register_plugin<graphene::market_history::market_history_plugin>();
    init_account_pub_key = init_account_priv_key.get_public_key();
@@ -163,7 +164,7 @@ void database_fixture::verify_asset_supplies( const database& db )
    share_type reported_core_in_orders;
 
    for( const tournament_object& t : tournaments_index )
-      if (t.get_state() != tournament_state::concluded)
+      if (t.get_state() != tournament_state::concluded && t.get_state() != tournament_state::registration_period_expired)
         total_balances[t.options.buy_in.asset_id] += t.prize_pool;
 
    for( const account_balance_object& b : balance_index )
