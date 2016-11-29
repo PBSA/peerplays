@@ -234,7 +234,7 @@ namespace graphene { namespace chain {
 
                event.db.modify(next_round_match, [&](match_object& next_match_obj) {
 
-                  if (!event.match.match_winners.empty()) // if there is a winner
+              if (!event.match.match_winners.empty()) // if there is a winner
                   {
                      if (winner_index_in_next_match == 0)
                         next_match_obj.players.insert(next_match_obj.players.begin(), *event.match.match_winners.begin());
@@ -359,14 +359,16 @@ namespace graphene { namespace chain {
                     ("value", tournament_obj->registered_players == tournament_obj->options.number_of_players - 1));
             return tournament_obj->registered_players == tournament_obj->options.number_of_players - 1;
          }
-         
+
          bool was_final_match(const match_completed& event)
          {
             const tournament_details_object& tournament_details_obj = tournament_obj->tournament_details_id(event.db);
+            auto final_match_id = tournament_details_obj.matches[tournament_details_obj.matches.size() - 1];
+            bool was_final = event.match.id == final_match_id;
             fc_ilog(fc::logger::get("tournament"),
                     "In was_final_match guard, returning ${value}",
-                    ("value", event.match.id == tournament_details_obj.matches[tournament_details_obj.matches.size()]));
-            return event.match.id == tournament_details_obj.matches[tournament_details_obj.matches.size() - 1];
+                    ("value", was_final));
+            return was_final;
          }
 
          void register_player(const player_registered& event)
