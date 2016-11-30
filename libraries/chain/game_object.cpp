@@ -451,17 +451,7 @@ namespace graphene { namespace chain {
          const match_object& match_obj = match_id(db);
          const tournament_object& tournament_obj = match_obj.tournament_id(db);
          const rock_paper_scissors_game_options& game_options = tournament_obj.options.game_options.get<rock_paper_scissors_game_options>();
-         if (!game_options.insurance_enabled) // no automatic moves
-         {
-             struct rock_paper_scissors_throw_reveal reveal;
-             reveal.nonce2 = 0;
-             reveal.gesture = (rock_paper_scissors_gesture)db.get_random_bits(game_options.number_of_gestures);
-             rps_game_details.reveal_moves[0] =
-             rps_game_details.reveal_moves[1] = reveal;
-             ilog("Both players failed to commit a move, generating a random move for them: ${gesture}",
-                  ("gesture", reveal.gesture));
-         }
-         else
+         if (game_options.insurance_enabled)
          {
              for (unsigned i = 0; i < 2; ++i)
              {
