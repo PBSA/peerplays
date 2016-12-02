@@ -124,8 +124,7 @@ namespace graphene { namespace chain {
                }
                else
                {
-                  unsigned i = event.db.get_random_bits(match.players.size()-1);
-                  match.match_winners.insert(match.players[i]);
+                  match.match_winners.insert(match.players[event.db.get_random_bits(match.players.size())]);
                }
 
 
@@ -161,6 +160,7 @@ namespace graphene { namespace chain {
 
             if (match_obj->games.size() >= tournament_obj.options.number_of_wins * 4)
             {
+                wdump((match_obj->games.size()));
                 return true;
             }
 

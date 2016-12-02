@@ -147,9 +147,9 @@ namespace graphene { namespace chain {
          {
             void clear_next_timeout(database& db, game_object& game)
             {
-               const match_object& match_obj = game.match_id(db);
-               const tournament_object& tournament_obj = match_obj.tournament_id(db);
-               const rock_paper_scissors_game_options& game_options = tournament_obj.options.game_options.get<rock_paper_scissors_game_options>();
+               //const match_object& match_obj = game.match_id(db);
+               //const tournament_object& tournament_obj = match_obj.tournament_id(db);
+               //const rock_paper_scissors_game_options& game_options = tournament_obj.options.game_options.get<rock_paper_scissors_game_options>();
                game.next_timeout = fc::optional<fc::time_point_sec>();
             }
             void on_entry(const timeout& event, game_state_machine_& fsm)
@@ -451,17 +451,8 @@ namespace graphene { namespace chain {
          const match_object& match_obj = match_id(db);
          const tournament_object& tournament_obj = match_obj.tournament_id(db);
          const rock_paper_scissors_game_options& game_options = tournament_obj.options.game_options.get<rock_paper_scissors_game_options>();
-         if (!game_options.insurance_enabled) // no automatic moves
-         {
-             struct rock_paper_scissors_throw_reveal reveal;
-             reveal.nonce2 = 0;
-             reveal.gesture = (rock_paper_scissors_gesture)db.get_random_bits(game_options.number_of_gestures);
-             rps_game_details.reveal_moves[0] =
-             rps_game_details.reveal_moves[1] = reveal;
-             ilog("Both players failed to commit a move, generating a random move for them: ${gesture}",
-                  ("gesture", reveal.gesture));
-         }
-         else
+
+         if (game_options.insurance_enabled)
          {
              for (unsigned i = 0; i < 2; ++i)
              {
@@ -514,9 +505,8 @@ namespace graphene { namespace chain {
             ilog("Player 0 didn't commit or reveal their move, player 1 wins");
             winners.insert(players[1]);
          }
-         else // if (rps_game_details.reveal_moves[1])
+         else
          {
-            // should never reach this point ?
             ilog("Neither player made a move, both players lose");
          }
       }
