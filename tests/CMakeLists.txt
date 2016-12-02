@@ -17,10 +17,6 @@ file(GLOB PERFORMANCE_TESTS "performance/*.cpp")
 add_executable( performance_test ${PERFORMANCE_TESTS} ${COMMON_SOURCES} )
 target_link_libraries( performance_test graphene_chain graphene_app graphene_account_history graphene_egenesis_none fc ${PLATFORM_SPECIFIC_LIBS} )
 
-file(GLOB TOURNAMENT_TESTS "tournament/*.cpp")
-add_executable( tournament_test ${TOURNAMENT_TESTS} ${COMMON_SOURCES} )
-target_link_libraries( tournament_test graphene_chain graphene_app graphene_account_history graphene_egenesis_none fc ${PLATFORM_SPECIFIC_LIBS} )
-
 file(GLOB BENCH_MARKS "benchmarks/*.cpp")
 add_executable( chain_bench ${BENCH_MARKS} ${COMMON_SOURCES} )
 target_link_libraries( chain_bench graphene_chain graphene_app graphene_account_history graphene_time graphene_egenesis_none fc ${PLATFORM_SPECIFIC_LIBS} )
@@ -32,5 +28,13 @@ target_link_libraries( app_test graphene_app graphene_account_history graphene_n
 file(GLOB INTENSE_SOURCES "intense/*.cpp")
 add_executable( intense_test ${INTENSE_SOURCES} ${COMMON_SOURCES} )
 target_link_libraries( intense_test graphene_chain graphene_app graphene_account_history graphene_egenesis_none fc ${PLATFORM_SPECIFIC_LIBS} )
+
+file(GLOB TOURNAMENT_TESTS "tournament/*.cpp")
+add_executable( tournament_test ${TOURNAMENT_TESTS} ${COMMON_SOURCES} )
+target_link_libraries( tournament_test graphene_chain graphene_app graphene_account_history graphene_egenesis_none fc ${PLATFORM_SPECIFIC_LIBS} )
+
+file(GLOB RANDOM_SOURCES "random/*.cpp")
+add_executable( random_test ${RANDOM_SOURCES} ${COMMON_SOURCES} )
+target_link_libraries( random_test graphene_chain graphene_app graphene_egenesis_none fc ${PLATFORM_SPECIFIC_LIBS} )
 
 add_subdirectory( generate_empty_blocks )
