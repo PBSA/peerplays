@@ -25,7 +25,6 @@
 #include <fc/crypto/openssl.hpp>
 #include <openssl/rand.h>
 
-
 #include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/match_object.hpp>
 #include <graphene/chain/game_object.hpp>
@@ -289,13 +288,17 @@ public:
        tx.validate();
        tx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
        df.sign(tx, sig_priv_key);
-       PUSH_TX(db, tx);
+       if (game_obj.get_state() == game_state::expecting_commit_moves) // checking again
+          PUSH_TX(db, tx);
     }
 
     // spaghetti programming
     // walking through all tournaments, matches and games and throwing random moves
-    void play_games()
+    // optionaly skip generting randomly selected moves
+    void play_games(unsigned skip_some_commits = 0, unsigned skip_some_reveals = 0)
     {
+      //try
+      //{
         graphene::chain::database& db = df.db;
         const chain_parameters& params = db.get_global_properties().parameters;
 
@@ -310,20 +313,25 @@ public:
                 for(const auto& game_id: match.games )
                 {
                     const game_object& game = game_id(db);
+                    const rock_paper_scissors_game_details& rps_details = game.game_details.get<rock_paper_scissors_game_details>();
                     if (game.get_state() == game_state::expecting_commit_moves)
                     {
                         for(const auto& player_id: game.players)
                         {
-                            if (players_keys.find(player_id) != players_keys.end())
+                            if ( players_keys.find(player_id) != players_keys.end())
                             {
-                                rps_throw(game_id, player_id, (rock_paper_scissors_gesture) (std::rand() % game_options.number_of_gestures), players_keys[player_id]);
+                                if (!skip_some_commits || player_id.instance.value % skip_some_commits != game_id.instance.value % skip_some_commits)
+                                {
+                                    auto iter = std::find(game.players.begin(), game.players.end(), player_id);
+                                    unsigned player_index = std::distance(game.players.begin(), iter);
+                                    if (!rps_details.commit_moves.at(player_index))
+                                        rps_throw(game_id, player_id, (rock_paper_scissors_gesture) (std::rand() % game_options.number_of_gestures), players_keys[player_id]);
+                                }
                             }
                         }
                     }
                     else if (game.get_state() == game_state::expecting_reveal_moves)
                     {
-                        const rock_paper_scissors_game_details& rps_details = game.game_details.get<rock_paper_scissors_game_details>();
-
                         for (unsigned i = 0; i < 2; ++i)
                         {
                            if (rps_details.commit_moves.at(i) &&
@@ -333,27 +341,32 @@ public:
                               if (players_keys.find(player_id) != players_keys.end())
                               {
                                  {
+
                                     auto iter = committed_game_moves.find(*rps_details.commit_moves.at(i));
                                     if (iter != committed_game_moves.end())
                                     {
-                                       const rock_paper_scissors_throw_reveal& reveal = iter->second;
-
-                                       game_move_operation move_operation;
-                                       move_operation.game_id = game.id;
-                                       move_operation.player_account_id = player_id;
-                                       move_operation.move = reveal;
-
-                                       signed_transaction tx;
-                                       tx.operations = {move_operation};
-                                       for( auto& op : tx.operations )
+                                       if (!skip_some_reveals || player_id.instance.value % skip_some_reveals != game_id.instance.value % skip_some_reveals)
                                        {
-                                           asset f = db.current_fee_schedule().set_fee(op);
-                                           players_fees[player_id][f.asset_id] -= f.amount;
+                                           const rock_paper_scissors_throw_reveal& reveal = iter->second;
+
+                                           game_move_operation move_operation;
+                                           move_operation.game_id = game.id;
+                                           move_operation.player_account_id = player_id;
+                                           move_operation.move = reveal;
+
+                                           signed_transaction tx;
+                                           tx.operations = {move_operation};
+                                           for( auto& op : tx.operations )
+                                           {
+                                               asset f = db.current_fee_schedule().set_fee(op);
+                                               players_fees[player_id][f.asset_id] -= f.amount;
+                                           }
+                                           tx.validate();
+                                           tx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
+                                           df.sign(tx, players_keys[player_id]);
+                                           if (game.get_state() == game_state::expecting_reveal_moves) // check again
+                                               PUSH_TX(db, tx);
                                        }
-                                       tx.validate();
-                                       tx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
-                                       df.sign(tx, players_keys[player_id]);
-                                       PUSH_TX(db, tx);
                                     }
                                  }
                               }
@@ -363,6 +376,12 @@ public:
                 }
             }
         }
+      //}
+      //catch (fc::exception& e)
+      //{
+      //    edump((e.to_detail_string()));
+      //    throw;
+      //}
     }
 
 private:
@@ -447,7 +466,7 @@ BOOST_FIXTURE_TEST_CASE( simple, database_fixture )
             asset buy_in = asset(12000);
             tournament_id_type tournament_id;
 
-            BOOST_TEST_MESSAGE( "Preparing a tournament" );
+            BOOST_TEST_MESSAGE( "Preparing a tournament, insurance disabled" );
             tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, TEST1_NR_OF_PLAYERS_NUMBER);
             BOOST_REQUIRE(tournament_id == tournament_id_type());
 
@@ -458,9 +477,10 @@ BOOST_FIXTURE_TEST_CASE( simple, database_fixture )
 #endif
             ++tournaments_to_complete;
 
-            BOOST_TEST_MESSAGE( "Preparing another one" );
+            BOOST_TEST_MESSAGE( "Preparing another one, insurance enabled" );
             buy_in = asset(13000);
-            tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, TEST2_NR_OF_PLAYERS_NUMBER);
+            tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, TEST2_NR_OF_PLAYERS_NUMBER,
+                                                                 3, 1, 3, 3600, 3, 3, true);
             BOOST_REQUIRE(tournament_id == tournament_id_type(1));
             tournament_helper.join_tournament(tournament_id, alice_id, alice_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("alice"))), buy_in);
             tournament_helper.join_tournament(tournament_id, bob_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in);
@@ -745,7 +765,7 @@ BOOST_FIXTURE_TEST_CASE( assets, database_fixture )
         while(tournaments_to_complete > 0)
         {
             generate_block();
-            tournament_helper.play_games();
+            tournament_helper.play_games(3, 4);
             for(const auto& tournament_id: tournaments)
             {
                 const tournament_object& tournament = tournament_id(db);
