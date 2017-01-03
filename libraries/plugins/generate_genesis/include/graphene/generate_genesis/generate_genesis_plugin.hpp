@@ -52,7 +52,7 @@ private:
 
    boost::program_options::variables_map _options;
 
-   uint32_t _block_to_snapshot;
+   fc::optional<uint32_t> _block_to_snapshot;
    std::string _genesis_filename;
    std::string _csvlog_filename;
 };
