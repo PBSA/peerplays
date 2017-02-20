@@ -1502,6 +1502,15 @@ class wallet_api
        */
       vector<tournament_object> get_upcoming_tournaments(uint32_t limit);
 
+      vector<tournament_object> get_tournaments(tournament_id_type stop,
+                                                unsigned limit,
+                                                tournament_id_type start);
+
+      vector<tournament_object> get_tournaments_by_state(tournament_id_type stop,
+                                                         unsigned limit,
+                                                         tournament_id_type start,
+                                                         tournament_state state);
+
       /** Get specific information about a tournament
        * @param tournament_id the ID of the tournament 
        */
@@ -1723,6 +1732,8 @@ FC_API( graphene::wallet::wallet_api,
         (tournament_join)
         (rps_throw)
         (get_upcoming_tournaments)
+        (get_tournaments)
+        (get_tournaments_by_state)
         (get_tournament)
         (get_order_book)
       )

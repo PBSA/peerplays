@@ -2466,7 +2466,7 @@ public:
          }
          return ss.str();
       };
-      m["get_upcoming_tournaments"] = [this](variant result, const fc::variants& a)
+      m["get_upcoming_tournaments"] = m["get_tournaments"] = m["get_tournaments_by_state"] = [this](variant result, const fc::variants& a)
       {
          const vector<tournament_object> tournaments = result.as<vector<tournament_object> >();
          std::stringstream ss;
@@ -4856,6 +4856,18 @@ signed_transaction wallet_api::tournament_join( string payer_account,
 vector<tournament_object> wallet_api::get_upcoming_tournaments(uint32_t limit)
 {
    return my->_remote_db->get_tournaments_in_state(tournament_state::accepting_registrations, limit);
+}
+vector<tournament_object> wallet_api::get_tournaments(tournament_id_type stop,
+                                          unsigned limit,
+                                          tournament_id_type start) {
+   return my->_remote_db->get_tournaments(stop, limit, start);
+}
+
+vector<tournament_object> wallet_api::get_tournaments_by_state(tournament_id_type stop,
+                                                   unsigned limit,
+                                                   tournament_id_type start,
+                                                   tournament_state state) {
+   return my->_remote_db->get_tournaments_by_state(stop, limit, start, state);
 }
 
 tournament_object wallet_api::get_tournament(tournament_id_type id)

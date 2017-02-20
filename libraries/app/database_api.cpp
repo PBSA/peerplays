@@ -143,6 +143,8 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
 
       // Tournaments
       vector<tournament_object> get_tournaments_in_state(tournament_state state, uint32_t limit) const;
+      vector<tournament_object> get_tournaments(tournament_id_type stop, unsigned limit, tournament_id_type start);
+      vector<tournament_object> get_tournaments_by_state(tournament_id_type stop, unsigned limit, tournament_id_type start, tournament_state state);
       vector<tournament_id_type> get_registered_tournaments(account_id_type account_filter, uint32_t limit) const;
 
 
@@ -1785,6 +1787,54 @@ vector<tournament_object> database_api_impl::get_tournaments_in_state(tournament
       if (result.size() >= limit)
          break;
    }
+   return result;
+}
+
+vector<tournament_object> database_api::get_tournaments(tournament_id_type stop,
+                                                        unsigned limit,
+                                                        tournament_id_type start)
+{
+   return my->get_tournaments(stop, limit, start);
+}
+
+vector<tournament_object> database_api_impl::get_tournaments(tournament_id_type stop,
+                                                             unsigned limit,
+                                                             tournament_id_type start) 
+{
+   vector<tournament_object> result;
+   const auto& tournament_idx = _db.get_index_type<tournament_index>().indices().get<by_id>();
+   for (auto elem: tournament_idx) {
+      if( ( (elem.get_id().instance.value <= start.instance.value) || start == tournament_id_type()) &&
+          ( (elem.get_id().instance.value >=  stop.instance.value) || stop == tournament_id_type()))
+         result.push_back( elem );
+   }
+
+   return result;
+}
+
+
+vector<tournament_object> database_api::get_tournaments_by_state(tournament_id_type stop,
+                                                                 unsigned limit,
+                                                                 tournament_id_type start,
+                                                                 tournament_state state)
+{
+   return my->get_tournaments_by_state(stop, limit, start, state);
+}
+
+vector<tournament_object> database_api_impl::get_tournaments_by_state(tournament_id_type stop,
+                                                                 unsigned limit,
+                                                                 tournament_id_type start,
+                                                                 tournament_state state)
+{   
+   vector<tournament_object> result;
+   const auto& tournament_idx = _db.get_index_type<tournament_index>().indices().get<by_id>();
+   for (auto elem: tournament_idx) {
+      if( ( (elem.get_id().instance.value <= start.instance.value) || start == tournament_id_type()) &&
+          ( (elem.get_id().instance.value >=  stop.instance.value) || stop ==  tournament_id_type()) &&
+          elem.get_state() == state )
+         result.push_back( elem );
+   }
+
    return result;
 }
 

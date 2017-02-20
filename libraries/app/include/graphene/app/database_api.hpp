@@ -564,6 +564,15 @@ class database_api
        */
       vector<tournament_object> get_tournaments_in_state(tournament_state state, uint32_t limit) const;
 
+      vector<tournament_object> get_tournaments(tournament_id_type stop  = tournament_id_type(),
+                                                unsigned limit = 100,
+                                                tournament_id_type start = tournament_id_type());
+
+      vector<tournament_object> get_tournaments_by_state(tournament_id_type stop  = tournament_id_type(),
+                                                         unsigned limit = 100,
+                                                         tournament_id_type start = tournament_id_type(),
+                                                         tournament_state state = tournament_state::accepting_registrations);
+
       /**
        * @return the list of tournaments that a given account is registered to play in
        */
@@ -674,5 +683,7 @@ FC_API(graphene::app::database_api,
 
    // Tournaments
    (get_tournaments_in_state)
+   (get_tournaments_by_state)
+   (get_tournaments )
    (get_registered_tournaments)
 )

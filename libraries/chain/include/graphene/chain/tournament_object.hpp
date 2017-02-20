@@ -64,6 +64,7 @@ namespace graphene { namespace chain {
       ~tournament_object();
       tournament_object& operator=(const tournament_object& rhs);
       
+      tournament_id_type get_id() const { return id; };
       /// the account that created this tournament
       account_id_type creator;
 
