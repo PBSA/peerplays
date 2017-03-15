@@ -47,6 +47,13 @@
 #include <graphene/chain/witness_schedule_object.hpp>
 #include <graphene/chain/worker_object.hpp>
 
+
+#include <graphene/chain/sport_object.hpp>
+#include <graphene/chain/competitor_object.hpp>
+#include <graphene/chain/event_group_object.hpp>
+#include <graphene/chain/event_object.hpp>
+#include <graphene/chain/betting_market_object.hpp>
+
 #include <graphene/chain/account_evaluator.hpp>
 #include <graphene/chain/asset_evaluator.hpp>
 #include <graphene/chain/assert_evaluator.hpp>
@@ -61,6 +68,11 @@
 #include <graphene/chain/withdraw_permission_evaluator.hpp>
 #include <graphene/chain/witness_evaluator.hpp>
 #include <graphene/chain/worker_evaluator.hpp>
+#include <graphene/chain/sport_evaluator.hpp>
+#include <graphene/chain/competitor_evaluator.hpp>
+#include <graphene/chain/event_group_evaluator.hpp>
+#include <graphene/chain/event_evaluator.hpp>
+#include <graphene/chain/betting_market_evaluator.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
@@ -126,6 +138,24 @@ const uint8_t witness_object::type_id;
 const uint8_t worker_object::space_id;
 const uint8_t worker_object::type_id;
 
+const uint8_t sport_object::space_id;
+const uint8_t sport_object::type_id;
+
+const uint8_t competitor_object::space_id;
+const uint8_t competitor_object::type_id;
+
+const uint8_t event_group_object::space_id;
+const uint8_t event_group_object::type_id;
+
+const uint8_t event_object::space_id;
+const uint8_t event_object::type_id;
+
+const uint8_t betting_market_group_object::space_id;
+const uint8_t betting_market_group_object::type_id;
+
+const uint8_t betting_market_object::space_id;
+const uint8_t betting_market_object::type_id;
+
 
 void database::initialize_evaluators()
 {
@@ -171,6 +201,12 @@ void database::initialize_evaluators()
    register_evaluator<transfer_from_blind_evaluator>();
    register_evaluator<blind_transfer_evaluator>();
    register_evaluator<asset_claim_fees_evaluator>();
+   register_evaluator<sport_create_evaluator>();
+   register_evaluator<competitor_create_evaluator>();
+   register_evaluator<event_group_create_evaluator>();
+   register_evaluator<event_create_evaluator>();
+   register_evaluator<betting_market_group_create_evaluator>();
+   register_evaluator<betting_market_create_evaluator>();
 }
 
 void database::initialize_indexes()
@@ -199,6 +235,12 @@ void database::initialize_indexes()
    add_index< primary_index<worker_index> >();
    add_index< primary_index<balance_index> >();
    add_index< primary_index<blinded_balance_index> >();
+   add_index< primary_index<sport_object_index > >();
+   add_index< primary_index<competitor_object_index > >();
+   add_index< primary_index<event_group_object_index > >();
+   add_index< primary_index<event_object_index > >();
+   add_index< primary_index<betting_market_group_object_index > >();
+   add_index< primary_index<betting_market_object_index > >();
 
    //Implementation object indexes
    add_index< primary_index<transaction_index                             > >();

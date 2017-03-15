@@ -89,6 +89,17 @@ add_library( graphene_chain
 
              is_authorized_asset.cpp
 
+             protocol/sport.cpp
+             sport_evaluator.cpp
+             protocol/competitor.cpp
+             competitor_evaluator.cpp
+             protocol/event_group.cpp
+             event_group_evaluator.cpp
+             protocol/event.cpp
+             event_evaluator.cpp
+             protocol/betting_market.cpp
+             betting_market_evaluator.cpp
+
              ${HEADERS}
              "${CMAKE_CURRENT_BINARY_DIR}/include/graphene/chain/hardfork.hpp"
            )

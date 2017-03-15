@@ -36,6 +36,11 @@
 #include <graphene/chain/withdraw_permission_object.hpp>
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/worker_object.hpp>
+#include <graphene/chain/sport_object.hpp>
+#include <graphene/chain/competitor_object.hpp>
+#include <graphene/chain/event_group_object.hpp>
+#include <graphene/chain/event_object.hpp>
+#include <graphene/chain/betting_market_object.hpp>
 
 #include <fc/smart_ref_impl.hpp>
 #include <iostream>

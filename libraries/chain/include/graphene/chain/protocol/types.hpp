@@ -134,6 +134,12 @@ namespace graphene { namespace chain {
       vesting_balance_object_type,
       worker_object_type,
       balance_object_type,
+      sport_object_type,
+      competitor_object_type,
+      event_group_object_type,
+      event_object_type,
+      betting_market_group_object_type,
+      betting_market_object_type,
       OBJECT_TYPE_COUNT ///< Sentry value which contains the number of different object types
    };
 
@@ -175,6 +181,12 @@ namespace graphene { namespace chain {
    class worker_object;
    class balance_object;
    class blinded_balance_object;
+   class sport_object;
+   class competitor_object;
+   class event_group_object;
+   class event_object;
+   class betting_market_group_object;
+   class betting_market_object;
 
    typedef object_id< protocol_ids, account_object_type,            account_object>               account_id_type;
    typedef object_id< protocol_ids, asset_object_type,              asset_object>                 asset_id_type;
@@ -190,6 +202,12 @@ namespace graphene { namespace chain {
    typedef object_id< protocol_ids, vesting_balance_object_type,    vesting_balance_object>       vesting_balance_id_type;
    typedef object_id< protocol_ids, worker_object_type,             worker_object>                worker_id_type;
    typedef object_id< protocol_ids, balance_object_type,            balance_object>               balance_id_type;
+   typedef object_id< protocol_ids, sport_object_type,              sport_object>                 sport_id_type;
+   typedef object_id< protocol_ids, competitor_object_type,         competitor_object>            competitor_id_type;
+   typedef object_id< protocol_ids, event_group_object_type,        event_group_object>           event_group_id_type;
+   typedef object_id< protocol_ids, event_object_type,              event_object>                 event_id_type;
+   typedef object_id< protocol_ids, betting_market_group_object_type,              betting_market_group_object>                 betting_market_group_id_type;
+   typedef object_id< protocol_ids, betting_market_object_type,              betting_market_object>                 betting_market_id_type;
 
    // implementation types
    class global_property_object;
@@ -304,6 +322,8 @@ namespace graphene { namespace chain {
       friend bool operator == ( const extended_private_key_type& p1, const extended_private_key_type& p2);
       friend bool operator != ( const extended_private_key_type& p1, const extended_private_key_type& p2);
    };
+
+   typedef flat_map<std::string, std::string> internationalized_string_type;
 } }  // graphene::chain
 
 namespace fc
@@ -340,6 +360,12 @@ FC_REFLECT_ENUM( graphene::chain::object_type,
                  (vesting_balance_object_type)
                  (worker_object_type)
                  (balance_object_type)
+                 (sport_object_type)
+                 (competitor_object_type)
+                 (event_group_object_type)
+                 (event_object_type)
+                 (betting_market_group_object_type)
+                 (betting_market_object_type)
                  (OBJECT_TYPE_COUNT)
                )
 FC_REFLECT_ENUM( graphene::chain::impl_object_type,
@@ -378,6 +404,12 @@ FC_REFLECT_TYPENAME( graphene::chain::withdraw_permission_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::vesting_balance_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::worker_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::balance_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::sport_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::competitor_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::event_group_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::event_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::betting_market_group_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::betting_market_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::global_property_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::dynamic_global_property_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::asset_dynamic_data_id_type )
