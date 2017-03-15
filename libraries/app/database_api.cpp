@@ -95,6 +95,9 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       vector<asset_object>           list_assets(const string& lower_bound_symbol, uint32_t limit)const;
       vector<optional<asset_object>> lookup_asset_symbols(const vector<string>& symbols_or_ids)const;
 
+      // Peerplays
+      vector<sport_object>           list_sports() const; 
+
       // Markets / feeds
       vector<limit_order_object>         get_limit_orders(asset_id_type a, asset_id_type b, uint32_t limit)const;
       vector<call_order_object>          get_call_orders(asset_id_type a, uint32_t limit)const;
@@ -875,6 +878,25 @@ vector<optional<asset_object>> database_api_impl::lookup_asset_symbols(const vec
       auto itr = assets_by_symbol.find(symbol_or_id);
       return itr == assets_by_symbol.end()? optional<asset_object>() : *itr;
    });
+   return result;
+}
+
+//////////////////////////////////////////////////////////////////////
+// Peerplays                                                        //
+//////////////////////////////////////////////////////////////////////
+vector<sport_object> database_api::list_sports() const
+{
+   return my->list_sports();
+}
+
+vector<sport_object> database_api_impl::list_sports() const
+{
+   const auto& sport_index = _db.get_index_type<sport_object_index>().indices().get<by_id>();
+   vector<sport_object> result;
+   for (const sport_object& sport : sport_index)
+   {
+      result.emplace_back(sport);
+   }
    return result;
 }
 
