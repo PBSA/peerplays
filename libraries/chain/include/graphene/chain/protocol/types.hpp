@@ -140,6 +140,7 @@ namespace graphene { namespace chain {
       event_object_type,
       betting_market_group_object_type,
       betting_market_object_type,
+      bet_object_type,
       OBJECT_TYPE_COUNT ///< Sentry value which contains the number of different object types
    };
 
@@ -187,6 +188,7 @@ namespace graphene { namespace chain {
    class event_object;
    class betting_market_group_object;
    class betting_market_object;
+   class bet_object;
 
    typedef object_id< protocol_ids, account_object_type,            account_object>               account_id_type;
    typedef object_id< protocol_ids, asset_object_type,              asset_object>                 asset_id_type;
@@ -206,8 +208,9 @@ namespace graphene { namespace chain {
    typedef object_id< protocol_ids, competitor_object_type,         competitor_object>            competitor_id_type;
    typedef object_id< protocol_ids, event_group_object_type,        event_group_object>           event_group_id_type;
    typedef object_id< protocol_ids, event_object_type,              event_object>                 event_id_type;
-   typedef object_id< protocol_ids, betting_market_group_object_type,              betting_market_group_object>                 betting_market_group_id_type;
-   typedef object_id< protocol_ids, betting_market_object_type,              betting_market_object>                 betting_market_id_type;
+   typedef object_id< protocol_ids, betting_market_group_object_type, betting_market_group_object> betting_market_group_id_type;
+   typedef object_id< protocol_ids, betting_market_object_type,     betting_market_object>        betting_market_id_type;
+   typedef object_id< protocol_ids, bet_object_type,                bet_object>                   bet_id_type;
 
    // implementation types
    class global_property_object;
@@ -366,6 +369,7 @@ FC_REFLECT_ENUM( graphene::chain::object_type,
                  (event_object_type)
                  (betting_market_group_object_type)
                  (betting_market_object_type)
+                 (bet_object_type)
                  (OBJECT_TYPE_COUNT)
                )
 FC_REFLECT_ENUM( graphene::chain::impl_object_type,
@@ -410,6 +414,7 @@ FC_REFLECT_TYPENAME( graphene::chain::event_group_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::event_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::betting_market_group_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::betting_market_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::bet_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::global_property_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::dynamic_global_property_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::asset_dynamic_data_id_type )

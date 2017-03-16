@@ -88,6 +88,32 @@ struct betting_market_create_operation : public base_operation
    void            validate()const;
 };
 
+enum bet_type { back_bet, lay_bet };
+struct bet_place_operation : public base_operation
+{
+   struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
+   asset             fee;
+
+   account_id_type bettor_id;
+   
+   betting_market_id_type betting_market_id;
+
+   share_type amount_to_bet;
+
+   share_type amount_to_win;
+
+   share_type amount_reserved_for_fees;
+
+   bet_type back_or_lay;
+
+   extensions_type   extensions;
+
+   account_id_type fee_payer()const { return bettor_id; }
+   void            validate()const;
+};
+
+
+
 } }
 
 FC_REFLECT_ENUM( graphene::chain::betting_market_type, (moneyline)(spread)(over_under)(BETTING_MARKET_TYPE_COUNT) )
@@ -104,3 +130,8 @@ FC_REFLECT( graphene::chain::betting_market_group_create_operation,
 FC_REFLECT( graphene::chain::betting_market_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_create_operation, 
             (fee)(group_id)(payout_condition)(asset_id)(extensions) )
+
+FC_REFLECT_ENUM( graphene::chain::bet_type, (back_bet)(lay_bet) )
+FC_REFLECT( graphene::chain::bet_place_operation::fee_parameters_type, (fee) )
+FC_REFLECT( graphene::chain::bet_place_operation, 
+            (fee)(bettor_id)(betting_market_id)(amount_to_bet)(amount_to_win)(amount_reserved_for_fees)(back_or_lay)(extensions) )

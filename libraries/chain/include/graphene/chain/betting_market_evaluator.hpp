@@ -51,4 +51,13 @@ namespace graphene { namespace chain {
          betting_market_group_id_type group_id;
    };
 
+   class bet_place_evaluator : public evaluator<bet_place_evaluator>
+   {
+      public:
+         typedef bet_place_operation operation_type;
+
+         void_result do_evaluate( const bet_place_operation& o );
+         object_id_type do_apply( const bet_place_operation& o );
+   };
+
 } } // graphene::chain

@@ -92,4 +92,26 @@ object_id_type betting_market_create_evaluator::do_apply(const betting_market_cr
    return new_betting_market.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
+void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
+{ try {
+   FC_ASSERT( db().find_object(op.bettor_id), "Invalid betting_market_group specified" );
+   FC_ASSERT( db().find_object(op.betting_market_id), "Invalid betting_market specified" );
+
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+object_id_type bet_place_evaluator::do_apply(const bet_place_operation& op)
+{ try {
+   const bet_object& new_bet =
+     db().create<bet_object>( [&]( bet_object& bet_obj ) {
+         bet_obj.bettor_id = op.bettor_id;
+         bet_obj.betting_market_id = op.betting_market_id;
+         bet_obj.amount_to_bet = op.amount_to_bet;
+         bet_obj.amount_to_win = op.amount_to_win;
+         bet_obj.amount_reserved_for_fees = op.amount_reserved_for_fees;
+         bet_obj.back_or_lay = op.back_or_lay;
+     });
+   return new_bet.id;
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
 } } // graphene::chain

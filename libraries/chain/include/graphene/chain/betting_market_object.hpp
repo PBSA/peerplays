@@ -55,6 +55,25 @@ class betting_market_object : public graphene::db::abstract_object< betting_mark
       asset_id_type asset_id;
 };
 
+class bet_object : public graphene::db::abstract_object< bet_object >
+{
+   public:
+      static const uint8_t space_id = protocol_ids;
+      static const uint8_t type_id = bet_object_type;
+
+      account_id_type bettor_id;
+      
+      betting_market_id_type betting_market_id;
+
+      share_type amount_to_bet;
+
+      share_type amount_to_win;
+
+      share_type amount_reserved_for_fees;
+
+      bet_type back_or_lay;
+};
+
 typedef multi_index_container<
    betting_market_group_object,
    indexed_by<
@@ -67,7 +86,15 @@ typedef multi_index_container<
       ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > > > > betting_market_object_multi_index_type;
 
 typedef generic_index<betting_market_object, betting_market_object_multi_index_type> betting_market_object_index;
+
+typedef multi_index_container<
+   bet_object,
+   indexed_by<
+      ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > > > > bet_object_multi_index_type;
+
+typedef generic_index<bet_object, bet_object_multi_index_type> bet_object_index;
 } } // graphene::chain
 
 FC_REFLECT_DERIVED( graphene::chain::betting_market_group_object, (graphene::db::object), (event_id)(options) )
 FC_REFLECT_DERIVED( graphene::chain::betting_market_object, (graphene::db::object), (group_id)(payout_condition)(asset_id) )
+FC_REFLECT_DERIVED( graphene::chain::bet_object, (graphene::db::object), (bettor_id)(betting_market_id)(amount_to_bet)(amount_to_win)(amount_reserved_for_fees)(back_or_lay) )
