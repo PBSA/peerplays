@@ -36,6 +36,9 @@ namespace graphene { namespace chain {
 
          void_result do_evaluate( const event_create_operation& o );
          object_id_type do_apply( const event_create_operation& o );
+      private:
+         event_group_id_type event_group_id;
+         vector<competitor_id_type> competitors;
    };
 
 } } // graphene::chain

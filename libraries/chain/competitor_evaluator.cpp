@@ -23,6 +23,7 @@
  */
 #include <graphene/chain/competitor_evaluator.hpp>
 #include <graphene/chain/competitor_object.hpp>
+#include <graphene/chain/sport_object.hpp>
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/exceptions.hpp>
@@ -35,6 +36,17 @@ void_result competitor_create_evaluator::do_evaluate(const competitor_create_ope
 { try {
    FC_ASSERT(trx_state->_is_proposed_trx);
 
+   // the sport id in the operation can be a relative id.  If it is,
+   // resolve it and verify that it is truly a sport
+   object_id_type resolved_id = op.sport_id;
+   if (is_relative(op.sport_id))
+      resolved_id = get_relative_id(op.sport_id);
+
+   FC_ASSERT(resolved_id.space() == sport_id_type::space_id && 
+             resolved_id.type() == sport_id_type::type_id, "sport_id must refer to a sport_id_type");
+   sport_id = resolved_id;
+
+   FC_ASSERT( db().find_object(sport_id), "Invalid sport specified" );
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -43,7 +55,7 @@ object_id_type competitor_create_evaluator::do_apply(const competitor_create_ope
    const competitor_object& new_competitor =
      db().create<competitor_object>( [&]( competitor_object& competitor_obj ) {
          competitor_obj.name = op.name;
-         competitor_obj.sport_id = op.sport_id;
+         competitor_obj.sport_id = sport_id;
      });
    return new_competitor.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }

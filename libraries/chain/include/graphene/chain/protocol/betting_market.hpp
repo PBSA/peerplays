@@ -53,7 +53,11 @@ struct betting_market_group_create_operation : public base_operation
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
    asset             fee;
 
-   event_id_type event_id;
+   /**
+    * This can be a event_id_type, or a
+    * relative object id that resolves to a event_id_type
+    */
+   object_id_type event_id;
 
    betting_market_options_type options;
 
@@ -68,7 +72,11 @@ struct betting_market_create_operation : public base_operation
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
    asset             fee;
 
-   betting_market_group_id_type group_id;
+   /**
+    * This can be a betting_market_group_id_type, or a
+    * relative object id that resolves to a betting_market_group_id_type
+    */
+   object_id_type group_id;
 
    internationalized_string_type payout_condition;
 

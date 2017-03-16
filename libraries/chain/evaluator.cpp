@@ -128,4 +128,18 @@ database& generic_evaluator::db()const { return trx_state->db(); }
      db().adjust_balance(fee_payer, fee_from_account);
    }
 
+   object_id_type generic_evaluator::get_relative_id( object_id_type rel_id )const
+   {
+     if (!is_relative(rel_id))
+       FC_THROW("get_relative_id() called for non-relative id ${id}", ("id", rel_id));
+     if (rel_id.instance() >= trx_state->operation_results.size())
+       FC_THROW("get_relative_id() asked for id of operation ${op_num} (zero-based), but we only have ${count} operations",
+                ("op_num", rel_id.instance())("count", trx_state->operation_results.size()));
+     if (trx_state->operation_results[rel_id.instance()].which() != operation_result::tag<object_id_type>::value)
+       FC_THROW("get_relative_id() asked for the result of operation ${op_num}, but that operation did not return an object_id",
+                ("op_num", rel_id.instance()));
+     return trx_state->operation_results[rel_id.instance()].get<object_id_type>();
+   }
+
+
 } }

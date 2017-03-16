@@ -39,9 +39,10 @@ struct competitor_create_operation : public base_operation
    internationalized_string_type name;
 
    /**
-    * The sport the competitor, um, competes in
+    * The sport the competitor, um, competes in.  This can be a sport_id_type, or a
+    * relative object id that resolves to a sport_id_type
     */
-   sport_id_type sport_id;
+   object_id_type sport_id;
 
    extensions_type   extensions;
 

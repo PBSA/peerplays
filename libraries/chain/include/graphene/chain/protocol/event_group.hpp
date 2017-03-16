@@ -38,7 +38,11 @@ struct event_group_create_operation : public base_operation
     */
    internationalized_string_type name;
 
-   sport_id_type sport_id;
+   /**
+    * This can be a sport_id_type, or a
+    * relative object id that resolves to a sport_id_type
+    */
+   object_id_type sport_id;
 
    extensions_type   extensions;
 

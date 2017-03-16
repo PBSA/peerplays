@@ -39,6 +39,7 @@
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/worker_object.hpp>
 #include <graphene/chain/sport_object.hpp>
+#include <graphene/chain/competitor_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
 
 #include <graphene/utilities/tempdir.hpp>
@@ -1631,14 +1632,17 @@ BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
    {
       {
          const flat_set<witness_id_type>& active_witnesses = db.get_global_properties().active_witnesses;
-         // Propose the create_sport operation
+         
+         BOOST_TEST_MESSAGE("Propose the create_sport operation");
          {
-            sport_create_operation create_op;
-            create_op.name.insert(internationalized_string_type::value_type("en", "Ice Hockey"));
-
+            sport_create_operation sport_create_op;
+            sport_create_op.name.insert(internationalized_string_type::value_type("en", "Football"));
+            sport_create_op.name.insert(internationalized_string_type::value_type("en_US", "Soccer"));
+            sport_create_op.name.insert(internationalized_string_type::value_type("zh_Hans", "足球"));
+            sport_create_op.name.insert(internationalized_string_type::value_type("ja", "サッカー"));
             proposal_create_operation proposal_op;
             proposal_op.fee_paying_account = (*active_witnesses.begin())(db).witness_account;
-            proposal_op.proposed_ops.emplace_back(create_op);
+            proposal_op.proposed_ops.emplace_back(sport_create_op);
             proposal_op.expiration_time =  db.head_block_time() + fc::days(1);
 
             signed_transaction tx;
@@ -1651,39 +1655,153 @@ BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
             db.push_transaction(tx);
          }
 
-         BOOST_TEST_MESSAGE( "Witness account: " << fc::json::to_pretty_string(GRAPHENE_WITNESS_ACCOUNT(db)));
-
-         BOOST_TEST_MESSAGE("There are now " << db.get_index_type<proposal_index>().indices().size() << " proposals");
-         const proposal_object& prop = *db.get_index_type<proposal_index>().indices().begin();
-         BOOST_TEST_MESSAGE("Just created sport creation proposal " << fc::variant(prop.id).as<std::string>());
-
-
-         BOOST_CHECK_EQUAL(prop.required_active_approvals.size(), 1); // should require GRAPHENE_WITNESS_ACCOUNT only
-         BOOST_CHECK_EQUAL(prop.required_owner_approvals.size(), 0);
-         BOOST_CHECK(!prop.is_authorized_to_execute(db));
-
-         for (const witness_id_type& witness_id : active_witnesses)
          {
-            BOOST_TEST_MESSAGE("Approving sport creation from witness " << fc::variant(witness_id).as<std::string>());
-            const witness_object& witness = witness_id(db);
-            const account_object& witness_account = witness.witness_account(db);
+            //BOOST_TEST_MESSAGE( "Witness account: " << fc::json::to_pretty_string(GRAPHENE_WITNESS_ACCOUNT(db)));
 
-            proposal_update_operation pup;
-            pup.proposal = prop.id;
-            pup.fee_paying_account = witness_account.id;
-            //pup.key_approvals_to_add.insert(witness.signing_key);
-            pup.active_approvals_to_add.insert(witness_account.id);
+            BOOST_TEST_MESSAGE("There are now " << db.get_index_type<proposal_index>().indices().size() << " proposals");
+            const proposal_object& prop = *db.get_index_type<proposal_index>().indices().begin();
+            BOOST_TEST_MESSAGE("Just created sport creation proposal " << fc::variant(prop.id).as<std::string>());
+
+
+            BOOST_CHECK_EQUAL(prop.required_active_approvals.size(), 1); // should require GRAPHENE_WITNESS_ACCOUNT only
+            BOOST_CHECK_EQUAL(prop.required_owner_approvals.size(), 0);
+            BOOST_CHECK(!prop.is_authorized_to_execute(db));
+
+            for (const witness_id_type& witness_id : active_witnesses)
+            {
+               BOOST_TEST_MESSAGE("Approving sport creation from witness " << fc::variant(witness_id).as<std::string>());
+               const witness_object& witness = witness_id(db);
+               const account_object& witness_account = witness.witness_account(db);
+
+               proposal_update_operation pup;
+               pup.proposal = prop.id;
+               pup.fee_paying_account = witness_account.id;
+               //pup.key_approvals_to_add.insert(witness.signing_key);
+               pup.active_approvals_to_add.insert(witness_account.id);
+
+               signed_transaction tx;
+               tx.operations.push_back( pup );
+               set_expiration( db, tx );
+               sign(tx, init_account_priv_key);
+
+               db.push_transaction(tx, ~0);
+               if (db.get_index_type<sport_object_index>().indices().size() > 0)
+               {
+                  BOOST_TEST_MESSAGE("The sport creation operation has been approved, new sport object on the blockchain is " << fc::json::to_pretty_string(*db.get_index_type<sport_object_index>().indices().begin()));
+                  break;
+               }
+            }
+         }
+
+         BOOST_REQUIRE_EQUAL(db.get_index_type<sport_object_index>().indices().size(), 1);
+
+         BOOST_TEST_MESSAGE("Creating a sport and competitors in the same proposal");
+         {
+            // operation 0 in the transaction
+            sport_create_operation sport_create_op;
+            sport_create_op.name.insert(internationalized_string_type::value_type("en", "Ice Hockey"));
+            sport_create_op.name.insert(internationalized_string_type::value_type("zh_Hans", "冰球"));
+            sport_create_op.name.insert(internationalized_string_type::value_type("ja", "アイスホッケー"));
+
+            // operation 1
+            competitor_create_operation competitor1_create_op;
+            competitor1_create_op.sport_id = object_id_type(relative_protocol_ids, 0, 0);
+            competitor1_create_op.name.insert(internationalized_string_type::value_type("en", "Washington Capitals"));
+            competitor1_create_op.name.insert(internationalized_string_type::value_type("zh_Hans", "華盛頓首都隊"));
+            competitor1_create_op.name.insert(internationalized_string_type::value_type("ja", "ワシントン・キャピタルズ"));
+            //BOOST_TEST_MESSAGE("Just constructed competitor_create_operation " << fc::json::to_pretty_string(competitor1_create_op));
+
+            // operation 2
+            competitor_create_operation competitor2_create_op;
+            competitor2_create_op.sport_id = object_id_type(relative_protocol_ids, 0, 0);
+            competitor2_create_op.name.insert(internationalized_string_type::value_type("en", "Chicago Blackhawks"));
+            competitor2_create_op.name.insert(internationalized_string_type::value_type("zh_Hans", "芝加哥黑鷹"));
+            competitor2_create_op.name.insert(internationalized_string_type::value_type("ja", "シカゴ・ブラックホークス"));
+
+            // operation 3
+            event_group_create_operation event_group_create_op;
+            event_group_create_op.name.insert(internationalized_string_type::value_type("en", "NHL"));
+            event_group_create_op.name.insert(internationalized_string_type::value_type("zh_Hans", "國家冰球聯盟"));
+            event_group_create_op.name.insert(internationalized_string_type::value_type("ja", "ナショナルホッケーリーグ"));
+            event_group_create_op.sport_id = object_id_type(relative_protocol_ids, 0, 0);
+
+            // operation 4
+            // leave name and start time blank
+            event_create_operation event_create_op;
+            event_create_op.season.insert(internationalized_string_type::value_type("en", "2016-17"));
+            event_create_op.event_group_id = object_id_type(relative_protocol_ids, 0, 3);
+            event_create_op.competitors.push_back(object_id_type(relative_protocol_ids, 0, 1));
+            event_create_op.competitors.push_back(object_id_type(relative_protocol_ids, 0, 2));
+
+            // operation 5
+            betting_market_group_create_operation betting_market_group_create_op;
+            betting_market_group_create_op.event_id = object_id_type(relative_protocol_ids, 0, 4);
+            betting_market_group_create_op.options = moneyline_market_options{};
+
+            // operation 6
+            betting_market_create_operation caps_win_betting_market_create_op;
+            caps_win_betting_market_create_op.group_id = object_id_type(relative_protocol_ids, 0, 5);
+            caps_win_betting_market_create_op.payout_condition.insert(internationalized_string_type::value_type("en", "Washington Capitals win"));
+            caps_win_betting_market_create_op.asset_id = asset_id_type();
+
+            // operation 7
+            betting_market_create_operation blackhawks_win_betting_market_create_op;
+            blackhawks_win_betting_market_create_op.group_id = object_id_type(relative_protocol_ids, 0, 5);
+            blackhawks_win_betting_market_create_op.payout_condition.insert(internationalized_string_type::value_type("en", "Chicago Blackhawks win"));
+            blackhawks_win_betting_market_create_op.asset_id = asset_id_type();
+
+
+            proposal_create_operation proposal_op;
+            proposal_op.fee_paying_account = (*active_witnesses.begin())(db).witness_account;
+            proposal_op.proposed_ops.emplace_back(sport_create_op);
+            proposal_op.proposed_ops.emplace_back(competitor1_create_op);
+            proposal_op.proposed_ops.emplace_back(competitor2_create_op);
+            proposal_op.proposed_ops.emplace_back(event_group_create_op);
+            proposal_op.proposed_ops.emplace_back(event_create_op);
+            proposal_op.proposed_ops.emplace_back(betting_market_group_create_op);
+            proposal_op.proposed_ops.emplace_back(caps_win_betting_market_create_op);
+            proposal_op.proposed_ops.emplace_back(blackhawks_win_betting_market_create_op);
+            proposal_op.expiration_time =  db.head_block_time() + fc::days(1);
 
             signed_transaction tx;
-            tx.operations.push_back( pup );
-            set_expiration( db, tx );
+            tx.operations.push_back(proposal_op);
+            set_expiration(db, tx);
             sign(tx, init_account_priv_key);
+            //sign( tx, philbin_private_key );
 
-            db.push_transaction(tx, ~0);
-            if (db.get_index_type<sport_object_index>().indices().size() > 0)
+            // Alice and Philbin signed, but asset issuer is invalid
+            db.push_transaction(tx);
+         }
+
+         BOOST_REQUIRE_EQUAL(db.get_index_type<proposal_index>().indices().size(), 1);
+         {
+            const proposal_object& prop = *db.get_index_type<proposal_index>().indices().begin();
+
+            for (const witness_id_type& witness_id : active_witnesses)
             {
-               BOOST_TEST_MESSAGE("The sport creation operation has been approved, new sport object on the blockchain is " << fc::json::to_pretty_string(*db.get_index_type<sport_object_index>().indices().begin()));
-               break;
+               BOOST_TEST_MESSAGE("Approving sport+competitors creation from witness " << fc::variant(witness_id).as<std::string>());
+               const witness_object& witness = witness_id(db);
+               const account_object& witness_account = witness.witness_account(db);
+
+               proposal_update_operation pup;
+               pup.proposal = prop.id;
+               pup.fee_paying_account = witness_account.id;
+               //pup.key_approvals_to_add.insert(witness.signing_key);
+               pup.active_approvals_to_add.insert(witness_account.id);
+
+               signed_transaction tx;
+               tx.operations.push_back( pup );
+               set_expiration( db, tx );
+               sign(tx, init_account_priv_key);
+
+               db.push_transaction(tx, ~0);
+               if (db.get_index_type<sport_object_index>().indices().size() > 1)
+               {
+                  BOOST_REQUIRE_EQUAL(db.get_index_type<competitor_object_index>().indices().size(), 2);
+                  //BOOST_TEST_MESSAGE("The sport creation operation has been approved, new sport object on the blockchain is " << fc::json::to_pretty_string(*db.get_index_type<sport_object_index>().indices().rbegin()));
+                  //BOOST_TEST_MESSAGE("The first competitor object on the blockchain is " << fc::json::to_pretty_string(*db.get_index_type<competitor_object_index>().indices().begin()));
+                  break;
+               }
             }
          }
       }

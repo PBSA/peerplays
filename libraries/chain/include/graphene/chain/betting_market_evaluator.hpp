@@ -36,6 +36,8 @@ namespace graphene { namespace chain {
 
          void_result do_evaluate( const betting_market_group_create_operation& o );
          object_id_type do_apply( const betting_market_group_create_operation& o );
+      private:
+         event_id_type event_id;
    };
 
    class betting_market_create_evaluator : public evaluator<betting_market_create_evaluator>
@@ -45,6 +47,8 @@ namespace graphene { namespace chain {
 
          void_result do_evaluate( const betting_market_create_operation& o );
          object_id_type do_apply( const betting_market_create_operation& o );
+      private:
+         betting_market_group_id_type group_id;
    };
 
 } } // graphene::chain

@@ -42,9 +42,17 @@ struct event_create_operation : public base_operation
 
    optional<time_point_sec> start_time;
 
-   event_group_id_type event_group_id;
+   /**
+    * This can be a event_group_id_type, or a
+    * relative object id that resolves to a event_group_id_type
+    */
+   object_id_type event_group_id;
 
-   vector<competitor_id_type> competitors;
+   /**
+    * Each entry in this vector can be a competitor_id_type, or a relative object id that 
+    * resolves to a competitor_id_type
+    */
+   vector<object_id_type> competitors;
 
    extensions_type   extensions;
 
