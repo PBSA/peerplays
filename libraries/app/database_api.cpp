@@ -97,6 +97,7 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
 
       // Peerplays
       vector<sport_object>           list_sports() const; 
+      vector<event_group_object>     list_event_groups(sport_id_type sport_id) const;
 
       // Markets / feeds
       vector<limit_order_object>         get_limit_orders(asset_id_type a, asset_id_type b, uint32_t limit)const;
@@ -891,15 +892,25 @@ vector<sport_object> database_api::list_sports() const
 
 vector<sport_object> database_api_impl::list_sports() const
 {
-   const auto& sport_index = _db.get_index_type<sport_object_index>().indices().get<by_id>();
+   const auto& sport_object_idx = _db.get_index_type<sport_object_index>().indices().get<by_id>();
    vector<sport_object> result;
-   for (const sport_object& sport : sport_index)
+   for (const sport_object& sport : sport_object_idx)
    {
       result.emplace_back(sport);
    }
    return result;
 }
 
+vector<event_group_object> database_api_impl::list_event_groups(sport_id_type sport_id) const
+{
+   vector<event_group_object> result;
+   const auto& event_group_idx = _db.get_index_type<event_group_object_index>().indices().get<by_sport_id>();
+   for (const event_group_object& event_group : event_group_idx)
+   {
+      result.emplace_back(event_group);
+   }
+   return result;
+}
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
 // Markets / feeds                                                  //

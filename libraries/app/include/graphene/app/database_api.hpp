@@ -39,6 +39,8 @@
 #include <graphene/chain/operation_history_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/sport_object.hpp>
+#include <graphene/chain/event_group_object.hpp>
+
 #include <graphene/chain/worker_object.hpp>
 #include <graphene/chain/witness_object.hpp>
 
@@ -321,6 +323,11 @@ class database_api
        * @brief Get a list of all sports
        */
       vector<sport_object> list_sports() const;
+
+      /**
+       * @brief Return a list of all event groups for a sport (e.g. all soccer leagues in soccer)
+       */
+      vector<event_group_object> list_event_groups(sport_id_type sport_id) const;
 
       /////////////////////
       // Markets / feeds //

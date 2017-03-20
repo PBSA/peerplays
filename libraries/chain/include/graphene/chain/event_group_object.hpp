@@ -31,6 +31,8 @@ namespace graphene { namespace chain {
 
 class database;
 
+struct by_sport_id;
+
 class event_group_object : public graphene::db::abstract_object< event_group_object >
 {
    public:
@@ -44,7 +46,9 @@ class event_group_object : public graphene::db::abstract_object< event_group_obj
 typedef multi_index_container<
    event_group_object,
    indexed_by<
-      ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > > > > event_group_object_multi_index_type;
+      ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >, 
+      ordered_non_unique< tag<by_sport_id>, member< event_group_object, sport_id_type, &event_group_object::sport_id > >      >
+   > event_group_object_multi_index_type;
 
 typedef generic_index<event_group_object, event_group_object_multi_index_type> event_group_object_index;
 } } // graphene::chain
