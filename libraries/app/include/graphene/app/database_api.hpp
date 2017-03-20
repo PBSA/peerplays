@@ -40,6 +40,7 @@
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/sport_object.hpp>
 #include <graphene/chain/event_group_object.hpp>
+#include <graphene/chain/betting_market_object.hpp>
 
 #include <graphene/chain/worker_object.hpp>
 #include <graphene/chain/witness_object.hpp>
@@ -328,6 +329,11 @@ class database_api
        * @brief Return a list of all event groups for a sport (e.g. all soccer leagues in soccer)
        */
       vector<event_group_object> list_event_groups(sport_id_type sport_id) const;
+
+      /**
+       * @brief Return a list of all betting market groups for an event
+       */
+      vector<betting_market_group_object> list_betting_market_groups(event_id_type) const;
 
       /////////////////////
       // Markets / feeds //

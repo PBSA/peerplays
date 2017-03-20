@@ -96,8 +96,9 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       vector<optional<asset_object>> lookup_asset_symbols(const vector<string>& symbols_or_ids)const;
 
       // Peerplays
-      vector<sport_object>           list_sports() const; 
-      vector<event_group_object>     list_event_groups(sport_id_type sport_id) const;
+      vector<sport_object>                list_sports() const; 
+      vector<event_group_object>          list_event_groups(sport_id_type sport_id) const;
+      vector<betting_market_group_object> list_betting_market_groups(event_id_type) const;
 
       // Markets / feeds
       vector<limit_order_object>         get_limit_orders(asset_id_type a, asset_id_type b, uint32_t limit)const;
@@ -911,6 +912,19 @@ vector<event_group_object> database_api_impl::list_event_groups(sport_id_type sp
    }
    return result;
 }
+
+vector<betting_market_group_object> database_api_impl::list_betting_market_groups(event_id_type event_id) const
+{
+   vector<betting_market_group_object> result;
+   const auto& betting_market_group_idx = _db.get_index_type<betting_market_group_object_index>().indices().get<by_event_id>();
+   for (const betting_market_group_object& betting_market_group : betting_market_group_idx)
+   {
+      result.emplace_back(betting_market_group);
+   }
+   return result;
+}
+
+
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
 // Markets / feeds                                                  //
