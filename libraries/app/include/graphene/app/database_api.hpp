@@ -335,6 +335,11 @@ class database_api
        */
       vector<betting_market_group_object> list_betting_market_groups(event_id_type) const;
 
+      /**
+       * @brief Return a list of all betting markets for a betting market group
+       */
+      vector<betting_market_object> list_betting_markets(betting_market_group_id_type) const;
+
       /////////////////////
       // Markets / feeds //
       /////////////////////

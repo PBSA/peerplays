@@ -99,6 +99,7 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       vector<sport_object>                list_sports() const; 
       vector<event_group_object>          list_event_groups(sport_id_type sport_id) const;
       vector<betting_market_group_object> list_betting_market_groups(event_id_type) const;
+      vector<betting_market_object>       list_betting_markets(betting_market_group_id_type) const;
 
       // Markets / feeds
       vector<limit_order_object>         get_limit_orders(asset_id_type a, asset_id_type b, uint32_t limit)const;
@@ -924,6 +925,16 @@ vector<betting_market_group_object> database_api_impl::list_betting_market_group
    return result;
 }
 
+vector<betting_market_object> database_api_impl::list_betting_markets(betting_market_group_id_type betting_market_group_id) const
+{
+   vector<betting_market_object> result;
+   const auto& betting_market_idx = _db.get_index_type<betting_market_object_index>().indices().get<by_betting_market_group_id>();
+   for (const betting_market_object& betting_market : betting_market_idx)
+   {
+      result.emplace_back(betting_market);
+   }
+   return result;
+}
 
 //////////////////////////////////////////////////////////////////////
 //                                                                  //

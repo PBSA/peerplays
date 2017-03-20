@@ -32,6 +32,7 @@ namespace graphene { namespace chain {
 class database;
 
 struct by_event_id;
+struct by_betting_market_group_id;
 
 class betting_market_group_object : public graphene::db::abstract_object< betting_market_group_object >
 {
@@ -87,7 +88,9 @@ typedef generic_index<betting_market_group_object, betting_market_group_object_m
 typedef multi_index_container<
    betting_market_object,
    indexed_by<
-      ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > > > > betting_market_object_multi_index_type;
+      ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
+      ordered_non_unique< tag<by_betting_market_group_id>, member< betting_market_object, betting_market_group_id_type, &betting_market_object::group_id > >
+   > > betting_market_object_multi_index_type;
 
 typedef generic_index<betting_market_object, betting_market_object_multi_index_type> betting_market_object_index;
 
