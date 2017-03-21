@@ -94,10 +94,15 @@ object_id_type betting_market_create_evaluator::do_apply(const betting_market_cr
 
 void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
 { try {
-   FC_ASSERT( db().find_object(op.bettor_id), "Invalid betting_market_group specified" );
-   FC_ASSERT( db().find_object(op.betting_market_id), "Invalid betting_market specified" );
+   const database& d = db();
 
-   const chain_parameters& current_params = db().get_global_properties().parameters;
+   _betting_market = &op.betting_market_id(d);
+   _betting_market_group = &_betting_market->group_id(d);
+   _asset = &_betting_market->asset_id(d);
+
+   FC_ASSERT( is_authorized_asset( d, *fee_paying_account, *_asset ) );
+
+   const chain_parameters& current_params = d.get_global_properties().parameters;
    FC_ASSERT( op.backer_multiplier >= current_params.min_bet_multiplier &&
               op.backer_multiplier <= current_params.max_bet_multiplier, 
               "Bet odds are outside the blockchain's limits" );
@@ -112,6 +117,10 @@ void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
          allowed_increment = iter->second;
       FC_ASSERT(op.backer_multiplier % allowed_increment == 0, "Bet odds must be a multiple of ${allowed_increment}", ("allowed_increment", allowed_increment));
    }
+
+   share_type stake_plus_fees = op.amount_to_bet + op.amount_reserved_for_fees;
+   FC_ASSERT( d.get_balance( *fee_paying_account, *_asset ).amount  >= stake_plus_fees, "insufficient balance",
+              ("balance", d.get_balance(*fee_paying_account, *_asset))("stake_plus_fees", stake_plus_fees)  );
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }

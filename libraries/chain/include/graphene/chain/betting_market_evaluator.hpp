@@ -58,6 +58,10 @@ namespace graphene { namespace chain {
 
          void_result do_evaluate( const bet_place_operation& o );
          object_id_type do_apply( const bet_place_operation& o );
+      private:
+         const betting_market_group_object* _betting_market_group;
+         const betting_market_object* _betting_market;
+         const asset_object* _asset;
    };
 
 } } // graphene::chain
