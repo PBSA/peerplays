@@ -292,6 +292,20 @@ namespace graphene { namespace app {
             } case balance_object_type:{
                /** these are free from any accounts */
                break;
+            } 
+            case sport_object_type:
+            case competitor_object_type:
+            case event_group_object_type:
+            case event_object_type:
+            case betting_market_group_object_type:
+            case betting_market_object_type:
+               /** these are free from any accounts */
+               break;
+            case bet_object_type:{
+               const auto& aobj = dynamic_cast<const bet_object*>(obj);
+               assert( aobj != nullptr );
+               result.push_back( aobj->bettor_id );
+               break;
             }
           }
        }
@@ -349,6 +363,8 @@ namespace graphene { namespace app {
                  case impl_buyback_object_type:
                   break;
                  case impl_fba_accumulator_object_type:
+                  break;
+                 case impl_betting_market_position_object_type:
                   break;
           }
        }

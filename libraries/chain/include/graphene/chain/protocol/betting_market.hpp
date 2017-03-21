@@ -111,7 +111,6 @@ struct betting_market_resolve_operation : public base_operation
 };
 
 enum class bet_type { back, lay };
-typedef uint32_t bet_multiplier_type;
 
 struct bet_place_operation : public base_operation
 {

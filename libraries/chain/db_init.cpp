@@ -159,6 +159,9 @@ const uint8_t betting_market_object::type_id;
 const uint8_t bet_object::space_id;
 const uint8_t bet_object::type_id;
 
+const uint8_t betting_market_position_object::space_id;
+const uint8_t betting_market_position_object::type_id;
+
 
 void database::initialize_evaluators()
 {
@@ -263,6 +266,7 @@ void database::initialize_indexes()
    add_index< primary_index< buyback_index                                > >();
 
    add_index< primary_index< simple_index< fba_accumulator_object       > > >();
+   add_index< primary_index< betting_market_position_multi_index > >();
 }
 
 void database::init_genesis(const genesis_state_type& genesis_state)

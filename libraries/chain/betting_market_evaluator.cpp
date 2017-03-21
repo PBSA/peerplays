@@ -97,6 +97,22 @@ void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
    FC_ASSERT( db().find_object(op.bettor_id), "Invalid betting_market_group specified" );
    FC_ASSERT( db().find_object(op.betting_market_id), "Invalid betting_market specified" );
 
+   const chain_parameters& current_params = db().get_global_properties().parameters;
+   FC_ASSERT( op.backer_multiplier >= current_params.min_bet_multiplier &&
+              op.backer_multiplier <= current_params.max_bet_multiplier, 
+              "Bet odds are outside the blockchain's limits" );
+
+   if (!current_params.permitted_betting_odds_increments.empty())
+   {
+      bet_multiplier_type allowed_increment;
+      const auto iter = current_params.permitted_betting_odds_increments.upper_bound(op.backer_multiplier);
+      if (iter == current_params.permitted_betting_odds_increments.end())
+         allowed_increment = std::prev(current_params.permitted_betting_odds_increments.end())->second;
+      else
+         allowed_increment = iter->second;
+      FC_ASSERT(op.backer_multiplier % allowed_increment == 0, "Bet odds must be a multiple of ${allowed_increment}", ("allowed_increment", allowed_increment));
+   }
+
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
