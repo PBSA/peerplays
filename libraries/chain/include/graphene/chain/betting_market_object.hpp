@@ -70,7 +70,7 @@ class bet_object : public graphene::db::abstract_object< bet_object >
 
       share_type amount_to_bet;
 
-      share_type amount_to_win;
+      bet_multiplier_type backer_multiplier;
 
       share_type amount_reserved_for_fees;
 
@@ -104,4 +104,4 @@ typedef generic_index<bet_object, bet_object_multi_index_type> bet_object_index;
 
 FC_REFLECT_DERIVED( graphene::chain::betting_market_group_object, (graphene::db::object), (event_id)(options) )
 FC_REFLECT_DERIVED( graphene::chain::betting_market_object, (graphene::db::object), (group_id)(payout_condition)(asset_id) )
-FC_REFLECT_DERIVED( graphene::chain::bet_object, (graphene::db::object), (bettor_id)(betting_market_id)(amount_to_bet)(amount_to_win)(amount_reserved_for_fees)(back_or_lay) )
+FC_REFLECT_DERIVED( graphene::chain::bet_object, (graphene::db::object), (bettor_id)(betting_market_id)(amount_to_bet)(backer_multiplier)(amount_reserved_for_fees)(back_or_lay) )

@@ -35,6 +35,11 @@ void betting_market_create_operation::validate() const
    FC_ASSERT( fee.amount >= 0 );
 }
 
+void betting_market_resolve_operation::validate() const
+{
+   FC_ASSERT( fee.amount >= 0 );
+}
+
 void bet_place_operation::validate() const
 {
    FC_ASSERT( fee.amount >= 0 );

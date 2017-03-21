@@ -169,3 +169,20 @@
 ///@}
 
 #define GRAPHENE_FBA_STEALTH_DESIGNATED_ASSET (asset_id_type(743))
+
+/**
+ * Betting-related constants.
+ *
+ * We store bet multipliers as fixed-precision uint32_t.  These values are
+ * the maximum power-of-ten bet we can have on a "symmetric" market:
+ * (decimal)     1.0001  - 10001
+ * (fractional)  1:10000 - 10000:1
+ */
+///@{
+/// betting odds (multipliers) are stored as fixed-precision, divide by this to get the actual multiplier
+#define GRAPHENE_BETTING_ODDS_PRECISION 10000
+/// the smallest bet multiplier we will accept
+#define GRAPHENE_BETTING_MIN_MULTIPLIER 10001
+/// the largest bet multiplier we will accept
+#define GRAPHENE_BETTING_MAX_MULTIPLIER 100010000
+///@}

@@ -107,7 +107,7 @@ object_id_type bet_place_evaluator::do_apply(const bet_place_operation& op)
          bet_obj.bettor_id = op.bettor_id;
          bet_obj.betting_market_id = op.betting_market_id;
          bet_obj.amount_to_bet = op.amount_to_bet;
-         bet_obj.amount_to_win = op.amount_to_win;
+         bet_obj.backer_multiplier = op.backer_multiplier;
          bet_obj.amount_reserved_for_fees = op.amount_reserved_for_fees;
          bet_obj.back_or_lay = op.back_or_lay;
      });

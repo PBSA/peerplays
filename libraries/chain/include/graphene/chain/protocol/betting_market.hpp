@@ -29,7 +29,7 @@
 namespace graphene { namespace chain {
 
 
-enum betting_market_type {
+enum class betting_market_type {
    moneyline,
    spread,
    over_under,
@@ -88,7 +88,31 @@ struct betting_market_create_operation : public base_operation
    void            validate()const;
 };
 
-enum bet_type { back_bet, lay_bet };
+enum class betting_market_resolution_type {
+   win,
+   not_win,
+   cancel,
+   BETTING_MARKET_RESOLUTION_COUNT
+};
+
+struct betting_market_resolve_operation : public base_operation
+{
+   struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
+   asset             fee;
+
+   betting_market_id_type betting_market_id;
+
+   betting_market_resolution_type resolution;
+
+   extensions_type   extensions;
+
+   account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
+   void            validate()const;
+};
+
+enum class bet_type { back, lay };
+typedef uint32_t bet_multiplier_type;
+
 struct bet_place_operation : public base_operation
 {
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
@@ -98,10 +122,19 @@ struct bet_place_operation : public base_operation
    
    betting_market_id_type betting_market_id;
 
+   /// the bettor's stake
    share_type amount_to_bet;
 
-   share_type amount_to_win;
+   // decimal odds as seen by the backer, even if this is a lay bet.
+   // this is a fixed-precision number scaled by GRAPHENE_BETTING_ODDS_PRECISION.
+   //
+   // For example, an even 1/1 bet would be decimal odds 2.0, so backer_multiplier 
+   // would be 2 * GRAPHENE_BETTING_ODDS_PRECISION.
+   bet_multiplier_type backer_multiplier;
 
+   // the amount the blockchain reserves to pay the percentage fee on matched bets.
+   // when this bet is (partially) matched, the blockchain will take (part of) the fee.  If this bet is canceled
+   // the remaining amount will be returned to the bettor
    share_type amount_reserved_for_fees;
 
    bet_type back_or_lay;
@@ -131,7 +164,14 @@ FC_REFLECT( graphene::chain::betting_market_create_operation::fee_parameters_typ
 FC_REFLECT( graphene::chain::betting_market_create_operation, 
             (fee)(group_id)(payout_condition)(asset_id)(extensions) )
 
-FC_REFLECT_ENUM( graphene::chain::bet_type, (back_bet)(lay_bet) )
+FC_REFLECT_ENUM( graphene::chain::betting_market_resolution_type, (win)(not_win)(cancel)(BETTING_MARKET_RESOLUTION_COUNT) )
+
+FC_REFLECT( graphene::chain::betting_market_resolve_operation::fee_parameters_type, (fee) )
+FC_REFLECT( graphene::chain::betting_market_resolve_operation, 
+            (fee)(betting_market_id)(resolution)(extensions) )
+
+
+FC_REFLECT_ENUM( graphene::chain::bet_type, (back)(lay) )
 FC_REFLECT( graphene::chain::bet_place_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::bet_place_operation, 
-            (fee)(bettor_id)(betting_market_id)(amount_to_bet)(amount_to_win)(amount_reserved_for_fees)(back_or_lay)(extensions) )
+            (fee)(bettor_id)(betting_market_id)(amount_to_bet)(backer_multiplier)(amount_reserved_for_fees)(back_or_lay)(extensions) )
