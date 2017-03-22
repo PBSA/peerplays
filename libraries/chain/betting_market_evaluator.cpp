@@ -94,7 +94,6 @@ object_id_type betting_market_create_evaluator::do_apply(const betting_market_cr
 
 void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
 { try {
-<<<<<<< 46ef911f8ec2454ea00507dabc843a994b1fc842
    const database& d = db();
 
    _betting_market = &op.betting_market_id(d);
