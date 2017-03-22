@@ -70,6 +70,7 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       fc::variant_object get_config()const;
       chain_id_type get_chain_id()const;
       dynamic_global_property_object get_dynamic_global_properties()const;
+      global_betting_statistics_object get_global_betting_statistics() const;
 
       // Keys
       vector<vector<account_id_type>> get_key_references( vector<public_key_type> key )const;
@@ -421,6 +422,11 @@ dynamic_global_property_object database_api::get_dynamic_global_properties()cons
 dynamic_global_property_object database_api_impl::get_dynamic_global_properties()const
 {
    return _db.get(dynamic_global_property_id_type());
+}
+
+global_betting_statistics_object database_api_impl::get_global_betting_statistics() const
+{
+   return _db.get(global_betting_statistics_id_type());
 }
 
 //////////////////////////////////////////////////////////////////////

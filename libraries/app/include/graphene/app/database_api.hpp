@@ -41,6 +41,7 @@
 #include <graphene/chain/sport_object.hpp>
 #include <graphene/chain/event_group_object.hpp>
 #include <graphene/chain/betting_market_object.hpp>
+#include <graphene/chain/global_betting_statistics_object.hpp>
 
 #include <graphene/chain/worker_object.hpp>
 #include <graphene/chain/witness_object.hpp>
@@ -319,6 +320,11 @@ class database_api
       /////////////////////
       // Peerplays       //
       /////////////////////
+
+      /**
+       * @brief Get global betting statistics
+       */
+      global_betting_statistics_object get_global_betting_statistics() const;
 
       /**
        * @brief Get a list of all sports
