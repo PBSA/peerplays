@@ -64,4 +64,13 @@ namespace graphene { namespace chain {
          const asset_object* _asset;
    };
 
+   class bet_cancel_evaluator : public evaluator<bet_cancel_evaluator>
+   {
+      public:
+         typedef bet_cancel_operation operation_type;
+
+         void_result do_evaluate( const bet_cancel_operation& o );
+         void_result do_apply( const bet_cancel_operation& o );
+   };
+
 } } // graphene::chain

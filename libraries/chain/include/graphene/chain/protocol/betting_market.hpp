@@ -144,6 +144,22 @@ struct bet_place_operation : public base_operation
    void            validate()const;
 };
 
+struct bet_cancel_operation : public base_operation
+{
+   struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
+   asset             fee;
+
+   /// the bettor who is cancelling the bet
+   account_id_type bettor_id;
+   /// the bet being canceled 
+   bet_id_type bet_to_cancel;
+
+   extensions_type   extensions;
+
+   account_id_type fee_payer()const { return bettor_id; }
+   void            validate()const;
+};
+
 
 
 } }
@@ -174,3 +190,6 @@ FC_REFLECT_ENUM( graphene::chain::bet_type, (back)(lay) )
 FC_REFLECT( graphene::chain::bet_place_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::bet_place_operation, 
             (fee)(bettor_id)(betting_market_id)(amount_to_bet)(backer_multiplier)(amount_reserved_for_fees)(back_or_lay)(extensions) )
+
+FC_REFLECT( graphene::chain::bet_cancel_operation::fee_parameters_type, (fee) )
+FC_REFLECT( graphene::chain::bet_cancel_operation, (bettor_id) (bet_to_cancel) (extensions) )

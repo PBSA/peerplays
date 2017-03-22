@@ -323,6 +323,9 @@ namespace graphene { namespace chain {
 
          void debug_dump();
 
+         //////////////////// db_bet.cpp //////////////////////
+         void cancel_bet(const bet_object& bet, bool create_virtual_op = true);
+
          //////////////////// db_market.cpp ////////////////////
 
          /// @{ @group Market Helpers
