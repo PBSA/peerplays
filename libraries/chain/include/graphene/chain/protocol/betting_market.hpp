@@ -114,7 +114,11 @@ enum class bet_type { back, lay };
 
 struct bet_place_operation : public base_operation
 {
-   struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
+   struct fee_parameters_type 
+   { 
+      uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION;     // fixed fee charged upon placing the bet
+      uint16_t percentage_fee = 2 * GRAPHENE_1_PERCENT; // charged when bet is matched
+   };
    asset             fee;
 
    account_id_type bettor_id;
@@ -122,7 +126,7 @@ struct bet_place_operation : public base_operation
    betting_market_id_type betting_market_id;
 
    /// the bettor's stake
-   share_type amount_to_bet;
+   asset amount_to_bet;
 
    // decimal odds as seen by the backer, even if this is a lay bet.
    // this is a fixed-precision number scaled by GRAPHENE_BETTING_ODDS_PRECISION.
@@ -133,7 +137,7 @@ struct bet_place_operation : public base_operation
 
    // the amount the blockchain reserves to pay the percentage fee on matched bets.
    // when this bet is (partially) matched, the blockchain will take (part of) the fee.  If this bet is canceled
-   // the remaining amount will be returned to the bettor
+   // the remaining amount will be returned to the bettor (same asset type as the amount_to_bet)
    share_type amount_reserved_for_fees;
 
    bet_type back_or_lay;
@@ -160,6 +164,34 @@ struct bet_cancel_operation : public base_operation
    void            validate()const;
 };
 
+/**
+ * virtual op generated when a bet is canceled
+ */
+struct bet_canceled_operation : public base_operation 
+{
+   struct fee_parameters_type {};
+
+   bet_canceled_operation(){}
+   bet_canceled_operation(account_id_type bettor_id, bet_id_type bet_id, 
+                          asset stake_returned, share_type unused_fees_returned) :
+      bettor_id(bettor_id),
+      bet_id(bet_id),
+      stake_returned(stake_returned),
+      unused_fees_returned(unused_fees_returned)
+   {}
+
+   account_id_type     bettor_id;
+   bet_id_type         bet_id;
+   asset               stake_returned;
+   share_type          unused_fees_returned; // same asset type as stake_returned
+   asset               fee; // unimportant for a virtual op
+
+   account_id_type fee_payer()const { return bettor_id; }
+   void            validate()const { FC_ASSERT(false, "virtual operation"); }
+
+   /// This is a virtual operation; there is no fee
+   share_type      calculate_fee(const fee_parameters_type& k)const { return 0; }
+};
 
 
 } }
@@ -193,3 +225,6 @@ FC_REFLECT( graphene::chain::bet_place_operation,
 
 FC_REFLECT( graphene::chain::bet_cancel_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::bet_cancel_operation, (bettor_id) (bet_to_cancel) (extensions) )
+
+FC_REFLECT( graphene::chain::bet_canceled_operation::fee_parameters_type, )
+FC_REFLECT( graphene::chain::bet_canceled_operation, (bettor_id)(bet_id)(stake_returned)(unused_fees_returned) )

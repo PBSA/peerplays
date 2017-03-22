@@ -62,6 +62,7 @@ namespace graphene { namespace chain {
          const betting_market_group_object* _betting_market_group;
          const betting_market_object* _betting_market;
          const asset_object* _asset;
+         share_type _stake_plus_fees;
    };
 
    class bet_cancel_evaluator : public evaluator<bet_cancel_evaluator>
@@ -71,6 +72,8 @@ namespace graphene { namespace chain {
 
          void_result do_evaluate( const bet_cancel_operation& o );
          void_result do_apply( const bet_cancel_operation& o );
+      private:
+         const bet_object* _bet_to_cancel;
    };
 
 } } // graphene::chain

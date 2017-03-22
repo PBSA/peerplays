@@ -323,9 +323,6 @@ namespace graphene { namespace chain {
 
          void debug_dump();
 
-         //////////////////// db_bet.cpp //////////////////////
-         void cancel_bet(const bet_object& bet, bool create_virtual_op = true);
-
          //////////////////// db_market.cpp ////////////////////
 
          /// @{ @group Market Helpers
@@ -362,6 +359,21 @@ namespace graphene { namespace chain {
                    const force_settlement_object& settle,
                    const price& match_price,
                    asset max_settlement);
+         ///@}
+
+         //////////////////// db_bet.cpp ////////////////////
+
+         /// @{ @group Betting Market Helpers
+         void cancel_bet(const bet_object& bet, bool create_virtual_op = true);
+         /**
+          * @brief Process a new bet
+          * @param new_bet_object The new bet to process
+          * @return true if order was completely filled; false otherwise
+          *
+          * This function takes a new bet and attempts to match it with existing
+          * bets already on the books.
+          */
+         bool place_bet(const bet_object& new_bet_object);
          ///@}
 
          /**

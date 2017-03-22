@@ -68,11 +68,11 @@ class bet_object : public graphene::db::abstract_object< bet_object >
       
       betting_market_id_type betting_market_id;
 
-      share_type amount_to_bet;
+      asset amount_to_bet;
 
       bet_multiplier_type backer_multiplier;
 
-      share_type amount_reserved_for_fees;
+      share_type amount_reserved_for_fees; // same asset type as amount_to_bet
 
       bet_type back_or_lay;
 };

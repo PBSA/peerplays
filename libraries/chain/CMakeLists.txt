@@ -100,6 +100,7 @@ add_library( graphene_chain
              event_evaluator.cpp
              protocol/betting_market.cpp
              betting_market_evaluator.cpp
+             db_bet.cpp
 
              ${HEADERS}
              "${CMAKE_CURRENT_BINARY_DIR}/include/graphene/chain/hardfork.hpp"

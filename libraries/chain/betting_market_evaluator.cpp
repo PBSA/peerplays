@@ -98,15 +98,19 @@ void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
 
    _betting_market = &op.betting_market_id(d);
    _betting_market_group = &_betting_market->group_id(d);
-   _asset = &_betting_market->asset_id(d);
 
+   FC_ASSERT( op.amount_to_bet.asset_id == _betting_market->asset_id,
+              "Asset type bet does not match the market's asset type" );
+
+   _asset = &_betting_market->asset_id(d);
    FC_ASSERT( is_authorized_asset( d, *fee_paying_account, *_asset ) );
 
    const chain_parameters& current_params = d.get_global_properties().parameters;
+
+   // are their odds valid
    FC_ASSERT( op.backer_multiplier >= current_params.min_bet_multiplier &&
               op.backer_multiplier <= current_params.max_bet_multiplier, 
               "Bet odds are outside the blockchain's limits" );
-
    if (!current_params.permitted_betting_odds_increments.empty())
    {
       bet_multiplier_type allowed_increment;
@@ -118,17 +122,29 @@ void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
       FC_ASSERT(op.backer_multiplier % allowed_increment == 0, "Bet odds must be a multiple of ${allowed_increment}", ("allowed_increment", allowed_increment));
    }
 
-   share_type stake_plus_fees = op.amount_to_bet + op.amount_reserved_for_fees;
-   FC_ASSERT( d.get_balance( *fee_paying_account, *_asset ).amount  >= stake_plus_fees, "insufficient balance",
-              ("balance", d.get_balance(*fee_paying_account, *_asset))("stake_plus_fees", stake_plus_fees)  );
+   // verify they reserved enough to cover the percentage fee
+   uint16_t percentage_fee = current_params.current_fees->get<bet_place_operation>().percentage_fee;
+   fc::uint128_t minimum_percentage_fee_calculation = op.amount_to_bet.amount.value;
+   minimum_percentage_fee_calculation *= percentage_fee;
+   minimum_percentage_fee_calculation += GRAPHENE_100_PERCENT - 1; // round up
+   minimum_percentage_fee_calculation /= GRAPHENE_100_PERCENT;
+   share_type minimum_percentage_fee = minimum_percentage_fee_calculation.to_uint64();
+   FC_ASSERT(op.amount_reserved_for_fees >= minimum_percentage_fee, "insufficient fees",
+             ("fee_provided", op.amount_reserved_for_fees)("fee_required", minimum_percentage_fee));
+
+   // do they have enough in their account to place the bet
+   _stake_plus_fees = op.amount_to_bet.amount + op.amount_reserved_for_fees;
+   FC_ASSERT( d.get_balance( *fee_paying_account, *_asset ).amount  >= _stake_plus_fees, "insufficient balance",
+              ("balance", d.get_balance(*fee_paying_account, *_asset))("stake_plus_fees", _stake_plus_fees)  );
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
 object_id_type bet_place_evaluator::do_apply(const bet_place_operation& op)
 { try {
+   database& d = db();
    const bet_object& new_bet =
-     db().create<bet_object>( [&]( bet_object& bet_obj ) {
+     d.create<bet_object>( [&]( bet_object& bet_obj ) {
          bet_obj.bettor_id = op.bettor_id;
          bet_obj.betting_market_id = op.betting_market_id;
          bet_obj.amount_to_bet = op.amount_to_bet;
@@ -136,21 +152,26 @@ object_id_type bet_place_evaluator::do_apply(const bet_place_operation& op)
          bet_obj.amount_reserved_for_fees = op.amount_reserved_for_fees;
          bet_obj.back_or_lay = op.back_or_lay;
      });
+
+   d.adjust_balance(fee_paying_account->id, asset(-_stake_plus_fees, _betting_market->asset_id));
+
+   bool bet_matched = d.place_bet(new_bet);
+
    return new_bet.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
 void_result bet_cancel_evaluator::do_evaluate(const bet_cancel_operation& op)
 { try {
-   FC_ASSERT( db().find_object(op.bettor_id), "Invalid bettor account specified" );
-   FC_ASSERT( db().find_object(op.bet_to_cancel), "Invalid bet specified" );
+   const database& d = db();
+   _bet_to_cancel = &op.bet_to_cancel(d);
+   FC_ASSERT( op.bettor_id == _bet_to_cancel->bettor_id, "You can only cancel your own bets" );
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
 void_result bet_cancel_evaluator::do_apply(const bet_cancel_operation& op)
 { try {
-   const bet_object& bet_to_cancel = op.bet_to_cancel( db() );
-   db().cancel_bet(bet_to_cancel);
+   db().cancel_bet(*_bet_to_cancel);
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
