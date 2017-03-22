@@ -366,6 +366,8 @@ namespace graphene { namespace app {
                   break;
                  case impl_betting_market_position_object_type:
                   break;
+                 case impl_global_betting_statistics_object_type:
+                  break;
           }
        }
        return result;
