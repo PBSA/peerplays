@@ -148,6 +148,41 @@ struct bet_place_operation : public base_operation
    void            validate()const;
 };
 
+/**
+ * virtual op generated when a bet is matched
+ */
+struct bet_matched_operation : public base_operation 
+{
+   struct fee_parameters_type {};
+
+   bet_matched_operation(){}
+   bet_matched_operation(account_id_type bettor_id, bet_id_type bet_id, 
+                         asset amount_bet, share_type fees_paid,
+                         bet_multiplier_type backer_multiplier, 
+                         share_type guaranteed_winnings_returned) :
+      bettor_id(bettor_id),
+      bet_id(bet_id),
+      amount_bet(amount_bet),
+      fees_paid(fees_paid),
+      backer_multiplier(backer_multiplier),
+      guaranteed_winnings_returned(guaranteed_winnings_returned)
+   {}
+
+   account_id_type     bettor_id;
+   bet_id_type         bet_id;
+   asset               amount_bet;
+   share_type          fees_paid; // same asset type as amount_bet
+   bet_multiplier_type backer_multiplier; // the actual odds received
+   share_type          guaranteed_winnings_returned; // same asset type as amount_bet
+   asset               fee; // unimportant for a virtual op
+
+   account_id_type fee_payer()const { return bettor_id; }
+   void            validate()const { FC_ASSERT(false, "virtual operation"); }
+
+   /// This is a virtual operation; there is no fee
+   share_type      calculate_fee(const fee_parameters_type& k)const { return 0; }
+};
+
 struct bet_cancel_operation : public base_operation
 {
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
@@ -222,6 +257,9 @@ FC_REFLECT_ENUM( graphene::chain::bet_type, (back)(lay) )
 FC_REFLECT( graphene::chain::bet_place_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::bet_place_operation, 
             (fee)(bettor_id)(betting_market_id)(amount_to_bet)(backer_multiplier)(amount_reserved_for_fees)(back_or_lay)(extensions) )
+
+FC_REFLECT( graphene::chain::bet_matched_operation::fee_parameters_type, )
+FC_REFLECT( graphene::chain::bet_matched_operation, (bettor_id)(bet_id)(amount_bet)(fees_paid)(backer_multiplier)(guaranteed_winnings_returned) )
 
 FC_REFLECT( graphene::chain::bet_cancel_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::bet_cancel_operation, (bettor_id) (bet_to_cancel) (extensions) )
