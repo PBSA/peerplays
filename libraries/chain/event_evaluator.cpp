@@ -29,6 +29,7 @@
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/hardfork.hpp>
 #include <graphene/chain/is_authorized_asset.hpp>
+#include <graphene/chain/global_betting_statistics_object.hpp>
 
 namespace graphene { namespace chain {
 
@@ -72,15 +73,47 @@ void_result event_create_evaluator::do_evaluate(const event_create_operation& op
 
 object_id_type event_create_evaluator::do_apply(const event_create_operation& op)
 { try {
+   database& d = db();
    const event_object& new_event =
-     db().create<event_object>( [&]( event_object& event_obj ) {
+      d.create<event_object>( [&]( event_object& event_obj ) {
          event_obj.name = op.name;
          event_obj.season = op.season;
          event_obj.start_time = op.start_time;
          event_obj.event_group_id = event_group_id;
          event_obj.competitors = competitors;
+         // There should be exactly one score for each competitor (score is initially just an empty string).
+         event_obj.scores.resize( competitors.size() );
      });
+   //increment number of active events in global betting statistics object
+   const global_betting_statistics_object& betting_statistics = global_betting_statistics_id_type()(d);
+   d.modify( betting_statistics, [&](global_betting_statistics_object& bso) {
+     bso.number_of_active_events += 1;
+   });
    return new_event.id;
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+void_result event_update_status_evaluator::do_evaluate(const event_update_status_operation& op)
+{ try {
+   FC_ASSERT(trx_state->_is_proposed_trx);
+
+   database& d = db();
+   //check that the event to update exists
+   _event_to_update = &op.event_id(d);
+   //if scores are reported, there must be a score for every competitor
+   FC_ASSERT( op.scores.empty() || _event_to_update->scores.size() == op.scores.size() );
+
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+void_result event_update_status_evaluator::do_apply(const event_update_status_operation& op)
+{ try {
+   database& d = db();
+   //TODO: cancel_all_betting_markets_for_event() //should we put this in event or just here in evaluator?
+   d.modify( *_event_to_update, [&]( event_object& event_obj) {
+      event_obj.scores = op.scores;
+      event_obj.status = op.status;
+   });
+   return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
 } } // graphene::chain

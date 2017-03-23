@@ -41,4 +41,15 @@ namespace graphene { namespace chain {
          vector<competitor_id_type> competitors;
    };
 
+   class event_update_status_evaluator : public evaluator<event_update_status_evaluator>
+   {
+      public:
+         typedef event_update_status_operation operation_type;
+
+         void_result do_evaluate( const event_update_status_operation& o );
+         void_result do_apply( const event_update_status_operation& o );
+      private:
+         const event_object* _event_to_update = nullptr;
+   };
+
 } } // graphene::chain

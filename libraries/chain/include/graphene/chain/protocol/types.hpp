@@ -439,6 +439,7 @@ FC_REFLECT_TYPENAME( graphene::chain::special_authority_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::buyback_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::fba_accumulator_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::betting_market_position_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::global_betting_statistics_id_type )
 
 FC_REFLECT( graphene::chain::void_t, )
 

@@ -81,7 +81,6 @@ enum class event_status
  * For a game like football, this may be a score like "3".  For races,
  * it could be a time like "1:53.4".
  */
-typedef map<competitor_id_type, string> scores_map_type;
 struct event_update_status_operation : public base_operation
 {
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
@@ -97,11 +96,9 @@ struct event_update_status_operation : public base_operation
    event_status status;
 
    /*
-    * the new scores to be merged with the existing scores (if this operation
-    * does not provide scores for all competitors, they will keep their
-    * previous score
+    * scores for each ompetitor stored in same order as competitors in event_object 
     */
-   scores_map_type scores;
+   vector<string> scores;
 
    extensions_type   extensions;
 
