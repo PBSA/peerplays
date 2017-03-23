@@ -179,4 +179,17 @@ void_result bet_cancel_evaluator::do_apply(const bet_cancel_operation& op)
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
+void_result betting_market_resolve_evaluator::do_evaluate(const betting_market_resolve_operation& op)
+{ try {
+   const database& d = db();
+   _betting_market = &op.betting_market_id(d);
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+void_result betting_market_resolve_evaluator::do_apply(const betting_market_resolve_operation& op)
+{ try {
+   db().resolve_betting_market(*_betting_market, op.resolution);
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
 } } // graphene::chain

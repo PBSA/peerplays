@@ -235,6 +235,7 @@ typedef multi_index_container<
 typedef generic_index<bet_object, bet_object_multi_index_type> bet_object_index;
 
 struct by_bettor_betting_market{};
+struct by_betting_market_bettor{};
 typedef multi_index_container<
    betting_market_position_object,
    indexed_by<
@@ -243,8 +244,13 @@ typedef multi_index_container<
             composite_key<
                betting_market_position_object,
                member<betting_market_position_object, account_id_type, &betting_market_position_object::bettor_id>,
-               member<betting_market_position_object, betting_market_id_type, &betting_market_position_object::betting_market_id>
-            > > > > betting_market_position_multi_index_type;
+               member<betting_market_position_object, betting_market_id_type, &betting_market_position_object::betting_market_id> > >,
+      ordered_unique< tag<by_betting_market_bettor>, 
+            composite_key<
+               betting_market_position_object,
+               member<betting_market_position_object, betting_market_id_type, &betting_market_position_object::betting_market_id>,
+               member<betting_market_position_object, account_id_type, &betting_market_position_object::bettor_id> > >
+  > > betting_market_position_multi_index_type;
 
 typedef generic_index<betting_market_position_object, betting_market_position_multi_index_type> betting_market_position_index;
 } } // graphene::chain

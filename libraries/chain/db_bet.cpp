@@ -19,17 +19,50 @@ void database::cancel_bet( const bet_object& bet, bool create_virtual_op )
    remove(bet);
 }
 
+void database::resolve_betting_market(const betting_market_object& betting_market, 
+                                      betting_market_resolution_type resolution)
+{
+   // TODO: cancel all unmatched bets on the books for this market
+   auto& index = get_index_type<betting_market_position_index>().indices().get<by_bettor_betting_market>();
+   auto position_itr = index.lower_bound(std::make_tuple(betting_market.id));
+   while (position_itr != index.end() &&
+          position_itr->betting_market_id == betting_market.id)
+   {
+      const betting_market_position_object& position = *position_itr;
+      ++position_itr;
+
+      share_type payout_amount = 0;
+      switch (resolution)
+      {
+      case betting_market_resolution_type::win:
+         payout_amount += position.pay_if_payout_condition;
+         payout_amount += position.pay_if_not_canceled;
+         break;
+      case betting_market_resolution_type::not_win:
+         payout_amount += position.pay_if_not_payout_condition;
+         payout_amount += position.pay_if_not_canceled;
+         break;
+      case betting_market_resolution_type::cancel:
+         payout_amount += position.pay_if_canceled;
+         break;
+      }
+
+      adjust_balance(position.bettor_id, asset(payout_amount, betting_market.asset_id));
+      //TODO: pay the fees to the correct (dividend-distribution) account
+      adjust_balance(account_id_type(), asset(position.fees_collected, betting_market.asset_id));
+      //TODO: generate a virtual op to notify the bettor that they won or lost
+
+      remove(position);
+   }
+   remove(betting_market);
+}
+
 bool maybe_cull_small_bet( database& db, const bet_object& bet_object_to_cull )
 {
    /**
-    *  There are times when the AMOUNT_FOR_SALE * SALE_PRICE == 0 which means that we
-    *  have hit the limit where the seller is asking for nothing in return.  When this
-    *  happens we must refund any balance back to the seller, it is too small to be
-    *  sold at the sale price.
-    *
-    *  If the order is a taker order (as opposed to a maker order), so the price is
-    *  set by the counterparty, this check is deferred until the order becomes unmatched
-    *  (see #555) -- however, detecting this condition is the responsibility of the caller.
+    *  There are times when this bet can't be matched (for example, it's now laying a 2:1 bet for
+    *  1 satoshi, so it could only be matched by half a satoshi).  Remove these bets from
+    *  the books.
     */
 
    if( bet_object_to_cull.get_matching_amount() == 0 )

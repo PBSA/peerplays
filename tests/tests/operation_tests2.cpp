@@ -1809,7 +1809,7 @@ BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
             const betting_market_object& market = *db.get_index_type<betting_market_object_index>().indices().begin();
 
             {
-               // have bob lay a bet at 1:1 odds
+               // have bob lay a bet for 1M (+20k fees) at 1:1 odds
                signed_transaction tx;
                bet_place_operation bet_op;
                bet_op.bettor_id = bob_id;
@@ -1826,7 +1826,7 @@ BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
             }
 
             {
-               // have alice back a matching bet at 1:1 odds
+               // have alice back a matching bet at 1:1 odds (also costing 1.02M)
                signed_transaction tx;
                bet_place_operation bet_op;
                bet_op.bettor_id = alice_id;
@@ -1841,6 +1841,52 @@ BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
                sign(tx, alice_private_key);
                db.push_transaction(tx);
             }
+
+            // caps win
+            {
+               proposal_create_operation proposal_op;
+               proposal_op.fee_paying_account = (*active_witnesses.begin())(db).witness_account;
+               betting_market_resolve_operation betting_market_resolve_op;
+               betting_market_resolve_op.betting_market_id = market.id;
+               betting_market_resolve_op.resolution = betting_market_resolution_type::win;
+               proposal_op.proposed_ops.emplace_back(betting_market_resolve_op);
+               proposal_op.expiration_time =  db.head_block_time() + fc::days(1);
+               signed_transaction tx;
+               tx.operations.push_back(proposal_op);
+               set_expiration(db, tx);
+               sign(tx, init_account_priv_key);
+               
+               db.push_transaction(tx);
+            }
+
+            BOOST_REQUIRE_EQUAL(db.get_index_type<proposal_index>().indices().size(), 1);
+            {
+               const proposal_object& prop = *db.get_index_type<proposal_index>().indices().begin();
+
+               for (const witness_id_type& witness_id : active_witnesses)
+               {
+                  BOOST_TEST_MESSAGE("Approving market resolve witness " << fc::variant(witness_id).as<std::string>());
+                  const witness_object& witness = witness_id(db);
+                  const account_object& witness_account = witness.witness_account(db);
+
+                  proposal_update_operation pup;
+                  pup.proposal = prop.id;
+                  pup.fee_paying_account = witness_account.id;
+                  pup.active_approvals_to_add.insert(witness_account.id);
+
+                  signed_transaction tx;
+                  tx.operations.push_back( pup );
+                  set_expiration( db, tx );
+                  sign(tx, init_account_priv_key);
+
+                  db.push_transaction(tx, ~0);
+                  if (db.get_index_type<proposal_index>().indices().size() == 0)
+                     break;
+               }
+            }
+
+            BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000);
+            BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
          }
 
       }
