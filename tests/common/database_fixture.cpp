@@ -36,6 +36,7 @@
 #include <graphene/chain/market_object.hpp>
 #include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/betting_market_object.hpp>
 
 #include <graphene/utilities/tempdir.hpp>
 
@@ -198,6 +199,18 @@ void database_fixture::verify_asset_supplies( const database& db )
       total_balances[ vbo.balance.asset_id ] += vbo.balance.amount;
    for( const fba_accumulator_object& fba : db.get_index_type< simple_index< fba_accumulator_object > >() )
       total_balances[ asset_id_type() ] += fba.accumulated_fba_fees;
+
+   for (const bet_object& o : db.get_index_type<bet_object_index>().indices())
+   {
+      total_balances[o.amount_to_bet.asset_id] += o.amount_to_bet.amount;
+      total_balances[o.amount_to_bet.asset_id] += o.amount_reserved_for_fees;
+   }
+   for (const betting_market_position_object& o : db.get_index_type<betting_market_position_index>().indices())
+   {
+      const betting_market_object& betting_market = o.betting_market_id(db);
+      total_balances[betting_market.asset_id] += o.pay_if_canceled;
+      total_balances[betting_market.asset_id] += o.fees_collected;
+   }
 
    total_balances[asset_id_type()] += db.get_dynamic_global_properties().witness_budget;
 

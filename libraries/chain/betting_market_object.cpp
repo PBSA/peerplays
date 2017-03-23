@@ -8,13 +8,13 @@ namespace graphene { namespace chain {
 
    if (back_or_lay == bet_type::back)
    {
-       amount_to_match_128 *= backer_multiplier - GRAPHENE_100_PERCENT;
-       amount_to_match_128 /= GRAPHENE_100_PERCENT;
+       amount_to_match_128 *= backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION;
+       amount_to_match_128 /= GRAPHENE_BETTING_ODDS_PRECISION;
    }
    else
    {
-       amount_to_match_128 *= GRAPHENE_100_PERCENT;
-       amount_to_match_128 /= backer_multiplier - GRAPHENE_100_PERCENT;
+       amount_to_match_128 *= GRAPHENE_BETTING_ODDS_PRECISION;
+       amount_to_match_128 /= backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION;
    }
    return amount_to_match_128.to_uint64();
 }

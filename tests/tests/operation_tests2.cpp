@@ -41,6 +41,7 @@
 #include <graphene/chain/sport_object.hpp>
 #include <graphene/chain/competitor_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
+#include <graphene/chain/betting_market_object.hpp>
 
 #include <graphene/utilities/tempdir.hpp>
 
@@ -1626,7 +1627,6 @@ BOOST_AUTO_TEST_CASE( buyback )
 BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
 {
    ACTORS( (alice)(bob)(chloe)(dan)(izzy)(philbin) );
-   upgrade_to_lifetime_member(philbin_id);
 
    try
    {
@@ -1800,6 +1800,49 @@ BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
                }
             }
          }
+
+         // give alice and bob 10M each
+         transfer(account_id_type(), alice_id, asset(10000000));
+         transfer(account_id_type(), bob_id, asset(10000000));
+         {
+            // get a betting market to run tests in.  It doesn't relly matter what it is, but in this test it will be "caps win".
+            const betting_market_object& market = *db.get_index_type<betting_market_object_index>().indices().begin();
+
+            {
+               // have bob lay a bet at 1:1 odds
+               signed_transaction tx;
+               bet_place_operation bet_op;
+               bet_op.bettor_id = bob_id;
+               bet_op.betting_market_id = market.id;
+               bet_op.amount_to_bet = asset(1000000, asset_id_type());
+               bet_op.backer_multiplier = 2 * GRAPHENE_BETTING_ODDS_PRECISION;
+               bet_op.amount_reserved_for_fees = 1000000 / 50; // chain defaults to 2% fees
+               bet_op.back_or_lay = bet_type::lay;
+               tx.operations.push_back(bet_op);
+               db.current_fee_schedule().set_fee(tx.operations.back());
+               set_expiration(db, tx);
+               sign(tx, bob_private_key);
+               db.push_transaction(tx);
+            }
+
+            {
+               // have alice back a matching bet at 1:1 odds
+               signed_transaction tx;
+               bet_place_operation bet_op;
+               bet_op.bettor_id = alice_id;
+               bet_op.betting_market_id = market.id;
+               bet_op.amount_to_bet = asset(1000000, asset_id_type());
+               bet_op.backer_multiplier = 2 * GRAPHENE_BETTING_ODDS_PRECISION;
+               bet_op.amount_reserved_for_fees = 1000000 / 50; // chain defaults to 2% fees
+               bet_op.back_or_lay = bet_type::back;
+               tx.operations.push_back(bet_op);
+               db.current_fee_schedule().set_fee(tx.operations.back());
+               set_expiration(db, tx);
+               sign(tx, alice_private_key);
+               db.push_transaction(tx);
+            }
+         }
+
       }
 
    } FC_LOG_AND_RETHROW()
