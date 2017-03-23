@@ -122,6 +122,10 @@ void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
       FC_ASSERT(op.backer_multiplier % allowed_increment == 0, "Bet odds must be a multiple of ${allowed_increment}", ("allowed_increment", allowed_increment));
    }
 
+   // is it possible to match this bet
+   FC_ASSERT(bet_object::get_matching_amount(op.amount_to_bet.amount, op.backer_multiplier, op.back_or_lay) != 0,
+             "Bet cannot be matched");
+
    // verify they reserved enough to cover the percentage fee
    uint16_t percentage_fee = current_params.current_fees->get<bet_place_operation>().percentage_fee;
    fc::uint128_t minimum_percentage_fee_calculation = op.amount_to_bet.amount.value;

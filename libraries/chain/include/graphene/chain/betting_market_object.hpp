@@ -26,6 +26,9 @@
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/db/object.hpp>
 #include <graphene/db/generic_index.hpp>
+#include <graphene/chain/protocol/betting_market.hpp>
+
+#include <boost/multi_index/composite_key.hpp>
 
 namespace graphene { namespace chain {
 
@@ -75,6 +78,9 @@ class bet_object : public graphene::db::abstract_object< bet_object >
       share_type amount_reserved_for_fees; // same asset type as amount_to_bet
 
       bet_type back_or_lay;
+
+      static share_type get_matching_amount(share_type bet_amount, bet_multiplier_type backer_multiplier, bet_type back_or_lay);
+      share_type get_matching_amount() const;
 };
 
 class betting_market_position_object : public graphene::db::abstract_object< betting_market_position_object >
@@ -91,6 +97,9 @@ class betting_market_position_object : public graphene::db::abstract_object< bet
       share_type pay_if_not_payout_condition;
       share_type pay_if_canceled;
       share_type pay_if_not_canceled;
+      share_type fees_collected;
+      
+      share_type reduce();
 };
 
 typedef multi_index_container<
@@ -110,23 +119,138 @@ typedef multi_index_container<
 
 typedef generic_index<betting_market_object, betting_market_object_multi_index_type> betting_market_object_index;
 
+struct compare_bet_by_odds {
+   bool operator()(const bet_object& lhs, const bet_object& rhs) const
+   {
+      return compare(lhs.betting_market_id, lhs.back_or_lay, lhs.backer_multiplier, lhs.id,
+                     rhs.betting_market_id, rhs.back_or_lay, rhs.backer_multiplier, rhs.id);
+   }
+
+   template<typename T0>
+   bool operator() (const std::tuple<T0>& lhs, const bet_object& rhs) const
+   {
+      return compare(std::get<0>(lhs), rhs.betting_market_id);
+   }
+
+   template<typename T0>
+   bool operator() (const bet_object& lhs, const std::tuple<T0>& rhs) const
+   {
+      return compare(lhs.betting_market_id, std::get<0>(rhs));
+   }
+
+   template<typename T0, typename T1>
+   bool operator() (const std::tuple<T0, T1>& lhs, const bet_object& rhs) const
+   {
+      return compare(std::get<0>(lhs), std::get<1>(lhs), rhs.betting_market_id, rhs.back_or_lay);
+   }
+
+   template<typename T0, typename T1>
+   bool operator() (const bet_object& lhs, const std::tuple<T0, T1>& rhs) const
+   {
+      return compare(lhs.betting_market_id, lhs.back_or_lay, std::get<0>(rhs), std::get<1>(rhs));
+   }
+
+   template<typename T0, typename T1, typename T2>
+   bool operator() (const std::tuple<T0, T1, T2>& lhs, const bet_object& rhs) const
+   {
+      return compare(std::get<0>(lhs), std::get<1>(lhs), std::get<2>(lhs),
+                     rhs.betting_market_id, rhs.back_or_lay, rhs.backer_multiplier);
+   }
+
+   template<typename T0, typename T1, typename T2>
+   bool operator() (const bet_object& lhs, const std::tuple<T0, T1, T2>& rhs) const
+   {
+      return compare(lhs.betting_market_id, lhs.back_or_lay, lhs.backer_multiplier,
+                     std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs));
+   }
+   template<typename T0, typename T1, typename T2, typename T3>
+   bool operator() (const std::tuple<T0, T1, T2, T3>& lhs, const bet_object& rhs) const
+   {
+      return compare(std::get<0>(lhs), std::get<1>(lhs), std::get<2>(lhs), std::get<3>(lhs),
+                     rhs.betting_market_id, rhs.back_or_lay, rhs.backer_multiplier, rhs.id);
+   }
+
+   template<typename T0, typename T1, typename T2, typename T3>
+   bool operator() (const bet_object& lhs, const std::tuple<T0, T1, T2, T3>& rhs) const
+   {
+      return compare(lhs.betting_market_id, lhs.back_or_lay, lhs.backer_multiplier, lhs.id,
+                     std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs), std::get<3>(rhs));
+   }
+   bool compare(const betting_market_id_type& lhs_betting_market_id, const betting_market_id_type& rhs_betting_market_id)
+   {
+      return lhs_betting_market_id < rhs_betting_market_id;
+   }
+   bool compare(const betting_market_id_type& lhs_betting_market_id, bet_type lhs_bet_type, 
+                const betting_market_id_type& rhs_betting_market_id, bet_type rhs_bet_type) const
+   {
+      if (lhs_betting_market_id < rhs_betting_market_id)
+         return true;
+      if (lhs_betting_market_id > rhs_betting_market_id)
+         return false;
+      return lhs_bet_type < rhs_bet_type;
+   }
+   bool compare(const betting_market_id_type& lhs_betting_market_id, bet_type lhs_bet_type, 
+                bet_multiplier_type lhs_backer_multiplier,
+                const betting_market_id_type& rhs_betting_market_id, bet_type rhs_bet_type,
+                bet_multiplier_type rhs_backer_multiplier) const
+   {
+      if (lhs_betting_market_id < rhs_betting_market_id)
+         return true;
+      if (lhs_betting_market_id > rhs_betting_market_id)
+         return false;
+      if (lhs_bet_type < rhs_bet_type)
+         return true;
+      if (lhs_bet_type > rhs_bet_type)
+         return false;
+      return lhs_backer_multiplier < rhs_backer_multiplier;
+   }
+   bool compare(const betting_market_id_type& lhs_betting_market_id, bet_type lhs_bet_type, 
+                bet_multiplier_type lhs_backer_multiplier, const bet_id_type& lhs_bet_id,
+                const betting_market_id_type& rhs_betting_market_id, bet_type rhs_bet_type,
+                bet_multiplier_type rhs_backer_multiplier, const bet_id_type& rhs_bet_id) const
+   {
+      if (lhs_betting_market_id < rhs_betting_market_id)
+         return true;
+      if (lhs_betting_market_id > rhs_betting_market_id)
+         return false;
+      if (lhs_bet_type < rhs_bet_type)
+         return true;
+      if (lhs_bet_type > rhs_bet_type)
+         return false;
+      if (lhs_backer_multiplier < rhs_backer_multiplier)
+         return true;
+      if (lhs_backer_multiplier > rhs_backer_multiplier)
+         return false;
+      return lhs_bet_id < rhs_bet_id;
+   }
+};
+
+struct by_odds {};
 typedef multi_index_container<
    bet_object,
    indexed_by<
-      ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > > > > bet_object_multi_index_type;
+      ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
+      ordered_unique< tag<by_odds>, identity<bet_object>, compare_bet_by_odds > > > bet_object_multi_index_type;
 
 typedef generic_index<bet_object, bet_object_multi_index_type> bet_object_index;
 
+struct by_bettor_betting_market{};
 typedef multi_index_container<
    betting_market_position_object,
    indexed_by<
-      ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > > > > betting_market_position_multi_index_type;
+      ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
+      ordered_unique< tag<by_bettor_betting_market>, 
+            composite_key<
+               betting_market_position_object,
+               member<betting_market_position_object, account_id_type, &betting_market_position_object::bettor_id>,
+               member<betting_market_position_object, betting_market_id_type, &betting_market_position_object::betting_market_id>
+            > > > > betting_market_position_multi_index_type;
 
-typedef generic_index<betting_market_position_object, betting_market_position_multi_index_type> betting_market_position_multi_index;
+typedef generic_index<betting_market_position_object, betting_market_position_multi_index_type> betting_market_position_index;
 } } // graphene::chain
 
 FC_REFLECT_DERIVED( graphene::chain::betting_market_group_object, (graphene::db::object), (event_id)(options) )
 FC_REFLECT_DERIVED( graphene::chain::betting_market_object, (graphene::db::object), (group_id)(payout_condition)(asset_id) )
 FC_REFLECT_DERIVED( graphene::chain::bet_object, (graphene::db::object), (bettor_id)(betting_market_id)(amount_to_bet)(backer_multiplier)(amount_reserved_for_fees)(back_or_lay) )
 
-FC_REFLECT_DERIVED( graphene::chain::betting_market_position_object, (graphene::db::object), (bettor_id)(betting_market_id)(pay_if_payout_condition)(pay_if_not_payout_condition)(pay_if_canceled)(pay_if_not_canceled) )
+FC_REFLECT_DERIVED( graphene::chain::betting_market_position_object, (graphene::db::object), (bettor_id)(betting_market_id)(pay_if_payout_condition)(pay_if_not_payout_condition)(pay_if_canceled)(pay_if_not_canceled)(fees_collected) )

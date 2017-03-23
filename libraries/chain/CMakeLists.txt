@@ -100,6 +100,7 @@ add_library( graphene_chain
              event_evaluator.cpp
              protocol/betting_market.cpp
              betting_market_evaluator.cpp
+             betting_market_object.cpp
              db_bet.cpp
 
              ${HEADERS}

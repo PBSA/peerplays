@@ -270,7 +270,7 @@ void database::initialize_indexes()
    add_index< primary_index< buyback_index                                > >();
 
    add_index< primary_index< simple_index< fba_accumulator_object       > > >();
-   add_index< primary_index< betting_market_position_multi_index > >();
+   add_index< primary_index< betting_market_position_index > >();
    add_index< primary_index< global_betting_statistics_object_index > >();
 }
 

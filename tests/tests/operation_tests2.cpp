@@ -1649,9 +1649,7 @@ BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
             tx.operations.push_back(proposal_op);
             set_expiration(db, tx);
             sign(tx, init_account_priv_key);
-            //sign( tx, philbin_private_key );
 
-            // Alice and Philbin signed, but asset issuer is invalid
             db.push_transaction(tx);
          }
 
@@ -1767,9 +1765,7 @@ BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
             tx.operations.push_back(proposal_op);
             set_expiration(db, tx);
             sign(tx, init_account_priv_key);
-            //sign( tx, philbin_private_key );
-
-            // Alice and Philbin signed, but asset issuer is invalid
+            
             db.push_transaction(tx);
          }
 
