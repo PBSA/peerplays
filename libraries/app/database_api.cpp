@@ -913,9 +913,12 @@ vector<event_group_object> database_api_impl::list_event_groups(sport_id_type sp
 {
    vector<event_group_object> result;
    const auto& event_group_idx = _db.get_index_type<event_group_object_index>().indices().get<by_sport_id>();
-   for (const event_group_object& event_group : event_group_idx)
+   auto event_group_itr = event_group_idx.lower_bound(sport_id);
+   while (event_group_itr != event_group_idx.end() &&
+          event_group_itr->sport_id == sport_id)
    {
-      result.emplace_back(event_group);
+      result.emplace_back(*event_group_itr);
+      ++event_group_itr;
    }
    return result;
 }
@@ -924,9 +927,12 @@ vector<betting_market_group_object> database_api_impl::list_betting_market_group
 {
    vector<betting_market_group_object> result;
    const auto& betting_market_group_idx = _db.get_index_type<betting_market_group_object_index>().indices().get<by_event_id>();
-   for (const betting_market_group_object& betting_market_group : betting_market_group_idx)
+   auto betting_market_group_itr = betting_market_group_idx.lower_bound(event_id);
+   while (betting_market_group_itr != betting_market_group_idx.end() &&
+          betting_market_group_itr->event_id == event_id)
    {
-      result.emplace_back(betting_market_group);
+      result.emplace_back(*betting_market_group_itr);
+      ++betting_market_group_itr;
    }
    return result;
 }
@@ -935,9 +941,12 @@ vector<betting_market_object> database_api_impl::list_betting_markets(betting_ma
 {
    vector<betting_market_object> result;
    const auto& betting_market_idx = _db.get_index_type<betting_market_object_index>().indices().get<by_betting_market_group_id>();
-   for (const betting_market_object& betting_market : betting_market_idx)
+   auto betting_market_itr = betting_market_idx.lower_bound(betting_market_group_id);
+   while (betting_market_itr != betting_market_idx.end() &&
+          betting_market_itr->group_id == betting_market_group_id)
    {
-      result.emplace_back(betting_market);
+      result.emplace_back(*betting_market_itr);
+      ++betting_market_itr;
    }
    return result;
 }
