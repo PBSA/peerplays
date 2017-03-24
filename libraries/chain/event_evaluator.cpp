@@ -108,7 +108,10 @@ void_result event_update_status_evaluator::do_evaluate(const event_update_status
 void_result event_update_status_evaluator::do_apply(const event_update_status_operation& op)
 { try {
    database& d = db();
-   //TODO: cancel_all_betting_markets_for_event() //should we put this in event or just here in evaluator?
+   //if event is canceled, first cancel all associated betting markets
+   if (op.status == event_status::canceled)
+      d.cancel_all_betting_markets_for_event(*_event_to_update);
+   //update event
    d.modify( *_event_to_update, [&]( event_object& event_obj) {
       event_obj.scores = op.scores;
       event_obj.status = op.status;

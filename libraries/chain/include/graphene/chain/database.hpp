@@ -366,6 +366,7 @@ namespace graphene { namespace chain {
          /// @{ @group Betting Market Helpers
          void cancel_bet(const bet_object& bet, bool create_virtual_op = true);
          void cancel_all_unmatched_bets_on_betting_market(const betting_market_object& betting_market);
+         void cancel_all_betting_markets_for_event(const event_object&);
          void resolve_betting_market(const betting_market_object& betting_market, 
                                      betting_market_resolution_type resolution);
          /**

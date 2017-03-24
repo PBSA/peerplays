@@ -2,6 +2,7 @@
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/betting_market_object.hpp>
+#include <graphene/chain/event_object.hpp>
 
 namespace graphene { namespace chain {
 
@@ -29,6 +30,26 @@ void database::cancel_all_unmatched_bets_on_betting_market(const betting_market_
       auto old_book_itr = book_itr;
       ++book_itr;
       cancel_bet(*old_book_itr, true);
+   }
+}
+
+void database::cancel_all_betting_markets_for_event(const event_object& event_obj)
+{
+   //for each betting market group of event
+   auto& betting_market_group_index = get_index_type<betting_market_group_object_index>().indices().get<by_event_id>();
+   auto betting_market_group_itr =  betting_market_group_index.lower_bound(event_obj.id);
+   while (betting_market_group_itr != betting_market_group_index.end() &&
+          betting_market_group_itr->event_id == event_obj.id)
+   {
+      //for each betting market in the betting market group
+      auto& betting_market_index = get_index_type<betting_market_object_index>().indices().get<by_betting_market_group_id>();
+      auto betting_market_itr = betting_market_index.lower_bound(betting_market_group_itr->id);
+      while (betting_market_itr != betting_market_index.end() &&
+             betting_market_itr->group_id == betting_market_group_itr->id)
+      {
+         resolve_betting_market(*betting_market_itr, betting_market_resolution_type::cancel);
+         ++betting_market_itr;
+      }
    }
 }
 
