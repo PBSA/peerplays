@@ -21,9 +21,15 @@ void database::cancel_bet( const bet_object& bet, bool create_virtual_op )
 
 void database::cancel_all_unmatched_bets_on_betting_market(const betting_market_object& betting_market)
 {
-   auto& bet_index = get_index_type<bet_object_index>().indices().get<by_betting_market>();
-   for (const bet_object& bet : bet_index)
-      cancel_bet(bet, true);
+   const auto& bet_odds_idx = get_index_type<bet_object_index>().indices().get<by_odds>();
+   auto book_itr = bet_odds_idx.lower_bound(std::make_tuple(betting_market.id));
+   auto book_end = bet_odds_idx.upper_bound(std::make_tuple(betting_market.id));
+   while (book_itr != book_end)
+   {
+      auto old_book_itr = book_itr;
+      ++book_itr;
+      cancel_bet(*old_book_itr, true);
+   }
 }
 
 void database::resolve_betting_market(const betting_market_object& betting_market, 
@@ -82,7 +88,7 @@ bool maybe_cull_small_bet( database& db, const bet_object& bet_object_to_cull )
    return false;
 }
 
-share_type adjust_betting_position(database& db, account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, share_type bet_amount, share_type fees_collected)
+share_type adjust_betting_position(database& db, account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, share_type bet_amount, share_type matched_amount, share_type fees_collected)
 { try {
    assert(bet_amount >= 0);
    
@@ -98,8 +104,8 @@ share_type adjust_betting_position(database& db, account_id_type bettor_id, bett
       db.create<betting_market_position_object>([&](betting_market_position_object& position) {
 		 position.bettor_id = bettor_id;
 		 position.betting_market_id = betting_market_id;
-         position.pay_if_payout_condition = back_or_lay == bet_type::back ? bet_amount : 0;
-         position.pay_if_not_payout_condition = back_or_lay == bet_type::lay ? bet_amount : 0;
+         position.pay_if_payout_condition = back_or_lay == bet_type::back ? bet_amount + matched_amount : 0;
+         position.pay_if_not_payout_condition = back_or_lay == bet_type::lay ? bet_amount + matched_amount : 0;
          position.pay_if_canceled = bet_amount;
          position.pay_if_not_canceled = 0;
          position.fees_collected = fees_collected;
@@ -109,8 +115,8 @@ share_type adjust_betting_position(database& db, account_id_type bettor_id, bett
       db.modify(*itr, [&](betting_market_position_object& position) {
 		 assert(position.bettor_id == bettor_id);
 		 assert(position.betting_market_id == betting_market_id);
-         position.pay_if_payout_condition += back_or_lay == bet_type::back ? bet_amount : 0;
-         position.pay_if_not_payout_condition += back_or_lay == bet_type::lay ? bet_amount : 0;
+         position.pay_if_payout_condition += back_or_lay == bet_type::back ? bet_amount + matched_amount : 0;
+         position.pay_if_not_payout_condition += back_or_lay == bet_type::lay ? bet_amount + matched_amount : 0;
          position.pay_if_canceled += bet_amount;
          position.fees_collected += fees_collected;
 
@@ -121,7 +127,7 @@ share_type adjust_betting_position(database& db, account_id_type bettor_id, bett
 } FC_CAPTURE_AND_RETHROW((bettor_id)(betting_market_id)(bet_amount)) }
 
 
-bool bet_was_matched(database& db, const bet_object& bet, share_type amount_bet, bet_multiplier_type actual_multiplier, bool cull_if_small)
+bool bet_was_matched(database& db, const bet_object& bet, share_type amount_bet, share_type amount_matched, bet_multiplier_type actual_multiplier, bool cull_if_small)
 {
    // calculate the percentage fee paid
    fc::uint128_t percentage_fee_128 = bet.amount_reserved_for_fees.value;
@@ -132,7 +138,7 @@ bool bet_was_matched(database& db, const bet_object& bet, share_type amount_bet,
 
    // record their bet, modifying their position, and return any winnings
    share_type guaranteed_winnings_returned = adjust_betting_position(db, bet.bettor_id, bet.betting_market_id, 
-                                                                     bet.back_or_lay, amount_bet, fee_paid);
+                                                                     bet.back_or_lay, amount_bet, amount_matched, fee_paid);
    db.adjust_balance(bet.bettor_id, asset(guaranteed_winnings_returned, bet.amount_to_bet.asset_id));
 
    // generate a virtual "match" op
@@ -184,8 +190,8 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
    if (maximum_amount_to_match <= maker_bet.amount_to_bet.amount)
    {
       // we will consume the entire taker bet
-      result |= bet_was_matched(db, taker_bet, taker_bet.amount_to_bet.amount, maker_bet.backer_multiplier, true);
-      result |= bet_was_matched(db, maker_bet, maximum_amount_to_match, maker_bet.backer_multiplier, true) << 1;
+      result |= bet_was_matched(db, taker_bet, taker_bet.amount_to_bet.amount, maximum_amount_to_match, maker_bet.backer_multiplier, true);
+      result |= bet_was_matched(db, maker_bet, maximum_amount_to_match, taker_bet.amount_to_bet.amount, maker_bet.backer_multiplier, true) << 1;
    }
    else
    {
@@ -193,8 +199,8 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
       share_type taker_amount = maker_bet.get_matching_amount();
       share_type maker_amount = bet_object::get_matching_amount(taker_amount, maker_bet.backer_multiplier, taker_bet.back_or_lay);
 
-      result |= bet_was_matched(db, taker_bet, taker_amount, maker_bet.backer_multiplier, true);
-      result |= bet_was_matched(db, maker_bet, maker_amount, maker_bet.backer_multiplier, true) << 1;
+      result |= bet_was_matched(db, taker_bet, taker_amount, maker_amount, maker_bet.backer_multiplier, true);
+      result |= bet_was_matched(db, maker_bet, maker_amount, taker_amount, maker_bet.backer_multiplier, true) << 1;
    }
 
    assert(result != 0);

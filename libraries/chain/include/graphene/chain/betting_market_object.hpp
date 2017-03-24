@@ -176,7 +176,7 @@ struct compare_bet_by_odds {
       return compare(lhs.betting_market_id, lhs.back_or_lay, lhs.backer_multiplier, lhs.id,
                      std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs), std::get<3>(rhs));
    }
-   bool compare(const betting_market_id_type& lhs_betting_market_id, const betting_market_id_type& rhs_betting_market_id)
+   bool compare(const betting_market_id_type& lhs_betting_market_id, const betting_market_id_type& rhs_betting_market_id) const
    {
       return lhs_betting_market_id < rhs_betting_market_id;
    }
@@ -226,14 +226,11 @@ struct compare_bet_by_odds {
 };
 
 struct by_odds {};
-struct by_betting_market {};
 typedef multi_index_container<
    bet_object,
    indexed_by<
       ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
-      ordered_unique< tag<by_odds>, identity<bet_object>, compare_bet_by_odds >,
-      ordered_non_unique< tag<by_betting_market>, member< bet_object, betting_market_id_type, &bet_object::betting_market_id > >
-   > > bet_object_multi_index_type;
+      ordered_unique< tag<by_odds>, identity<bet_object>, compare_bet_by_odds > > > bet_object_multi_index_type;
 
 typedef generic_index<bet_object, bet_object_multi_index_type> bet_object_index;
 

@@ -1842,6 +1842,8 @@ BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
                db.push_transaction(tx);
             }
 
+            BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
+            BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
             // caps win
             {
                proposal_create_operation proposal_op;
