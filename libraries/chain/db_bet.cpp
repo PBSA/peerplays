@@ -19,10 +19,18 @@ void database::cancel_bet( const bet_object& bet, bool create_virtual_op )
    remove(bet);
 }
 
+void database::cancel_all_unmatched_bets_on_betting_market(const betting_market_object& betting_market)
+{
+   auto& bet_index = get_index_type<bet_object_index>().indices().get<by_betting_market>();
+   for (const bet_object& bet : bet_index)
+      cancel_bet(bet, true);
+}
+
 void database::resolve_betting_market(const betting_market_object& betting_market, 
                                       betting_market_resolution_type resolution)
 {
-   // TODO: cancel all unmatched bets on the books for this market
+   cancel_all_unmatched_bets_on_betting_market(betting_market);
+
    auto& index = get_index_type<betting_market_position_index>().indices().get<by_bettor_betting_market>();
    auto position_itr = index.lower_bound(std::make_tuple(betting_market.id));
    while (position_itr != index.end() &&

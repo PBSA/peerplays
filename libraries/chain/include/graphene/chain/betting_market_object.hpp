@@ -226,11 +226,14 @@ struct compare_bet_by_odds {
 };
 
 struct by_odds {};
+struct by_betting_market {};
 typedef multi_index_container<
    bet_object,
    indexed_by<
       ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
-      ordered_unique< tag<by_odds>, identity<bet_object>, compare_bet_by_odds > > > bet_object_multi_index_type;
+      ordered_unique< tag<by_odds>, identity<bet_object>, compare_bet_by_odds >,
+      ordered_non_unique< tag<by_betting_market>, member< bet_object, betting_market_id_type, &bet_object::betting_market_id > >
+   > > bet_object_multi_index_type;
 
 typedef generic_index<bet_object, bet_object_multi_index_type> bet_object_index;
 
