@@ -110,6 +110,37 @@ struct betting_market_resolve_operation : public base_operation
    void            validate()const;
 };
 
+struct betting_market_resolved_operation : public base_operation
+{
+   struct fee_parameters_type {};
+
+   account_id_type bettor_id;
+   betting_market_id_type betting_market_id;
+   betting_market_resolution_type resolution;
+   asset winnings;
+   share_type fees_paid;
+
+   asset             fee; // unused in a virtual operation
+
+   betting_market_resolved_operation() {}
+   betting_market_resolved_operation(account_id_type bettor_id,
+                                     betting_market_id_type betting_market_id,
+                                     betting_market_resolution_type resolution,
+                                     asset winnings,
+                                     share_type fees_paid) :
+      bettor_id(bettor_id),
+      betting_market_id(betting_market_id),
+      resolution(resolution),
+      winnings(winnings),
+      fees_paid(fees_paid)
+   {}
+
+   account_id_type fee_payer()const { return bettor_id; }
+   void            validate()const { FC_ASSERT(false, "virtual operation"); }
+   /// This is a virtual operation; there is no fee
+   share_type      calculate_fee(const fee_parameters_type& k)const { return 0; }
+};
+
 enum class bet_type { back, lay };
 
 struct bet_place_operation : public base_operation
@@ -252,6 +283,9 @@ FC_REFLECT( graphene::chain::betting_market_resolve_operation::fee_parameters_ty
 FC_REFLECT( graphene::chain::betting_market_resolve_operation, 
             (fee)(betting_market_id)(resolution)(extensions) )
 
+FC_REFLECT( graphene::chain::betting_market_resolved_operation::fee_parameters_type, )
+FC_REFLECT( graphene::chain::betting_market_resolved_operation, 
+            (bettor_id)(betting_market_id)(resolution)(winnings)(fees_paid)(fee) )
 
 FC_REFLECT_ENUM( graphene::chain::bet_type, (back)(lay) )
 FC_REFLECT( graphene::chain::bet_place_operation::fee_parameters_type, (fee) )

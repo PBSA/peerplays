@@ -4,6 +4,8 @@
 #include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/event_object.hpp>
 
+#include <boost/range/iterator_range.hpp>
+
 namespace graphene { namespace chain {
 
 void database::cancel_bet( const bet_object& bet, bool create_virtual_op )
@@ -35,22 +37,24 @@ void database::cancel_all_unmatched_bets_on_betting_market(const betting_market_
 
 void database::cancel_all_betting_markets_for_event(const event_object& event_obj)
 {
-   //for each betting market group of event
    auto& betting_market_group_index = get_index_type<betting_market_group_object_index>().indices().get<by_event_id>();
-   auto betting_market_group_itr =  betting_market_group_index.lower_bound(event_obj.id);
-   while (betting_market_group_itr != betting_market_group_index.end() &&
-          betting_market_group_itr->event_id == event_obj.id)
+   auto& betting_market_index = get_index_type<betting_market_object_index>().indices().get<by_betting_market_group_id>();
+
+   //for each betting market group of event
+   for (const betting_market_group_object& betting_market_group : 
+        boost::make_iterator_range(betting_market_group_index.equal_range(event_obj.id)))
    {
       //for each betting market in the betting market group
-      auto& betting_market_index = get_index_type<betting_market_object_index>().indices().get<by_betting_market_group_id>();
-      auto betting_market_itr = betting_market_index.lower_bound(betting_market_group_itr->id);
+      auto betting_market_itr = betting_market_index.lower_bound(betting_market_group.id);
       while (betting_market_itr != betting_market_index.end() &&
-             betting_market_itr->group_id == betting_market_group_itr->id)
+             betting_market_itr->group_id == betting_market_group.id)
       {
-         resolve_betting_market(*betting_market_itr, betting_market_resolution_type::cancel);
+         auto old_betting_market_itr = betting_market_itr;
          ++betting_market_itr;
+         resolve_betting_market(*old_betting_market_itr, betting_market_resolution_type::cancel);
       }
    }
+   //TODO: should we remove market groups once all their markets are resolved?
 }
 
 void database::resolve_betting_market(const betting_market_object& betting_market, 
@@ -85,7 +89,12 @@ void database::resolve_betting_market(const betting_market_object& betting_marke
       adjust_balance(position.bettor_id, asset(payout_amount, betting_market.asset_id));
       //TODO: pay the fees to the correct (dividend-distribution) account
       adjust_balance(account_id_type(), asset(position.fees_collected, betting_market.asset_id));
-      //TODO: generate a virtual op to notify the bettor that they won or lost
+
+      push_applied_operation(betting_market_resolved_operation(position.bettor_id,
+                                                               betting_market.id,
+                                                               resolution,
+                                                               payout_amount,
+                                                               position.fees_collected));
 
       remove(position);
    }

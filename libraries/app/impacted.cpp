@@ -226,6 +226,10 @@ struct get_impacted_account_visitor
    {
       _impacted.insert( op.bettor_id );
    }
+   void operator()( const betting_market_resolved_operation& op )
+   {
+      _impacted.insert( op.bettor_id );
+   }
 
 };
 
