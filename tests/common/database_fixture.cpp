@@ -37,6 +37,11 @@
 #include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/betting_market_object.hpp>
+#include <graphene/chain/proposal_object.hpp>
+#include <graphene/chain/sport_object.hpp>
+#include <graphene/chain/competitor_object.hpp>
+#include <graphene/chain/event_group_object.hpp>
+#include <graphene/chain/event_object.hpp>
 
 #include <graphene/utilities/tempdir.hpp>
 
@@ -1067,6 +1072,123 @@ vector< operation_history_object > database_fixture::get_operation_history( acco
    return result;
 }
 
+void database_fixture::process_operation_by_witnesses(operation op)
+{
+   const flat_set<witness_id_type>& active_witnesses = db.get_global_properties().active_witnesses;
+
+   proposal_create_operation proposal_op;
+   proposal_op.fee_paying_account = (*active_witnesses.begin())(db).witness_account;
+   proposal_op.proposed_ops.emplace_back(op);
+   proposal_op.expiration_time =  db.head_block_time() + fc::days(1);
+
+   signed_transaction tx;
+   tx.operations.push_back(proposal_op);
+   set_expiration(db, tx);
+   sign(tx, init_account_priv_key);
+
+   processed_transaction processed_tx = db.push_transaction(tx);
+   proposal_id_type proposal_id = processed_tx.operation_results[0].get<object_id_type>();
+
+   for (const witness_id_type& witness_id : active_witnesses)
+   {
+      const witness_object& witness = witness_id(db);
+      const account_object& witness_account = witness.witness_account(db);
+
+      proposal_update_operation pup;
+      pup.proposal = proposal_id;
+      pup.fee_paying_account = witness_account.id;
+      pup.active_approvals_to_add.insert(witness_account.id);
+
+      signed_transaction tx;
+      tx.operations.push_back( pup );
+      set_expiration( db, tx );
+      sign(tx, init_account_priv_key);
+
+      db.push_transaction(tx, ~0);
+
+      const auto& proposal_idx = db.get_index_type<proposal_index>().indices().get<by_id>();
+      if (proposal_idx.find(proposal_id) == proposal_idx.end())
+         break;
+   }
+}
+
+const sport_object& database_fixture::create_sport(internationalized_string_type name)
+{ try {
+   sport_create_operation sport_create_op;
+   sport_create_op.name = name;
+   process_operation_by_witnesses(sport_create_op);
+   const auto& sport_index = db.get_index_type<sport_object_index>().indices().get<by_id>();
+   return *sport_index.rbegin();
+} FC_CAPTURE_AND_RETHROW( (name) ) }
+
+const competitor_object& database_fixture::create_competitor(internationalized_string_type name, sport_id_type sport_id)
+{ try {
+   competitor_create_operation competitor_create_op;
+   competitor_create_op.name = name;
+   competitor_create_op.sport_id = sport_id;
+   process_operation_by_witnesses(competitor_create_op);
+   const auto& competitor_index = db.get_index_type<competitor_object_index>().indices().get<by_id>();
+   return *competitor_index.rbegin();
+} FC_CAPTURE_AND_RETHROW( (name) ) }
+
+const event_group_object& database_fixture::create_event_group(internationalized_string_type name, sport_id_type sport_id)
+{ try {
+   event_group_create_operation event_group_create_op;
+   event_group_create_op.name = name;
+   event_group_create_op.sport_id = sport_id;
+   process_operation_by_witnesses(event_group_create_op);
+   const auto& event_group_index = db.get_index_type<event_group_object_index>().indices().get<by_id>();
+   return *event_group_index.rbegin();
+} FC_CAPTURE_AND_RETHROW( (name) ) }
+
+const event_object& database_fixture::create_event(internationalized_string_type season, event_group_id_type event_group_id, vector<competitor_id_type> competitors)
+{ try {
+   event_create_operation event_create_op;
+   event_create_op.season = season;
+   event_create_op.event_group_id = event_group_id;
+   event_create_op.competitors.assign(competitors.begin(), competitors.end());
+   process_operation_by_witnesses(event_create_op);
+   const auto& event_index = db.get_index_type<event_object_index>().indices().get<by_id>();
+   return *event_index.rbegin();
+} FC_CAPTURE_AND_RETHROW( (event_group_id) ) }
+
+const betting_market_group_object& database_fixture::create_betting_market_group(event_id_type event_id, betting_market_options_type options)
+{ try {
+   betting_market_group_create_operation betting_market_group_create_op;
+   betting_market_group_create_op.event_id = event_id;
+   betting_market_group_create_op.options = options;
+   process_operation_by_witnesses(betting_market_group_create_op);
+   const auto& betting_market_group_index = db.get_index_type<betting_market_group_object_index>().indices().get<by_id>();
+   return *betting_market_group_index.rbegin();
+} FC_CAPTURE_AND_RETHROW( (event_id) ) }
+
+const betting_market_object& database_fixture::create_betting_market(betting_market_group_id_type group_id, internationalized_string_type payout_condition, asset_id_type asset_id)
+{ try {
+   betting_market_create_operation betting_market_create_op;
+   betting_market_create_op.group_id = group_id;
+   betting_market_create_op.payout_condition = payout_condition;
+   betting_market_create_op.asset_id = asset_id;
+   process_operation_by_witnesses(betting_market_create_op);
+   const auto& betting_market_index = db.get_index_type<betting_market_object_index>().indices().get<by_id>();
+   return *betting_market_index.rbegin();
+} FC_CAPTURE_AND_RETHROW( (payout_condition) ) }
+
+ void database_fixture::place_bet(account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, asset amount_to_bet, bet_multiplier_type backer_multiplier, share_type amount_reserved_for_fees)
+{ try {
+   bet_place_operation bet_place_op;
+   bet_place_op.bettor_id = bettor_id;
+   bet_place_op.betting_market_id = betting_market_id;
+   bet_place_op.amount_to_bet = amount_to_bet;
+   bet_place_op.backer_multiplier = backer_multiplier;
+   bet_place_op.amount_reserved_for_fees = amount_reserved_for_fees;
+   bet_place_op.back_or_lay = back_or_lay;
+   
+   trx.operations.push_back(bet_place_op);
+   trx.validate();
+   processed_transaction ptx = db.push_transaction(trx, ~0);
+   trx.operations.clear();
+} FC_CAPTURE_AND_RETHROW( (bettor_id)(back_or_lay)(amount_to_bet) ) }
+
 namespace test {
 
 void set_expiration( const database& db, transaction& tx )
@@ -1074,7 +1196,6 @@ void set_expiration( const database& db, transaction& tx )
    const chain_parameters& params = db.get_global_properties().parameters;
    tx.set_reference_block(db.head_block_id());
    tx.set_expiration( db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3 ) );
-   return;
 }
 
 bool _push_block( database& db, const signed_block& b, uint32_t skip_flags /* = 0 */ )

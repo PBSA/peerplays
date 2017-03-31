@@ -13,7 +13,7 @@ void database::cancel_bet( const bet_object& bet, bool create_virtual_op )
    asset amount_to_refund = bet.amount_to_bet;
    amount_to_refund += bet.amount_reserved_for_fees;
    //TODO: update global statistics
-   adjust_balance(bet.bettor_id, amount_to_refund); //return unmatched stake
+   adjust_balance(bet.bettor_id, amount_to_refund); //return unmatched stake + fees
    //TODO: do special fee accounting as required
    if (create_virtual_op)
       push_applied_operation(bet_canceled_operation(bet.bettor_id, bet.id,
@@ -157,7 +157,10 @@ share_type adjust_betting_position(database& db, account_id_type bettor_id, bett
 } FC_CAPTURE_AND_RETHROW((bettor_id)(betting_market_id)(bet_amount)) }
 
 
-bool bet_was_matched(database& db, const bet_object& bet, share_type amount_bet, share_type amount_matched, bet_multiplier_type actual_multiplier, bool cull_if_small)
+// called twice when a bet is matched, once for the taker, once for the maker
+bool bet_was_matched(database& db, const bet_object& bet, 
+                     share_type amount_bet, share_type amount_matched, 
+                     bet_multiplier_type actual_multiplier, bool cull_if_small)
 {
    // calculate the percentage fee paid
    fc::uint128_t percentage_fee_128 = bet.amount_reserved_for_fees.value;
@@ -191,6 +194,8 @@ bool bet_was_matched(database& db, const bet_object& bet, share_type amount_bet,
          bet_obj.amount_to_bet -= asset_amount_bet;
          bet_obj.amount_reserved_for_fees -= fee_paid;
       });
+      //TODO: cull_if_small is currently always true, remove the parameter if we don't find a 
+      //      need for it soon
       if (cull_if_small)
          return maybe_cull_small_bet(db, bet);
       return false;
@@ -202,10 +207,10 @@ bool bet_was_matched(database& db, const bet_object& bet, share_type amount_bet,
  *
  *  @return a bit field indicating which orders were filled (and thus removed)
  *
- *  0 - no orders were matched
- *  1 - bid was filled
- *  2 - ask was filled
- *  3 - both were filled
+ *  0 - no bet was matched (this will never happen)
+ *  1 - taker_bet was filled and removed from the books
+ *  2 - maker_bet was filled and removed from the books
+ *  3 - both were filled and removed from the books
  */
 int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker_bet )
 {
@@ -243,11 +248,6 @@ bool database::place_bet(const bet_object& new_bet_object)
    const asset_object& bet_asset = get(new_bet_object.amount_to_bet.asset_id);
 
    const auto& bet_odds_idx = get_index_type<bet_object_index>().indices().get<by_odds>();
-
-   // TODO: it should be possible to simply check the NEXT/PREV iterator after new_order_object to
-   // determine whether or not this order has "changed the book" in a way that requires us to
-   // check orders. For now I just lookup the lower bound and check for equality... this is log(n) vs
-   // constant time check. Potential optimization.
 
    bet_type bet_type_to_match = new_bet_object.back_or_lay == bet_type::back ? bet_type::lay : bet_type::back;
    auto book_itr = bet_odds_idx.lower_bound(std::make_tuple(new_bet_object.betting_market_id, bet_type_to_match));

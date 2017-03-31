@@ -39,6 +39,8 @@
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/worker_object.hpp>
 #include <graphene/chain/sport_object.hpp>
+#include <graphene/chain/event_object.hpp>
+#include <graphene/chain/event_group_object.hpp>
 #include <graphene/chain/competitor_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/betting_market_object.hpp>
@@ -1624,7 +1626,52 @@ BOOST_AUTO_TEST_CASE( buyback )
    } FC_LOG_AND_RETHROW()
 }
 
+
+#define CREATE_ICE_HOCKEY_BETTING_MARKET() \
+  const sport_object& ice_hockey = create_sport({{"en", "Ice Hockey"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}}); \
+  const competitor_object& capitals = create_competitor({{"en", "Washington Capitals"}, {"zh_Hans", "華盛頓首都隊"}, {"ja", "ワシントン・キャピタルズ"}}, ice_hockey.id); \
+  const competitor_object& blackhawks = create_competitor({{"en", "Chicago Blackhawks"}, {"zh_Hans", "芝加哥黑鷹"}, {"ja", "シカゴ・ブラックホークス"}}, ice_hockey.id); \
+  const event_group_object& nhl = create_event_group({{"en", "NHL"}, {"zh_Hans", "國家冰球聯盟"}, {"ja", "ナショナルホッケーリーグ"}}, ice_hockey.id); \
+  const event_object& capitals_vs_blackhawks = create_event({{"en", "2016-17"}}, nhl.id, {capitals.id, blackhawks.id}); \
+  const betting_market_group_object& moneyline_betting_markets = create_betting_market_group(capitals_vs_blackhawks.id, moneyline_market_options{}); \
+  const betting_market_object& capitals_win_market = create_betting_market(moneyline_betting_markets.id, {{"en", "Washington Capitals win"}}, asset_id_type()); \
+  const betting_market_object& blackhawks_win_market = create_betting_market(moneyline_betting_markets.id, {{"en", "Chicago Blackhawks win"}}, asset_id_type());
+
+
 BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
+{
+   try
+   {
+      ACTORS( (alice)(bob) );
+      CREATE_ICE_HOCKEY_BETTING_MARKET();
+
+      // give alice and bob 10M each
+      transfer(account_id_type(), alice_id, asset(10000000));
+      transfer(account_id_type(), bob_id, asset(10000000));
+
+      // have bob lay a bet for 1M (+20k fees) at 1:1 odds                  
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+      // have alice back a matching bet at 1:1 odds (also costing 1.02M) 
+      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+
+      // caps win
+      {
+         betting_market_resolve_operation betting_market_resolve_op;
+         betting_market_resolve_op.betting_market_id = capitals_win_market.id;
+         betting_market_resolve_op.resolution = betting_market_resolution_type::win;
+         process_operation_by_witnesses(betting_market_resolve_op);
+      }
+
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+
+   } FC_LOG_AND_RETHROW()
+}
+
+BOOST_AUTO_TEST_CASE( chained_market_create_test )
 {
    ACTORS( (alice)(bob)(chloe)(dan)(izzy)(philbin) );
 
@@ -1799,96 +1846,6 @@ BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
                   break;
                }
             }
-         }
-
-         // give alice and bob 10M each
-         transfer(account_id_type(), alice_id, asset(10000000));
-         transfer(account_id_type(), bob_id, asset(10000000));
-         {
-            // get a betting market to run tests in.  It doesn't relly matter what it is, but in this test it will be "caps win".
-            const betting_market_object& market = *db.get_index_type<betting_market_object_index>().indices().begin();
-
-            {
-               // have bob lay a bet for 1M (+20k fees) at 1:1 odds
-               signed_transaction tx;
-               bet_place_operation bet_op;
-               bet_op.bettor_id = bob_id;
-               bet_op.betting_market_id = market.id;
-               bet_op.amount_to_bet = asset(1000000, asset_id_type());
-               bet_op.backer_multiplier = 2 * GRAPHENE_BETTING_ODDS_PRECISION;
-               bet_op.amount_reserved_for_fees = 1000000 / 50; // chain defaults to 2% fees
-               bet_op.back_or_lay = bet_type::lay;
-               tx.operations.push_back(bet_op);
-               db.current_fee_schedule().set_fee(tx.operations.back());
-               set_expiration(db, tx);
-               sign(tx, bob_private_key);
-               db.push_transaction(tx);
-            }
-
-            {
-               // have alice back a matching bet at 1:1 odds (also costing 1.02M)
-               signed_transaction tx;
-               bet_place_operation bet_op;
-               bet_op.bettor_id = alice_id;
-               bet_op.betting_market_id = market.id;
-               bet_op.amount_to_bet = asset(1000000, asset_id_type());
-               bet_op.backer_multiplier = 2 * GRAPHENE_BETTING_ODDS_PRECISION;
-               bet_op.amount_reserved_for_fees = 1000000 / 50; // chain defaults to 2% fees
-               bet_op.back_or_lay = bet_type::back;
-               tx.operations.push_back(bet_op);
-               db.current_fee_schedule().set_fee(tx.operations.back());
-               set_expiration(db, tx);
-               sign(tx, alice_private_key);
-               db.push_transaction(tx);
-            }
-
-            BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
-            BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
-            // caps win
-            {
-               proposal_create_operation proposal_op;
-               proposal_op.fee_paying_account = (*active_witnesses.begin())(db).witness_account;
-               betting_market_resolve_operation betting_market_resolve_op;
-               betting_market_resolve_op.betting_market_id = market.id;
-               betting_market_resolve_op.resolution = betting_market_resolution_type::win;
-               proposal_op.proposed_ops.emplace_back(betting_market_resolve_op);
-               proposal_op.expiration_time =  db.head_block_time() + fc::days(1);
-               signed_transaction tx;
-               tx.operations.push_back(proposal_op);
-               set_expiration(db, tx);
-               sign(tx, init_account_priv_key);
-               
-               db.push_transaction(tx);
-            }
-
-            BOOST_REQUIRE_EQUAL(db.get_index_type<proposal_index>().indices().size(), 1);
-            {
-               const proposal_object& prop = *db.get_index_type<proposal_index>().indices().begin();
-
-               for (const witness_id_type& witness_id : active_witnesses)
-               {
-                  BOOST_TEST_MESSAGE("Approving market resolve witness " << fc::variant(witness_id).as<std::string>());
-                  const witness_object& witness = witness_id(db);
-                  const account_object& witness_account = witness.witness_account(db);
-
-                  proposal_update_operation pup;
-                  pup.proposal = prop.id;
-                  pup.fee_paying_account = witness_account.id;
-                  pup.active_approvals_to_add.insert(witness_account.id);
-
-                  signed_transaction tx;
-                  tx.operations.push_back( pup );
-                  set_expiration( db, tx );
-                  sign(tx, init_account_priv_key);
-
-                  db.push_transaction(tx, ~0);
-                  if (db.get_index_type<proposal_index>().indices().size() == 0)
-                     break;
-               }
-            }
-
-            BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000);
-            BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
          }
 
       }
