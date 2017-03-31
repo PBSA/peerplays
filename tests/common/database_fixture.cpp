@@ -1189,6 +1189,14 @@ const betting_market_object& database_fixture::create_betting_market(betting_mar
    trx.operations.clear();
 } FC_CAPTURE_AND_RETHROW( (bettor_id)(back_or_lay)(amount_to_bet) ) }
 
+void database_fixture::resolve_betting_market(betting_market_id_type betting_market_id, betting_market_resolution_type resolution)
+{ try {
+   betting_market_resolve_operation betting_market_resolve_op;
+   betting_market_resolve_op.betting_market_id = betting_market_id;
+   betting_market_resolve_op.resolution = resolution;
+   process_operation_by_witnesses(betting_market_resolve_op);
+} FC_CAPTURE_AND_RETHROW( (betting_market_id)(resolution) ) }
+
 namespace test {
 
 void set_expiration( const database& db, transaction& tx )

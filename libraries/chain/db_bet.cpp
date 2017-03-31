@@ -76,19 +76,22 @@ void database::resolve_betting_market(const betting_market_object& betting_marke
       case betting_market_resolution_type::win:
          payout_amount += position.pay_if_payout_condition;
          payout_amount += position.pay_if_not_canceled;
+         //TODO: pay the fees to the correct (dividend-distribution) account
+         adjust_balance(account_id_type(), asset(position.fees_collected, betting_market.asset_id));
          break;
       case betting_market_resolution_type::not_win:
          payout_amount += position.pay_if_not_payout_condition;
          payout_amount += position.pay_if_not_canceled;
+         //TODO: pay the fees to the correct (dividend-distribution) account
+         adjust_balance(account_id_type(), asset(position.fees_collected, betting_market.asset_id));
          break;
       case betting_market_resolution_type::cancel:
          payout_amount += position.pay_if_canceled;
+         payout_amount += position.fees_collected;
          break;
       }
 
       adjust_balance(position.bettor_id, asset(payout_amount, betting_market.asset_id));
-      //TODO: pay the fees to the correct (dividend-distribution) account
-      adjust_balance(account_id_type(), asset(position.fees_collected, betting_market.asset_id));
 
       push_applied_operation(betting_market_resolved_operation(position.bettor_id,
                                                                betting_market.id,

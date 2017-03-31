@@ -901,54 +901,25 @@ vector<sport_object> database_api::list_sports() const
 vector<sport_object> database_api_impl::list_sports() const
 {
    const auto& sport_object_idx = _db.get_index_type<sport_object_index>().indices().get<by_id>();
-   vector<sport_object> result;
-   for (const sport_object& sport : sport_object_idx)
-   {
-      result.emplace_back(sport);
-   }
-   return result;
+   return boost::copy_range<vector<sport_object> >(sport_object_idx);
 }
 
 vector<event_group_object> database_api_impl::list_event_groups(sport_id_type sport_id) const
 {
-   vector<event_group_object> result;
    const auto& event_group_idx = _db.get_index_type<event_group_object_index>().indices().get<by_sport_id>();
-   auto event_group_itr = event_group_idx.lower_bound(sport_id);
-   while (event_group_itr != event_group_idx.end() &&
-          event_group_itr->sport_id == sport_id)
-   {
-      result.emplace_back(*event_group_itr);
-      ++event_group_itr;
-   }
-   return result;
+   return boost::copy_range<vector<event_group_object> >(event_group_idx.equal_range(sport_id));
 }
 
 vector<betting_market_group_object> database_api_impl::list_betting_market_groups(event_id_type event_id) const
 {
-   vector<betting_market_group_object> result;
    const auto& betting_market_group_idx = _db.get_index_type<betting_market_group_object_index>().indices().get<by_event_id>();
-   auto betting_market_group_itr = betting_market_group_idx.lower_bound(event_id);
-   while (betting_market_group_itr != betting_market_group_idx.end() &&
-          betting_market_group_itr->event_id == event_id)
-   {
-      result.emplace_back(*betting_market_group_itr);
-      ++betting_market_group_itr;
-   }
-   return result;
+   return boost::copy_range<vector<betting_market_group_object> >(betting_market_group_idx.equal_range(event_id));
 }
 
 vector<betting_market_object> database_api_impl::list_betting_markets(betting_market_group_id_type betting_market_group_id) const
 {
-   vector<betting_market_object> result;
    const auto& betting_market_idx = _db.get_index_type<betting_market_object_index>().indices().get<by_betting_market_group_id>();
-   auto betting_market_itr = betting_market_idx.lower_bound(betting_market_group_id);
-   while (betting_market_itr != betting_market_idx.end() &&
-          betting_market_itr->group_id == betting_market_group_id)
-   {
-      result.emplace_back(*betting_market_itr);
-      ++betting_market_itr;
-   }
-   return result;
+   return boost::copy_range<vector<betting_market_object> >(betting_market_idx.equal_range(betting_market_group_id));
 }
 
 //////////////////////////////////////////////////////////////////////
