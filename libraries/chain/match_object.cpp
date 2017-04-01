@@ -94,22 +94,39 @@ namespace graphene { namespace chain {
                        "Match ${id} is complete",
                        ("id", match.id));
 
+               optional<account_id_type> last_game_winner;
                std::map<account_id_type, unsigned> scores_by_player;
                for (const flat_set<account_id_type>& game_winners : match.game_winners)
                   for (const account_id_type& account_id : game_winners)
+                  {
                      ++scores_by_player[account_id];
+                     last_game_winner = account_id;
+                  }
                
+               bool all_scores_same = true;
                optional<account_id_type> high_scoring_account;
                unsigned high_score = 0;
                for (const auto& value : scores_by_player)
                   if (value.second > high_score)
                   {
+                     if (high_scoring_account)
+                         all_scores_same = false;
                      high_score = value.second;
                      high_scoring_account = value.first;
                   }
 
                if (high_scoring_account)
-                  match.match_winners.insert(*high_scoring_account);
+               {
+                  if (all_scores_same && last_game_winner)
+                      match.match_winners.insert(*last_game_winner);
+                  else
+                      match.match_winners.insert(*high_scoring_account);
+               }
+               else
+               {
+                  match.match_winners.insert(match.players[event.db.get_random_bits(match.players.size())]);
+               }
+
 
                match.end_time = event.db.head_block_time();
                const tournament_object& tournament_obj = match.tournament_id(event.db);
@@ -137,10 +154,15 @@ namespace graphene { namespace chain {
 
          typedef match_state_machine_ x; // makes transition table cleaner
          
-         // Guards
          bool was_final_game(const game_complete& event)
          {
             const tournament_object& tournament_obj = match_obj->tournament_id(event.db);
+
+            if (match_obj->games.size() >= tournament_obj.options.number_of_wins * 4)
+            {
+                wdump((match_obj->games.size()));
+                return true;
+            }
 
             for (unsigned i = 0; i < match_obj->players.size(); ++i)
             {

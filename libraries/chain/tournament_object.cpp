@@ -199,13 +199,6 @@ namespace graphene { namespace chain {
                    }
                }
 
-#ifdef HELPFULL_DUMP_WHEN_SOLVING_BYE_MATCH_PROBLEM
-               wlog("###");
-               wdump((tournament_details_obj.matches[tournament_details_obj.matches.size() - 1]));
-               for( match_id_type mid : tournament_details_obj.matches )
-                   wdump((mid(event.db)));
-#endif
-
             }
             void on_entry(const match_completed& event, tournament_state_machine_& fsm)
             {
@@ -241,13 +234,7 @@ namespace graphene { namespace chain {
 
                event.db.modify(next_round_match, [&](match_object& next_match_obj) {
 
-#ifdef HELPFULL_DUMP_WHEN_SOLVING_BYE_MATCH_PROBLEM
-                   wdump((event.match.get_state()));
-                   wdump((event.match));
-                   wdump((other_match.get_state()));
-                   wdump((other_match));
-#endif
-                  if (!event.match.match_winners.empty()) // if there is a winner
+              if (!event.match.match_winners.empty()) // if there is a winner
                   {
                      if (winner_index_in_next_match == 0)
                         next_match_obj.players.insert(next_match_obj.players.begin(), *event.match.match_winners.begin());
@@ -257,10 +244,6 @@ namespace graphene { namespace chain {
 
                   if (other_match.get_state() == match_state::match_complete)
                   {
-#ifdef HELPFULL_DUMP_WHEN_SOLVING_BYE_MATCH_PROBLEM
-                     wdump((next_match_obj.get_state()));
-                     wdump((next_match_obj));
-#endif
                      next_match_obj.on_initiate_match(event.db);
                   }
 
@@ -376,21 +359,16 @@ namespace graphene { namespace chain {
                     ("value", tournament_obj->registered_players == tournament_obj->options.number_of_players - 1));
             return tournament_obj->registered_players == tournament_obj->options.number_of_players - 1;
          }
-         
+
          bool was_final_match(const match_completed& event)
          {
             const tournament_details_object& tournament_details_obj = tournament_obj->tournament_details_id(event.db);
+            auto final_match_id = tournament_details_obj.matches[tournament_details_obj.matches.size() - 1];
+            bool was_final = event.match.id == final_match_id;
             fc_ilog(fc::logger::get("tournament"),
                     "In was_final_match guard, returning ${value}",
-                    ("value", event.match.id == tournament_details_obj.matches[tournament_details_obj.matches.size()]));
-#ifdef HELPFULL_DUMP_WHEN_SOLVING_BYE_MATCH_PROBLEM
-            wlog("###");
-            wdump((event.match.id));
-            wdump((tournament_details_obj.matches[tournament_details_obj.matches.size() - 1]));
-            for( match_id_type mid : tournament_details_obj.matches )
-                wdump((mid(event.db)));
-#endif
-            return event.match.id == tournament_details_obj.matches[tournament_details_obj.matches.size() - 1];
+                    ("value", was_final));
+            return was_final;
          }
 
          void register_player(const player_registered& event)

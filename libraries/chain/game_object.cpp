@@ -106,7 +106,6 @@ namespace graphene { namespace chain {
                fc_ilog(fc::logger::get("tournament"),
                        "game ${id} received a commit move, still expecting another commit move",
                        ("id", game.id));
-               set_next_timeout(event.db, game);
             }
          };
          struct expecting_reveal_moves : public msm::front::state<>
@@ -131,14 +130,16 @@ namespace graphene { namespace chain {
                game_object& game = *fsm.game_obj;
 
                if (event.move.move.which() == game_specific_moves::tag<rock_paper_scissors_throw_commit>::value)
+               {
                   fc_ilog(fc::logger::get("tournament"),
                           "game ${id} received a commit move, now expecting reveal moves",
                           ("id", game.id));
+                  set_next_timeout(event.db, game);
+               }
                else
                   fc_ilog(fc::logger::get("tournament"),
                           "game ${id} received a reveal move, still expecting reveal moves",
                           ("id", game.id));
-               set_next_timeout(event.db, game);
             }
          };
 
@@ -146,9 +147,9 @@ namespace graphene { namespace chain {
          {
             void clear_next_timeout(database& db, game_object& game)
             {
-               const match_object& match_obj = game.match_id(db);
-               const tournament_object& tournament_obj = match_obj.tournament_id(db);
-               const rock_paper_scissors_game_options& game_options = tournament_obj.options.game_options.get<rock_paper_scissors_game_options>();
+               //const match_object& match_obj = game.match_id(db);
+               //const tournament_object& tournament_obj = match_obj.tournament_id(db);
+               //const rock_paper_scissors_game_options& game_options = tournament_obj.options.game_options.get<rock_paper_scissors_game_options>();
                game.next_timeout = fc::optional<fc::time_point_sec>();
             }
             void on_entry(const timeout& event, game_state_machine_& fsm)
@@ -200,7 +201,7 @@ namespace graphene { namespace chain {
 
             const rock_paper_scissors_game_details& game_details = game_obj->game_details.get<rock_paper_scissors_game_details>();
             for (unsigned i = 0; i < game_details.commit_moves.size(); ++i)
-               if (!game_details.reveal_moves[i] && i != this_reveal_index)
+               if (game_details.commit_moves[i] && !game_details.reveal_moves[i] && i != this_reveal_index)
                   return false;
             return true;
          }
@@ -350,7 +351,7 @@ namespace graphene { namespace chain {
 
    void game_object::evaluate_move_operation(const database& db, const game_move_operation& op) const
    {
-      const match_object& match_obj = match_id(db);
+      //const match_object& match_obj = match_id(db);
 
       if (game_details.which() == game_specific_details::tag<rock_paper_scissors_game_details>::value)
       {
@@ -450,18 +451,22 @@ namespace graphene { namespace chain {
          const match_object& match_obj = match_id(db);
          const tournament_object& tournament_obj = match_obj.tournament_id(db);
          const rock_paper_scissors_game_options& game_options = tournament_obj.options.game_options.get<rock_paper_scissors_game_options>();
-         for (unsigned i = 0; i < 2; ++i)
+
+         if (game_options.insurance_enabled)
          {
-            if (!rps_game_details.commit_moves[i] ||
-                no_player_has_reveal_move)
-            {
-               struct rock_paper_scissors_throw_reveal reveal;
-               reveal.nonce2 = 0;
-               reveal.gesture = (rock_paper_scissors_gesture)db.get_random_bits(game_options.number_of_gestures);
-               rps_game_details.reveal_moves[i] = reveal;
-               ilog("Player ${player} failed to commit a move, generating a random move for them: ${gesture}",
-                    ("player", i)("gesture", reveal.gesture));
-            } 
+             for (unsigned i = 0; i < 2; ++i)
+             {
+                if (!rps_game_details.commit_moves[i] ||
+                    no_player_has_reveal_move)
+                {
+                   struct rock_paper_scissors_throw_reveal reveal;
+                   reveal.nonce2 = 0;
+                   reveal.gesture = (rock_paper_scissors_gesture)db.get_random_bits(game_options.number_of_gestures);
+                   rps_game_details.reveal_moves[i] = reveal;
+                   ilog("Player ${player} failed to commit a move, generating a random move for him: ${gesture}",
+                        ("player", i)("gesture", reveal.gesture));
+                }
+             }
          }
       }
    }
@@ -500,8 +505,10 @@ namespace graphene { namespace chain {
             ilog("Player 0 didn't commit or reveal their move, player 1 wins");
             winners.insert(players[1]);
          }
-         else if (rps_game_details.reveal_moves[1])
+         else
+         {
             ilog("Neither player made a move, both players lose");
+         }
       }
 
    
