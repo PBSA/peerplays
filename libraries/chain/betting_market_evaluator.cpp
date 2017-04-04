@@ -126,6 +126,18 @@ void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
    FC_ASSERT(bet_object::get_matching_amount(op.amount_to_bet.amount, op.backer_multiplier, op.back_or_lay) != 0,
              "Bet cannot be matched");
 
+#if 0
+   bet_object simulated_bet;
+   simulated_bet.bettor_id = op.bettor_id;
+   simulated_bet.betting_market_id = op.betting_market_id;
+   simulated_bet.amount_to_bet = op.amount_to_bet;
+   simulated_bet.backer_multiplier = op.backer_multiplier;
+   simulated_bet.amount_reserved_for_fees = op.amount_reserved_for_fees;
+   simulated_bet.back_or_lay = op.back_or_lay;
+
+   share_type required_deposit = get_required_deposit_for_bet(simulated_bet);
+#endif
+
    // verify they reserved enough to cover the percentage fee
    uint16_t percentage_fee = current_params.current_fees->get<bet_place_operation>().percentage_fee;
    fc::uint128_t minimum_percentage_fee_calculation = op.amount_to_bet.amount.value;

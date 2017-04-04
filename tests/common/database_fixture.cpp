@@ -26,6 +26,7 @@
 
 #include <graphene/account_history/account_history_plugin.hpp>
 #include <graphene/market_history/market_history_plugin.hpp>
+#include <graphene/bookie/bookie_plugin.hpp>
 
 #include <graphene/db/simple_index.hpp>
 
@@ -79,6 +80,7 @@ database_fixture::database_fixture()
    }
    auto ahplugin = app.register_plugin<graphene::account_history::account_history_plugin>();
    auto mhplugin = app.register_plugin<graphene::market_history::market_history_plugin>();
+   auto bookieplugin = app.register_plugin<graphene::bookie::bookie_plugin>();
    init_account_pub_key = init_account_priv_key.get_public_key();
 
    boost::program_options::variables_map options;
@@ -104,9 +106,12 @@ database_fixture::database_fixture()
    ahplugin->plugin_initialize(options);
    mhplugin->plugin_set_app(&app);
    mhplugin->plugin_initialize(options);
+   bookieplugin->plugin_set_app(&app);
+   bookieplugin->plugin_initialize(options);
 
    ahplugin->plugin_startup();
    mhplugin->plugin_startup();
+   bookieplugin->plugin_startup();
 
    generate_block();
 

@@ -1891,3 +1891,36 @@ BOOST_AUTO_TEST_CASE( cancel )
 
 BOOST_AUTO_TEST_SUITE_END()
 
+struct simple_bet_test_fixture_2 : database_fixture {
+   betting_market_id_type capitals_win_betting_market_id;
+   simple_bet_test_fixture_2() 
+   {
+      ACTORS( (alice)(bob) );
+      CREATE_ICE_HOCKEY_BETTING_MARKET();
+
+      // give alice and bob 10k each
+      transfer(account_id_type(), alice_id, asset(10000));
+      transfer(account_id_type(), bob_id, asset(10000));
+
+      // alice backs 1000 at 1:1, matches
+      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 20);
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 20);
+
+      // now alice lays at 2500 at 1:1.  This should require a deposit of 500, with the remaining 200 being funded from exposure
+      place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(2500, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 50);
+
+      // match the bet bit by bit. bob matches 500 of alice's 2500 bet.  This effectively cancels half of bob's lay position
+      // so he immediately gets 500 back.  It reduces alice's back position, but doesn't return any money to her (all 2000 of her exposure
+      // was already "promised" to her lay bet, so the 500 she would have received is placed in her refundable_unmatched_bets)
+      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(500, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 10);
+
+      // match another 500, which will fully cancel bob's lay position and return the other 500 he had locked up in his position.  
+      // alice's back position is now canceled, 1500 remains of her unmatched lay bet, and the 500 from canceling her position has
+      // been moved to her refundable_unmatched_bets
+      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(500, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 10);
+
+      capitals_win_betting_market_id = capitals_win_market.id;
+   }
+};
+
+

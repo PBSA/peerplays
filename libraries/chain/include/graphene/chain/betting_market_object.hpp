@@ -225,13 +225,160 @@ struct compare_bet_by_odds {
    }
 };
 
+struct compare_bet_by_bettor_then_odds {
+   bool operator()(const bet_object& lhs, const bet_object& rhs) const
+   {
+      return compare(lhs.betting_market_id, lhs.bettor_id, lhs.back_or_lay, lhs.backer_multiplier, lhs.id,
+                     rhs.betting_market_id, rhs.bettor_id, rhs.back_or_lay, rhs.backer_multiplier, rhs.id);
+   }
+
+   template<typename T0>
+   bool operator() (const std::tuple<T0>& lhs, const bet_object& rhs) const
+   {
+      return compare(std::get<0>(lhs), rhs.betting_market_id);
+   }
+
+   template<typename T0>
+   bool operator() (const bet_object& lhs, const std::tuple<T0>& rhs) const
+   {
+      return compare(lhs.betting_market_id, std::get<0>(rhs));
+   }
+
+   template<typename T0, typename T1>
+   bool operator() (const std::tuple<T0, T1>& lhs, const bet_object& rhs) const
+   {
+      return compare(std::get<0>(lhs), std::get<1>(lhs), rhs.betting_market_id, rhs.bettor_id);
+   }
+
+   template<typename T0, typename T1>
+   bool operator() (const bet_object& lhs, const std::tuple<T0, T1>& rhs) const
+   {
+      return compare(lhs.betting_market_id, lhs.bettor_id, std::get<0>(rhs), std::get<1>(rhs));
+   }
+
+   template<typename T0, typename T1, typename T2>
+   bool operator() (const std::tuple<T0, T1, T2>& lhs, const bet_object& rhs) const
+   {
+      return compare(std::get<0>(lhs), std::get<1>(lhs), std::get<2>(lhs),
+                     rhs.betting_market_id, rhs.bettor_id, rhs.back_or_lay);
+   }
+
+   template<typename T0, typename T1, typename T2>
+   bool operator() (const bet_object& lhs, const std::tuple<T0, T1, T2>& rhs) const
+   {
+      return compare(lhs.betting_market_id, lhs.bettor_id, lhs.back_or_lay,
+                     std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs));
+   }
+   template<typename T0, typename T1, typename T2, typename T3>
+   bool operator() (const std::tuple<T0, T1, T2, T3>& lhs, const bet_object& rhs) const
+   {
+      return compare(std::get<0>(lhs), std::get<1>(lhs), std::get<2>(lhs), std::get<3>(lhs),
+                     rhs.betting_market_id, rhs.bettor_id, rhs.back_or_lay, rhs.backer_multiplier);
+   }
+
+   template<typename T0, typename T1, typename T2, typename T3>
+   bool operator() (const bet_object& lhs, const std::tuple<T0, T1, T2, T3>& rhs) const
+   {
+      return compare(lhs.betting_market_id, lhs.bettor_id, lhs.back_or_lay, lhs.backer_multiplier, lhs.id,
+                     std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs), std::get<3>(rhs));
+   }
+   template<typename T0, typename T1, typename T2, typename T3, typename T4>
+   bool operator() (const std::tuple<T0, T1, T2, T3, T4>& lhs, const bet_object& rhs) const
+   {
+      return compare(std::get<0>(lhs), std::get<1>(lhs), std::get<2>(lhs), std::get<3>(lhs), std::get<4>(lhs),
+                     rhs.betting_market_id, rhs.bettor_id, rhs.back_or_lay, rhs.backer_multiplier, rhs.id);
+   }
+   template<typename T0, typename T1, typename T2, typename T3, typename T4>
+   bool operator() (const bet_object& lhs, const std::tuple<T0, T1, T2, T3, T4>& rhs) const
+   {
+      return compare(lhs.betting_market_id, lhs.bettor_id, lhs.back_or_lay, lhs.backer_multiplier, lhs.id,
+                     std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs), std::get<3>(rhs), std::get<4>(rhs));
+   }
+   bool compare(const betting_market_id_type& lhs_betting_market_id, const betting_market_id_type& rhs_betting_market_id) const
+   {
+      return lhs_betting_market_id < rhs_betting_market_id;
+   }
+   bool compare(const betting_market_id_type& lhs_betting_market_id, const account_id_type& lhs_bettor_id, 
+                const betting_market_id_type& rhs_betting_market_id, const account_id_type& rhs_bettor_id) const
+   {
+      if (lhs_betting_market_id < rhs_betting_market_id)
+         return true;
+      if (lhs_betting_market_id > rhs_betting_market_id)
+         return false;
+      return lhs_bettor_id < rhs_bettor_id;
+   }
+
+   bool compare(const betting_market_id_type& lhs_betting_market_id, const account_id_type& lhs_bettor_id, 
+                bet_type lhs_bet_type, 
+                const betting_market_id_type& rhs_betting_market_id, const account_id_type& rhs_bettor_id, 
+                bet_type rhs_bet_type) const
+   {
+      if (lhs_betting_market_id < rhs_betting_market_id)
+         return true;
+      if (lhs_betting_market_id > rhs_betting_market_id)
+         return false;
+      if (lhs_bettor_id < rhs_bettor_id)
+          return true;
+      if (lhs_bettor_id > rhs_bettor_id)
+          return false;
+      return lhs_bet_type < rhs_bet_type;
+   }
+   bool compare(const betting_market_id_type& lhs_betting_market_id, const account_id_type& lhs_bettor_id, 
+                bet_type lhs_bet_type, 
+                bet_multiplier_type lhs_backer_multiplier,
+                const betting_market_id_type& rhs_betting_market_id, const account_id_type& rhs_bettor_id, 
+                bet_type rhs_bet_type,
+                bet_multiplier_type rhs_backer_multiplier) const
+   {
+      if (lhs_betting_market_id < rhs_betting_market_id)
+         return true;
+      if (lhs_betting_market_id > rhs_betting_market_id)
+         return false;
+      if (lhs_bettor_id < rhs_bettor_id)
+          return true;
+      if (lhs_bettor_id > rhs_bettor_id)
+          return false;
+      if (lhs_bet_type < rhs_bet_type)
+         return true;
+      if (lhs_bet_type > rhs_bet_type)
+         return false;
+      return lhs_backer_multiplier < rhs_backer_multiplier;
+   }
+   bool compare(const betting_market_id_type& lhs_betting_market_id, const account_id_type& lhs_bettor_id,
+                bet_type lhs_bet_type, 
+                bet_multiplier_type lhs_backer_multiplier, const bet_id_type& lhs_bet_id,
+                const betting_market_id_type& rhs_betting_market_id, const account_id_type& rhs_bettor_id,
+                bet_type rhs_bet_type,
+                bet_multiplier_type rhs_backer_multiplier, const bet_id_type& rhs_bet_id) const
+   {
+      if (lhs_betting_market_id < rhs_betting_market_id)
+         return true;
+      if (lhs_betting_market_id > rhs_betting_market_id)
+         return false;
+      if (lhs_bettor_id < rhs_bettor_id)
+          return true;
+      if (lhs_bettor_id > rhs_bettor_id)
+          return false;
+      if (lhs_bet_type < rhs_bet_type)
+         return true;
+      if (lhs_bet_type > rhs_bet_type)
+         return false;
+      if (lhs_backer_multiplier < rhs_backer_multiplier)
+         return true;
+      if (lhs_backer_multiplier > rhs_backer_multiplier)
+         return false;
+      return lhs_bet_id < rhs_bet_id;
+   }
+};
+
 struct by_odds {};
+struct by_bettor_and_odds {};
 typedef multi_index_container<
    bet_object,
    indexed_by<
       ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
-      ordered_unique< tag<by_odds>, identity<bet_object>, compare_bet_by_odds > > > bet_object_multi_index_type;
-
+      ordered_unique< tag<by_odds>, identity<bet_object>, compare_bet_by_odds >,
+      ordered_unique< tag<by_bettor_and_odds>, identity<bet_object>, compare_bet_by_bettor_then_odds > > > bet_object_multi_index_type;
 typedef generic_index<bet_object, bet_object_multi_index_type> bet_object_index;
 
 struct by_bettor_betting_market{};

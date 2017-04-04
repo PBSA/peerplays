@@ -104,6 +104,13 @@ void database::resolve_betting_market(const betting_market_object& betting_marke
    remove(betting_market);
 }
 
+#if 0
+void database::get_required_deposit_for_bet(const betting_market_object& betting_market, 
+                                            betting_market_resolution_type resolution)
+{
+}
+#endif
+
 bool maybe_cull_small_bet( database& db, const bet_object& bet_object_to_cull )
 {
    /**
