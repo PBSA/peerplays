@@ -218,6 +218,11 @@ struct get_impacted_account_visitor
       _impacted.insert( op.payer_account_id );
       _impacted.insert( op.player_account_id );
    }
+   void operator()( const tournament_leave_operation& op )
+   {
+      _impacted.erase( op.payer_account_id );
+      _impacted.erase( op.player_account_id );
+   }
    void operator()( const game_move_operation& op )
    {
       _impacted.insert( op.player_account_id );

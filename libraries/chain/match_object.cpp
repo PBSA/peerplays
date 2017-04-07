@@ -75,7 +75,6 @@ namespace graphene { namespace chain {
             void on_entry(const initiate_match& event, match_state_machine_& fsm)
             {
                match_object& match = *fsm.match_obj;
-
                fc_ilog(fc::logger::get("tournament"),
                        "Match ${id} is now in progress",
                        ("id", match.id));
@@ -89,7 +88,9 @@ namespace graphene { namespace chain {
          {
             void on_entry(const game_complete& event, match_state_machine_& fsm)
             {
+
                match_object& match = *fsm.match_obj;
+               //wdump((match));
                fc_ilog(fc::logger::get("tournament"),
                        "Match ${id} is complete",
                        ("id", match.id));
@@ -124,16 +125,20 @@ namespace graphene { namespace chain {
                }
                else
                {
-                  match.match_winners.insert(match.players[event.db.get_random_bits(match.players.size())]);
-               }
+                  // $$$ III. Rock Paper Scissors Game Need to review how Ties are dealt with.
+                  short i = std::rand() % match.players.size(); // ! event.db.get_random_bits(match.players.size()) ;
+                  match.match_winners.insert(match.players[i]);
+                  ++match.number_of_wins[i];
+                  if (match.number_of_ties == match.games.size())
+                      match.game_winners[match.game_winners.size()-1].insert(match.players[i]);
 
+               }
 
                match.end_time = event.db.head_block_time();
                const tournament_object& tournament_obj = match.tournament_id(event.db);
                event.db.modify(tournament_obj, [&](tournament_object& tournament) {
                      tournament.on_match_completed(event.db, match);
                      });
-
             }
             void on_entry(const initiate_match& event, match_state_machine_& fsm)
             {
@@ -238,7 +243,8 @@ namespace graphene { namespace chain {
    };
 
    match_object::match_object() :
-      my(new impl(this))
+       number_of_ties(0),
+       my(new impl(this))
    {
    }
 

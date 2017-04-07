@@ -145,6 +145,30 @@ namespace graphene { namespace chain {
       void            validate()const;
    };
 
+   struct tournament_leave_operation : public base_operation
+   {
+      struct fee_parameters_type {
+         share_type fee = GRAPHENE_BLOCKCHAIN_PRECISION;
+      };
+
+      asset fee;
+
+      /// The account that payed the buy-in for the tournament
+      account_id_type payer_account_id;
+
+      /// The account that would play in the tournament, would receive any winnings.
+      account_id_type player_account_id;
+
+      /// The tournament `player_account_id` is leaving
+      tournament_id_type tournament_id;
+
+      extensions_type extensions;
+      account_id_type fee_payer()const { return payer_account_id; }
+      share_type calculate_fee(const fee_parameters_type& k)const;
+      void            validate()const;
+   };
+
+
    typedef fc::static_variant<rock_paper_scissors_throw_commit, rock_paper_scissors_throw_reveal> game_specific_moves;
 
    struct game_move_operation : public base_operation
@@ -227,6 +251,12 @@ FC_REFLECT( graphene::chain::tournament_join_operation,
             (tournament_id)
             (buy_in)
             (extensions))
+FC_REFLECT( graphene::chain::tournament_leave_operation,
+            (fee)
+            (payer_account_id)
+            (player_account_id)
+            (tournament_id)
+            (extensions))
 FC_REFLECT( graphene::chain::game_move_operation,
             (fee)
             (game_id)
@@ -243,6 +273,7 @@ FC_REFLECT( graphene::chain::tournament_payout_operation,
 
 FC_REFLECT( graphene::chain::tournament_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::tournament_join_operation::fee_parameters_type, (fee) )
+FC_REFLECT( graphene::chain::tournament_leave_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::game_move_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::tournament_payout_operation::fee_parameters_type,  )
 
