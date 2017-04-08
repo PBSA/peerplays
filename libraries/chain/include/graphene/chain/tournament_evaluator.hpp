@@ -33,9 +33,6 @@ namespace graphene { namespace chain {
       private:
          const tournament_object* _tournament_obj = nullptr;
          const tournament_details_object* _tournament_details_obj = nullptr;
-         //const account_object* _payer_account = nullptr;
-         //const account_object* _player_account = nullptr;
-         //const asset_object* _buy_in_back_asset_type = nullptr;
       public:
          typedef tournament_leave_operation operation_type;
 

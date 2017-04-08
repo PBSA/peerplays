@@ -38,6 +38,9 @@ namespace graphene { namespace chain {
       /// List of payers who have contributed to the prize pool
       flat_map<account_id_type, share_type> payers;
 
+      /// List of player payer pairs needed by torunament leave operation
+      flat_map<account_id_type, account_id_type> players_payers;
+
       /// List of all matches in this tournament.  When the tournament starts, all matches
       /// are created.  Matches in the first round will have players, matches in later
       /// rounds will not be populated.

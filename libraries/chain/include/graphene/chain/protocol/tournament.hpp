@@ -153,7 +153,7 @@ namespace graphene { namespace chain {
 
       asset fee;
 
-      /// The account that payed the buy-in for the tournament
+      /// The account that is paying the fee
       account_id_type payer_account_id;
 
       /// The account that would play in the tournament, would receive any winnings.

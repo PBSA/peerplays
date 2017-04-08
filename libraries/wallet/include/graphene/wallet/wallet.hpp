@@ -1501,13 +1501,13 @@ class wallet_api
       signed_transaction tournament_join( string payer_account, string player_account, tournament_id_type tournament_id, string buy_in_amount, string buy_in_asset_symbol, bool broadcast = false );
 
       /** Leave an existing tournament
-       * @param payer_account the account that payed buy-in and the fee to join the tournament
+       * @param payer_account the account that is paying the fee
        * @param player_account the account that would be playing in the tournament
        * @param tournament_id the tournament the user wishes to leave
        * @param broadcast true if you wish to broadcast the transaction
        * @return the signed version of the transaction
        */
-      signed_transaction tournament_leave( string payer_account, string player_account, tournament_id_type tournament_id, bool broadcast = false);
+      signed_transaction tournament_leave(string payer_account, string player_account, tournament_id_type tournament_id, bool broadcast = false);
 
       /** Get a list of upcoming tournaments
        * @param limit the number of tournaments to return

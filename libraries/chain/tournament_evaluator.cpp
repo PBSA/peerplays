@@ -186,23 +186,11 @@ namespace graphene { namespace chain {
       _tournament_details_obj = &_tournament_obj->tournament_details_id(d);
       FC_ASSERT(_tournament_details_obj->registered_players.find(op.player_account_id) != _tournament_details_obj->registered_players.end(),
                 "Player is not registered for this tournament");
-      FC_ASSERT(_tournament_details_obj->payers.find(op.payer_account_id) != _tournament_details_obj->payers.end(),
-                "Payer is not registered for this tournament");
-#if 0
-      _payer_account = &op.payer_account_id(d);
-      _buy_in_back_asset_type = &(_tournament_obj->options.buy_in.asset_id(d));
-      GRAPHENE_ASSERT(!_buy_in_back_asset_type->is_transfer_restricted(),
-                      transfer_restricted_transfer_asset,
-                      "Asset {asset} has transfer_restricted flag enabled",
-                      ("asset", _buy_in_back_asset_type->id));
+      //FC_ASSERT(_tournament_details_obj->payers.find(op.payer_account_id) != _tournament_details_obj->payers.end(),
+      //          "Payer is not registered for this tournament");
 
-      GRAPHENE_ASSERT(is_authorized_asset(d, *_payer_account, *_buy_in_back_asset_type),
-                      transfer_from_account_not_whitelisted,
-                      "payer account ${payer} is not whitelisted for asset ${asset}",
-                      ("payer", op.payer_account_id)
-                      ("asset", _buy_in_back_asset_type->id));
-#endif
-      FC_ASSERT(_tournament_obj->get_state() == tournament_state::accepting_registrations);
+      FC_ASSERT(_tournament_obj->get_state() == tournament_state::accepting_registrations ||
+                _tournament_obj->get_state() == tournament_state::awaiting_start);
       FC_ASSERT(d.head_block_time() <= _tournament_obj->options.registration_deadline,
                 "Registration deadline has already passed");
       return void_result();

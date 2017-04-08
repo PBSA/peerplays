@@ -125,13 +125,12 @@ namespace graphene { namespace chain {
                }
                else
                {
-                  // $$$ III. Rock Paper Scissors Game Need to review how Ties are dealt with.
-                  short i = std::rand() % match.players.size(); // ! event.db.get_random_bits(match.players.size()) ;
+                  // III. Rock Paper Scissors Game Need to review how Ties are dealt with.
+                  short i = match.number_of_ties == match.games.size() ? 0 : event.db.get_random_bits(match.players.size()) ;
                   match.match_winners.insert(match.players[i]);
                   ++match.number_of_wins[i];
                   if (match.number_of_ties == match.games.size())
                       match.game_winners[match.game_winners.size()-1].insert(match.players[i]);
-
                }
 
                match.end_time = event.db.head_block_time();

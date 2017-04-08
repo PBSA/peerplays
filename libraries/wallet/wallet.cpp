@@ -4859,8 +4859,8 @@ signed_transaction wallet_api::tournament_leave( string payer_account,
                                                  bool broadcast)
 {
     FC_ASSERT( !is_locked() );
-    account_object payer_account_obj = get_account(payer_account);
     account_object player_account_obj = get_account(player_account);
+    account_object payer_account_obj = get_account(payer_account);
     //graphene::chain::tournament_object tournament_obj = my->get_object<graphene::chain::tournament_object>(tournament_id);
 
     signed_transaction tx;

@@ -391,6 +391,7 @@ namespace graphene { namespace chain {
             event.db.modify(tournament_details_obj, [&](tournament_details_object& tournament_details_obj){
                     tournament_details_obj.payers[event.payer_id] += tournament_obj->options.buy_in.amount;
                     tournament_details_obj.registered_players.insert(event.player_id);
+                    tournament_details_obj.players_payers[event.player_id] = event.payer_id;
                  });
             ++tournament_obj->registered_players;
             tournament_obj->prize_pool += tournament_obj->options.buy_in.amount;
@@ -399,19 +400,21 @@ namespace graphene { namespace chain {
          void unregister_player(const player_unregistered& event)
          {
             fc_ilog(fc::logger::get("tournament"),
-                    "In register_player action, player_id is ${player_id}, payer_id is ${payer_id}",
-                    ("player_id", event.player_id)("payer_id", event.payer_id));
+                    "In unregister_player action, player_id is ${player_id}",
+                    ("player_id", event.player_id));
 
             event.db.adjust_balance(event.payer_id, tournament_obj->options.buy_in);
             const tournament_details_object& tournament_details_obj = tournament_obj->tournament_details_id(event.db);
             event.db.modify(tournament_details_obj, [&](tournament_details_object& tournament_details_obj){
-                    tournament_details_obj.payers[event.payer_id] -= tournament_obj->options.buy_in.amount;
-                    if (tournament_details_obj.payers[event.payer_id] <= 0)
-                        tournament_details_obj.payers.erase(event.payer_id);
+                    account_id_type payer_id  = tournament_details_obj.players_payers[event.player_id];
+                    tournament_details_obj.payers[payer_id] -= tournament_obj->options.buy_in.amount;
+                    if (tournament_details_obj.payers[payer_id] <= 0)
+                        tournament_details_obj.payers.erase(payer_id);
                     tournament_details_obj.registered_players.erase(event.player_id);
+                    tournament_details_obj.players_payers.erase(event.player_id);
                  });
-            ++tournament_obj->registered_players;
-            tournament_obj->prize_pool += tournament_obj->options.buy_in.amount;
+            --tournament_obj->registered_players;
+            tournament_obj->prize_pool -= tournament_obj->options.buy_in.amount;
          }
 
          // Transition table for tournament

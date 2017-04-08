@@ -179,6 +179,7 @@ void database::initialize_evaluators()
    register_evaluator<tournament_create_evaluator>();
    register_evaluator<tournament_join_evaluator>();
    register_evaluator<game_move_evaluator>();
+   register_evaluator<tournament_leave_evaluator>();
 }
 
 void database::initialize_indexes()
