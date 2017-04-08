@@ -2521,14 +2521,28 @@ public:
          tournament_object tournament = result.as<tournament_object>();
          tournament_details_object tournament_details = _remote_db->get_objects({result["tournament_details_id"].as<object_id_type>()})[0].as<tournament_details_object>();
          tournament_state state = tournament.get_state();
-         if (state == tournament_state::awaiting_start)
+         if (state == tournament_state::accepting_registrations)
+         {
+            ss << "Tournament is accepting registrations\n";
+            ss << "Players " <<  tournament.registered_players << "/" << tournament.options.number_of_players  << ":\n";
+            for (const account_id_type& player : tournament_details.registered_players)
+               ss << "\t" << get_account(player).name << "\n";
+         }
+         else if (state == tournament_state::registration_period_expired)
+         {
+            ss << "Tournament registration period expired\n";
+            ss << "Players " <<  tournament.registered_players << "/" << tournament.options.number_of_players  << ":\n";
+            for (const account_id_type& player : tournament_details.registered_players)
+               ss << "\t" << get_account(player).name << "\n";
+         }
+         else if (state == tournament_state::awaiting_start)
          {
             ss << "Tournament starts at " << tournament.start_time->to_iso_string() << "\n";
             ss << "Players:\n";
             for (const account_id_type& player : tournament_details.registered_players)
                ss << "\t" << get_account(player).name << "\n";
          }
-         else if (state == tournament_state::in_progress || 
+         else if (state == tournament_state::in_progress ||
                   state == tournament_state::concluded)
          {
             unsigned num_matches = tournament_details.matches.size();

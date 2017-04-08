@@ -1733,6 +1733,7 @@ FC_API( graphene::wallet::wallet_api,
         (receive_blind_transfer)
         (tournament_create)
         (tournament_join)
+        (tournament_leave)
         (rps_throw)
         (get_upcoming_tournaments)
         (get_tournament)
