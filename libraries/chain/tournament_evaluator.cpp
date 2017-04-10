@@ -96,6 +96,9 @@ namespace graphene { namespace chain {
                 "Time to reveal the move must not be greater than ${max}",
                 ("max", maximum_time_per_reveal_move));
 
+      //cli-wallet supports 5 gesture games as well, but limit to 3 now as GUI wallet only supports 3 gesture games currently
+      FC_ASSERT(game_options.number_of_gestures == 3,
+                "GUI Wallet only supports 3 gestures currently");
 
       return void_result();
    } FC_CAPTURE_AND_RETHROW( (op) ) }
