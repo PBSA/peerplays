@@ -54,7 +54,7 @@ namespace graphene { namespace chain {
       /// the tournament is canceled
       fc::time_point_sec registration_deadline;
 
-      /// Number of players in the tournament.  This must be a power of 2.
+      /// Number of players in the tournament. Must be greater than 1. Currently max is 255, should it be committe-settable?
       uint32_t number_of_players;
 
       /// Each player must pay this much to join the tournament.  This can be 
