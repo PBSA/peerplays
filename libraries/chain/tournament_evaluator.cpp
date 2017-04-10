@@ -58,7 +58,7 @@ namespace graphene { namespace chain {
           FC_THROW("Must specify either a fixed start time or a delay");
 
       // TODO: make this committee-set
-      const uint32_t maximum_tournament_number_of_wins = 100;
+      const uint32_t maximum_tournament_number_of_wins = TOURNAMENT_MAX_NUMBER_OF_WINS;
       FC_ASSERT(op.options.number_of_wins > 0);
       FC_ASSERT(op.options.number_of_wins <= maximum_tournament_number_of_wins, 
                 "Matches may not require more than ${number_of_wins} wins", 
@@ -180,6 +180,36 @@ namespace graphene { namespace chain {
       return void_result();
    } FC_CAPTURE_AND_RETHROW( (op) ) }
    
+   void_result tournament_leave_evaluator::do_evaluate( const tournament_leave_operation& op )
+   {
+     try {
+      const database& d = db();
+      _tournament_obj = &op.tournament_id(d);
+      fc_ilog(fc::logger::get("tournament"), "details_id = ${id}",("id", _tournament_obj->tournament_details_id));
+
+      _tournament_details_obj = &_tournament_obj->tournament_details_id(d);
+      FC_ASSERT(_tournament_details_obj->registered_players.find(op.player_account_id) != _tournament_details_obj->registered_players.end(),
+                "Player is not registered for this tournament");
+      //FC_ASSERT(_tournament_details_obj->payers.find(op.payer_account_id) != _tournament_details_obj->payers.end(),
+      //          "Payer is not registered for this tournament");
+
+      FC_ASSERT(_tournament_obj->get_state() == tournament_state::accepting_registrations ||
+                _tournament_obj->get_state() == tournament_state::awaiting_start);
+      FC_ASSERT(d.head_block_time() <= _tournament_obj->options.registration_deadline,
+                "Registration deadline has already passed");
+      return void_result();
+   } FC_CAPTURE_AND_RETHROW( (op) ) }
+
+   void_result tournament_leave_evaluator::do_apply( const tournament_leave_operation& op )
+   { try {
+#if 1
+      db().modify(*_tournament_obj, [&](tournament_object& tournament_obj){
+            tournament_obj.on_player_unregistered(db(), op.payer_account_id, op.player_account_id);
+         });
+#endif
+      return void_result();
+   } FC_CAPTURE_AND_RETHROW( (op) ) }
+
    void_result game_move_evaluator::do_evaluate( const game_move_operation& o )
    { try {
       const database& d = db();
@@ -187,6 +217,7 @@ namespace graphene { namespace chain {
       _game_obj->evaluate_move_operation(d, o);
       return void_result();
    } FC_CAPTURE_AND_RETHROW( (o) ) }
+
 
    void_result game_move_evaluator::do_apply( const game_move_operation& o )
    { try {

@@ -2521,14 +2521,28 @@ public:
          tournament_object tournament = result.as<tournament_object>();
          tournament_details_object tournament_details = _remote_db->get_objects({result["tournament_details_id"].as<object_id_type>()})[0].as<tournament_details_object>();
          tournament_state state = tournament.get_state();
-         if (state == tournament_state::awaiting_start)
+         if (state == tournament_state::accepting_registrations)
+         {
+            ss << "Tournament is accepting registrations\n";
+            ss << "Players " <<  tournament.registered_players << "/" << tournament.options.number_of_players  << ":\n";
+            for (const account_id_type& player : tournament_details.registered_players)
+               ss << "\t" << get_account(player).name << "\n";
+         }
+         else if (state == tournament_state::registration_period_expired)
+         {
+            ss << "Tournament registration period expired\n";
+            ss << "Players " <<  tournament.registered_players << "/" << tournament.options.number_of_players  << ":\n";
+            for (const account_id_type& player : tournament_details.registered_players)
+               ss << "\t" << get_account(player).name << "\n";
+         }
+         else if (state == tournament_state::awaiting_start)
          {
             ss << "Tournament starts at " << tournament.start_time->to_iso_string() << "\n";
             ss << "Players:\n";
             for (const account_id_type& player : tournament_details.registered_players)
                ss << "\t" << get_account(player).name << "\n";
          }
-         else if (state == tournament_state::in_progress || 
+         else if (state == tournament_state::in_progress ||
                   state == tournament_state::concluded)
          {
             unsigned num_matches = tournament_details.matches.size();
@@ -4834,7 +4848,7 @@ signed_transaction wallet_api::tournament_join( string payer_account,
    FC_ASSERT( !is_locked() );
    account_object payer_account_obj = get_account(payer_account);
    account_object player_account_obj = get_account(player_account);
-   graphene::chain::tournament_object tournament_obj = my->get_object<graphene::chain::tournament_object>(tournament_id);
+   //graphene::chain::tournament_object tournament_obj = my->get_object<graphene::chain::tournament_object>(tournament_id);
 
    fc::optional<asset_object> buy_in_asset_obj = get_asset(buy_in_asset_symbol);
    FC_ASSERT(buy_in_asset_obj, "Could not find asset matching ${asset}", ("asset", buy_in_asset_symbol));
@@ -4851,6 +4865,29 @@ signed_transaction wallet_api::tournament_join( string payer_account,
    tx.validate();
 
    return my->sign_transaction( tx, broadcast );
+}
+
+signed_transaction wallet_api::tournament_leave( string payer_account,
+                                                 string player_account,
+                                                 tournament_id_type tournament_id,
+                                                 bool broadcast)
+{
+    FC_ASSERT( !is_locked() );
+    account_object player_account_obj = get_account(player_account);
+    account_object payer_account_obj = get_account(payer_account);
+    //graphene::chain::tournament_object tournament_obj = my->get_object<graphene::chain::tournament_object>(tournament_id);
+
+    signed_transaction tx;
+    tournament_leave_operation op;
+    op.payer_account_id = payer_account_obj.get_id();
+    op.player_account_id = player_account_obj.get_id();
+    op.tournament_id = tournament_id;
+
+    tx.operations = {op};
+    my->set_operation_fees( tx, my->_remote_db->get_global_properties().parameters.current_fees );
+    tx.validate();
+
+    return my->sign_transaction( tx, broadcast );
 }
 
 vector<tournament_object> wallet_api::get_upcoming_tournaments(uint32_t limit)

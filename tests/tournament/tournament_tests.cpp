@@ -234,7 +234,34 @@ public:
 
         players.insert(player_id);
         players_keys[player_id] = sig_priv_key;
-    }
+   }
+
+   void leave_tournament(const tournament_id_type & tournament_id,
+                         const account_id_type& player_id,
+                         const account_id_type& payer_id,
+                         const fc::ecc::private_key& sig_priv_key
+                        )
+   {
+       graphene::chain::database& db = df.db;
+       const chain_parameters& params = db.get_global_properties().parameters;
+       signed_transaction tx;
+       tournament_leave_operation op;
+
+       op.payer_account_id = payer_id;
+       op.player_account_id = player_id;
+       op.tournament_id = tournament_id;
+       tx.operations = {op};
+       for( auto& op : tx.operations )
+           db.current_fee_schedule().set_fee(op);
+       tx.validate();
+       tx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
+       df.sign(tx, sig_priv_key);
+       PUSH_TX(db, tx);
+
+       //players.erase(player_id);
+   }
+
+
 
     // stolen from cli_wallet
     void rps_throw(const game_id_type& game_id,
@@ -288,14 +315,15 @@ public:
        tx.validate();
        tx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
        df.sign(tx, sig_priv_key);
-       if (game_obj.get_state() == game_state::expecting_commit_moves) // checking again
+       if (/*match_obj.match_winners.empty() &&*/ game_obj.get_state() == game_state::expecting_commit_moves) // checking again
           PUSH_TX(db, tx);
     }
 
     // spaghetti programming
     // walking through all tournaments, matches and games and throwing random moves
     // optionaly skip generting randomly selected moves
-    void play_games(unsigned skip_some_commits = 0, unsigned skip_some_reveals = 0)
+    // every_move_is >= 0 : every game is tie
+    void play_games(unsigned skip_some_commits = 0, unsigned skip_some_reveals = 0, int every_move_is = -1)
     {
       //try
       //{
@@ -325,7 +353,8 @@ public:
                                     auto iter = std::find(game.players.begin(), game.players.end(), player_id);
                                     unsigned player_index = std::distance(game.players.begin(), iter);
                                     if (!rps_details.commit_moves.at(player_index))
-                                        rps_throw(game_id, player_id, (rock_paper_scissors_gesture) (std::rand() % game_options.number_of_gestures), players_keys[player_id]);
+                                        rps_throw(game_id, player_id,
+                                                  (rock_paper_scissors_gesture) (every_move_is >= 0 ? every_move_is : (std::rand() % game_options.number_of_gestures)), players_keys[player_id]);
                                 }
                             }
                         }
@@ -414,6 +443,7 @@ private:
     }
 };
 
+#if 1
 // Test of basic functionality creating two tournamenst, joinig players,
 // playing tournaments to completion, distributing prize.
 // Testing of "bye" matches handling can be performed if "bye" matches fix is available.
@@ -431,13 +461,14 @@ BOOST_FIXTURE_TEST_CASE( simple, database_fixture )
      #define TEST2_NR_OF_PLAYERS_NUMBER 4
 #endif
             BOOST_TEST_MESSAGE("Hello simple tournament test");
-            ACTORS((nathan)(alice)(bob)(carol)(dave)(ed)(frank)(george)(harry)(ike));
+            ACTORS((nathan)(alice)(bob)(carol)(dave)(ed)(frank)(george)(harry)(ike)(romek));
 
             tournaments_helper tournament_helper(*this);
             fc::ecc::private_key nathan_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
 
             BOOST_TEST_MESSAGE( "Giving folks some money" );
             transfer(committee_account, nathan_id, asset(1000000000));
+            transfer(committee_account, romek_id,  asset(2000000));
             transfer(committee_account, alice_id,  asset(2000000));
             transfer(committee_account, bob_id,    asset(3000000));
             transfer(committee_account, carol_id,  asset(4000000));
@@ -483,8 +514,13 @@ BOOST_FIXTURE_TEST_CASE( simple, database_fixture )
                                                                  3, 1, 3, 3600, 3, 3, true);
             BOOST_REQUIRE(tournament_id == tournament_id_type(1));
             tournament_helper.join_tournament(tournament_id, alice_id, alice_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("alice"))), buy_in);
+            // romek joins but will leave
+            //tournament_helper.leave_tournament(tournament_id, romek_id, romek_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("romek"))));
+            tournament_helper.join_tournament(tournament_id, romek_id, romek_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("romek"))), buy_in);
             tournament_helper.join_tournament(tournament_id, bob_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in);
             tournament_helper.join_tournament(tournament_id, carol_id, carol_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("carol"))), buy_in);
+            // romek leaves
+            tournament_helper.leave_tournament(tournament_id, romek_id, romek_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("romek"))));
             tournament_helper.join_tournament(tournament_id, dave_id, dave_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("dave"))), buy_in);
 #if TEST2_NR_OF_PLAYERS_NUMBER > 4
             tournament_helper.join_tournament(tournament_id, ed_id, ed_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("ed"))), buy_in);
@@ -532,12 +568,7 @@ BOOST_FIXTURE_TEST_CASE( simple, database_fixture )
 #endif
             };
 
-#if 0
-            // trying to randomize automatic moves ?
-            auto n = std::rand() % 100;
-            for(int i = 0; i < n ; ++i)
-                db.get_random_bits(3);
-#endif
+
             abc("@ tournament awaiting start");
             BOOST_TEST_MESSAGE( "Generating blocks, waiting for tournaments' completion");
             generate_block();
@@ -594,6 +625,122 @@ BOOST_FIXTURE_TEST_CASE( simple, database_fixture )
         throw;
     }
 }
+#endif
+
+#if 1
+// Test of handling ties, creating two tournamenst, joinig players,
+// All generated moves are identical.
+BOOST_FIXTURE_TEST_CASE( ties, database_fixture )
+{
+    try
+    {
+#ifdef BYE_MATCHES_FIXED
+    #define TEST1_NR_OF_PLAYERS_NUMBER 3
+    #define TEST2_NR_OF_PLAYERS_NUMBER 5
+#else
+     #define TEST1_NR_OF_PLAYERS_NUMBER 2
+     #define TEST2_NR_OF_PLAYERS_NUMBER 4
+#endif
+            BOOST_TEST_MESSAGE("Hello ties tournament test");
+            ACTORS((nathan)(alice)(bob)(carol)(dave)(ed)(frank)(george)(harry)(ike));
+
+            tournaments_helper tournament_helper(*this);
+            fc::ecc::private_key nathan_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+
+            BOOST_TEST_MESSAGE( "Giving folks some money" );
+            transfer(committee_account, nathan_id, asset(1000000000));
+            transfer(committee_account, alice_id,  asset(2000000));
+            transfer(committee_account, bob_id,    asset(3000000));
+            transfer(committee_account, carol_id,  asset(4000000));
+            transfer(committee_account, dave_id,   asset(5000000));
+            transfer(committee_account, ed_id,     asset(6000000));
+
+            BOOST_TEST_MESSAGE( "Preparing nathan" );
+            upgrade_to_lifetime_member(nathan);
+            BOOST_CHECK(nathan.is_lifetime_member());
+
+            uint16_t tournaments_to_complete = 0;
+            asset buy_in = asset(12000);
+            tournament_id_type tournament_id;
+
+            BOOST_TEST_MESSAGE( "Preparing a tournament, insurance disabled" );
+            tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, TEST1_NR_OF_PLAYERS_NUMBER, 30, 30);
+            BOOST_REQUIRE(tournament_id == tournament_id_type());
+
+            tournament_helper.join_tournament(tournament_id, alice_id, alice_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("alice"))), buy_in);
+            tournament_helper.join_tournament(tournament_id, bob_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in);
+#if TEST1_NR_OF_PLAYERS_NUMBER > 2
+            tournament_helper.join_tournament(tournament_id, carol_id, carol_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("carol"))), buy_in);
+#endif
+            ++tournaments_to_complete;
+
+            BOOST_TEST_MESSAGE( "Preparing another one, insurance enabled" );
+            buy_in = asset(13000);
+            tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, TEST2_NR_OF_PLAYERS_NUMBER,
+                                                                 30, 30, 3, 3600, 3, 3, true);
+            BOOST_REQUIRE(tournament_id == tournament_id_type(1));
+            tournament_helper.join_tournament(tournament_id, alice_id, alice_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("alice"))), buy_in);
+            tournament_helper.join_tournament(tournament_id, bob_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in);
+            tournament_helper.join_tournament(tournament_id, carol_id, carol_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("carol"))), buy_in);
+            tournament_helper.join_tournament(tournament_id, dave_id, dave_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("dave"))), buy_in);
+#if TEST2_NR_OF_PLAYERS_NUMBER > 4
+            tournament_helper.join_tournament(tournament_id, ed_id, ed_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("ed"))), buy_in);
+#endif
+            ++tournaments_to_complete;
+
+
+            std::set<tournament_id_type> tournaments = tournament_helper.list_tournaments();
+            std::map<account_id_type, std::map<asset_id_type, share_type>> players_balances = tournament_helper.list_players_balances();
+            uint16_t rake_fee_percentage = db.get_global_properties().parameters.rake_fee_percentage;
+
+
+            BOOST_TEST_MESSAGE( "Generating blocks, waiting for tournaments' completion");
+            while(tournaments_to_complete > 0)
+            {
+                generate_block();
+                //tournament_helper.play_games(3, 4, 1);
+                tournament_helper.play_games(0, 0, 1);
+                for(const auto& tournament_id: tournaments)
+                {
+                    const tournament_object& tournament = tournament_id(db);
+                    if (tournament.get_state() == tournament_state::concluded) {
+                        const tournament_details_object& tournament_details = tournament.tournament_details_id(db);
+                        const match_object& final_match = (tournament_details.matches[tournament_details.matches.size() - 1])(db);
+
+                        assert(final_match.match_winners.size() == 1);
+                        const account_id_type& winner_id = *final_match.match_winners.begin();
+                        BOOST_TEST_MESSAGE( "The winner of " + std::string(object_id_type(tournament_id))  + " is " + winner_id(db).name + " " +  std::string(object_id_type(winner_id)));
+                        share_type rake_amount = (fc::uint128_t(tournament.prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
+                        optional<account_id_type> dividend_account = tournament_helper.get_asset_dividend_account(tournament.options.buy_in.asset_id);
+                        if (dividend_account.valid())
+                            players_balances[*dividend_account][tournament.options.buy_in.asset_id] += rake_amount;                    players_balances[winner_id][tournament.options.buy_in.asset_id] += tournament.prize_pool - rake_amount;
+
+                        tournaments.erase(tournament_id);
+                        --tournaments_to_complete;
+                        break;
+                    }
+                }
+                sleep(1);
+            }
+
+            // checking if prizes were distributed correctly
+            BOOST_CHECK(tournaments.size() == 0);
+            std::map<account_id_type, std::map<asset_id_type, share_type>> last_players_balances = tournament_helper.list_players_balances();
+            for (auto a: last_players_balances)
+            {
+                BOOST_TEST_MESSAGE( "Checking " + a.first(db).name + "'s balance " + std::to_string((uint64_t)(a.second[asset_id_type()].value)) );
+                BOOST_CHECK(a.second[asset_id_type()] == players_balances[a.first][asset_id_type()]);
+            }
+            BOOST_TEST_MESSAGE("Bye ties tournament test\n");
+
+    }
+    catch (fc::exception& e)
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+#endif
 
 // Test of canceled tournament
 // Checking buyin refund.
@@ -957,8 +1104,8 @@ BOOST_FIXTURE_TEST_CASE( massive, database_fixture )
 {
     try
     {
-        #define MIN_TOURNAMENTS_NUMBER 1
-        #define MAX_TOURNAMENTS_NUMBER 10
+        #define MIN_TOURNAMENTS_NUMBER 7
+        #define MAX_TOURNAMENTS_NUMBER 13
 
         #define MIN_PLAYERS_NUMBER 2
         #define MAX_PLAYERS_NUMBER 64
@@ -976,7 +1123,7 @@ BOOST_FIXTURE_TEST_CASE( massive, database_fixture )
 
         // creating a pool of actors
         std::vector<std::tuple<std::string, account_id_type, fc::ecc::private_key>> actors;
-        for(unsigned i = 0; i < 2 * MAX_PLAYERS_NUMBER; ++i)
+        for(unsigned i = 0; i < 3 * MAX_PLAYERS_NUMBER; ++i)
         {
             std::string name = "account" + std::to_string(i);
             auto priv_key = generate_private_key(name);
@@ -997,14 +1144,34 @@ BOOST_FIXTURE_TEST_CASE( massive, database_fixture )
             asset buy_in = asset(1000 * number_of_players + 100 * i);
             tournament_id_type tournament_id;
             tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, number_of_players, 30, 30, number_of_wins);
+            const tournament_object& tournament = tournament_id(db);
 
-            for (unsigned j = 0; j < actors.size() && number_of_players > 0; ++j)
+            for (unsigned j = 0; j < actors.size()-1 && number_of_players > 0; ++j)
             {
                 if (number_of_players < actors.size() - j && std::rand() % 2 == 0) continue;
                 auto a = actors[j];
-                --number_of_players;
                 tournament_helper.join_tournament(tournament_id, std::get<1>(a), std::get<1>(a), std::get<2>(a), buy_in);
+                if (j == i)
+                {
+                    BOOST_TEST_MESSAGE("Player " + std::get<0>(a) + " is leaving tournament " + std::to_string(i) +
+                                        ", when tournament state is " + std::to_string((int)tournament.get_state()));
+                    tournament_helper.leave_tournament(tournament_id, std::get<1>(a), std::get<1>(a), std::get<2>(a));
+                    continue;
+                }
+                --number_of_players;
+                if (!number_of_players)
+                {
+                    BOOST_TEST_MESSAGE("Player " + std::get<0>(a) + " is leaving tournament " + std::to_string(i) +
+                                        ", when tournament state is " + std::to_string((int)tournament.get_state()));
+                    tournament_helper.leave_tournament(tournament_id, std::get<1>(a), std::get<1>(a), std::get<2>(a));
+                    ++j;
+                    a = actors[j];
+                    BOOST_TEST_MESSAGE("Player " + std::get<0>(a) + " is joinig tournament " + std::to_string(i) +
+                                        ", when tournament state is " + std::to_string((int)tournament.get_state()));
+                    tournament_helper.join_tournament(tournament_id, std::get<1>(a), std::get<1>(a), std::get<2>(a), buy_in);
+                }
             }
+            BOOST_TEST_MESSAGE("Tournament " +  std::to_string(i) + " is in state " + std::to_string((int)tournament.get_state()));
         }
 
         uint16_t tournaments_to_complete = number_of_tournaments;

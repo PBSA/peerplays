@@ -38,6 +38,9 @@ namespace graphene { namespace chain {
       /// List of payers who have contributed to the prize pool
       flat_map<account_id_type, share_type> payers;
 
+      /// List of player payer pairs needed by torunament leave operation
+      flat_map<account_id_type, account_id_type> players_payers;
+
       /// List of all matches in this tournament.  When the tournament starts, all matches
       /// are created.  Matches in the first round will have players, matches in later
       /// rounds will not be populated.
@@ -114,6 +117,7 @@ namespace graphene { namespace chain {
       /// called by database maintenance code when registration for this contest has expired
       void on_registration_deadline_passed(database& db);
       void on_player_registered(database& db, account_id_type payer_id, account_id_type player_id);
+      void on_player_unregistered(database& db, account_id_type payer_id, account_id_type player_id);
       void on_start_time_arrived(database& db);
       void on_match_completed(database& db, const match_object& match);
 
@@ -232,6 +236,7 @@ FC_REFLECT_DERIVED(graphene::chain::tournament_details_object, (graphene::db::ob
                    (tournament_id)
                    (registered_players)
                    (payers)
+                   (players_payers)
                    (matches))
 //FC_REFLECT_TYPENAME(graphene::chain::tournament_object) // manually serialized
 FC_REFLECT(graphene::chain::tournament_object, (creator))

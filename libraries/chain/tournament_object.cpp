@@ -48,7 +48,16 @@ namespace graphene { namespace chain {
             db(db), payer_id(payer_id), player_id(player_id) 
          {}
       };
-      struct registration_deadline_passed 
+      struct player_unregistered
+      {
+         database& db;
+         account_id_type payer_id;
+         account_id_type player_id;
+         player_unregistered(database& db, account_id_type payer_id, account_id_type player_id) :
+            db(db), payer_id(payer_id), player_id(player_id)
+         {}
+      };
+      struct registration_deadline_passed
       {
          database& db;
          registration_deadline_passed(database& db) : db(db) {};
@@ -234,7 +243,7 @@ namespace graphene { namespace chain {
 
                event.db.modify(next_round_match, [&](match_object& next_match_obj) {
 
-              if (!event.match.match_winners.empty()) // if there is a winner
+                  if (!event.match.match_winners.empty()) // if there is a winner
                   {
                      if (winner_index_in_next_match == 0)
                         next_match_obj.players.insert(next_match_obj.players.begin(), *event.match.match_winners.begin());
@@ -382,9 +391,30 @@ namespace graphene { namespace chain {
             event.db.modify(tournament_details_obj, [&](tournament_details_object& tournament_details_obj){
                     tournament_details_obj.payers[event.payer_id] += tournament_obj->options.buy_in.amount;
                     tournament_details_obj.registered_players.insert(event.player_id);
+                    tournament_details_obj.players_payers[event.player_id] = event.payer_id;
                  });
             ++tournament_obj->registered_players;
             tournament_obj->prize_pool += tournament_obj->options.buy_in.amount;
+         }
+
+         void unregister_player(const player_unregistered& event)
+         {
+            fc_ilog(fc::logger::get("tournament"),
+                    "In unregister_player action, player_id is ${player_id}",
+                    ("player_id", event.player_id));
+
+            event.db.adjust_balance(event.payer_id, tournament_obj->options.buy_in);
+            const tournament_details_object& tournament_details_obj = tournament_obj->tournament_details_id(event.db);
+            event.db.modify(tournament_details_obj, [&](tournament_details_object& tournament_details_obj){
+                    account_id_type payer_id  = tournament_details_obj.players_payers[event.player_id];
+                    tournament_details_obj.payers[payer_id] -= tournament_obj->options.buy_in.amount;
+                    if (tournament_details_obj.payers[payer_id] <= 0)
+                        tournament_details_obj.payers.erase(payer_id);
+                    tournament_details_obj.registered_players.erase(event.player_id);
+                    tournament_details_obj.players_payers.erase(event.player_id);
+                 });
+            --tournament_obj->registered_players;
+            tournament_obj->prize_pool -= tournament_obj->options.buy_in.amount;
          }
 
          // Transition table for tournament
@@ -392,9 +422,11 @@ namespace graphene { namespace chain {
          //    Start                       Event                         Next                       Action               Guard
          //  +---------------------------+-----------------------------+----------------------------+---------------------+----------------------+
          a_row < accepting_registrations, player_registered,            accepting_registrations,     &x::register_player >,
+         a_row < accepting_registrations, player_unregistered,          accepting_registrations,     &x::unregister_player >,
          row   < accepting_registrations, player_registered,            awaiting_start,              &x::register_player,  &x::will_be_fully_registered >,
          _row  < accepting_registrations, registration_deadline_passed, registration_period_expired >,
          //  +---------------------------+-----------------------------+----------------------------+---------------------+----------------------+
+         a_row < awaiting_start,          player_unregistered,          accepting_registrations,     &x::unregister_player >,
          _row  < awaiting_start,          start_time_arrived,           in_progress >,
          //  +---------------------------+-----------------------------+----------------------------+---------------------+----------------------+
          _row  < in_progress,             match_completed,              in_progress >,
@@ -517,6 +549,11 @@ namespace graphene { namespace chain {
    void tournament_object::on_player_registered(database& db, account_id_type payer_id, account_id_type player_id)
    {
       my->state_machine.process_event(player_registered(db, payer_id, player_id));
+   }
+
+   void tournament_object::on_player_unregistered(database& db, account_id_type payer_id, account_id_type player_id)
+   {
+      my->state_machine.process_event(player_unregistered(db, payer_id, player_id));
    }
 
    void tournament_object::on_start_time_arrived(database& db)

@@ -52,6 +52,17 @@ void  tournament_join_operation::validate()const
    FC_ASSERT( fee.amount >= 0 );
 }
 
+share_type tournament_leave_operation::calculate_fee(const fee_parameters_type& k)const
+{
+   return k.fee;
+}
+
+void  tournament_leave_operation::validate()const
+{
+   // todo FC_ASSERT( fee.amount >= 0 );
+}
+
+
 share_type game_move_operation::calculate_fee(const fee_parameters_type& k)const
 {
    return k.fee;
@@ -60,6 +71,5 @@ share_type game_move_operation::calculate_fee(const fee_parameters_type& k)const
 void  game_move_operation::validate()const
 {
 }
-
 
 } } // namespace graphene::chain
