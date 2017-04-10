@@ -35,6 +35,11 @@ namespace graphene { namespace chain {
       FC_ASSERT(op.options.whitelist.size() < maximum_tournament_whitelist_length, 
                 "Whitelist must not be longer than ${maximum_tournament_whitelist_length}",
                 ("maximum_tournament_whitelist_length", maximum_tournament_whitelist_length));
+
+      for (const account_id_type& account_id : op.options.whitelist)
+      {
+         account_id(d);
+      }
       
       if (op.options.start_time)
       {
