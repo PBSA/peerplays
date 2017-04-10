@@ -18,6 +18,7 @@ namespace graphene { namespace chain {
       FC_ASSERT(op.options.registration_deadline <= maximum_registration_deadline, 
                 "Registration deadline must be before ${maximum_registration_deadline}", 
                 ("maximum_registration_deadline", maximum_registration_deadline));
+      FC_ASSERT(op.options.buy_in >= 0, "Tournament buy-in may not be negative");
 
       FC_ASSERT(op.options.number_of_players > 1, "If you're going to play with yourself, do it off-chain");
       // TODO: make this committee-set
