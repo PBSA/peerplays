@@ -32,6 +32,11 @@ namespace graphene { namespace chain {
       FC_ASSERT(op.options.whitelist.size() < maximum_tournament_whitelist_length,
                 "Whitelist must not be longer than ${maximum_tournament_whitelist_length}",
                 ("maximum_tournament_whitelist_length", maximum_tournament_whitelist_length));
+
+      for (const account_id_type& account_id : op.options.whitelist)
+      {
+         account_id(d);
+      }
       
       if (op.options.start_time)
       {
@@ -129,6 +134,7 @@ namespace graphene { namespace chain {
       fc_ilog(fc::logger::get("tournament"), "details_id = ${id}",("id", _tournament_obj->tournament_details_id));
       _tournament_details_obj = &_tournament_obj->tournament_details_id(d);
       _payer_account = &op.payer_account_id(d);
+      const account_object& player_account = op.player_account_id(d);
       //const account_object& player_account = op.player_account_id(d);
       _buy_in_asset_type = &op.buy_in.asset_id(d);
 
@@ -149,6 +155,12 @@ namespace graphene { namespace chain {
       GRAPHENE_ASSERT(!_buy_in_asset_type->is_transfer_restricted(),
                       transfer_restricted_transfer_asset,
                       "Asset {asset} has transfer_restricted flag enabled",
+                      ("asset", op.buy_in.asset_id));
+
+      GRAPHENE_ASSERT(is_authorized_asset(d, player_account, *_buy_in_asset_type),
+                      transfer_from_account_not_whitelisted,
+                      "player account ${player} is not whitelisted for asset ${asset}",
+                      ("player", op.player_account_id)
                       ("asset", op.buy_in.asset_id));
 
       GRAPHENE_ASSERT(is_authorized_asset(d, *_payer_account, *_buy_in_asset_type),
@@ -184,23 +196,22 @@ namespace graphene { namespace chain {
       _tournament_details_obj = &_tournament_obj->tournament_details_id(d);
       FC_ASSERT(_tournament_details_obj->registered_players.find(op.player_account_id) != _tournament_details_obj->registered_players.end(),
                 "Player is not registered for this tournament");
-      //FC_ASSERT(_tournament_details_obj->payers.find(op.payer_account_id) != _tournament_details_obj->payers.end(),
-      //          "Payer is not registered for this tournament");
 
-      FC_ASSERT(_tournament_obj->get_state() == tournament_state::accepting_registrations ||
-                _tournament_obj->get_state() == tournament_state::awaiting_start);
-      FC_ASSERT(d.head_block_time() <= _tournament_obj->options.registration_deadline,
-                "Registration deadline has already passed");
+      FC_ASSERT(op.canceling_account_id == op.player_account_id ||
+                op.canceling_account_id == _tournament_details_obj->players_payers.at(op.player_account_id),
+                "Only player or payer can unregister the player from a tournament");
+
+      FC_ASSERT(_tournament_obj->get_state() == tournament_state::accepting_registrations,
+                "Can only leave a tournament during registration period");
+
       return void_result();
    } FC_CAPTURE_AND_RETHROW( (op) ) }
 
    void_result tournament_leave_evaluator::do_apply( const tournament_leave_operation& op )
    { try {
-#if 1
       db().modify(*_tournament_obj, [&](tournament_object& tournament_obj){
-            tournament_obj.on_player_unregistered(db(), op.payer_account_id, op.player_account_id);
+            tournament_obj.on_player_unregistered(db(), op.player_account_id);
          });
-#endif
       return void_result();
    } FC_CAPTURE_AND_RETHROW( (op) ) }
 

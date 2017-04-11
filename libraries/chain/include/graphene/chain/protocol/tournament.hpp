@@ -153,8 +153,8 @@ namespace graphene { namespace chain {
 
       asset fee;
 
-      /// The account that is paying the fee
-      account_id_type payer_account_id;
+      /// The account that is unregistering the player from tournament (must be payer or player)
+      account_id_type canceling_account_id;
 
       /// The account that would play in the tournament, would receive any winnings.
       account_id_type player_account_id;
@@ -163,7 +163,7 @@ namespace graphene { namespace chain {
       tournament_id_type tournament_id;
 
       extensions_type extensions;
-      account_id_type fee_payer()const { return payer_account_id; }
+      account_id_type fee_payer()const { return canceling_account_id; }
       share_type calculate_fee(const fee_parameters_type& k)const;
       void            validate()const;
    };
@@ -253,7 +253,7 @@ FC_REFLECT( graphene::chain::tournament_join_operation,
             (extensions))
 FC_REFLECT( graphene::chain::tournament_leave_operation,
             (fee)
-            (payer_account_id)
+            (canceling_account_id)
             (player_account_id)
             (tournament_id)
             (extensions))
