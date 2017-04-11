@@ -220,7 +220,9 @@ struct get_impacted_account_visitor
    }
    void operator()( const tournament_leave_operation& op )
    {
-      _impacted.erase( op.payer_account_id );
+      //if account canceling registration is not the player, it must be the payer
+      if (op.canceling_account_id != op.player_account_id)
+        _impacted.erase( op.canceling_account_id );
       _impacted.erase( op.player_account_id );
    }
    void operator()( const game_move_operation& op )

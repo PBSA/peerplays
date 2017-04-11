@@ -4867,19 +4867,19 @@ signed_transaction wallet_api::tournament_join( string payer_account,
    return my->sign_transaction( tx, broadcast );
 }
 
-signed_transaction wallet_api::tournament_leave( string payer_account,
+signed_transaction wallet_api::tournament_leave( string canceling_account,
                                                  string player_account,
                                                  tournament_id_type tournament_id,
                                                  bool broadcast)
 {
     FC_ASSERT( !is_locked() );
     account_object player_account_obj = get_account(player_account);
-    account_object payer_account_obj = get_account(payer_account);
+    account_object canceling_account_obj = get_account(canceling_account);
     //graphene::chain::tournament_object tournament_obj = my->get_object<graphene::chain::tournament_object>(tournament_id);
 
     signed_transaction tx;
     tournament_leave_operation op;
-    op.payer_account_id = payer_account_obj.get_id();
+    op.canceling_account_id = canceling_account_obj.get_id();
     op.player_account_id = player_account_obj.get_id();
     op.tournament_id = tournament_id;
 

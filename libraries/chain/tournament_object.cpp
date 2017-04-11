@@ -51,10 +51,9 @@ namespace graphene { namespace chain {
       struct player_unregistered
       {
          database& db;
-         account_id_type payer_id;
          account_id_type player_id;
-         player_unregistered(database& db, account_id_type payer_id, account_id_type player_id) :
-            db(db), payer_id(payer_id), player_id(player_id)
+         player_unregistered(database& db, account_id_type player_id) :
+            db(db), player_id(player_id)
          {}
       };
       struct registration_deadline_passed
@@ -403,10 +402,10 @@ namespace graphene { namespace chain {
                     "In unregister_player action, player_id is ${player_id}",
                     ("player_id", event.player_id));
 
-            event.db.adjust_balance(event.payer_id, tournament_obj->options.buy_in);
             const tournament_details_object& tournament_details_obj = tournament_obj->tournament_details_id(event.db);
+            account_id_type payer_id  = tournament_details_obj.players_payers.at(event.player_id);
+            event.db.adjust_balance(payer_id, tournament_obj->options.buy_in);
             event.db.modify(tournament_details_obj, [&](tournament_details_object& tournament_details_obj){
-                    account_id_type payer_id  = tournament_details_obj.players_payers[event.player_id];
                     tournament_details_obj.payers[payer_id] -= tournament_obj->options.buy_in.amount;
                     if (tournament_details_obj.payers[payer_id] <= 0)
                         tournament_details_obj.payers.erase(payer_id);
@@ -551,9 +550,9 @@ namespace graphene { namespace chain {
       my->state_machine.process_event(player_registered(db, payer_id, player_id));
    }
 
-   void tournament_object::on_player_unregistered(database& db, account_id_type payer_id, account_id_type player_id)
+   void tournament_object::on_player_unregistered(database& db, account_id_type player_id)
    {
-      my->state_machine.process_event(player_unregistered(db, payer_id, player_id));
+      my->state_machine.process_event(player_unregistered(db, player_id));
    }
 
    void tournament_object::on_start_time_arrived(database& db)

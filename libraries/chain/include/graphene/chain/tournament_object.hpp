@@ -117,7 +117,7 @@ namespace graphene { namespace chain {
       /// called by database maintenance code when registration for this contest has expired
       void on_registration_deadline_passed(database& db);
       void on_player_registered(database& db, account_id_type payer_id, account_id_type player_id);
-      void on_player_unregistered(database& db, account_id_type payer_id, account_id_type player_id);
+      void on_player_unregistered(database& db, account_id_type player_id);
       void on_start_time_arrived(database& db);
       void on_match_completed(database& db, const match_object& match);
 

@@ -238,7 +238,7 @@ public:
 
    void leave_tournament(const tournament_id_type & tournament_id,
                          const account_id_type& player_id,
-                         const account_id_type& payer_id,
+                         const account_id_type& canceling_account_id,
                          const fc::ecc::private_key& sig_priv_key
                         )
    {
@@ -247,7 +247,7 @@ public:
        signed_transaction tx;
        tournament_leave_operation op;
 
-       op.payer_account_id = payer_id;
+       op.canceling_account_id = canceling_account_id;
        op.player_account_id = player_id;
        op.tournament_id = tournament_id;
        tx.operations = {op};
