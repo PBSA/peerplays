@@ -186,4 +186,8 @@
 #define TOURNAMENT_MINIMAL_RAKE_FEE_PERCENTAGE              (1*GRAPHENE_1_PERCENT)
 #define TOURNAMENT_MAXIMAL_RAKE_FEE_PERCENTAGE              (20*GRAPHENE_1_PERCENT)
 #define TOURNAMENT_MAXIMAL_REGISTRATION_DEADLINE            (60*60*24*30) // seconds, 30 days
-#define TOURNAMENT_MAX_NUMBER_OF_WINS                        100
+#define TOURNAMENT_MAX_NUMBER_OF_WINS                       100
+#define TOURNAMENT_MAX_PLAYERS_NUMBER                       256
+#define TOURNAMENT_MAX_WHITELIST_LENGTH                     1000
+#define TOURNAMENT_MAX_START_TIME_IN_FUTURE                 (60*60*24*7*4) // 1 month
+#define TOURNAMENT_MAX_START_DELAY                          (60*60*24*7) // 1 week
