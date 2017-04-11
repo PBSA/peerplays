@@ -1159,6 +1159,8 @@ BOOST_FIXTURE_TEST_CASE( massive, database_fixture )
                     continue;
                 }
                 --number_of_players;
+#if 0
+                // ok if registration allowed till deadline
                 if (!number_of_players)
                 {
                     BOOST_TEST_MESSAGE("Player " + std::get<0>(a) + " is leaving tournament " + std::to_string(i) +
@@ -1170,6 +1172,7 @@ BOOST_FIXTURE_TEST_CASE( massive, database_fixture )
                                         ", when tournament state is " + std::to_string((int)tournament.get_state()));
                     tournament_helper.join_tournament(tournament_id, std::get<1>(a), std::get<1>(a), std::get<2>(a), buy_in);
                 }
+#endif
             }
             BOOST_TEST_MESSAGE("Tournament " +  std::to_string(i) + " is in state " + std::to_string((int)tournament.get_state()));
         }
