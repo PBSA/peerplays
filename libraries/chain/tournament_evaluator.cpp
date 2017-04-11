@@ -13,25 +13,23 @@ namespace graphene { namespace chain {
       database& d = db();
       FC_ASSERT(op.options.registration_deadline >= d.head_block_time(), "Registration deadline has already passed");
 
-      // TODO: make this committee-set
       const fc::time_point_sec maximum_registration_deadline = d.head_block_time() + d.get_global_properties().parameters.maximum_registration_deadline;
       FC_ASSERT(op.options.registration_deadline <= maximum_registration_deadline, 
                 "Registration deadline must be before ${maximum_registration_deadline}", 
                 ("maximum_registration_deadline", maximum_registration_deadline));
+      FC_ASSERT(op.options.buy_in.amount >= 0, "Tournament buy-in may not be negative");
 
       FC_ASSERT(op.options.number_of_players > 1, "If you're going to play with yourself, do it off-chain");
-      // TODO: make this committee-set
-      const uint32_t maximum_players_in_tournament = 256;
+      const uint32_t maximum_players_in_tournament = d.get_global_properties().parameters.maximum_players_in_tournament;
       FC_ASSERT(op.options.number_of_players <= maximum_players_in_tournament, 
                 "Tournaments may not have more than ${maximum_players_in_tournament} players", 
                 ("maximum_players_in_tournament", maximum_players_in_tournament));
 
-      // TODO: make this committee-set
-      const uint32_t maximum_tournament_whitelist_length = 1000;
       FC_ASSERT(op.options.whitelist.empty() || 
                 op.options.whitelist.size() >= op.options.number_of_players, 
                 "Whitelist must allow enough players to fill the tournament");
-      FC_ASSERT(op.options.whitelist.size() < maximum_tournament_whitelist_length, 
+      const uint32_t maximum_tournament_whitelist_length = d.get_global_properties().parameters.maximum_tournament_whitelist_length;
+      FC_ASSERT(op.options.whitelist.size() < maximum_tournament_whitelist_length,
                 "Whitelist must not be longer than ${maximum_tournament_whitelist_length}",
                 ("maximum_tournament_whitelist_length", maximum_tournament_whitelist_length));
       
@@ -40,24 +38,21 @@ namespace graphene { namespace chain {
           FC_ASSERT(!op.options.start_delay, "Cannot specify both a fixed start time and a delay");
           FC_ASSERT(*op.options.start_time >= op.options.registration_deadline, 
                     "Cannot start before registration deadline expires");
-          // TODO: make this committee-set
-          const uint32_t maximum_start_time_in_future = 60 * 60 * 24 * 7 * 4; // 1 month
+          const uint32_t maximum_start_time_in_future = d.get_global_properties().parameters.maximum_tournament_start_time_in_future;
           FC_ASSERT((*op.options.start_time - d.head_block_time()).to_seconds() <= maximum_start_time_in_future,
                     "Start time is too far in the future");
       }
       else if (op.options.start_delay)
       {
           FC_ASSERT(!op.options.start_time, "Cannot specify both a fixed start time and a delay");
-          // TODO: make this committee-set
-          const uint32_t maximum_start_delay = 60 * 60 * 24 * 7; // 1 week
+          const uint32_t maximum_start_delay = d.get_global_properties().parameters.maximum_tournament_start_delay;
           FC_ASSERT(*op.options.start_delay < maximum_start_delay, 
                     "Start delay is too long");
       }
       else
           FC_THROW("Must specify either a fixed start time or a delay");
 
-      // TODO: make this committee-set
-      const uint32_t maximum_tournament_number_of_wins = TOURNAMENT_MAX_NUMBER_OF_WINS;
+      const uint32_t maximum_tournament_number_of_wins = d.get_global_properties().parameters.maximum_tournament_number_of_wins;
       FC_ASSERT(op.options.number_of_wins > 0);
       FC_ASSERT(op.options.number_of_wins <= maximum_tournament_number_of_wins, 
                 "Matches may not require more than ${number_of_wins} wins", 
