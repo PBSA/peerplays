@@ -166,7 +166,8 @@ public:
                                                 uint32_t registration_deadline = 3600,
                                                 uint32_t start_delay = 3,
                                                 uint32_t round_delay = 3,
-                                                bool insurance_enabled = false
+                                                bool insurance_enabled = false,
+                                                fc::optional<flat_set<account_id_type> > whitelist = fc::optional<flat_set<account_id_type> >()
                                                 )
     {
         if (current_tournament_idx.valid())
@@ -192,6 +193,8 @@ public:
         options.start_delay = start_delay;
         options.round_delay = round_delay;
         options.number_of_wins = number_of_wins;
+        if (whitelist.valid())
+            options.whitelist = *whitelist;
 
         op.creator = creator;
         op.options = options;
@@ -443,7 +446,417 @@ private:
     }
 };
 
-#if 1
+
+/// Expecting failure
+
+//  creating tournament
+
+//  joining tournament
+
+BOOST_FIXTURE_TEST_CASE( can_only_join, database_fixture )
+{
+    try
+    {       std::string reason("Can only join a tournament during registration period");
+            BOOST_TEST_MESSAGE("Starting test '" + reason + "'");
+            ACTORS((nathan)(alice)(bob));
+
+            tournaments_helper tournament_helper(*this);
+            fc::ecc::private_key nathan_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+
+            transfer(committee_account, nathan_id, asset(1000000000));
+            //transfer(committee_account, alice_id,  asset(2000000));
+            transfer(committee_account, bob_id,    asset(3000000));
+
+            upgrade_to_lifetime_member(nathan);
+            BOOST_CHECK(nathan.is_lifetime_member());
+
+            asset buy_in = asset(10000);
+            tournament_id_type tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, 2, 3, 1, 3, 1);
+            BOOST_REQUIRE(tournament_id == tournament_id_type());
+
+            //tournament_helper.join_tournament(tournament_id, alice_id, alice_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("alice"))), buy_in);
+            sleep(2);
+            generate_block();
+            try
+            {
+                tournament_helper.join_tournament(tournament_id, bob_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in);
+                FC_ASSERT(false, "no error has occured");
+            }
+            catch (fc::exception& e)
+            {
+                //BOOST_TEST_MESSAGE(e.to_detail_string());
+                FC_ASSERT(e.to_detail_string().find(reason) != std::string::npos, "expected error hasn't occured");
+            }
+            BOOST_TEST_MESSAGE("Eof test\n");
+    }
+    catch (fc::exception& e)
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+#if 0
+// it is unlikely that tournament_join_evaluator will reach the assertion
+BOOST_FIXTURE_TEST_CASE( tournament_is_already, database_fixture )
+{
+    try
+    {       std::string reason("Tournament is already full");
+            BOOST_TEST_MESSAGE("Starting test '" + reason + "'");
+            ACTORS((nathan)(alice)(bob)(carol));
+
+            tournaments_helper tournament_helper(*this);
+            fc::ecc::private_key nathan_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+
+            transfer(committee_account, nathan_id, asset(1000000000));
+            transfer(committee_account, alice_id,  asset(2000000));
+            transfer(committee_account, bob_id,    asset(3000000));
+            transfer(committee_account, carol_id,    asset(4000000));
+
+            upgrade_to_lifetime_member(nathan);
+            BOOST_CHECK(nathan.is_lifetime_member());
+
+            asset buy_in = asset(10000);
+            tournament_id_type tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in);
+            BOOST_REQUIRE(tournament_id == tournament_id_type());
+
+            tournament_helper.join_tournament(tournament_id, alice_id, alice_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("alice"))), buy_in);
+            tournament_helper.join_tournament(tournament_id, bob_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in);
+            try
+            {
+                tournament_helper.join_tournament(tournament_id, carol_id, carol_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("carol"))), buy_in);
+                FC_ASSERT(false, "no error has occured");
+            }
+            catch (fc::exception& e)
+            {
+                //BOOST_TEST_MESSAGE(e.to_detail_string());
+                FC_ASSERT(e.to_detail_string().find(reason) != std::string::npos, "expected error hasn't occured");
+            }
+            BOOST_TEST_MESSAGE("Eof test\n");
+    }
+    catch (fc::exception& e)
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+#endif
+
+#if 0
+// it is unlikely that tournament_join_evaluator will reach the assertion
+BOOST_FIXTURE_TEST_CASE( registration_deadline_has_already_passed, database_fixture )
+{
+    try
+    {       std::string reason("Registration deadline has already passed");
+            BOOST_TEST_MESSAGE("Starting test '" + reason + "'");
+            ACTORS((nathan)(alice)(bob));
+
+            tournaments_helper tournament_helper(*this);
+            fc::ecc::private_key nathan_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+
+            transfer(committee_account, nathan_id, asset(1000000000));
+            transfer(committee_account, alice_id,  asset(2000000));
+            transfer(committee_account, bob_id,    asset(3000000));
+
+            upgrade_to_lifetime_member(nathan);
+            BOOST_CHECK(nathan.is_lifetime_member());
+
+            asset buy_in = asset(10000);
+            tournament_id_type tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, 2, 3, 1, 3, 2);
+            BOOST_REQUIRE(tournament_id == tournament_id_type());
+
+            //tournament_helper.join_tournament(tournament_id, alice_id, alice_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("alice"))), buy_in);
+            sleep(3);
+            generate_block();
+            try
+            {
+                tournament_helper.join_tournament(tournament_id, bob_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in);
+                FC_ASSERT(false, "no error has occured");
+            }
+            catch (fc::exception& e)
+            {
+                BOOST_TEST_MESSAGE(e.to_detail_string());
+                FC_ASSERT(e.to_detail_string().find(reason) != std::string::npos, "expected error hasn't occured");
+            }
+            BOOST_TEST_MESSAGE("Eof test\n");
+    }
+    catch (fc::exception& e)
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+#endif
+
+BOOST_FIXTURE_TEST_CASE( player_is_not_on_the_whitelist, database_fixture )
+{
+    try
+    {       std::string reason("Player is not on the whitelist for this tournament");
+            BOOST_TEST_MESSAGE("Starting test '" + reason + "'");
+            ACTORS((nathan)(alice)(bob)(carol));
+
+            tournaments_helper tournament_helper(*this);
+            fc::ecc::private_key nathan_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+
+            transfer(committee_account, nathan_id, asset(1000000000));
+            transfer(committee_account, alice_id,  asset(2000000));
+            transfer(committee_account, bob_id,    asset(3000000));
+            transfer(committee_account, carol_id,  asset(4000000));
+
+            upgrade_to_lifetime_member(nathan);
+            BOOST_CHECK(nathan.is_lifetime_member());
+
+            asset buy_in = asset(10000);
+            flat_set<account_id_type> whitelist{ alice_id, carol_id };
+            tournament_id_type tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, 2,
+                                                                 30, 30, 3, 60, 3, 3, true, whitelist);
+            BOOST_REQUIRE(tournament_id == tournament_id_type());
+
+            tournament_helper.join_tournament(tournament_id, alice_id, alice_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("alice"))), buy_in);
+            try
+            {
+                tournament_helper.join_tournament(tournament_id, bob_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in);
+                FC_ASSERT(false, "no error has occured");
+            }
+            catch (fc::exception& e)
+            {
+                FC_ASSERT(e.to_detail_string().find(reason) != std::string::npos, "expected error hasn't occured");
+            }
+            BOOST_TEST_MESSAGE("Eof test\n");
+    }
+    catch (fc::exception& e)
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE( player_is_already_registered, database_fixture )
+{
+    try
+    {       std::string reason("Player is already registered for this tournament");
+            BOOST_TEST_MESSAGE("Starting test '" + reason + "'");
+            ACTORS((nathan)(alice)(bob));
+
+            tournaments_helper tournament_helper(*this);
+            fc::ecc::private_key nathan_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+
+            transfer(committee_account, nathan_id, asset(1000000000));
+            transfer(committee_account, alice_id,  asset(2000000));
+            transfer(committee_account, bob_id,    asset(3000000));
+
+            upgrade_to_lifetime_member(nathan);
+            BOOST_CHECK(nathan.is_lifetime_member());
+
+            asset buy_in = asset(10000);
+            tournament_id_type tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, 3);
+            BOOST_REQUIRE(tournament_id == tournament_id_type());
+
+            tournament_helper.join_tournament(tournament_id, alice_id, alice_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("alice"))), buy_in);
+            tournament_helper.join_tournament(tournament_id, bob_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in);
+            try
+            {
+                tournament_helper.join_tournament(tournament_id, alice_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in);
+                FC_ASSERT(false, "no error has occured");
+            }
+            catch (fc::exception& e)
+            {
+                //BOOST_TEST_MESSAGE(e.to_detail_string());
+                FC_ASSERT(e.to_detail_string().find(reason) != std::string::npos, "expected error hasn't occured");
+            }
+            BOOST_TEST_MESSAGE("Eof test\n");
+    }
+    catch (fc::exception& e)
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE( buy_in_incorrect, database_fixture )
+{
+    try
+    {       std::string reason("Buy-in is incorrect");
+            BOOST_TEST_MESSAGE("Starting test '" + reason + "'");
+            ACTORS((nathan)(alice)(bob));
+
+            tournaments_helper tournament_helper(*this);
+            fc::ecc::private_key nathan_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+
+            transfer(committee_account, nathan_id, asset(1000000000));
+            transfer(committee_account, alice_id,  asset(2000000));
+            transfer(committee_account, bob_id,    asset(3000000));
+
+            upgrade_to_lifetime_member(nathan);
+            BOOST_CHECK(nathan.is_lifetime_member());
+
+            asset buy_in = asset(10000);
+            asset buy_in_1 = asset(10001);
+            tournament_id_type tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, 3);
+            BOOST_REQUIRE(tournament_id == tournament_id_type());
+
+            tournament_helper.join_tournament(tournament_id, alice_id, alice_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("alice"))), buy_in);
+            try
+            {
+                tournament_helper.join_tournament(tournament_id, bob_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in_1);
+                FC_ASSERT(false, "no error has occured");
+            }
+            catch (fc::exception& e)
+            {
+                //BOOST_TEST_MESSAGE(e.to_detail_string());
+                FC_ASSERT(e.to_detail_string().find(reason) != std::string::npos, "expected error hasn't occured");
+            }
+            BOOST_TEST_MESSAGE("Eof test\n");
+    }
+    catch (fc::exception& e)
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+//issue_uia(nathan_id, asset(GRAPHENE_MAX_SHARE_SUPPLY/2, asset_id_type(1)));
+//asset_object ao = asset_id_type(1)(db);
+//ao.options.flags |= transfer_restricted;
+// "Asset {asset} has transfer_restricted flag enabled"
+
+// "player account ${player} is not whitelisted for asset ${asset}",
+
+// "payer account ${payer} is not whitelisted for asset ${asset}",
+
+//  leaving tournament_
+
+BOOST_FIXTURE_TEST_CASE( player_is_not_registered, database_fixture )
+{
+    try
+    {       std::string reason("Player is not registered for this tournament");
+            BOOST_TEST_MESSAGE("Starting test '" + reason + "'");
+            ACTORS((nathan)(alice));
+
+            tournaments_helper tournament_helper(*this);
+            fc::ecc::private_key nathan_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+
+            transfer(committee_account, nathan_id, asset(1000000000));
+            transfer(committee_account, alice_id,  asset(2000000));
+
+            upgrade_to_lifetime_member(nathan);
+            BOOST_CHECK(nathan.is_lifetime_member());
+
+            asset buy_in = asset(10000);
+            tournament_id_type tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, 2);
+            BOOST_REQUIRE(tournament_id == tournament_id_type());
+
+            try
+            {
+                tournament_helper.leave_tournament(tournament_id, alice_id, alice_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("alice"))));
+                FC_ASSERT(false, "no error has occured");
+            }
+            catch (fc::exception& e)
+            {
+                FC_ASSERT(e.to_detail_string().find(reason) != std::string::npos, "expected error hasn't occured");
+            }
+            BOOST_TEST_MESSAGE("Eof test\n");
+    }
+    catch (fc::exception& e)
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE( only_player_or_payer, database_fixture )
+{
+    try
+    {       std::string reason("Only player or payer can unregister the player from a tournament");
+            BOOST_TEST_MESSAGE("Starting test '" + reason + "'");
+            ACTORS((nathan)(alice)(bob)(carol));
+
+            tournaments_helper tournament_helper(*this);
+            fc::ecc::private_key nathan_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+
+            transfer(committee_account, nathan_id, asset(1000000000));
+            transfer(committee_account, alice_id,  asset(2000000));
+            transfer(committee_account, bob_id,    asset(3000000));
+            transfer(committee_account, carol_id,  asset(4000000));
+
+            upgrade_to_lifetime_member(nathan);
+            BOOST_CHECK(nathan.is_lifetime_member());
+
+            asset buy_in = asset(10000);
+            tournament_id_type tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, 2);
+            BOOST_REQUIRE(tournament_id == tournament_id_type());
+
+            // player may unregister
+            tournament_helper.join_tournament(tournament_id, alice_id, alice_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("alice"))), buy_in);
+            tournament_helper.leave_tournament(tournament_id, alice_id, alice_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("alice"))));
+
+            // payer may unregister
+            tournament_helper.join_tournament(tournament_id, alice_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in);
+            tournament_helper.leave_tournament(tournament_id, alice_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))));
+
+            // no one else
+            tournament_helper.join_tournament(tournament_id, bob_id, carol_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("carol"))), buy_in);
+            try
+            {
+                tournament_helper.leave_tournament(tournament_id, bob_id, alice_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("alice"))));
+                FC_ASSERT(false, "no error has occured");
+            }
+            catch (fc::exception& e)
+            {
+                FC_ASSERT(e.to_detail_string().find(reason) != std::string::npos, "expected error hasn't occured");
+            }
+            BOOST_TEST_MESSAGE("Eof test\n");
+    }
+    catch (fc::exception& e)
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE( can_only_leave, database_fixture )
+{
+    try
+    {       std::string reason("Can only leave a tournament during registration period");
+            BOOST_TEST_MESSAGE("Starting test '" + reason + "'");
+            ACTORS((nathan)(alice)(bob));
+
+            tournaments_helper tournament_helper(*this);
+            fc::ecc::private_key nathan_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+
+            transfer(committee_account, nathan_id, asset(1000000000));
+            transfer(committee_account, alice_id,  asset(2000000));
+            transfer(committee_account, bob_id,    asset(3000000));
+
+            upgrade_to_lifetime_member(nathan);
+            BOOST_CHECK(nathan.is_lifetime_member());
+
+            asset buy_in = asset(10000);
+            tournament_id_type tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, 2);
+            BOOST_REQUIRE(tournament_id == tournament_id_type());
+
+            tournament_helper.join_tournament(tournament_id, alice_id, alice_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("alice"))), buy_in);
+            tournament_helper.join_tournament(tournament_id, bob_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in);
+            try
+            {
+                tournament_helper.leave_tournament(tournament_id, alice_id, alice_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("alice"))));
+                FC_ASSERT(false, "no error has occured");
+            }
+            catch (fc::exception& e)
+            {
+                FC_ASSERT(e.to_detail_string().find(reason) != std::string::npos, "expected error hasn't occured");
+            }
+            BOOST_TEST_MESSAGE("Eof test\n");
+    }
+    catch (fc::exception& e)
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+/// Expecting success
+
 // Test of basic functionality creating two tournamenst, joinig players,
 // playing tournaments to completion, distributing prize.
 // Testing of "bye" matches handling can be performed if "bye" matches fix is available.
@@ -515,7 +928,6 @@ BOOST_FIXTURE_TEST_CASE( simple, database_fixture )
             BOOST_REQUIRE(tournament_id == tournament_id_type(1));
             tournament_helper.join_tournament(tournament_id, alice_id, alice_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("alice"))), buy_in);
             // romek joins but will leave
-            //tournament_helper.leave_tournament(tournament_id, romek_id, romek_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("romek"))));
             tournament_helper.join_tournament(tournament_id, romek_id, romek_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("romek"))), buy_in);
             tournament_helper.join_tournament(tournament_id, bob_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in);
             tournament_helper.join_tournament(tournament_id, carol_id, carol_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("carol"))), buy_in);
@@ -625,9 +1037,8 @@ BOOST_FIXTURE_TEST_CASE( simple, database_fixture )
         throw;
     }
 }
-#endif
 
-#if 1
+
 // Test of handling ties, creating two tournamenst, joinig players,
 // All generated moves are identical.
 BOOST_FIXTURE_TEST_CASE( ties, database_fixture )
@@ -740,7 +1151,6 @@ BOOST_FIXTURE_TEST_CASE( ties, database_fixture )
         throw;
     }
 }
-#endif
 
 // Test of canceled tournament
 // Checking buyin refund.

@@ -138,10 +138,11 @@ namespace graphene { namespace chain {
       //const account_object& player_account = op.player_account_id(d);
       _buy_in_asset_type = &op.buy_in.asset_id(d);
 
-      FC_ASSERT(_tournament_obj->get_state() == tournament_state::accepting_registrations);
+      FC_ASSERT(_tournament_obj->get_state() == tournament_state::accepting_registrations,
+                "Can only join a tournament during registration period");
       FC_ASSERT(_tournament_details_obj->registered_players.size() < _tournament_obj->options.number_of_players,
                 "Tournament is already full");
-      FC_ASSERT(d.head_block_time() <= _tournament_obj->options.registration_deadline, 
+      FC_ASSERT(d.head_block_time() <= _tournament_obj->options.registration_deadline,
                 "Registration deadline has already passed");
 
       FC_ASSERT(_tournament_obj->options.whitelist.empty() ||
