@@ -30,6 +30,10 @@
 #include <graphene/chain/game_object.hpp>
 #include "../common/database_fixture.hpp"
 #include <graphene/utilities/tempdir.hpp>
+#include <graphene/chain/asset_object.hpp>
+#include <graphene/chain/is_authorized_asset.hpp>
+
+#include <boost/algorithm/string/replace.hpp>
 
 using namespace graphene::chain;
 
@@ -715,16 +719,252 @@ BOOST_FIXTURE_TEST_CASE( buy_in_incorrect, database_fixture )
     }
 }
 
-//issue_uia(nathan_id, asset(GRAPHENE_MAX_SHARE_SUPPLY/2, asset_id_type(1)));
-//asset_object ao = asset_id_type(1)(db);
-//ao.options.flags |= transfer_restricted;
-// "Asset {asset} has transfer_restricted flag enabled"
+BOOST_FIXTURE_TEST_CASE( asset_has_transfer_restricted, database_fixture )
+{
+    try
+    {       std::string reason("Asset {asset} has transfer_restricted flag enabled");
+            BOOST_TEST_MESSAGE("Starting test '" + reason + "'");
 
-// "player account ${player} is not whitelisted for asset ${asset}",
 
-// "payer account ${payer} is not whitelisted for asset ${asset}",
+            ACTORS((nathan)(bob));
 
-//  leaving tournament_
+            tournaments_helper tournament_helper(*this);
+            fc::ecc::private_key nathan_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+
+            upgrade_to_lifetime_member(nathan);
+            BOOST_CHECK(nathan.is_lifetime_member());
+
+            const asset_id_type new_id = create_user_issued_asset( "NEW", nathan_id(db), transfer_restricted).id;
+            issue_uia(nathan_id, asset(GRAPHENE_MAX_SHARE_SUPPLY/3, new_id));
+
+            transfer(nathan_id, bob_id, asset(10000000, new_id));
+            asset buy_in = asset(10000, new_id);
+
+            tournament_id_type tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, 2);
+            BOOST_REQUIRE(tournament_id == tournament_id_type());
+
+            try
+            {
+                tournament_helper.join_tournament(tournament_id, bob_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in);
+                FC_ASSERT(false, "no error has occured");
+            }
+            catch (fc::exception& e)
+            {
+                FC_ASSERT(e.to_detail_string().find(reason) != std::string::npos, "expected error hasn't occured");
+            }
+            BOOST_TEST_MESSAGE("Eof test\n");
+    }
+    catch (fc::exception& e)
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE( player_account_is_not_whitelisted, database_fixture )
+{
+    try
+    {       std::string reason("player account {player} is not whitelisted for asset {asset}");
+            BOOST_TEST_MESSAGE("Starting test '" + reason + "'");
+
+            ACTORS((nathan)(bob));
+
+            tournaments_helper tournament_helper(*this);
+            fc::ecc::private_key nathan_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+
+            upgrade_to_lifetime_member(nathan);
+            BOOST_CHECK(nathan.is_lifetime_member());
+
+            const asset_id_type new_id = create_user_issued_asset( "NEW", nathan_id(db), white_list).id;
+            //BOOST_CHECK(is_authorized_asset( db, nathan_id(db), new_id(db) ));
+
+            asset_update_operation uop;
+            uop.issuer = nathan_id;
+            uop.asset_to_update = new_id;
+            uop.new_options = new_id(db).options;
+            uop.new_options.whitelist_authorities = {nathan_id, bob_id};
+            trx.operations.push_back(uop);
+            db.push_transaction( trx, ~0 );
+            trx.operations.clear();
+            BOOST_CHECK(new_id(db).options.whitelist_authorities.find(nathan_id) != new_id(db).options.whitelist_authorities.end());
+
+            account_whitelist_operation wop;
+            wop.authorizing_account = nathan_id;
+            wop.account_to_list = nathan_id;
+            wop.new_listing = account_whitelist_operation::white_listed;
+            trx.operations.push_back(wop);
+            db.push_transaction( trx, ~0 );
+            trx.operations.clear();
+            BOOST_CHECK(nathan_id(db).whitelisting_accounts.find(nathan_id) != nathan_id(db).whitelisting_accounts.end());
+
+            issue_uia(nathan_id, asset(GRAPHENE_MAX_SHARE_SUPPLY/3, new_id));
+
+            wop.account_to_list = bob_id;
+            trx.operations.push_back(wop);
+            db.push_transaction( trx, ~0 );
+            trx.operations.clear();
+
+            transfer(nathan_id, bob_id, asset(10000000, new_id));
+            asset buy_in = asset(10000, new_id);
+
+            wop.account_to_list = bob_id;
+            wop.new_listing = account_whitelist_operation::black_listed;
+            trx.operations.push_back(wop);
+            db.push_transaction( trx, ~0 );
+            trx.operations.clear();
+
+            tournament_id_type tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, 2);
+            BOOST_REQUIRE(tournament_id == tournament_id_type());
+
+            boost::replace_all(reason, "{player}", std::string(object_id_type(bob_id)));
+            boost::replace_all(reason, "{asset}", std::string(object_id_type(new_id)));
+
+            try
+            {
+                tournament_helper.join_tournament(tournament_id, bob_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in);
+                FC_ASSERT(false, "no error has occured");
+            }
+            catch (fc::exception& e)
+            {
+                //BOOST_TEST_MESSAGE(e.to_detail_string());
+                FC_ASSERT(e.to_detail_string().find(reason) != std::string::npos, "expected error hasn't occured");
+            }
+
+            BOOST_TEST_MESSAGE("Eof test\n");
+    }
+    catch (fc::exception& e)
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE( payer_account_is_not_whitelisted, database_fixture )
+{
+    try
+    {       std::string reason("payer account {payer} is not whitelisted for asset {asset}");
+            BOOST_TEST_MESSAGE("Starting test '" + reason + "'");
+
+            ACTORS((nathan)(bob)(carol));
+
+            tournaments_helper tournament_helper(*this);
+            fc::ecc::private_key nathan_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+
+            upgrade_to_lifetime_member(nathan);
+            BOOST_CHECK(nathan.is_lifetime_member());
+
+            const asset_id_type new_id = create_user_issued_asset( "NEW", nathan_id(db), white_list).id;
+            //BOOST_CHECK(is_authorized_asset( db, nathan_id(db), new_id(db) ));
+
+            asset_update_operation uop;
+            uop.issuer = nathan_id;
+            uop.asset_to_update = new_id;
+            uop.new_options = new_id(db).options;
+            uop.new_options.whitelist_authorities = {nathan_id, bob_id, carol_id};
+            trx.operations.push_back(uop);
+            db.push_transaction( trx, ~0 );
+            trx.operations.clear();
+            BOOST_CHECK(new_id(db).options.whitelist_authorities.find(nathan_id) != new_id(db).options.whitelist_authorities.end());
+
+            account_whitelist_operation wop;
+            wop.authorizing_account = nathan_id;
+            wop.account_to_list = nathan_id;
+            wop.new_listing = account_whitelist_operation::white_listed;
+            trx.operations.push_back(wop);
+            db.push_transaction( trx, ~0 );
+            trx.operations.clear();
+            BOOST_CHECK(nathan_id(db).whitelisting_accounts.find(nathan_id) != nathan_id(db).whitelisting_accounts.end());
+
+            issue_uia(nathan_id, asset(GRAPHENE_MAX_SHARE_SUPPLY/3, new_id));
+
+            wop.account_to_list = bob_id;
+            trx.operations.push_back(wop);
+            db.push_transaction( trx, ~0 );
+            trx.operations.clear();
+
+            wop.account_to_list = carol_id;
+            trx.operations.push_back(wop);
+            db.push_transaction( trx, ~0 );
+            trx.operations.clear();
+
+            transfer(nathan_id, bob_id, asset(10000000, new_id));
+            transfer(nathan_id, carol_id, asset(10000000, new_id));
+            asset buy_in = asset(10000, new_id);
+
+            wop.account_to_list = carol_id;
+            wop.new_listing = account_whitelist_operation::black_listed;
+            trx.operations.push_back(wop);
+            db.push_transaction( trx, ~0 );
+            trx.operations.clear();
+
+            tournament_id_type tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, 2);
+            BOOST_REQUIRE(tournament_id == tournament_id_type());
+
+            boost::replace_all(reason, "{payer}", std::string(object_id_type(carol_id)));
+            boost::replace_all(reason, "{asset}", std::string(object_id_type(new_id)));
+
+            try
+            {
+                tournament_helper.join_tournament(tournament_id, bob_id, carol_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("carol"))), buy_in);
+                FC_ASSERT(false, "no error has occured");
+            }
+            catch (fc::exception& e)
+            {
+                //BOOST_TEST_MESSAGE(e.to_detail_string());
+                FC_ASSERT(e.to_detail_string().find(reason) != std::string::npos, "expected error hasn't occured");
+            }
+
+            BOOST_TEST_MESSAGE("Eof test\n");
+    }
+    catch (fc::exception& e)
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+BOOST_FIXTURE_TEST_CASE( paying_account_has_insufficient_balance , database_fixture )
+{
+    try
+    {       std::string reason("paying account '{payer}' has insufficient balance to pay buy-in");
+            BOOST_TEST_MESSAGE("Starting test '" + reason + "'");
+            ACTORS((nathan)(alice)(bob));
+
+            tournaments_helper tournament_helper(*this);
+            fc::ecc::private_key nathan_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+
+            transfer(committee_account, nathan_id, asset(1000000000));
+            transfer(committee_account, alice_id,  asset(2000000));
+
+            upgrade_to_lifetime_member(nathan);
+            BOOST_CHECK(nathan.is_lifetime_member());
+
+            asset buy_in = asset(10000);
+            tournament_id_type tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in, 3);
+            BOOST_REQUIRE(tournament_id == tournament_id_type());
+
+            boost::replace_all(reason, "{payer}", "bob");
+
+            try
+            {
+                tournament_helper.join_tournament(tournament_id, alice_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in);
+                FC_ASSERT(false, "no error has occured");
+            }
+            catch (fc::exception& e)
+            {
+                //BOOST_TEST_MESSAGE(e.to_detail_string());
+                FC_ASSERT(e.to_detail_string().find(reason) != std::string::npos, "expected error hasn't occured");
+            }
+            BOOST_TEST_MESSAGE("Eof test\n");
+    }
+    catch (fc::exception& e)
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+//  leaving tournament
 
 BOOST_FIXTURE_TEST_CASE( player_is_not_registered, database_fixture )
 {
