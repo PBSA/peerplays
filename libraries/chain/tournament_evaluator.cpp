@@ -58,8 +58,9 @@ namespace graphene { namespace chain {
           FC_THROW("Must specify either a fixed start time or a delay");
 
       const uint32_t maximum_tournament_number_of_wins = d.get_global_properties().parameters.maximum_tournament_number_of_wins;
-      FC_ASSERT(op.options.number_of_wins > 0);
-      FC_ASSERT(op.options.number_of_wins <= maximum_tournament_number_of_wins, 
+      FC_ASSERT(op.options.number_of_wins > 0,
+                "Matches require positive number of wins");
+      FC_ASSERT(op.options.number_of_wins <= maximum_tournament_number_of_wins,
                 "Matches may not require more than ${number_of_wins} wins", 
                 ("number_of_wins", maximum_tournament_number_of_wins));
 
