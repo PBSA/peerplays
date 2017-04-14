@@ -1419,7 +1419,7 @@ BOOST_FIXTURE_TEST_CASE( buy_in_incorrect, database_fixture )
 {
     try
     {       std::string reason("Buy-in is incorrect");
-            BOOST_TEST_MESSAGE("Starting test '" + reason + "'");
+            BOOST_TEST_MESSAGE("Starting test '" + reason + "', amount differs");
             ACTORS((nathan)(alice)(bob));
 
             tournaments_helper tournament_helper(*this);
@@ -1457,6 +1457,50 @@ BOOST_FIXTURE_TEST_CASE( buy_in_incorrect, database_fixture )
     }
 }
 
+BOOST_FIXTURE_TEST_CASE( buy_in_another_asset, database_fixture )
+{
+    try
+    {       std::string reason("Buy-in is incorrect");
+            BOOST_TEST_MESSAGE("Starting test '" + reason + "', asset differs");
+
+            ACTORS((nathan)(bob));
+
+            tournaments_helper tournament_helper(*this);
+            fc::ecc::private_key nathan_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+
+            upgrade_to_lifetime_member(nathan);
+            BOOST_CHECK(nathan.is_lifetime_member());
+
+            const asset_id_type new_id = create_user_issued_asset("PEERBTC", nathan_id(db), 0).id;
+            issue_uia(nathan_id, asset(GRAPHENE_MAX_SHARE_SUPPLY/3, new_id));
+
+            transfer(nathan_id, bob_id, asset(10000000, new_id));
+            asset buy_in = asset(10000);
+            asset buy_in_1 = asset(10001, new_id);
+
+            tournament_id_type tournament_id = tournament_helper.create_tournament (nathan_id, nathan_priv_key, buy_in_1, 2);
+            BOOST_REQUIRE(tournament_id == tournament_id_type());
+
+            try
+            {
+                tournament_helper.join_tournament(tournament_id, bob_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in);
+                FC_ASSERT(false, "no error has occured");
+            }
+            catch (fc::exception& e)
+            {
+                //BOOST_TEST_MESSAGE(e.to_detail_string());
+                FC_ASSERT(e.to_detail_string().find(reason) != std::string::npos, "expected error hasn't occured");
+            }
+            tournament_helper.join_tournament(tournament_id, bob_id, bob_id, fc::ecc::private_key::regenerate(fc::sha256::hash(string("bob"))), buy_in_1);
+            BOOST_TEST_MESSAGE("Eof test\n");
+    }
+    catch (fc::exception& e)
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
 BOOST_FIXTURE_TEST_CASE( asset_has_transfer_restricted, database_fixture )
 {
     try
@@ -1472,7 +1516,7 @@ BOOST_FIXTURE_TEST_CASE( asset_has_transfer_restricted, database_fixture )
             upgrade_to_lifetime_member(nathan);
             BOOST_CHECK(nathan.is_lifetime_member());
 
-            const asset_id_type new_id = create_user_issued_asset( "NEW", nathan_id(db), transfer_restricted).id;
+            const asset_id_type new_id = create_user_issued_asset("NEW", nathan_id(db), transfer_restricted).id;
             issue_uia(nathan_id, asset(GRAPHENE_MAX_SHARE_SUPPLY/3, new_id));
 
             transfer(nathan_id, bob_id, asset(10000000, new_id));
