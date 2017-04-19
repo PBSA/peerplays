@@ -125,7 +125,9 @@ fc::time_point_sec database::get_slot_time(uint32_t slot_num)const
 uint32_t database::get_slot_at_time(fc::time_point_sec when)const
 {
    fc::time_point_sec first_slot_time = get_slot_time( 1 );
-   std::cout <<  "romek " << when.to_iso_string() << " " << first_slot_time.to_iso_string() << "\n";
+#ifndef NDEBUG
+   std::cout <<  "@get_slot_at_time " << when.to_iso_string() << " " << first_slot_time.to_iso_string() << "\n";
+#endif
    if( when < first_slot_time )
       return 0;
    return (when - first_slot_time).to_seconds() / block_interval() + 1;

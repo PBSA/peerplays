@@ -789,6 +789,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
 #endif
    create<witness_schedule_object>([&](witness_schedule_object& _wso)
    {
+      // for scheduled
       memset(_wso.rng_seed.begin(), 0, _wso.rng_seed.size());
 
       witness_scheduler_rng rng(_wso.rng_seed.begin(), GRAPHENE_NEAR_SCHEDULE_CTR_IV);
@@ -805,6 +806,10 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       _wso.last_scheduling_block = 0;
 
       _wso.recent_slots_filled = fc::uint128::max_value();
+
+      // for shuffled
+      for( const witness_id_type& wid : get_global_properties().active_witnesses )
+         _wso.current_shuffled_witnesses.push_back( wid );
    });
    assert( wso.id == witness_schedule_id_type() );
 
@@ -814,11 +819,11 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    });
 
    // Create witness scheduler
-   create<witness_schedule_object>([&]( witness_schedule_object& wso )
-   {
-      for( const witness_id_type& wid : get_global_properties().active_witnesses )
-         wso.current_shuffled_witnesses.push_back( wid );
-   });
+   //create<witness_schedule_object>([&]( witness_schedule_object& wso )
+   //{
+   //   for( const witness_id_type& wid : get_global_properties().active_witnesses )
+   //      wso.current_shuffled_witnesses.push_back( wid );
+   //});
 
    // Create FBA counters
    create<fba_accumulator_object>([&]( fba_accumulator_object& acc )
