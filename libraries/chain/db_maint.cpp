@@ -45,6 +45,7 @@
 #include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/vote_count.hpp>
 #include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/witness_schedule_object.hpp>
 #include <graphene/chain/worker_object.hpp>
 
 namespace graphene { namespace chain {
@@ -240,6 +241,11 @@ void database::update_active_witnesses()
       });
    });
 
+   const witness_schedule_object& wso = witness_schedule_id_type()(*this);
+   modify(wso, [&](witness_schedule_object& _wso)
+   {
+      _wso.scheduler.update(gpo.active_witnesses);
+   });
 } FC_CAPTURE_AND_RETHROW() }
 
 void database::update_active_committee_members()

@@ -113,6 +113,9 @@
 
 #define GRAPHENE_MAX_URL_LENGTH                               127
 
+#define GRAPHENE_WITNESS_SHUFFLED_ALGORITHM                   0
+#define GRAPHENE_WITNESS_SCHEDULED_ALGORITHM                  1
+
 // counter initialization values used to derive near and far future seeds for shuffling witnesses
 // we use the fractional bits of sqrt(2) in hex
 #define GRAPHENE_NEAR_SCHEDULE_CTR_IV                    ( (uint64_t( 0x6a09 ) << 0x30)    \

@@ -240,7 +240,9 @@ namespace graphene { namespace chain {
           */
          uint32_t get_slot_at_time(fc::time_point_sec when)const;
 
+         vector<witness_id_type> get_near_witness_schedule()const;
          void update_witness_schedule();
+         void update_witness_schedule(const signed_block& next_block);
 
          //////////////////// db_getter.cpp ////////////////////
 

@@ -550,7 +550,10 @@ void database::_apply_block( const signed_block& next_block )
    // update_global_dynamic_data() as perhaps these methods only need
    // to be called for header validation?
    update_maintenance_flag( maint_needed );
-   update_witness_schedule();
+   if (global_props.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SHUFFLED_ALGORITHM)
+        update_witness_schedule();
+   if (global_props.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
+       update_witness_schedule(next_block);
    if( !_node_property_object.debug_updates.empty() )
       apply_debug_updates();
 

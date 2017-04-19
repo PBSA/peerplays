@@ -783,6 +783,31 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       }
    });
 
+   // Initialize witness schedule
+#ifndef NDEBUG
+   const witness_schedule_object& wso =
+#endif
+   create<witness_schedule_object>([&](witness_schedule_object& _wso)
+   {
+      memset(_wso.rng_seed.begin(), 0, _wso.rng_seed.size());
+
+      witness_scheduler_rng rng(_wso.rng_seed.begin(), GRAPHENE_NEAR_SCHEDULE_CTR_IV);
+
+      auto init_witnesses = get_global_properties().active_witnesses;
+
+      _wso.scheduler = witness_scheduler();
+      _wso.scheduler._min_token_count = std::max(int(init_witnesses.size()) / 2, 1);
+      _wso.scheduler.update(init_witnesses);
+
+      for( size_t i=0; i<init_witnesses.size(); ++i )
+         _wso.scheduler.produce_schedule(rng);
+
+      _wso.last_scheduling_block = 0;
+
+      _wso.recent_slots_filled = fc::uint128::max_value();
+   });
+   assert( wso.id == witness_schedule_id_type() );
+
    // Enable fees
    modify(get_global_properties(), [&genesis_state](global_property_object& p) {
       p.parameters.current_fees = genesis_state.initial_parameters.current_fees;
