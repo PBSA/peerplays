@@ -122,6 +122,7 @@ FC_REFLECT( graphene::chain::chain_parameters,
             (accounts_per_fee_scale)
             (account_fee_scale_bitshifts)
             (max_authority_depth)
+            (witness_schedule_algorithm)
             (min_round_delay)
             (max_round_delay)
             (min_time_per_commit_move)
