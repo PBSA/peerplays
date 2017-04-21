@@ -44,30 +44,34 @@ namespace graphene { namespace chain {
 
 void database::update_global_dynamic_data( const signed_block& b )
 {
-   const dynamic_global_property_object& _dgp =
-      dynamic_global_property_id_type(0)(*this);
+   const dynamic_global_property_object& _dgp = dynamic_global_property_id_type(0)(*this);
+   const global_property_object& gpo = get_global_properties();
 
    uint32_t missed_blocks = get_slot_at_time( b.timestamp );
+
 //#define DIRTY_TRICK // problem with missed_blocks can occur when "maintenance_interval" set to few minutes
 #ifdef DIRTY_TRICK
    if (missed_blocks != 0) {
 #else
    assert( missed_blocks != 0 );
 #endif
-   missed_blocks--;
-   for( uint32_t i = 0; i < missed_blocks; ++i ) {
-      const auto& witness_missed = get_scheduled_witness( i+1 )(*this);
-      if(  witness_missed.id != b.witness ) {
-         /*
-         const auto& witness_account = witness_missed.witness_account(*this);
-         if( (fc::time_point::now() - b.timestamp) < fc::seconds(30) )
-            wlog( "Witness ${name} missed block ${n} around ${t}", ("name",witness_account.name)("n",b.block_num())("t",b.timestamp) );
-            */
+   if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SHUFFLED_ALGORITHM)
+   {
+       missed_blocks--;
+       for( uint32_t i = 0; i < missed_blocks; ++i ) {
+          const auto& witness_missed = get_scheduled_witness( i+1 )(*this);
+          if(  witness_missed.id != b.witness ) {
+             /*
+             const auto& witness_account = witness_missed.witness_account(*this);
+             if( (fc::time_point::now() - b.timestamp) < fc::seconds(30) )
+                wlog( "Witness ${name} missed block ${n} around ${t}", ("name",witness_account.name)("n",b.block_num())("t",b.timestamp) );
+                */
 
-         modify( witness_missed, [&]( witness_object& w ) {
-           w.total_missed++;
-         });
-      } 
+             modify( witness_missed, [&]( witness_object& w ) {
+               w.total_missed++;
+             });
+          }
+       }
    }
 #ifdef DIRTY_TRICK
    }
@@ -173,7 +177,6 @@ void database::update_last_irreversible_block()
       } );
    }
 }
-
 void database::clear_expired_transactions()
 { try {
    //Look for expired transactions in the deduplication list, and remove them.

@@ -92,42 +92,20 @@ fc::time_point_sec database::get_slot_time(uint32_t slot_num)const
 
    const global_property_object& gpo = get_global_properties();
 
-   if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SHUFFLED_ALGORITHM)
-   {
-       if( dpo.dynamic_flags & dynamic_global_property_object::maintenance_flag )
-          slot_num += gpo.parameters.maintenance_skip_slots;
+   if( dpo.dynamic_flags & dynamic_global_property_object::maintenance_flag )
+      slot_num += gpo.parameters.maintenance_skip_slots;
 
-       // "slot 0" is head_slot_time
-       // "slot 1" is head_slot_time,
-       //   plus maint interval if head block is a maint block
-       //   plus block interval if head block is not a maint block
-       return head_slot_time + (slot_num * interval);
-   }
-
-   if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
-   {
-       // "slot 0" is head_slot_time
-       // "slot 1" is head_slot_time,
-       //   plus maint interval if head block is a maint block
-       //   plus block interval if head block is not a maint block
-       return head_slot_time
-            + (slot_num +
-               (
-                (dpo.dynamic_flags & dynamic_global_property_object::maintenance_flag)
-                ? gpo.parameters.maintenance_skip_slots : 0
-               )
-              ) * interval
-            ;
-   }
-   return fc::time_point_sec();
+   // "slot 0" is head_slot_time
+   // "slot 1" is head_slot_time,
+   //   plus maint interval if head block is a maint block
+   //   plus block interval if head block is not a maint block
+   return head_slot_time + (slot_num * interval);
 }
 
 uint32_t database::get_slot_at_time(fc::time_point_sec when)const
 {
    fc::time_point_sec first_slot_time = get_slot_time( 1 );
-#ifndef NDEBUG
-   std::cout <<  "@get_slot_at_time " << when.to_iso_string() << " " << first_slot_time.to_iso_string() << "\n";
-#endif
+   //@ROL std::cout <<  "@get_slot_at_time " << when.to_iso_string() << " " << first_slot_time.to_iso_string() << "\n";
    if( when < first_slot_time )
       return 0;
    return (when - first_slot_time).to_seconds() / block_interval() + 1;
@@ -197,6 +175,7 @@ void database::update_witness_schedule(const signed_block& next_block)
    // triggering FC_ASSERT elsewhere
 
    assert( schedule_slot > 0 );
+
    witness_id_type first_witness;
    bool slot_is_near = wso.scheduler.get_slot( schedule_slot-1, first_witness );
 

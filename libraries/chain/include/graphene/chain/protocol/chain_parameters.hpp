@@ -69,7 +69,8 @@ namespace graphene { namespace chain {
       uint16_t                accounts_per_fee_scale              = GRAPHENE_DEFAULT_ACCOUNTS_PER_FEE_SCALE; ///< number of accounts between fee scalings
       uint8_t                 account_fee_scale_bitshifts         = GRAPHENE_DEFAULT_ACCOUNT_FEE_SCALE_BITSHIFTS; ///< number of times to left bitshift account registration fee at each scaling
       uint8_t                 max_authority_depth                 = GRAPHENE_MAX_SIG_CHECK_DEPTH;
-      uint8_t                 witness_schedule_algorithm          = GRAPHENE_WITNESS_SHUFFLED_ALGORITHM; ///< 0 shuffled, 1 scheduled
+      //uint8_t                 witness_schedule_algorithm          = GRAPHENE_WITNESS_SHUFFLED_ALGORITHM; ///< 0 shuffled, 1 scheduled
+      uint8_t                 witness_schedule_algorithm          = GRAPHENE_WITNESS_SCHEDULED_ALGORITHM; ///< 0 shuffled, 1 scheduled
       /* rps tournament parameters constraints */
       uint32_t                min_round_delay                     = TOURNAMENT_MIN_ROUND_DELAY; ///< miniaml delay between games
       uint32_t                max_round_delay                     = TOURNAMENT_MAX_ROUND_DELAY; ///< maximal delay between games

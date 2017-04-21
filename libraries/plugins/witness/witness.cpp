@@ -228,7 +228,9 @@ block_production_condition::block_production_condition_enum witness_plugin::mayb
 {
    chain::database& db = database();
    fc::time_point now_fine = graphene::time::now();
-   fc::time_point_sec now = now_fine + fc::microseconds( 500000 );
+   fc::time_point_sec now = now_fine;
+   if (db.get_global_properties().parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SHUFFLED_ALGORITHM)
+     now += fc::microseconds( 500000 );
 
    // If the next block production opportunity is in the present or future, we're synced.
    if( !_production_enabled )
@@ -258,6 +260,7 @@ block_production_condition::block_production_condition_enum witness_plugin::mayb
    assert( now > db.head_block_time() );
 
    graphene::chain::witness_id_type scheduled_witness = db.get_scheduled_witness( slot );
+
    // we must control the witness scheduled to produce the next block.
    if( _witnesses.find( scheduled_witness ) == _witnesses.end() )
    {
@@ -266,6 +269,7 @@ block_production_condition::block_production_condition_enum witness_plugin::mayb
    }
 
    fc::time_point_sec scheduled_time = db.get_slot_time( slot );
+   wdump((slot)(scheduled_witness)(scheduled_time)(now));
    graphene::chain::public_key_type scheduled_key = scheduled_witness( db ).signing_key;
    auto private_key_itr = _private_keys.find( scheduled_key );
 
@@ -282,11 +286,20 @@ block_production_condition::block_production_condition_enum witness_plugin::mayb
       return block_production_condition::low_participation;
    }
 
+   // the local clock must be at least 1 second ahead of head_block_time.
+   //if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
+   //if( (now - db.head_block_time()).to_seconds() < GRAPHENE_MIN_BLOCK_INTERVAL ) {
+   //    return block_production_condition::local_clock; //Not producing block because head block is less than a second old.
+   //}
+
    if( llabs((scheduled_time - now).count()) > fc::milliseconds( 500 ).count() )
    {
       capture("scheduled_time", scheduled_time)("now", now);
       return block_production_condition::lag;
    }
+
+   //if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
+   ilog("Witness ${id} production slot has arrived; generating a block now...", ("id", scheduled_witness));
 
    auto block = db.generate_block(
       scheduled_time,
@@ -294,6 +307,7 @@ block_production_condition::block_production_condition_enum witness_plugin::mayb
       private_key_itr->second,
       _production_skip_flags
       );
+
    capture("n", block.block_num())("t", block.timestamp)("c", now);
    fc::async( [this,block](){ p2p_node().broadcast(net::block_message(block)); } );
 

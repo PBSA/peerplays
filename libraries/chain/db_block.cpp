@@ -528,6 +528,8 @@ void database::_apply_block( const signed_block& next_block )
       ++_current_trx_in_block;
    }
 
+   if (global_props.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
+       update_witness_schedule(next_block);
    update_global_dynamic_data(next_block);
    update_signing_witness(signing_witness, next_block);
    update_last_irreversible_block();
@@ -552,8 +554,6 @@ void database::_apply_block( const signed_block& next_block )
    update_maintenance_flag( maint_needed );
    if (global_props.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SHUFFLED_ALGORITHM)
         update_witness_schedule();
-   if (global_props.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
-       update_witness_schedule(next_block);
    if( !_node_property_object.debug_updates.empty() )
       apply_debug_updates();
 
@@ -562,6 +562,7 @@ void database::_apply_block( const signed_block& next_block )
    _applied_ops.clear();
 
    notify_changed_objects();
+
 } FC_CAPTURE_AND_RETHROW( (next_block.block_num()) )  }
 
 void database::notify_changed_objects()

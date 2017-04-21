@@ -24,6 +24,9 @@
 
 #include <boost/container/flat_set.hpp>
 
+// @ROL helpfull dumps when debugging
+//#define ROL_DUMP
+
 namespace graphene { namespace chain {
 
 //using boost::container::flat_set;
@@ -249,6 +252,9 @@ class generic_witness_scheduler
       template< typename T >
       void update( const T& revised_set )
       {
+#ifdef ROL_DUMP
+         wdump((revised_set));
+#endif
          set< WitnessID > current_set;
          set< WitnessID > schedule_set;
 
@@ -293,7 +299,10 @@ class generic_witness_scheduler
 
          insert_all( insertion_set );
          remove_all( removal_set );
-
+#ifdef ROL_DUMP
+         wdump((_eligible));
+         wdump((_schedule));
+#endif
          return;
       }
 
@@ -308,8 +317,16 @@ class generic_witness_scheduler
 
       bool get_slot( OffsetType offset, WitnessID& wit )const
       {
+#ifdef ROL_DUMP
+         wdump((_schedule)(_schedule.size())(offset));
+#endif
+         if (_schedule.empty())
+            return false; //@ROL wit is 1.6.0!
          if( offset >= _schedule.size() )
-            return false;
+         {
+             wit = _schedule[ 0 ];
+             return false;
+         }
          wit = _schedule[ offset ];
          return true;
       }
@@ -320,6 +337,9 @@ class generic_witness_scheduler
        */
       void reset_schedule( WitnessID first_witness )
       {
+#ifdef ROL_DUMP
+          wdump((first_witness));
+#endif
          _schedule.clear();
          for( const WitnessID& wid : _ineligible_no_turn )
          {
@@ -335,8 +355,11 @@ class generic_witness_scheduler
          _tokens += _ineligible_waiting_for_token.size();
          _ineligible_waiting_for_token.clear();
          if( debug ) check_invariant();
-
+#ifdef ROL_DUMP
+         wdump((_eligible));
+#endif
          auto it = std::find( _eligible.begin(), _eligible.end(), first_witness );
+         //@ROL: maybe good idea, when wit is 1.6.0 if ( it == _eligible.end() ) return;
          assert( it != _eligible.end() );
 
          _schedule.push_back( *it );

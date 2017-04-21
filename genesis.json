@@ -1,5 +1,5 @@
 {
-	"initial_timestamp": "2017-01-10T08:52:15",
+	"initial_timestamp": "2017-04-20T14:00:00",
 	"max_core_supply": "1000000000000000",
 	"initial_parameters": {
 		"current_fees": {
@@ -445,7 +445,7 @@
 			"collateral_records": [
 				{
 					"collateral": -1,
-					"debt": 100000000000000,
+			                "debt":  1000000000000000,
 					"owner": "TEST6eTLvHVD1Qg5rUoEnKgTvpXaW2p7xHyce"
 				}
 			],
@@ -461,7 +461,7 @@
 			"collateral_records": [
 				{
 					"collateral": -1,
-					"debt": 100000000000000,
+			                "debt":  1000000000000000,
 					"owner": "TEST6eTLvHVD1Qg5rUoEnKgTvpXaW2p7xHyce"
 				}
 			],
