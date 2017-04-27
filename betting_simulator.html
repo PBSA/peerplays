@@ -28,7 +28,7 @@
             });
         }]);
 
-      startApp.controller('Page1Controller', ['$scope', 'Notification', function($scope, Notification) {
+      startApp.controller('Page1Controller', ['$scope', 'Notification', '$interval', function($scope, Notification, $interval) {
           let precision = 5;
           let percentage_fee = new Big(0);//new Big('0.02');
           let bet_id_sequence = 0;
@@ -352,7 +352,7 @@
             let result = 0;
 
             if (taker_bet.bettor == maker_bet.bettor) {
-              Notification.error({message: 'You just matched your own bet.  The simple algorithm does not yet account for this, so the results may be incorrect', delay: 10000});
+              //Notification.error({message: 'You just matched your own bet.  The simple algorithm does not yet account for this, so the results may be incorrect', delay: 10000});
 
 
               // let bettor_balances = $scope.account_balances['simple'][taker_bet.account_name];
@@ -434,22 +434,30 @@
                 simulation_event_log_entry.add_log_message(`pretending we pay the full bet amount of ${new_bet.amount_to_bet.toFixed()} into refundable, so the fake refundable is now ${fake_bettor_balances.refundable_unmatched_bets.toFixed()}`);
               } 
 
+              let fake_bettor_balances_for_lays_first = fake_bettor_balances.clone();
+
               // run the (filtered) order books -- this returns the lowest balance in refundable_unmatched_bets during the simulation
               let backs_minimum_refundable_unmatched_bets = simulate_order_book(bettor_backs, fake_bettor_balances, 'back', simulation_event_log_entry);
               fake_bettor_balances.refundable_unmatched_bets = backs_minimum_refundable_unmatched_bets;
-              simulation_event_log_entry.add_log_message(`after simulating backs, we reduce our simulated refundable ${fake_bettor_balances.refundable_unmatched_bets.toFixed()} to before simulating lays`);
+              simulation_event_log_entry.add_log_message(`[backs first] after simulating backs, we reduce our simulated refundable ${fake_bettor_balances.refundable_unmatched_bets.toFixed()} to before simulating lays`);
               let lays_minimum_refundable_unmatched_bets = simulate_order_book(bettor_lays, fake_bettor_balances, 'lay', simulation_event_log_entry);
               fake_bettor_balances.refundable_unmatched_bets = lays_minimum_refundable_unmatched_bets;
-              simulation_event_log_entry.add_log_message(`after simulating lays, our simulated refundable is ${fake_bettor_balances.refundable_unmatched_bets.toFixed()}`);
-
-
-              // TODO: THIS IS WRONG:
-              // let minimum_refundable_unmatched_bets = big_min(backs_minimum_refundable_unmatched_bets, lays_minimum_refundable_unmatched_bets);
-              // but so is this:
-              //let minimum_refundable_unmatched_bets = backs_minimum_refundable_unmatched_bets.plus(lays_minimum_refundable_unmatched_bets);
-              //simulation_event_log_entry.add_log_message(`minimum_refundable_unmatched_bets = ${minimum_refundable_unmatched_bets.toFixed()}`);
-              // this should be right:
+              simulation_event_log_entry.add_log_message(`[backs first] after simulating lays, our simulated refundable is ${fake_bettor_balances.refundable_unmatched_bets.toFixed()}`);
               let minimum_refundable_unmatched_bets = lays_minimum_refundable_unmatched_bets;
+
+
+
+              simulation_event_log_entry.add_log_message(`now simulating in the other order (lays, then backs) to see if we get a different answer`);
+              let lays_first_lays_minimum_refundable_unmatched_bets = simulate_order_book(bettor_lays, fake_bettor_balances_for_lays_first, 'lay', simulation_event_log_entry);
+              fake_bettor_balances_for_lays_first.refundable_unmatched_bets = lays_first_lays_minimum_refundable_unmatched_bets;
+              simulation_event_log_entry.add_log_message(`[lays first] after simulating lays, our simulated refundable is ${fake_bettor_balances_for_lays_first.refundable_unmatched_bets.toFixed()}`);
+              let lays_first_backs_minimum_refundable_unmatched_bets = simulate_order_book(bettor_backs, fake_bettor_balances_for_lays_first, 'back', simulation_event_log_entry);
+              fake_bettor_balances_for_lays_first.refundable_unmatched_bets = lays_first_backs_minimum_refundable_unmatched_bets;
+              simulation_event_log_entry.add_log_message(`[lays first] after simulating backs, we reduce our simulated refundable ${fake_bettor_balances_for_lays_first.refundable_unmatched_bets.toFixed()} to before simulating lays`);
+
+              if (!fake_bettor_balances_for_lays_first.refundable_unmatched_bets.eq(fake_bettor_balances.refundable_unmatched_bets)) {
+                Notification.error({message: `Results differe between backs-first and lays-first: backs-first: ${fake_bettor_balances.refundable_unmatched_bets.toFixed()}, lays-first: ${fake_bettor_balances_for_lays_first.refundable_unmatched_bets.toFixed()}`});
+              }
 
 
               if (new_bet)
@@ -680,12 +688,69 @@
               }
           };
 
-          // $scope.place_bet(new Bet("alice", "back", 10, 10, 0));
-          // $scope.place_bet(new Bet("bob", "lay", 90, 10, 0));
-          // $scope.place_bet(new Bet("alice", "lay", 50, 2, 0));
-          // $scope.place_bet(new Bet("bob", "back", 50, 2, 0)); // locked in profit of 40 for alice
-          // $scope.place_bet(new Bet("alice", "back", 50, 2, 0));
-          // $scope.place_bet(new Bet("bob", "lay", 50, 2, 0));
+          let get_random_int = (min, max) => {
+              min = Math.ceil(min);
+              max = Math.floor(max);
+              return Math.floor(Math.random() * (max - min)) + min;
+          };
+
+          let random_bet_timer = null;
+          let place_random_bet = () => {
+            let back_or_lay = get_random_int(0, 2) == 0 ? 'back' : 'lay';
+            let bettor = all_account_names[get_random_int(0, 2 /* all_account_names.length*/ )];
+            let amount_to_bet = get_random_int(1, 11) * 10;
+            let odds = get_random_int(2,11);
+
+            $scope.place_bet(new Bet(bettor, back_or_lay, amount_to_bet, odds, 0));
+
+            // check global invariants
+            for (var balance_system_name in $scope.account_balances)
+                if ($scope.account_balances.hasOwnProperty(balance_system_name))
+                    if ($scope.global_invariant_is_violated(balance_system_name)) {
+                        Notification.error({message: `Random bet violated global invariant for ${balance_system_name}`, delay: 10000});
+                        $interval.cancel(random_bet_timer);
+                        return;
+                    }
+
+            // check per-account invariants
+            for (var balance_system_name in $scope.account_balances)
+                if ($scope.account_balances.hasOwnProperty(balance_system_name)) {
+                    let balance_system = $scope.account_balances[balance_system_name];
+                    for (var account_name in balance_system)
+                        if (balance_system.hasOwnProperty(account_name)) 
+                            if ($scope.invariant_is_violated(balance_system_name, account_name)) {
+                                Notification.error({message: `Random bet violated account invariant for ${account_name} in ${balance_system_name}`, delay: 10000});
+                                $interval.cancel(random_bet_timer);
+                                return;
+                            }
+                }
+
+            // check matching between accounting systems 
+            let simple_balances = $scope.account_balances['simple'];
+            for (var account_name in simple_balances)
+                if (simple_balances.hasOwnProperty(account_name))
+                    if ($scope.position_element_is_inconsistent(account_name, 'balance') ||
+                        $scope.position_element_is_inconsistent(account_name, 'win') ||
+                        $scope.position_element_is_inconsistent(account_name, 'not_win') ||
+                        $scope.position_element_is_inconsistent(account_name, 'cancel') ||
+                        $scope.position_element_is_inconsistent(account_name, 'not_cancel') || 
+                        $scope.position_element_is_inconsistent(account_name, 'refundable_unmatched_bets') ||
+                        $scope.position_element_is_inconsistent(account_name, 'fees_paid')) {
+                          Notification.error({message: `Random bet from ${bettor} exposed difference between simple and complex accounting system`, delay: 10000});
+                          $interval.cancel(random_bet_timer);
+                          return;
+                        }
+            $scope.clear_event_log();
+          };
+          //random_bet_timer = $interval(place_random_bet, 150);
+          
+
+          //$scope.place_bet(new Bet("alice", "back", 10, 10, 0));
+          //$scope.place_bet(new Bet("bob", "lay", 90, 10, 0));
+          //$scope.place_bet(new Bet("alice", "lay", 50, 2, 0));
+          //$scope.place_bet(new Bet("bob", "back", 50, 2, 0)); // locked in profit of 40 for alice
+          //$scope.place_bet(new Bet("alice", "back", 40, 2, 0));
+          //$scope.place_bet(new Bet("bob", "lay", 40, 2, 0));
 
           // $scope.place_bet(new Bet("alice", "back", 100, 2, 0));
           // $scope.place_bet(new Bet("alice", "back", 100, 4, 0));
@@ -694,12 +759,6 @@
           // $scope.place_bet(new Bet("alice", "back", 100, 10, 0));
           // $scope.place_bet(new Bet("bob", "lay", 400, 4, 0));
           // $scope.place_bet(new Bet("charlie", "lay", 850, 8, 0));
-
-          //$scope.place_bet(new Bet("bob", "lay", 500, 6, 0));
-          //$scope.place_bet(new Bet("bob", "lay", 500, 6, 0));
-          //$scope.place_bet(new Bet("bob", "lay", 500, 6, 0));
-          //$scope.place_bet(new Bet("bob", "lay", 500, 6, 0));
-          //$scope.place_bet(new Bet("bob", "lay", 500, 6, 0));
 
           //$scope.place_bet(new Bet("alice", "lay", 100, 10, 0));
           //$scope.place_bet(new Bet("bob", "back", 900, 10, 0));
