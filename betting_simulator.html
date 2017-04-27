@@ -6,6 +6,7 @@
     <link href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.7/slate/bootstrap.min.css" rel="stylesheet" integrity="sha384-RpX8okQqCyUNG7PlOYNybyJXYTtGQH+7rIKiVvg1DLg6jahLEk47VvpUyS+E2/uJ" crossorigin="anonymous">
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.7/angular.min.js"></script>
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.7/angular-route.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/big.js/3.1.3/big.min.js" integrity="sha256-db2rMJ0e5hPHK2tpOTcLuoD+hNPwds4hJmXa2tKb9vg=" crossorigin="anonymous"></script>
     <script type="text/javascript">
       var startApp=angular.module('startApp',['ngRoute']);
 
@@ -26,123 +27,304 @@
         }]);
 
       startApp.controller('Page1Controller', ['$scope', function($scope) {
-          let make_starting_balance = () => { return {balance: 10000, win: 0, not_win: 0, cancel: 0, not_cancel: 0}; }
-          $scope.account_balances = { alice: make_starting_balance(), bob: make_starting_balance(), charlie: make_starting_balance(), dave: make_starting_balance() };
+          let precision = 5;
+          let percentage_fee = new Big(0);//new Big('0.02');
+          let bet_id_sequence = 0;
+
+          class Position {
+            constructor(account_name, balance, win = 0, not_win = 0, cancel = 0, not_cancel = 0, fees_paid = 0, refundable_unmatched_bets = 0) {
+              this.account_name = account_name;
+              this.balance = new Big(balance);
+              this.win = new Big(win);
+              this.not_win = new Big(not_win);
+              this.cancel = new Big(cancel);
+              this.not_cancel = new Big(not_cancel);
+              this.fees_paid = new Big(fees_paid);
+              this.refundable_unmatched_bets = new Big(refundable_unmatched_bets);
+            }
+            clone(new_account_name = this.account_name) {
+              return new Position(new_account_name, this.balance, this.win, this.not_win, this.cancel, this.not_cancel, this.fees_paid, this.refundable_unmatched_bets);
+            }
+            minus(otherPosition) {
+              let differencePosition = this.clone(this.account_name + '_difference');
+              differencePosition.balance = differencePosition.balance.minus(otherPosition.balance);
+              differencePosition.win = differencePosition.balance.minus(otherPosition.win);
+              differencePosition.not_win = differencePosition.balance.minus(otherPosition.not_win);
+              differencePosition.cancel = differencePosition.balance.minus(otherPosition.cancel);
+              differencePosition.not_cancel = differencePosition.balance.minus(otherPosition.not_cancel);
+              differencePosition.fees_paid = differencePosition.balance.minus(otherPosition.fees_paid);
+              differencePosition.refundable_unmatched_bets = differencePosition.balance.minus(otherPosition.refundable_unmatched_bets);
+              return differencePosition;
+            }
+            reduce(parent_event_log_entry) {
+                let additional_not_cancel_balance = big_min(this.win, this.not_win);
+                this.win = this.win.minus(additional_not_cancel_balance);
+                this.not_win = this.not_win.minus(additional_not_cancel_balance);
+                this.not_cancel = this.not_cancel.plus(additional_not_cancel_balance);
+
+                let immediate_winnings = big_min(this.cancel, this.not_cancel);
+                this.cancel = this.cancel.minus(immediate_winnings);
+                this.not_cancel = this.not_cancel.minus(immediate_winnings);
+                return immediate_winnings;
+            }
+            adjust_betting_position(back_or_lay, amount_bet, amount_matched, fee_paid, parent_event_log_entry) {
+                if (back_or_lay == 'back')
+                  this.win = this.win.plus(amount_bet).plus(amount_matched);
+                else
+                  this.not_win = this.not_win.plus(amount_bet).plus(amount_matched);
+                this.cancel = this.cancel.plus(amount_bet);
+                this.fees_paid = this.fees_paid.plus(fee_paid);
+                return this.reduce(parent_event_log_entry);
+            }
+            apply_full_bet(bet, parent_event_log_entry) {
+              this.refundable_unmatched_bets = this.refundable_unmatched_bets.plus(this.adjust_betting_position(bet.back_or_lay, 
+                                                                                                                bet.amount_to_bet, bet.get_matching_amount(), 
+                                                                                                                bet.amount_reserved_for_fees, parent_event_log_entry));
+              this.refundable_unmatched_bets = this.refundable_unmatched_bets.minus(bet.amount_to_bet);
+            }
+          }
+
+          let make_starting_balance = (account_name) => new Position(account_name, 10000);
+          $scope.account_balances = { alice: make_starting_balance('alice'), bob: make_starting_balance('bob'), charlie: make_starting_balance('charlie'), dave: make_starting_balance('dave') };
           $scope.order_book = { backs: [], lays: [] };
-          $scope.bet_to_place = {username: 'alice', back_or_lay: 'back', amount_to_bet: null, amount_to_win: null};
+
+          let compute_matching_amount = (bet_amount, backer_multiplier, back_or_lay) => {
+            if (back_or_lay == 'back')
+              return bet_amount.times(backer_multiplier.minus(1)).round(precision, 0);
+            else
+              return bet_amount.div(backer_multiplier.minus(1)).round(precision, 0);
+          }
+
+          class Bet {
+            constructor(bettor, back_or_lay, amount_to_bet, backer_multiplier, amount_reserved_for_fees) {
+              this.bet_id = bet_id_sequence++;
+              this.bettor = bettor;
+              this.back_or_lay = back_or_lay;
+              this.amount_to_bet = new Big(amount_to_bet).round(precision, 0);
+              this.backer_multiplier = new Big(backer_multiplier).round(precision, 0);
+              this.amount_reserved_for_fees = new Big(amount_reserved_for_fees).round(precision, 0);
+            }
+            get odds() {
+              return this.backer_multiplier.minus(1);
+            }
+            get_matching_amount() {
+              return compute_matching_amount(this.amount_to_bet, this.backer_multiplier, this.back_or_lay);
+            }
+          }
+
+          $scope.bet_to_place = {bettor: 'alice', back_or_lay: 'back', backer_multiplier: null, amount_to_bet: null};
           $scope.event_log = [];
 
-
-          $scope.get_odds = (order) => (order.amount_to_win - order.amount_to_bet) / order.amount_to_bet;
-          $scope.get_decimal_odds = (order) => order.amount_to_win / order.amount_to_bet;
-          $scope.get_inverse_odds = (order) =>  order.amount_to_bet / (order.amount_to_win - order.amount_to_bet);
-          $scope.get_inverse_decimal_odds = (order) => order.amount_to_win / (order.amount_to_win - order.amount_to_bet)
-
           // for sorting order books
-          let order_compare = (a, b) => $scope.get_decimal_odds(a) - $scope.get_decimal_odds(b)
+          let order_compare = (a, b) => Number(a.backer_multiplier.minus(b.backer_multiplier));
+
+          let big_min = (a, b) => a.lt(b) ? a : b;
+          let big_max = (a, b) => a.gt(b) ? a : b;
 
           let reduce_balances = (account_name, parent_event_log_entry) => {
               let balances = $scope.account_balances[account_name];
-              let additional_not_cancel_balance = Math.min(balances.win, balances.not_win);
-              balances.win -= additional_not_cancel_balance;
-              balances.not_win -= additional_not_cancel_balance;
-              balances.not_cancel += additional_not_cancel_balance;
+              let additional_not_cancel_balance = big_min(balances.win, balances.not_win);
+              balances.win = balances.win.minus(additional_not_cancel_balance);
+              balances.not_win = balances.not_win.minus(additional_not_cancel_balance);
+              balances.not_cancel = balances.not_cancel.plus(additional_not_cancel_balance);
 
-              let immediate_winnings = Math.min(balances.cancel, balances.not_cancel);
-              balances.cancel -= immediate_winnings;
-              balances.not_cancel -= immediate_winnings;
-              balances.balance += immediate_winnings;
-              if (immediate_winnings)
-                  parent_event_log_entry.subentries.push({ description: `returning guaranteed winnings of ${immediate_winnings} to ${account_name}`, subentries: [] });
+              let immediate_winnings = big_min(balances.cancel, balances.not_cancel);
+              balances.cancel = balances.cancel.minus(immediate_winnings);
+              balances.not_cancel = balances.not_cancel.minus(immediate_winnings);
+              balances.balance = balances.balance.plus(immediate_winnings);
+              if (immediate_winnings.gt(0))
+                  parent_event_log_entry.subentries.push({ description: `returning guaranteed winnings of ${immediate_winnings.toFixed()} to ${account_name}`, subentries: [] });
+              return immediate_winnings;
+          };
+
+          let remove_bet_from_order_books = (bet) => {
+            let order_book = bet.back_or_lay == 'back' ? $scope.order_book['backs'] : $scope.order_book['lays'];
+            let bet_index = order_book.findIndex( (x) => x.bet_id == bet.bet_id );
+            //console.log("removing item ", bet_index);
+            order_book.splice(bet_index, 1);
+          };
+
+          let bet_was_matched = (bet, amount_bet, amount_matched, actual_multiplier, parent_event_log_entry) => {
+            let fee_paid = bet.amount_reserved_for_fees.times(amount_bet).div(bet.amount_to_bet).round(precision, 3);
+
+            let match_log_entry = { description: `${bet.bettor} bet matched ${amount_bet.toFixed()} against ${amount_matched.toFixed()} (actual decimal odds: ${actual_multiplier.toFixed()}, paid fees of ${fee_paid.toFixed()})`, subentries: [] };
+            parent_event_log_entry.subentries.push(match_log_entry);
+
+            let bettor_balances = $scope.account_balances[bet.bettor];
+            let immediate_winnings = bettor_balances.adjust_betting_position(bet.back_or_lay, amount_bet, amount_matched, 
+                                                                             fee_paid, match_log_entry);
+
+            // pay for the bet and take our winnings into refundable.  later we'll move anything we can into the actual balance
+            bettor_balances.refundable_unmatched_bets = bettor_balances.refundable_unmatched_bets.plus(immediate_winnings).minus(amount_matched);
+
+            if (immediate_winnings.gt(0))
+              match_log_entry.subentries.push({ description: `bet produced ${immediate_winnings.toFixed()} immediate winnings for ${bet.bettor}`, subentries: [] });
+            if (bet.amount_to_bet.eq(amount_bet)) {
+              remove_bet_from_order_books(bet);
+              return true;
+            } else {
+              bet.amount_to_bet = bet.amount_to_bet.minus(amount_bet);
+              bet.amount_reserved_for_fees = bet.amount_reserved_for_fees.minus(fee_paid);
+              if (bet.get_matching_amount().eq(0)) {
+                remove_bet_from_order_books(bet);
+                return true;
+              }
+            }
+
+            return false;
+          };
+
+          let match_bet = (taker_bet, maker_bet, parent_event_log_entry) => {
+            let result = 0;
+            let maximum_amount_to_match = taker_bet.get_matching_amount();
+            if (maximum_amount_to_match.lte(maker_bet.amount_to_bet)) {
+              // we will consume the entire taker bet
+              result |= bet_was_matched(taker_bet, taker_bet.amount_to_bet, maximum_amount_to_match, maker_bet.backer_multiplier, parent_event_log_entry);
+              result |= bet_was_matched(maker_bet, maximum_amount_to_match, maker_bet.amount_to_bet, maker_bet.backer_multiplier, parent_event_log_entry) << 1;
+            }
+            else
+            {
+              let taker_amount = maker_bet.get_matching_amount();
+              let maker_amount = compute_matching_amount(taker_amount, maker_bet.backer_multiplier, taker_bet.back_or_lay);
+              result |= bet_was_matched(taker_bet, taker_amount, maker_amount, maker_bet.backer_multiplier, parent_event_log_entry);
+              result |= bet_was_matched(maker_bet, maker_amount, taker_amount, maker_bet.backer_multiplier, parent_event_log_entry) << 1;
+            }
+            return result;
           };
 
           let try_to_match_bet = (new_bet, back_or_lay, order_book_to_match_against, parent_event_log_entry) => {
-              let new_bet_odds = $scope.get_decimal_odds(new_bet);
-              while (order_book_to_match_against.length) {
+              let finished = false;
+              let accounts_affected = new Set();
+              while (!finished && order_book_to_match_against.length) {
                   let top_of_order_book = order_book_to_match_against[0];
-                  let top_bet_odds = $scope.get_inverse_decimal_odds(top_of_order_book);
-                  if (new_bet_odds > top_bet_odds)
-                      return false;
+                  if (new_bet.backer_multiplier.gt(top_of_order_book.backer_multiplier))
+                      return bet_matched; // new_bet was not fully consumed
 
-                  let amount_taker_will_bet = Math.min(new_bet.amount_to_bet, top_of_order_book.amount_to_win - top_of_order_book.amount_to_bet);
-                  let amount_maker_will_bet = amount_taker_will_bet * top_of_order_book.amount_to_bet / (top_of_order_book.amount_to_win - top_of_order_book.amount_to_bet);
-                  let amount_winner_will_win = amount_taker_will_bet + amount_maker_will_bet;
-                  
-                  let match_log_entry = { description: `matched a bet from ${top_of_order_book.username} for ${amount_taker_will_bet} to win ${amount_winner_will_win}`, subentries: [] };
+                  let match_log_entry = { description: `matched a bet from ${new_bet.bettor} to bet from ${top_of_order_book.bettor}`, subentries: [] };
                   parent_event_log_entry.subentries.push(match_log_entry);
-
-
-                  // Change our payout ledger
-                  if (back_or_lay == 'back') {
-                      $scope.account_balances[new_bet.username].win += amount_winner_will_win;
-                      $scope.account_balances[top_of_order_book.username].not_win += amount_winner_will_win;
-                  } else {
-                      $scope.account_balances[new_bet.username].not_win += amount_winner_will_win;
-                      $scope.account_balances[top_of_order_book.username].win += amount_winner_will_win;
-                  }
-                  $scope.account_balances[new_bet.username].cancel += amount_taker_will_bet;
-                  $scope.account_balances[top_of_order_book.username].cancel += amount_maker_will_bet;
-
-                  // and issue refunds if possible
-                  reduce_balances(new_bet.username, match_log_entry);
-                  reduce_balances(top_of_order_book.username, match_log_entry);
-
-                  // compute what is left of the taker's bet
-                  let new_taker_amount_to_bet = new_bet.amount_to_bet - amount_taker_will_bet;
-                  let new_taker_amount_to_win = new_taker_amount_to_bet + new_taker_amount_to_bet * (new_bet.amount_to_win - new_bet.amount_to_bet) / new_bet.amount_to_bet;
-                  new_bet.amount_to_bet = new_taker_amount_to_bet;
-                  new_bet.amount_to_win = new_taker_amount_to_win;
-
-                  // and what is left of the maker's bet
-                  top_of_order_book.amount_to_bet -= amount_maker_will_bet;
-                  top_of_order_book.amount_to_win -= amount_winner_will_win;
-
-                  // remove maker's bets from the books if we gobbled them up
-                  if (top_of_order_book.amount_to_bet == 0) {
-                      match_log_entry.subentries.push({ description: `fully matched bet from ${top_of_order_book.username}`, subentries: [] });
-                      order_book_to_match_against.shift();
-                  }
-                  // if the taker's bet is filled, we're done; otherwise loop.
-                  if (new_bet.amount_to_bet == 0) {
-                      match_log_entry.subentries.push({ description: `fully matched bet from ${new_bet.username}`, subentries: [] });
-                      return true;
-                  } else {
-                      match_log_entry.subentries.push({ description: `partially matched bet from ${new_bet.username} stays on the books, betting ${new_bet.amount_to_bet} to win ${new_bet.amount_to_win}`, subentries: [] });
-                  }
+                  orders_matched_flags = match_bet(new_bet, top_of_order_book, match_log_entry);
+                  accounts_affected.add(new_bet.bettor);
+                  accounts_affected.add(top_of_order_book.bettor);
+                  finished = orders_matched_flags != 2;
               }
-              return false; // if we got here, we failed to completely match the bet
+              return accounts_affected; // if we got here, we failed to completely match the bet
           };
 
-          $scope.place_bet = (username, back_or_lay, amount_to_bet, amount_to_win) => {
-              if ($scope.account_balances[username].balance >= amount_to_bet) {
+          let simulate_order_book = (order_book, bettor_balances, back_or_lay, parent_event_log_entry) => {
+              let simulated_balances = bettor_balances.clone();
+              let simulation_log_entry = { description: `simulating ${order_book.length} ${back_or_lay} bets`, subentries: [] };
+              parent_event_log_entry.subentries.push(simulation_log_entry);
+              let minimum_refundable = bettor_balances.refundable_unmatched_bets;
+              order_book.forEach((bet) => {
+                simulated_balances.apply_full_bet(bet, simulation_log_entry);
+                if (simulated_balances.refundable_unmatched_bets.lt(minimum_refundable))
+                  minimum_refundable = simulated_balances.refundable_unmatched_bets;
+              });
+              simulation_log_entry.subentries.push({ description: `when executing the ${back_or_lay} order book, minimum_refundable: ${minimum_refundable.toFixed()}`, subentries: []});
+              return minimum_refundable;
+          };
 
-                  let order_book = back_or_lay == 'back' ? $scope.order_book.backs : $scope.order_book.lays;
-                  let order_book_to_match_against = back_or_lay == 'back' ? $scope.order_book.lays : $scope.order_book.backs;
+          let simulate_order_book_for_bettor = (bettor, parent_event_log_entry, new_bet = null) => {
+              let simulation_event_log_entry = { description: `simulating order book for ${bettor}`, subentries: [] };
+              parent_event_log_entry.subentries.push(simulation_event_log_entry);
 
-                  $scope.account_balances[username].balance -= amount_to_bet;
-                  let this_bet = {username: username, amount_to_bet: amount_to_bet, amount_to_win: amount_to_win};
-                  let event_log_entry = { description: `${username} places a ${back_or_lay} bet for ${amount_to_bet} to win ${amount_to_win}, odds ${$scope.get_decimal_odds(this_bet)}`, subentries: [] };
+              // only consider our orders
+              let bettor_backs = $scope.order_book['backs'].filter( (x) => x.bettor == bettor );
+              let bettor_lays = $scope.order_book['lays'].filter( (x) => x.bettor == bettor );
+              let bettor_balances = $scope.account_balances[bettor].clone();
 
-                  if (!try_to_match_bet(this_bet, back_or_lay, order_book_to_match_against, event_log_entry)) {
-                      order_book.push(this_bet);
-                      order_book.sort(order_compare);
-                  }
-                  $scope.event_log.push(event_log_entry);
+              if (new_bet) {
+                simulation_event_log_entry.subentries.push({ description: `simulating with new bet, assuming ${new_bet.bettor} puts all ${new_bet.amount_to_bet.toFixed()} into refundable_unmatched_bets`, subentries: [] });
+                // add the new order to the filtered order book
+                let new_bet_order_book = new_bet.back_or_lay == 'back' ? bettor_backs : bettor_lays;
+                new_bet_order_book.push(new_bet);
+                new_bet_order_book.sort(order_compare);
+
+                // fake a balance object where we paid the full bet amount into refundable
+                bettor_balances.refundable_unmatched_bets = bettor_balances.refundable_unmatched_bets.plus(new_bet.amount_to_bet);
+              } 
+
+              // run the (filtered) order books -- this returns the lowest balance in refundable_unmatched_bets during the simulation
+              let backs_minimum_refundable_unmatched_bets = simulate_order_book(bettor_backs, bettor_balances, 'back', simulation_event_log_entry);
+              let lays_minimum_refundable_unmatched_bets = simulate_order_book(bettor_lays, bettor_balances, 'lay', simulation_event_log_entry);
+
+              let minimum_refundable_unmatched_bets = big_min(backs_minimum_refundable_unmatched_bets, lays_minimum_refundable_unmatched_bets);
+
+              if (new_bet)
+              {
+                let amount_to_refund_from_refundable = minimum_refundable_unmatched_bets.minus(new_bet.amount_to_bet);
+                parent_event_log_entry.subentries.push({ description: `At the end of simulation, minimum_refundable was ${minimum_refundable_unmatched_bets.toFixed()}`, subentries: []});
+                if (amount_to_refund_from_refundable.lte(0))
+                  parent_event_log_entry.subentries.push({ description: `To place this bet, ${bettor} must deposit ${amount_to_refund_from_refundable.times(-1).toFixed()}`, subentries: []});
+                else
+                  parent_event_log_entry.subentries.push({ description: `When ${bettor} places this bet, they will immediately get back ${amount_to_refund_from_refundable.toFixed()}`, subentries: []});
+                return amount_to_refund_from_refundable;
+              }
+              else
+              {
+                return minimum_refundable_unmatched_bets;
+              }
+          };
+
+          $scope.place_bet = (new_bet) => {
+              let event_log_entry = { description: `${new_bet.bettor} places a ${new_bet.back_or_lay} bet for ${new_bet.amount_to_bet.toFixed()} at decimal odds ${new_bet.backer_multiplier.toFixed()}`, subentries: [] };
+
+              $scope.event_log.push(event_log_entry);
+
+              let initial_simulation_event_log = { description: `simulating order book with new bet to determine how much ${new_bet.bettor} must pay to refundable_unmatched_bets`, subentries: [] };
+              event_log_entry.subentries.push(initial_simulation_event_log);
+
+              let amount_to_refund_from_refundable = simulate_order_book_for_bettor(new_bet.bettor, initial_simulation_event_log, new_bet);
+              let bettor_balances = $scope.account_balances[new_bet.bettor];
+
+              if (bettor_balances.balance.gt(amount_to_refund_from_refundable.times(-1))) {
+                  let order_book = new_bet.back_or_lay == 'back' ? $scope.order_book.backs : $scope.order_book.lays;
+                  let order_book_to_match_against = new_bet.back_or_lay == 'back' ? $scope.order_book.lays : $scope.order_book.backs;
+
+                  bettor_balances.balance = bettor_balances.balance.plus(amount_to_refund_from_refundable);
+                  bettor_balances.refundable_unmatched_bets  = bettor_balances.refundable_unmatched_bets.minus(amount_to_refund_from_refundable);
+
+                  order_book.push(new_bet);
+                  order_book.sort(order_compare);
+
+                  let accounts_affected = try_to_match_bet(new_bet, new_bet.back_or_lay, order_book_to_match_against, event_log_entry);
+                  if (accounts_affected.size) {
+                    let secondary_simulation_event_log = { description: `The bet matched and affected the accounts ${Array.from(accounts_affected).join(',')}.  Now simulating the order books of their accounts to determine whether we can refund any of their refundable_unmatched_bets to their balances}`, subentries: [] };
+                    event_log_entry.subentries.push(secondary_simulation_event_log);
+
+                    accounts_affected.forEach((account) => {
+                      let partial_match_event_log_entry = { description: `A match (possibly partial) occurred involving account ${account}, now simulating order book for that account to find out what we can refund`, subentries: [] };
+                      amount_to_refund_from_refundable = simulate_order_book_for_bettor(account, partial_match_event_log_entry);
+                      secondary_simulation_event_log.subentries.push(partial_match_event_log_entry);
+
+                      if (amount_to_refund_from_refundable.gt(0)) {
+                        secondary_simulation_event_log.subentries.push({ description: `Refunding ${amount_to_refund_from_refundable.toFixed()} to ${account}`, subentries: []});
+                        let account_balances = $scope.account_balances[account];
+                        account_balances.refundable_unmatched_bets = account_balances.refundable_unmatched_bets.minus(amount_to_refund_from_refundable);
+                        account_balances.balance = account_balances.balance.plus(amount_to_refund_from_refundable);
+                      }
+                    });
+                 }
               }
           };
 
           $scope.place_bet_from_form = () => {
-              $scope.place_bet($scope.bet_to_place.username, $scope.bet_to_place.back_or_lay, parseInt($scope.bet_to_place.amount_to_bet), parseInt($scope.bet_to_place.amount_to_win));
-              $scope.bet_to_place = {username: 'alice', back_or_lay: 'back', amount_to_bet: null, amount_to_win: null};
+              let amount_to_bet = new Big($scope.bet_to_place.amount_to_bet).round(precision, 0);
+              let fees = amount_to_bet.times(percentage_fee).round(precision, 3);
+              let new_bet = new Bet($scope.bet_to_place.bettor, $scope.bet_to_place.back_or_lay, 
+                                    amount_to_bet, $scope.bet_to_place.backer_multiplier, fees);
+              $scope.place_bet(new_bet);
+              $scope.bet_to_place = {bettor: 'alice', back_or_lay: 'back', amount_to_bet: null, amount_to_win: null};
           };
 
           let cancel_all_bets_on_side = (order_book_side, parent_log_entry) => {
               order_book_side.forEach( (bet) => {
-                  $scope.account_balances[bet.username].balance += bet.amount_to_bet;
-                  parent_log_entry.subentries.push({ description: `Returning ${bet.amount_to_bet} to ${bet.username}`, subentries: []});
+                  $scope.account_balances[bet.bettor].balance = $scope.account_balances[bet.bettor].balance.plus(bet.amount_to_bet);
+                  parent_log_entry.subentries.push({ description: `Returning ${bet.amount_to_bet} to ${bet.bettor}`, subentries: []});
               });
               order_book_side = [];
           };
+
           let cancel_all_bets = (parent_log_entry) => {
               let cancel_event_log_entry = { description: `Canceling all bets`, subentries: []};
 
@@ -153,38 +335,47 @@
 
               parent_log_entry.subentries.push(cancel_event_log_entry);
           };
+
           $scope.payout = (condition) => {
               let payout_event_log_entry = { description: `Paying out a ${condition}`, subentries: []};
               cancel_all_bets(payout_event_log_entry);
               for (var account_name in $scope.account_balances) {
                   if ($scope.account_balances.hasOwnProperty(account_name)) {
                       let balance_object = $scope.account_balances[account_name];
-                      let total_paid = 0;
-                      if (condition == 'win')
-                          total_paid = balance_object.win + balance_object.not_cancel;
-                      else if (condition == 'not win')
-                          total_paid = balance_object.not_win + balance_object.not_cancel;
-                      else
-                          total_paid = balance_object.cancel;
+                      let total_paid = null;
+                      let fees_paid = null;
+                      if (condition == 'win') {
+                          total_paid = balance_object.win.plus(balance_object.not_cancel);
+                          fees_paid = balance_object.fees_paid;
+                      } else if (condition == 'not win') {
+                          total_paid = balance_object.not_win.plus(balance_object.not_cancel);
+                          fees_paid = balance_object.fees_paid;
+                      } else {
+                          total_paid = balance_object.cancel.plus(balance_object.fees_paid);
+                          fees_paid = new Big(0);
+                      }
 
-                      balance_object.win = 0;
-                      balance_object.not_win = 0;
-                      balance_object.not_cancel = 0;
-                      balance_object.cancel = 0;
+                      balance_object.win = new Big(0);
+                      balance_object.not_win = new Big(0);
+                      balance_object.not_cancel = new Big(0);
+                      balance_object.cancel = new Big(0);
+                      balance_object.fees_paid = new Big(0);
                       if (total_paid) {
-                          payout_event_log_entry.subentries.push({ description: `Paying ${total_paid} to ${account_name}`, subentries: []});
-                          balance_object.balance += total_paid;
+                        payout_event_log_entry.subentries.push({ description: `Paying ${total_paid.toFixed()} to ${account_name}, paying system fees of ${fees_paid}`, subentries: []});
+                          balance_object.balance = balance_object.balance.plus(total_paid);
                       }
                   }
               }
               $scope.event_log.push(payout_event_log_entry);
           };
 
+          $scope.place_bet(new Bet("alice", "back", 100, 2, 0));
+          $scope.place_bet(new Bet("bob", "lay", 100, 2, 0));
+          $scope.place_bet(new Bet("alice", "lay", 200, 2, 0));
           //$scope.place_bet("bob", "lay", 500, 1000);
           //$scope.place_bet("bob", "lay", 100, 1100);
           //$scope.place_bet("bob", "lay", 1000, 1500);
 
-          //$scope.place_bet("alice", "back", 500, 1000);
           //$scope.place_bet("alice", "back", 500, 1500);
       }]);
 
@@ -202,7 +393,7 @@ startApp.controller('Page2Controller', ['$scope', function($scope) {
       <h1>Peerplays Engine Playground</h1>
     </div>
     <div class="row">
-      <div class="col-sm-6">
+      <div class="col-sm-7">
         <div class="panel panel-default">
           <div class="panel-heading">Available Balances</div>
           <table class="table">
@@ -213,14 +404,18 @@ startApp.controller('Page2Controller', ['$scope', function($scope) {
               <th>not win</th>
               <th>cancel</th>
               <th>not cancel</th>
+              <th>refundable</th>
+              <th>fees_paid</th>
             </tr>
             <tr ng-repeat="(account_name, balance_record) in account_balances">
               <td>{{account_name}}</td>
-              <td>{{balance_record.balance}}</td>
-              <td>{{balance_record.win}}</td>
-              <td>{{balance_record.not_win}}</td>
-              <td>{{balance_record.cancel}}</td>
-              <td>{{balance_record.not_cancel}}</td>
+              <td>{{balance_record.balance.toFixed()}}</td>
+              <td>{{balance_record.win.toFixed()}}</td>
+              <td>{{balance_record.not_win.toFixed()}}</td>
+              <td>{{balance_record.cancel.toFixed()}}</td>
+              <td>{{balance_record.not_cancel.toFixed()}}</td>
+              <td>{{balance_record.refundable_unmatched_bets.toFixed()}}</td>
+              <td>{{balance_record.fees_paid.toFixed()}}</td>
             </tr>
           </table>
         </div>
@@ -237,14 +432,14 @@ startApp.controller('Page2Controller', ['$scope', function($scope) {
           </div>
         </div>
       </div>
-      <div class="col-sm-6">
+      <div class="col-sm-5">
         <div class="panel panel-default">
           <div class="panel-heading">Place Bet</div>
           <form class="form-horizontal">
             <div class="form-group">
               <label for="account" class="control-label col-sm-2">Account:</label>
               <div class="col-sm-10">
-                <select id="account" class="form-control" ng-model="bet_to_place.username">
+                <select id="account" class="form-control" ng-model="bet_to_place.bettor">
                   <option ng-repeat="(account_name, balance) in account_balances" value="{{account_name}}">{{account_name}}</option>
                 </select>
               </div>
@@ -265,9 +460,9 @@ startApp.controller('Page2Controller', ['$scope', function($scope) {
               </div>
             </div>
             <div class="form-group">
-              <label for="amount-to-win" class="control-label col-sm-2">Amount to win:</label>
+              <label for="amount-to-win" class="control-label col-sm-2">Backer multiplier:</label>
               <div class="col-sm-10">
-                <input id="amount-to-win" class="form-control" type="text" ng-model="bet_to_place.amount_to_win" /></label><br />
+                <input id="amount-to-win" class="form-control" type="text" ng-model="bet_to_place.backer_multiplier" /></label><br />
               </div>
             </div>
             <div class="form-group">
@@ -283,48 +478,40 @@ startApp.controller('Page2Controller', ['$scope', function($scope) {
 
     <h2>Order book</h2>
     <div class="row">
-      <div class="col-sm-5">
+      <div class="col-sm-6">
         <div class="panel panel-default">
           <div class="panel-heading">Back orders</div>
           <table class="table">
             <tr>
               <th>account</th>
               <th>amount_to_bet</th>
-              <th>amount_to_win</th>
+              <th>backer_multiplier</th>
               <th>odds</th>
-              <th>odds (decimal)</th>
             </tr>
             <tr ng-repeat="order in order_book.backs">
-              <td>{{order.username}}</td>
-              <td>{{order.amount_to_bet}}</td>
-              <td>{{order.amount_to_win}}</td>
-              <td>{{get_odds(order)}}:1</td>
-              <td>{{get_decimal_odds(order)}}</td>
+              <td>{{order.bettor}}</td>
+              <td>{{order.amount_to_bet.toFixed()}}</td>
+              <td>{{order.backer_multiplier.toFixed()}}</td>
+              <td>{{order.odds.toFixed()}}:1</td>
             </tr>
           </table>
         </div>
       </div>
-      <div class="col-sm-7">
+      <div class="col-sm-6">
         <div class="panel panel-default">
           <div class="panel-heading">Lay orders</div>
           <table class="table">
             <tr>
-              <th>username</th>
+              <th>account</th>
               <th>amount_to_bet</th>
-              <th>amount_to_win</th>
+              <th>backer_multiplier</th>
               <th>odds</th>
-              <th>odds (decimal)</th>
-              <th>inverse odds</th>
-              <th>inverse odds (decimal)</th>
             </tr>
             <tr ng-repeat="order in order_book.lays">
-              <td>{{order.username}}</td>
-              <td>{{order.amount_to_bet}}</td>
-              <td>{{order.amount_to_win}}</td>
-              <td>{{get_odds(order)}}:1</td>
-              <td>{{get_decimal_odds(order)}}</td>
-              <td>{{get_inverse_odds(order)}}:1</td>
-              <td>{{get_inverse_decimal_odds(order)}}</td>
+              <td>{{order.bettor}}</td>
+              <td>{{order.amount_to_bet.toFixed()}}</td>
+              <td>{{order.backer_multiplier.toFixed()}}</td>
+              <td>{{order.odds.toFixed()}}:1</td>
             </tr>
           </table>
         </div>
