@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html ng-app="startApp">
+<head>
+    <title>Peerplays Bookie Sandbox</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.7/slate/bootstrap.min.css" rel="stylesheet" integrity="sha384-RpX8okQqCyUNG7PlOYNybyJXYTtGQH+7rIKiVvg1DLg6jahLEk47VvpUyS+E2/uJ" crossorigin="anonymous">
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.7/angular.min.js"></script>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.7/angular-route.min.js"></script>
+    <script type="text/javascript">
+      var startApp=angular.module('startApp',['ngRoute']);
+
+      startApp.config(['$routeProvider',
+        function($routeProvider) {
+          $routeProvider.
+            when('/page1', {
+              templateUrl: '/page1.html',
+              controller: 'Page1Controller'
+            }).
+            when('/page2', {
+              templateUrl: '/page2.html',
+              controller: 'Page2Controller'
+            }).
+            otherwise({
+              redirectTo: '/page1'
+            });
+        }]);
+
+      startApp.controller('Page1Controller', ['$scope', function($scope) {
+          let make_starting_balance = () => { return {balance: 10000, win: 0, not_win: 0, cancel: 0, not_cancel: 0}; }
+          $scope.account_balances = { alice: make_starting_balance(), bob: make_starting_balance(), charlie: make_starting_balance(), dave: make_starting_balance() };
+          $scope.order_book = { backs: [], lays: [] };
+          $scope.bet_to_place = {username: 'alice', back_or_lay: 'back', amount_to_bet: null, amount_to_win: null};
+          $scope.event_log = [];
+
+
+          $scope.get_odds = (order) => (order.amount_to_win - order.amount_to_bet) / order.amount_to_bet;
+          $scope.get_decimal_odds = (order) => order.amount_to_win / order.amount_to_bet;
+          $scope.get_inverse_odds = (order) =>  order.amount_to_bet / (order.amount_to_win - order.amount_to_bet);
+          $scope.get_inverse_decimal_odds = (order) => order.amount_to_win / (order.amount_to_win - order.amount_to_bet)
+
+          // for sorting order books
+          let order_compare = (a, b) => $scope.get_decimal_odds(a) - $scope.get_decimal_odds(b)
+
+          let reduce_balances = (account_name, parent_event_log_entry) => {
+              let balances = $scope.account_balances[account_name];
+              let additional_not_cancel_balance = Math.min(balances.win, balances.not_win);
+              balances.win -= additional_not_cancel_balance;
+              balances.not_win -= additional_not_cancel_balance;
+              balances.not_cancel += additional_not_cancel_balance;
+
+              let immediate_winnings = Math.min(balances.cancel, balances.not_cancel);
+              balances.cancel -= immediate_winnings;
+              balances.not_cancel -= immediate_winnings;
+              balances.balance += immediate_winnings;
+              if (immediate_winnings)
+                  parent_event_log_entry.subentries.push({ description: `returning guaranteed winnings of ${immediate_winnings} to ${account_name}`, subentries: [] });
+          };
+
+          let try_to_match_bet = (new_bet, back_or_lay, order_book_to_match_against, parent_event_log_entry) => {
+              let new_bet_odds = $scope.get_decimal_odds(new_bet);
+              while (order_book_to_match_against.length) {
+                  let top_of_order_book = order_book_to_match_against[0];
+                  let top_bet_odds = $scope.get_inverse_decimal_odds(top_of_order_book);
+                  if (new_bet_odds > top_bet_odds)
+                      return false;
+
+                  let amount_taker_will_bet = Math.min(new_bet.amount_to_bet, top_of_order_book.amount_to_win - top_of_order_book.amount_to_bet);
+                  let amount_maker_will_bet = amount_taker_will_bet * top_of_order_book.amount_to_bet / (top_of_order_book.amount_to_win - top_of_order_book.amount_to_bet);
+                  let amount_winner_will_win = amount_taker_will_bet + amount_maker_will_bet;
+                  
+                  let match_log_entry = { description: `matched a bet from ${top_of_order_book.username} for ${amount_taker_will_bet} to win ${amount_winner_will_win}`, subentries: [] };
+                  parent_event_log_entry.subentries.push(match_log_entry);
+
+
+                  // Change our payout ledger
+                  if (back_or_lay == 'back') {
+                      $scope.account_balances[new_bet.username].win += amount_winner_will_win;
+                      $scope.account_balances[top_of_order_book.username].not_win += amount_winner_will_win;
+                  } else {
+                      $scope.account_balances[new_bet.username].not_win += amount_winner_will_win;
+                      $scope.account_balances[top_of_order_book.username].win += amount_winner_will_win;
+                  }
+                  $scope.account_balances[new_bet.username].cancel += amount_taker_will_bet;
+                  $scope.account_balances[top_of_order_book.username].cancel += amount_maker_will_bet;
+
+                  // and issue refunds if possible
+                  reduce_balances(new_bet.username, match_log_entry);
+                  reduce_balances(top_of_order_book.username, match_log_entry);
+
+                  // compute what is left of the taker's bet
+                  let new_taker_amount_to_bet = new_bet.amount_to_bet - amount_taker_will_bet;
+                  let new_taker_amount_to_win = new_taker_amount_to_bet + new_taker_amount_to_bet * (new_bet.amount_to_win - new_bet.amount_to_bet) / new_bet.amount_to_bet;
+                  new_bet.amount_to_bet = new_taker_amount_to_bet;
+                  new_bet.amount_to_win = new_taker_amount_to_win;
+
+                  // and what is left of the maker's bet
+                  top_of_order_book.amount_to_bet -= amount_maker_will_bet;
+                  top_of_order_book.amount_to_win -= amount_winner_will_win;
+
+                  // remove maker's bets from the books if we gobbled them up
+                  if (top_of_order_book.amount_to_bet == 0) {
+                      match_log_entry.subentries.push({ description: `fully matched bet from ${top_of_order_book.username}`, subentries: [] });
+                      order_book_to_match_against.shift();
+                  }
+                  // if the taker's bet is filled, we're done; otherwise loop.
+                  if (new_bet.amount_to_bet == 0) {
+                      match_log_entry.subentries.push({ description: `fully matched bet from ${new_bet.username}`, subentries: [] });
+                      return true;
+                  } else {
+                      match_log_entry.subentries.push({ description: `partially matched bet from ${new_bet.username} stays on the books, betting ${new_bet.amount_to_bet} to win ${new_bet.amount_to_win}`, subentries: [] });
+                  }
+              }
+              return false; // if we got here, we failed to completely match the bet
+          };
+
+          $scope.place_bet = (username, back_or_lay, amount_to_bet, amount_to_win) => {
+              if ($scope.account_balances[username].balance >= amount_to_bet) {
+
+                  let order_book = back_or_lay == 'back' ? $scope.order_book.backs : $scope.order_book.lays;
+                  let order_book_to_match_against = back_or_lay == 'back' ? $scope.order_book.lays : $scope.order_book.backs;
+
+                  $scope.account_balances[username].balance -= amount_to_bet;
+                  let this_bet = {username: username, amount_to_bet: amount_to_bet, amount_to_win: amount_to_win};
+                  let event_log_entry = { description: `${username} places a ${back_or_lay} bet for ${amount_to_bet} to win ${amount_to_win}, odds ${$scope.get_decimal_odds(this_bet)}`, subentries: [] };
+
+                  if (!try_to_match_bet(this_bet, back_or_lay, order_book_to_match_against, event_log_entry)) {
+                      order_book.push(this_bet);
+                      order_book.sort(order_compare);
+                  }
+                  $scope.event_log.push(event_log_entry);
+              }
+          };
+
+          $scope.place_bet_from_form = () => {
+              $scope.place_bet($scope.bet_to_place.username, $scope.bet_to_place.back_or_lay, parseInt($scope.bet_to_place.amount_to_bet), parseInt($scope.bet_to_place.amount_to_win));
+              $scope.bet_to_place = {username: 'alice', back_or_lay: 'back', amount_to_bet: null, amount_to_win: null};
+          };
+
+          let cancel_all_bets_on_side = (order_book_side, parent_log_entry) => {
+              order_book_side.forEach( (bet) => {
+                  $scope.account_balances[bet.username].balance += bet.amount_to_bet;
+                  parent_log_entry.subentries.push({ description: `Returning ${bet.amount_to_bet} to ${bet.username}`, subentries: []});
+              });
+              order_book_side = [];
+          };
+          let cancel_all_bets = (parent_log_entry) => {
+              let cancel_event_log_entry = { description: `Canceling all bets`, subentries: []};
+
+              cancel_all_bets_on_side($scope.order_book.backs, cancel_event_log_entry);
+              $scope.order_book.backs = [];
+              cancel_all_bets_on_side($scope.order_book.lays, cancel_event_log_entry);
+              $scope.order_book.lays = [];
+
+              parent_log_entry.subentries.push(cancel_event_log_entry);
+          };
+          $scope.payout = (condition) => {
+              let payout_event_log_entry = { description: `Paying out a ${condition}`, subentries: []};
+              cancel_all_bets(payout_event_log_entry);
+              for (var account_name in $scope.account_balances) {
+                  if ($scope.account_balances.hasOwnProperty(account_name)) {
+                      let balance_object = $scope.account_balances[account_name];
+                      let total_paid = 0;
+                      if (condition == 'win')
+                          total_paid = balance_object.win + balance_object.not_cancel;
+                      else if (condition == 'not win')
+                          total_paid = balance_object.not_win + balance_object.not_cancel;
+                      else
+                          total_paid = balance_object.cancel;
+
+                      balance_object.win = 0;
+                      balance_object.not_win = 0;
+                      balance_object.not_cancel = 0;
+                      balance_object.cancel = 0;
+                      if (total_paid) {
+                          payout_event_log_entry.subentries.push({ description: `Paying ${total_paid} to ${account_name}`, subentries: []});
+                          balance_object.balance += total_paid;
+                      }
+                  }
+              }
+              $scope.event_log.push(payout_event_log_entry);
+          };
+
+          //$scope.place_bet("bob", "lay", 500, 1000);
+          //$scope.place_bet("bob", "lay", 100, 1100);
+          //$scope.place_bet("bob", "lay", 1000, 1500);
+
+          //$scope.place_bet("alice", "back", 500, 1000);
+          //$scope.place_bet("alice", "back", 500, 1500);
+      }]);
+
+startApp.controller('Page2Controller', ['$scope', function($scope) {
+}]);
+    </script>
+</head>
+<body>
+
+    <!-- Inline partials -->
+    <!-- Page 1 -->
+<script type="text/ng-template" id="/page1.html">
+  <div class="container">
+    <div class="page-header">
+      <h1>Peerplays Engine Playground</h1>
+    </div>
+    <div class="row">
+      <div class="col-sm-6">
+        <div class="panel panel-default">
+          <div class="panel-heading">Available Balances</div>
+          <table class="table">
+            <tr>
+              <th>account</th>
+              <th>balance</th>
+              <th>win</th>
+              <th>not win</th>
+              <th>cancel</th>
+              <th>not cancel</th>
+            </tr>
+            <tr ng-repeat="(account_name, balance_record) in account_balances">
+              <td>{{account_name}}</td>
+              <td>{{balance_record.balance}}</td>
+              <td>{{balance_record.win}}</td>
+              <td>{{balance_record.not_win}}</td>
+              <td>{{balance_record.cancel}}</td>
+              <td>{{balance_record.not_cancel}}</td>
+            </tr>
+          </table>
+        </div>
+        <div class="panel panel-default">
+          <div class="panel-heading">Resolve Market</div>
+          <div class="container">
+            <form class="form">
+              <div class="form-group">
+              <button type="button" class="btn btn-primary" ng-click="payout('win')">Win</button>
+              <button type="button" class="btn btn-primary" ng-click="payout('not win')">Not Win</button>
+              <button type="button" class="btn btn-primary" ng-click="payout('cancel')">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6">
+        <div class="panel panel-default">
+          <div class="panel-heading">Place Bet</div>
+          <form class="form-horizontal">
+            <div class="form-group">
+              <label for="account" class="control-label col-sm-2">Account:</label>
+              <div class="col-sm-10">
+                <select id="account" class="form-control" ng-model="bet_to_place.username">
+                  <option ng-repeat="(account_name, balance) in account_balances" value="{{account_name}}">{{account_name}}</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="bet-type" class="control-label col-sm-2">Bet Type:</label>
+              <div class="col-sm-10">
+                <select id="bet-type" class="form-control" ng-model="bet_to_place.back_or_lay">
+                  <option value="back">Back</option>
+                  <option value="lay">Lay</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="amount-to-bet" class="control-label col-sm-2">Amount to bet:</label>
+              <div class="col-sm-10">
+                <input id="amount-to-bet" class="form-control" type="text" ng-model="bet_to_place.amount_to_bet" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="amount-to-win" class="control-label col-sm-2">Amount to win:</label>
+              <div class="col-sm-10">
+                <input id="amount-to-win" class="form-control" type="text" ng-model="bet_to_place.amount_to_win" /></label><br />
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="col-sm-offset-2 col-sm-10">
+                <input type="button" class="btn btn-default" ng-click="place_bet_from_form()" value="Place Bet" />
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+
+    <h2>Order book</h2>
+    <div class="row">
+      <div class="col-sm-5">
+        <div class="panel panel-default">
+          <div class="panel-heading">Back orders</div>
+          <table class="table">
+            <tr>
+              <th>account</th>
+              <th>amount_to_bet</th>
+              <th>amount_to_win</th>
+              <th>odds</th>
+              <th>odds (decimal)</th>
+            </tr>
+            <tr ng-repeat="order in order_book.backs">
+              <td>{{order.username}}</td>
+              <td>{{order.amount_to_bet}}</td>
+              <td>{{order.amount_to_win}}</td>
+              <td>{{get_odds(order)}}:1</td>
+              <td>{{get_decimal_odds(order)}}</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+      <div class="col-sm-7">
+        <div class="panel panel-default">
+          <div class="panel-heading">Lay orders</div>
+          <table class="table">
+            <tr>
+              <th>username</th>
+              <th>amount_to_bet</th>
+              <th>amount_to_win</th>
+              <th>odds</th>
+              <th>odds (decimal)</th>
+              <th>inverse odds</th>
+              <th>inverse odds (decimal)</th>
+            </tr>
+            <tr ng-repeat="order in order_book.lays">
+              <td>{{order.username}}</td>
+              <td>{{order.amount_to_bet}}</td>
+              <td>{{order.amount_to_win}}</td>
+              <td>{{get_odds(order)}}:1</td>
+              <td>{{get_decimal_odds(order)}}</td>
+              <td>{{get_inverse_odds(order)}}:1</td>
+              <td>{{get_inverse_decimal_odds(order)}}</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <h2>Event log</h2>
+    <div class="well">
+      <ul>
+        <li ng-repeat="event in event_log" ng-include="'logEntryTree'"></li>
+        </li>
+      </ul>
+    </div>
+</div>
+</script>
+<script type="text/ng-template" id="logEntryTree">
+    {{ event.description }}
+    <ul ng-if="event.subentries">
+        <li ng-repeat="event in event.subentries" ng-include="'logEntryTree'"></li>
+    </ul>
+</script>
+<!-- Page 2 -->
+<script type="text/ng-template" id="/page2.html">
+<div>
+    <h3>Welcome to the second page</h3>
+    <div>
+        <a ng-href="#/page1" >Back</a>
+    </div>
+</div>
+</script>
+<!-- end of partials -->
+
+    <div id="page-div" ng-view>
+    </div>
+</body>
+</html>
