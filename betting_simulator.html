@@ -33,6 +33,24 @@
           let percentage_fee = new Big(0);//new Big('0.02');
           let bet_id_sequence = 0;
 
+
+          let stop_on_error = true;
+          let error_count = 0;
+          let stop_on_warning = false;
+          let warning_count = 0;
+
+          let log_warning = (message) => {
+            ++warning_count;
+            Notification.error({message: message, delay: 10000});
+            //console.log("Warning: " + message);
+          };
+          let log_error = (message) => {
+            ++error_count;
+            Notification.error({message: message, delay: 10000});
+            //console.log("Error: " + message);
+          };
+
+
           class LogEntry {
             constructor(description) {
               this.description = description;
@@ -83,6 +101,12 @@
               differencePosition.unused_back_exposure = differencePosition.unused_back_exposure.minus(otherPosition.unused_back_exposure);
               differencePosition.unused_locked_in_profit = differencePosition.unused_locked_in_profit.minus(otherPosition.unused_locked_in_profit);
               return differencePosition;
+            }
+            has_nonzero_component() {
+              return ! (this.balance.eq(0) && this.balance_at_last_payout.eq(0) && this.win.eq(0) && this.not_win.eq(0) &&
+                        this.cancel.eq(0) && this.not_cancel.eq(0) && this.fees_paid.eq(0) && this.refundable_unmatched_bets.eq(0) &&
+                        this.unmatched_back_bets.eq(0) && this.unmatched_lay_bets.eq(0) && this.unused_lay_exposure.eq(0) && 
+                        this.unused_back_exposure.eq(0) && this.unused_locked_in_profit.eq(0));
             }
             reduce(parent_event_log_entry) {
                 let additional_not_cancel_balance = big_min(this.win, this.not_win);
@@ -166,28 +190,38 @@
           $scope.invariant_is_violated = (system, account_name) => {
             let balance_record = $scope.account_balances[system][account_name];
 
-            if (!balance_record.balance.plus(balance_record.cancel).plus(balance_record.refundable_unmatched_bets).plus(balance_record.fees_paid).eq(balance_record.balance_at_last_payout))
+            if (!balance_record.balance.plus(balance_record.cancel).plus(balance_record.refundable_unmatched_bets).plus(balance_record.fees_paid).eq(balance_record.balance_at_last_payout)) {
+              log_error(`Invariant violated for ${balance_record.account_name}, cancel + refundable + fees != balance_at_last_payout`);
               return true;
+            }
 
-            if (!balance_record.win.eq(0) && !balance_record.not_win.eq(0))
+            if (!balance_record.win.eq(0) && !balance_record.not_win.eq(0)) {
+              log_error(`Invariant violated for ${balance_record.account_name}, either win or not_win must be 0`);
               return true;
+            }
 
-            if (!balance_record.cancel.eq(0) && !balance_record.not_cancel.eq(0))
+            if (!balance_record.cancel.eq(0) && !balance_record.not_cancel.eq(0)) {
+              log_error(`Invariant violated for ${balance_record.account_name}, either cancel or not_cancel must be 0`);
               return true;
+            }
 
             if (system == 'simple')
             {
               if (balance_record.not_win.lt(balance_record.unused_lay_exposure) || 
                   balance_record.win.lt(balance_record.unused_back_exposure) ||
-                  balance_record.not_cancel.lt(balance_record.unused_locked_in_profit))
+                  balance_record.not_cancel.lt(balance_record.unused_locked_in_profit)) {
+                log_error(`Invariant violated for ${balance_record.account_name}, not_win < unused_lay_exposure or win < unused_back_exposure or not_cancel < unused_locked_in_profit`);
                 return true;
+              }
 
               if (!balance_record.unmatched_lay_bets.plus(balance_record.unmatched_back_bets).eq(
                   balance_record.refundable_unmatched_bets.plus(
                   balance_record.win).minus(balance_record.unused_back_exposure).plus(
                   balance_record.not_win).minus(balance_record.unused_lay_exposure).plus(
-                  balance_record.not_cancel).minus(balance_record.unused_locked_in_profit)))
+                  balance_record.not_cancel).minus(balance_record.unused_locked_in_profit))) {
+                log_error(`Invariant violated for ${balance_record.account_name}, unmatched_lay_bets + unmatched_back_bets != refundable_unmatched_bets + (win - unused_back_exposure) + (not_win - unused_lay_exposure) + (not_cancel - unused_locked_in_profit)`);
                 return true;
+              }
             }
 
             return false;
@@ -265,7 +299,8 @@
                                 amount_bet).minus(
                                 delta_refundable_unmatched_bets)
             parent_event_log_entry.add_log_message(`return_amount: ${return_amount.toFixed()}`);
-            console.assert(return_amount.gte(0), 'Error, negative return amount');
+            if (return_amount.lt(0))
+              log_error(`Return amount of ${return_amount.toFixed()} for account ${bettor} is negative`);
             bettor_balances_simple_system.balance = bettor_balances_simple_system.balance.plus(return_amount);
           };
 
@@ -493,12 +528,10 @@
             if (new_bet.back_or_lay == 'back') 
             {
               exposure = bettor_balances_simple_system.unused_lay_exposure;
-              bettor_balances_simple_system.unmatched_back_bets = bettor_balances_simple_system.unmatched_back_bets.plus(new_bet.amount_to_bet);
             }
             else
             {
               exposure = bettor_balances_simple_system.unused_back_exposure;
-              bettor_balances_simple_system.unmatched_lay_bets = bettor_balances_simple_system.unmatched_lay_bets.plus(new_bet.amount_to_bet);
             }
 
             let amount_of_exposure_leaned_on = big_min(new_bet.amount_to_bet, exposure);
@@ -510,9 +543,15 @@
             if (required_funds.lte(bettor_balances_simple_system.balance))
             {
               if (new_bet.back_or_lay == 'back')
+              {
                 bettor_balances_simple_system.unused_lay_exposure = bettor_balances_simple_system.unused_lay_exposure.minus(amount_of_exposure_leaned_on);
+                bettor_balances_simple_system.unmatched_back_bets = bettor_balances_simple_system.unmatched_back_bets.plus(new_bet.amount_to_bet);
+              }
               else
+              {
                 bettor_balances_simple_system.unused_back_exposure = bettor_balances_simple_system.unused_back_exposure.minus(amount_of_exposure_leaned_on);
+                bettor_balances_simple_system.unmatched_lay_bets = bettor_balances_simple_system.unmatched_lay_bets.plus(new_bet.amount_to_bet);
+              }
               bettor_balances_simple_system.unused_locked_in_profit = bettor_balances_simple_system.unused_locked_in_profit.minus(amount_of_locked_in_profit_leaned_on);
 
               if (required_funds.gt(0))
@@ -584,7 +623,7 @@
               let bet_is_allowed_simple_system = register_bet_simple_system(new_bet, event_log_entry);
 
               // if we were allowed to palce the bet, add it to the order books and then see if we can match it now
-              if (bet_is_allowed_complex_system || bet_is_allowed_simple_system) {
+              if (bet_is_allowed_complex_system && bet_is_allowed_simple_system) {
                 let order_book = new_bet.back_or_lay == 'back' ? $scope.order_book.backs : $scope.order_book.lays;
                 let order_book_to_match_against = new_bet.back_or_lay == 'back' ? $scope.order_book.lays : $scope.order_book.backs;
 
@@ -594,6 +633,11 @@
                 let accounts_affected = try_to_match_bet(new_bet, new_bet.back_or_lay, order_book_to_match_against, event_log_entry);
                 event_log_entry.add_log_message(`After matching bet, accounts_affected is ${Array.from(accounts_affected).join(',')}`);
                 update_unmatched_bets_complex_system(accounts_affected, event_log_entry);
+                return true;
+              }
+              else
+              {
+                return false;
               }
 
           };
@@ -694,21 +738,68 @@
               return Math.floor(Math.random() * (max - min)) + min;
           };
 
+          let valid_bet_odds_list = [];
+          let make_valid_bet_odds_list = () => {
+            let valid_bet_odds_table = [ [    2, new Big(  '.0100')],  /* <=    2:  0.01 */ 
+                                         [    3, new Big(  '.0200')],  /* <=    3:  0.02 */ 
+                                         [    4, new Big(  '.0500')],  /* <=    4:  0.05 */ 
+                                         [    6, new Big(  '.1000')],  /* <=    6:  0.10 */ 
+                                         [   10, new Big(  '.2000')],  /* <=   10:  0.20 */ 
+                                         [   20, new Big(  '.5000')],  /* <=   20:  0.50 */ 
+                                         [   30, new Big( '1.0000')],  /* <=   30:  1.00 */ 
+                                         [   50, new Big( '2.0000')],  /* <=   50:  2.00 */ 
+                                         [  100, new Big( '5.0000')],  /* <=  100:  5.00 */ 
+                                         [ 1000, new Big('10.0000')] ]; /* <= 1000: 10.00 */
+
+            let current_odds = new Big('1');
+            for (let i = 0; i < valid_bet_odds_table.length; ++i) {
+              while (current_odds < valid_bet_odds_table[i][0]) {
+                current_odds = current_odds.plus(valid_bet_odds_table[i][1]);
+                valid_bet_odds_list.push(current_odds);
+              }
+            }
+          };
+          make_valid_bet_odds_list();
+          //valid_bet_odds_list.forEach((odds) => { console.log(`odds: ${odds.toFixed()}`); });
+
           let random_bet_timer = null;
+          let number_of_random_bets_placed = 0;
+          let number_of_random_bets_to_place = 1000;
+          let max_difference = new Big(0);
+
           let place_random_bet = () => {
             let back_or_lay = get_random_int(0, 2) == 0 ? 'back' : 'lay';
-            let bettor = all_account_names[get_random_int(0, 2 /* all_account_names.length*/ )];
+            let bettor = all_account_names[get_random_int(0, 3/*all_account_names.length*/)];
             let amount_to_bet = get_random_int(1, 11) * 10;
-            let odds = get_random_int(2,11);
+            let odds = valid_bet_odds_list[get_random_int(1, valid_bet_odds_list.length)];
 
-            $scope.place_bet(new Bet(bettor, back_or_lay, amount_to_bet, odds, 0));
+            //let original_balance_simple = $scope.account_balances.simple[bettor].clone();
+            //let original_balance_complex = $scope.account_balances.complex[bettor].clone();
+            if ($scope.place_bet(new Bet(bettor, back_or_lay, amount_to_bet, odds, 0))) {
+              if (number_of_random_bets_placed % 100 == 0)
+                console.log(`placed bet #${number_of_random_bets_placed}`);
+            } else {
+              // unable to place bet due to lack of funds, randomly cancel a bet instead
+              if (number_of_random_bets_placed % 100 == 0)
+                console.log(`bet rejected because of insufficient funds, canceling a random bet instead #${number_of_random_bets_placed}`);
+              let bettor_bets = $scope.order_book['backs'].filter( (x) => x.bettor == bettor ).concat($scope.order_book['lays'].filter( (x) => x.bettor == bettor ));
+              let bet_to_cancel = bettor_bets[get_random_int(0, bettor_bets.length)];
+              $scope.cancel_bet_interactive(bet_to_cancel);
+            }
+            //let final_balance_simple = $scope.account_balances.simple[bettor].clone();
+            //let final_balance_complex = $scope.account_balances.complex[bettor].clone();
+            //let delta_balance_simple = final_balance_simple.minus(original_balance_simple);
+            //let delta_balance_complex = final_balance_complex.minus(original_balance_complex);
+            //if (delta_balance_simple.has_nonzero_component() || delta_balance_complex.has_nonzero_component())
+            //  console.log(`${bettor} delta balances simple: ${JSON.stringify(delta_balance_simple)}, complex: ${JSON.stringify(delta_balance_complex)}`);
 
             // check global invariants
             for (var balance_system_name in $scope.account_balances)
                 if ($scope.account_balances.hasOwnProperty(balance_system_name))
                     if ($scope.global_invariant_is_violated(balance_system_name)) {
-                        Notification.error({message: `Random bet violated global invariant for ${balance_system_name}`, delay: 10000});
-                        $interval.cancel(random_bet_timer);
+                        log_error(`Random bet violated global invariant for ${balance_system_name}`);
+                        if (stop_on_error)
+                          $interval.cancel(random_bet_timer);
                         return;
                     }
 
@@ -719,8 +810,9 @@
                     for (var account_name in balance_system)
                         if (balance_system.hasOwnProperty(account_name)) 
                             if ($scope.invariant_is_violated(balance_system_name, account_name)) {
-                                Notification.error({message: `Random bet violated account invariant for ${account_name} in ${balance_system_name}`, delay: 10000});
-                                $interval.cancel(random_bet_timer);
+                                log_error(`Random bet violated account invariant for ${account_name} in ${balance_system_name}`);
+                                if (stop_on_error)
+                                  $interval.cancel(random_bet_timer);
                                 return;
                             }
                 }
@@ -736,13 +828,30 @@
                         $scope.position_element_is_inconsistent(account_name, 'not_cancel') || 
                         $scope.position_element_is_inconsistent(account_name, 'refundable_unmatched_bets') ||
                         $scope.position_element_is_inconsistent(account_name, 'fees_paid')) {
-                          Notification.error({message: `Random bet from ${bettor} exposed difference between simple and complex accounting system`, delay: 10000});
-                          $interval.cancel(random_bet_timer);
+                          max_difference = big_max(max_difference, $scope.account_balances.complex[bettor].balance.minus($scope.account_balances.simple[bettor].balance));
+                          log_warning(`Random bet from ${bettor} exposed difference between simple and complex accounting system, max difference is ${max_difference.toFixed()}`);
+                          if (stop_on_warning)
+                            $interval.cancel(random_bet_timer);
                           return;
                         }
+            ++number_of_random_bets_placed;
+            if (number_of_random_bets_placed >= number_of_random_bets_to_place)
+              $interval.cancel(random_bet_timer);
+
             $scope.clear_event_log();
           };
-          //random_bet_timer = $interval(place_random_bet, 150);
+
+          // Enable this block to place bets without any display, stopping when there is an error
+          // for (let i = 0; i < 10000; ++i) {
+          //   place_random_bet();
+          //   if (stop_on_error && error_count)
+          //     break;
+          //   if (stop_on_warning && warning_count)
+          //     break;
+          // }
+
+          // enable this to place random bets at a pace you can watch
+          // random_bet_timer = $interval(place_random_bet, 150);
           
 
           //$scope.place_bet(new Bet("alice", "back", 10, 10, 0));

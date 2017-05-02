@@ -639,6 +639,13 @@ FC_API(graphene::app::database_api,
    (list_assets)
    (lookup_asset_symbols)
 
+    // Peerplays
+    (get_global_betting_statistics)
+    (list_sports)
+    (list_event_groups)
+    (list_betting_market_groups)
+    (list_betting_markets)
+
    // Markets / feeds
    (get_order_book)
    (get_limit_orders)
