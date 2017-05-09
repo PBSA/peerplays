@@ -434,6 +434,7 @@ global_betting_statistics_object database_api_impl::get_global_betting_statistic
    return _db.get(global_betting_statistics_id_type());
 }
 
+
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
 // Keys                                                             //
