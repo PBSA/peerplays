@@ -1404,6 +1404,55 @@ class wallet_api
          bool broadcast /* = false */
          );
 
+      vector<sport_object> list_sports() const;
+      vector<event_group_object> list_event_groups(sport_id_type sport_id) const;
+      vector<betting_market_group_object> list_betting_market_groups(event_id_type event_id) const;
+      vector<betting_market_object> list_betting_markets(betting_market_group_id_type betting_market_group_id) const;
+      global_betting_statistics_object get_global_betting_statistics() const;
+
+      signed_transaction propose_create_sport(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              internationalized_string_type name,
+              bool broadcast = false);
+
+      signed_transaction propose_create_competitor(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              internationalized_string_type name,
+              sport_id_type sport_id,
+              bool broadcast = false);
+
+      signed_transaction propose_create_event_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              internationalized_string_type name,
+              sport_id_type sport_id,
+              bool broadcast = false);
+
+      signed_transaction propose_create_event(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              internationalized_string_type season,
+              event_group_id_type event_group_id,
+              vector<competitor_id_type> competitors,
+              bool broadcast = false);
+
+      signed_transaction propose_create_betting_market_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              event_id_type event_id,
+              betting_market_options_type options,
+              bool broadcast = false);
+
+      signed_transaction propose_create_betting_market(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              betting_market_group_id_type group_id,
+              internationalized_string_type payout_condition,
+              asset_id_type asset_id,
+              bool broadcast = false);
+
       void dbg_make_uia(string creator, string symbol);
       void dbg_make_mia(string creator, string symbol);
       void flood_network(string prefix, uint32_t number_of_transactions);
@@ -1591,4 +1640,15 @@ FC_API( graphene::wallet::wallet_api,
         (blind_transfer)
         (blind_history)
         (receive_blind_transfer)
+        (list_sports)
+        (list_event_groups)
+        (list_betting_market_groups)
+        (list_betting_markets)
+        (get_global_betting_statistics)
+        (propose_create_sport)
+        (propose_create_competitor)
+        (propose_create_event_group)
+        (propose_create_event)
+        (propose_create_betting_market_group)
+        (propose_create_betting_market)
       )

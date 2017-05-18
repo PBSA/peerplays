@@ -4092,6 +4092,213 @@ vector<blind_receipt> wallet_api::blind_history( string key_or_account )
    return result;
 }
 
+///////////////
+// peerplays //
+///////////////
+
+vector<sport_object> wallet_api::list_sports() const
+{
+    return my->_remote_db->list_sports();
+}
+
+vector<event_group_object> wallet_api::list_event_groups(sport_id_type sport_id) const
+{
+    return my->_remote_db->list_event_groups(sport_id);
+}
+
+vector<betting_market_group_object> wallet_api::list_betting_market_groups(event_id_type event_id) const
+{
+    return my->_remote_db->list_betting_market_groups(event_id);
+}
+
+vector<betting_market_object> wallet_api::list_betting_markets(betting_market_group_id_type betting_market_group_id) const
+{
+    return my->_remote_db->list_betting_markets(betting_market_group_id);
+}
+
+global_betting_statistics_object wallet_api::get_global_betting_statistics() const
+{
+    return my->_remote_db->get_global_betting_statistics();
+}
+
+
+signed_transaction wallet_api::propose_create_sport(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        internationalized_string_type name,
+        bool broadcast /*= false*/)
+{
+   FC_ASSERT( !is_locked() );
+   const chain_parameters& current_params = get_global_properties().parameters;
+
+   sport_create_operation sport_create_op;
+   sport_create_op.name = name;
+
+   proposal_create_operation prop_op;
+   prop_op.expiration_time = expiration_time;
+   prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+   prop_op.fee_paying_account = get_account(proposing_account).id;
+   prop_op.proposed_ops.emplace_back( sport_create_op );
+   current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+   signed_transaction tx;
+   tx.operations.push_back(prop_op);
+   my->set_operation_fees(tx, current_params.current_fees);
+   tx.validate();
+
+   return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::propose_create_competitor(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        internationalized_string_type name,
+        sport_id_type sport_id,
+        bool broadcast /*= false*/)
+{
+   FC_ASSERT( !is_locked() );
+   const chain_parameters& current_params = get_global_properties().parameters;
+
+   competitor_create_operation competitor_create_op;
+   competitor_create_op.name = name;
+   competitor_create_op.sport_id = sport_id;
+
+   proposal_create_operation prop_op;
+   prop_op.expiration_time = expiration_time;
+   prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+   prop_op.fee_paying_account = get_account(proposing_account).id;
+   prop_op.proposed_ops.emplace_back( competitor_create_op );
+   current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+   signed_transaction tx;
+   tx.operations.push_back(prop_op);
+   my->set_operation_fees(tx, current_params.current_fees);
+   tx.validate();
+
+   return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::propose_create_event_group(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        internationalized_string_type name,
+        sport_id_type sport_id,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    event_group_create_operation event_group_create_op;
+    event_group_create_op.name = name;
+    event_group_create_op.sport_id = sport_id;
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( event_group_create_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::propose_create_event(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        internationalized_string_type season,
+        event_group_id_type event_group_id,
+        vector<competitor_id_type> competitors,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    event_create_operation event_create_op;
+    event_create_op.season = season;
+    event_create_op.event_group_id = event_group_id;
+    event_create_op.competitors.assign(competitors.begin(), competitors.end());
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( event_create_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::propose_create_betting_market_group(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        event_id_type event_id,
+        betting_market_options_type options,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    betting_market_group_create_operation betting_market_group_create_op;
+    betting_market_group_create_op.event_id = event_id;
+    betting_market_group_create_op.options = options;
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( betting_market_group_create_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::propose_create_betting_market(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        betting_market_group_id_type group_id,
+        internationalized_string_type payout_condition,
+        asset_id_type asset_id,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    betting_market_create_operation betting_market_create_op;
+    betting_market_create_op.group_id = group_id;
+    betting_market_create_op.payout_condition = payout_condition;
+    betting_market_create_op.asset_id = asset_id;
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( betting_market_create_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
+
 // default ctor necessary for FC_REFLECT
 signed_block_with_info::signed_block_with_info()
 {
