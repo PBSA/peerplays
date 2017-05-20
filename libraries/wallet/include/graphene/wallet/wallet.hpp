@@ -1453,6 +1453,22 @@ class wallet_api
               asset_id_type asset_id,
               bool broadcast = false);
 
+      signed_transaction place_bet(
+              const string& betting_account,
+              betting_market_id_type betting_market_id,
+              bet_type back_or_lay,
+              asset amount_to_bet,
+              bet_multiplier_type backer_multiplier,
+              share_type amount_reserved_for_fees,
+              bool broadcast = false);
+
+      signed_transaction propose_resolve_betting_market(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              betting_market_id_type betting_market_id,
+              betting_market_resolution_type resolution,
+              bool broadcast = false);
+
       void dbg_make_uia(string creator, string symbol);
       void dbg_make_mia(string creator, string symbol);
       void flood_network(string prefix, uint32_t number_of_transactions);
@@ -1651,4 +1667,6 @@ FC_API( graphene::wallet::wallet_api,
         (propose_create_event)
         (propose_create_betting_market_group)
         (propose_create_betting_market)
+        (place_bet)
+        (propose_resolve_betting_market)
       )

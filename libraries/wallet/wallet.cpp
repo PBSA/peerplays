@@ -4298,6 +4298,62 @@ signed_transaction wallet_api::propose_create_betting_market(
     return my->sign_transaction(tx, broadcast);
 }
 
+signed_transaction wallet_api::place_bet(
+        const string& betting_account,
+        betting_market_id_type betting_market_id,
+        bet_type back_or_lay,
+        asset amount_to_bet,
+        bet_multiplier_type backer_multiplier,
+        share_type amount_reserved_for_fees,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    bet_place_operation bet_place_op;
+    bet_place_op.bettor_id = get_account(betting_account).id;
+    bet_place_op.betting_market_id = betting_market_id;
+    bet_place_op.amount_to_bet = amount_to_bet;
+    bet_place_op.backer_multiplier = backer_multiplier;
+    bet_place_op.amount_reserved_for_fees = amount_reserved_for_fees;
+    bet_place_op.back_or_lay = back_or_lay;
+
+    signed_transaction tx;
+    tx.operations.push_back(bet_place_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::propose_resolve_betting_market(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        betting_market_id_type betting_market_id,
+        betting_market_resolution_type resolution,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    betting_market_resolve_operation betting_market_resolve_op;
+    betting_market_resolve_op.betting_market_id = betting_market_id;
+    betting_market_resolve_op.resolution = resolution;
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( betting_market_resolve_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
 
 // default ctor necessary for FC_REFLECT
 signed_block_with_info::signed_block_with_info()
