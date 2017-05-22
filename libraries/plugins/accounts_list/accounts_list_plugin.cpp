@@ -62,8 +62,7 @@ class accounts_list_plugin_impl
       }
 
       accounts_list_plugin& _self;
-      vector<account_id_type> _listed_accounts;
-      //map<string, account_balance_object> _listed_balances;
+      vector<account_balance_object> _listed_balances;
 };
 
 accounts_list_plugin_impl::~accounts_list_plugin_impl()
@@ -74,19 +73,16 @@ accounts_list_plugin_impl::~accounts_list_plugin_impl()
 void accounts_list_plugin_impl::list_accounts()
 {
    graphene::chain::database& db = database();
-   _listed_accounts.clear();
+   _listed_balances.clear();
 
-
-   std::vector<account_balance_object> db_balances;
    auto& balance_index = db.get_index_type<graphene::chain::account_balance_index>().indices().get<graphene::chain::by_asset_balance>();
    for (auto balance_iter = balance_index.begin();
              balance_iter != balance_index.end() &&
              balance_iter->asset_type == graphene::chain::asset_id_type() &&
              balance_iter->balance > 0; ++balance_iter)
    {
-       idump((balance_iter->owner(db))(*balance_iter));
-       _listed_accounts.emplace_back(balance_iter->owner);
-       db_balances.emplace_back(*balance_iter);
+        //idump((balance_iter->owner(db) .name)(*balance_iter));
+       _listed_balances.emplace_back(*balance_iter);
    }
 
 }
@@ -119,26 +115,21 @@ void accounts_list_plugin::plugin_set_program_options(
 
 void accounts_list_plugin::plugin_initialize(const boost::program_options::variables_map& /*options*/)
 {
-   ilog("accounts list plugin:  plugin_initialize()");
-   //database().add_index< primary_index< simple_index< operation_history_object > > >();
-   //database().add_index< primary_index< simple_index< account_transaction_history_object > > >();
-
-   //LOAD_VALUE_SET(options, "listed-accounts", my->_listed_accounts, graphene::chain::account_id_type);
-
+   //ilog("accounts list plugin:  plugin_initialize()");
    list_accounts();
 }
 
 void accounts_list_plugin::plugin_startup()
 {
-    ilog("accounts list plugin:  plugin_startup()");
+    //ilog("accounts list plugin:  plugin_startup()");
 }
 
-std::vector<account_id_type> accounts_list_plugin::list_accounts() const
+ vector<account_balance_object> accounts_list_plugin::list_accounts() const
 {
      ilog("accounts list plugin:  list_accounts()");
      my->list_accounts();
-     idump((my->_listed_accounts));
-     return my->_listed_accounts;
+     //idump((my->_listed_balances));
+     return my->_listed_balances;
 }
 
 } }

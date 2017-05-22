@@ -25,6 +25,7 @@
 
 #include <graphene/app/plugin.hpp>
 #include <graphene/chain/database.hpp>
+#include <graphene/chain/account_object.hpp>
 
 #include <fc/thread/future.hpp>
 
@@ -49,7 +50,7 @@ class accounts_list_plugin : public graphene::app::plugin
       virtual void plugin_initialize(const boost::program_options::variables_map& options) override;
       virtual void plugin_startup() override;
 
-      vector<account_id_type> list_accounts()const;
+      vector<account_balance_object>list_accounts()const;
 
       friend class detail::accounts_list_plugin_impl;
       std::unique_ptr<detail::accounts_list_plugin_impl> my;

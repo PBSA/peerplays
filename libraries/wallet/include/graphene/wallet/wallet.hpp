@@ -340,7 +340,7 @@ class wallet_api
        */
       vector<operation_detail>  get_account_history(string name, int limit)const;
 
-      vector<account_id_type> list_core_accounts()const;
+      vector<account_balance_object> list_core_accounts()const;
 
       vector<bucket_object>             get_market_history(string symbol, string symbol2, uint32_t bucket)const;
       vector<limit_order_object>        get_limit_orders(string a, string b, uint32_t limit)const;

@@ -458,7 +458,7 @@ namespace graphene { namespace app {
        return result;
     }
 
-    vector<account_id_type> history_api::list_core_accounts()const
+    vector<account_balance_object> history_api::list_core_accounts()const
     {
        auto list = _app.get_plugin<accounts_list_plugin>( "accounts_list" );
        FC_ASSERT( list );
