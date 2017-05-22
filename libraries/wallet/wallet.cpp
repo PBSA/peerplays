@@ -3328,6 +3328,10 @@ vector<operation_detail> wallet_api::get_account_history(string name, int limit)
    return result;
 }
 
+vector<account_id_type> wallet_api::list_core_accounts()const
+{
+   return my->_remote_hist->list_core_accounts();
+}
 
 vector<bucket_object> wallet_api::get_market_history( string symbol1, string symbol2, uint32_t bucket )const
 {

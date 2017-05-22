@@ -340,6 +340,7 @@ class wallet_api
        */
       vector<operation_detail>  get_account_history(string name, int limit)const;
 
+      vector<account_id_type> list_core_accounts()const;
 
       vector<bucket_object>             get_market_history(string symbol, string symbol2, uint32_t bucket)const;
       vector<limit_order_object>        get_limit_orders(string a, string b, uint32_t limit)const;
@@ -1701,6 +1702,7 @@ FC_API( graphene::wallet::wallet_api,
         (get_block)
         (get_account_count)
         (get_account_history)
+        (list_core_accounts)
         (get_market_history)
         (get_global_properties)
         (get_dynamic_global_properties)
