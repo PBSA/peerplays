@@ -8320,453 +8320,528 @@
       "owner": "1CfhG8qqxWjZu2RhBrgEgaTo8yB2X8FXxE",
       "asset_symbol": "PPY",
       "amount": "75000000",
+      "begin_balance": "75000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "15SdPUMjM6PWPj5npQTKdFYPSaFzwj6cF6",
       "asset_symbol": "PPY",
       "amount": "475000000",
+      "begin_balance": "475000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1Paodun2kwVAeLHoWPVNxnyGJuCLwH93Q",
       "asset_symbol": "PPY",
       "amount": "20000000",
+      "begin_balance": "20000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "18bwP6Ha43s67GbQWTg8S29zQBaXZaZBsS",
       "asset_symbol": "PPY",
       "amount": "250000000",
+      "begin_balance": "250000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1MZJ6xJyAW7MpNKTG5xxx6S4bMy762EQoa",
       "asset_symbol": "PPY",
       "amount": "160000000",
+      "begin_balance": "160000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1PQAUuN6GzeNHsnkEnjjo8Q3vVCgmCWBkn",
       "asset_symbol": "PPY",
       "amount": "157300000",
+      "begin_balance": "157300000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "17mSMzBf2hpSaQVN8v2fkq2EVDTpZinqgF",
       "asset_symbol": "PPY",
       "amount": "358000000",
+      "begin_balance": "358000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1M1we47jwGtuQGugAMmF4sT518eZjVzdMq",
       "asset_symbol": "PPY",
       "amount": "300000000",
+      "begin_balance": "300000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1An9uzrFrToJQyAkwN5ZaX1AkETFU7v7WW",
       "asset_symbol": "PPY",
       "amount": "920000000",
+      "begin_balance": "920000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1HRYz1gJHcWDFm4pMBzgGwjpKRpSZ9StoE",
       "asset_symbol": "PPY",
       "amount": "154000000",
+      "begin_balance": "154000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1M4s1iz3GNCZkP5VzvERAtvpCs6xXBHJd2",
       "asset_symbol": "PPY",
       "amount": "440000000",
+      "begin_balance": "440000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1FXNsmtSs4cegB94mNXV5uqGKEr6tjS56w",
       "asset_symbol": "PPY",
       "amount": "440000000",
+      "begin_balance": "440000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "15XaCL7cFnhTfYE2ah7Hfk2S2Nspeq9eND",
       "asset_symbol": "PPY",
       "amount": "440000000",
+      "begin_balance": "440000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "12zeTCQyTR17CJYUzMQRgye4MoKQcy2JPu",
       "asset_symbol": "PPY",
       "amount": "120000000",
+      "begin_balance": "120000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1KkZALD9rHGvAR2wETXyMtTELLDVJ7rgeb",
       "asset_symbol": "PPY",
       "amount": "120000000",
+      "begin_balance": "120000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1AV7KR6FDQdPwUvVzQv8b5GbgXj5TqQnyA",
       "asset_symbol": "PPY",
       "amount": "120000000",
+      "begin_balance": "120000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1FfPdTKGuUZk8WskyyEyNux5y6VUwJ5cTE",
       "asset_symbol": "PPY",
       "amount": "160000000",
+      "begin_balance": "160000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "115Ef8zkbu4n1g4apz43vp7fsbRYEfHBHh",
       "asset_symbol": "PPY",
       "amount": "160000000",
+      "begin_balance": "160000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1Ntu2gC5NhsH37ZDqwBohmJCH5wHD1VZeh",
       "asset_symbol": "PPY",
       "amount": "640000000",
+      "begin_balance": "640000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1Pf6UfJjZLVyiEmwHD3ML8mvLZpDAHzBk7",
       "asset_symbol": "PPY",
       "amount": "160000000",
+      "begin_balance": "160000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1KwYpYrG6eVtwD8WANz9bZ1vmB9kbmso3F",
       "asset_symbol": "PPY",
       "amount": "380000000",
+      "begin_balance": "380000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "14AtXL2nCPvu5mE5guq4MxamQbmnSBVczd",
       "asset_symbol": "PPY",
       "amount": "380000000",
+      "begin_balance": "380000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1D4CHvWPrwY6Sp5sD29fzjuedwu6eA5n9D",
       "asset_symbol": "PPY",
       "amount": "380000000",
+      "begin_balance": "380000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "14jVDQGgEA4K8aRa65uJCz9ZtzHD3kKGYF",
       "asset_symbol": "PPY",
       "amount": "300000000",
+      "begin_balance": "300000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1AinVJwFMvLAg68qHwxXBnHPJbmKpqkpew",
       "asset_symbol": "PPY",
       "amount": "300000000",
+      "begin_balance": "300000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1EYESMMVZ6nqDVhJ23WAEhrrVKRrVxYZvv",
       "asset_symbol": "PPY",
       "amount": "300000000",
+      "begin_balance": "300000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1NjQuT5ms8HkhSRugb2TpnYS6GeVoUfq3c",
       "asset_symbol": "PPY",
       "amount": "13200000",
+      "begin_balance": "13200000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1JqmS2j37LDD529WCuCPZwbtubtWr4TMSC",
       "asset_symbol": "PPY",
       "amount": "300000000",
+      "begin_balance": "300000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1DTWoAmftbfdsDDx8r6yKE8duGr6J9G8Ls",
       "asset_symbol": "PPY",
       "amount": "400000000",
+      "begin_balance": "400000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "17yMTcTT91AnCRS6TExPb1v6R9EUCKNMV1",
       "asset_symbol": "PPY",
       "amount": "521500000",
+      "begin_balance": "521500000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1EqLqh8mMWpLzdzb3nhei2tUTcd39rGygc",
       "asset_symbol": "PPY",
       "amount": "320000000",
+      "begin_balance": "320000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1CRv6AVfHrKtD6i5MuP84megzAMseyGdz9",
       "asset_symbol": "PPY",
       "amount": "360000000",
+      "begin_balance": "360000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1EyHpx9JSKAQ9bk7oNir3JnHuk4my3RWzR",
       "asset_symbol": "PPY",
       "amount": "100000000",
+      "begin_balance": "100000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "19sH783FrzhfmwrAQLoyeXWHYHYhETzgSE",
       "asset_symbol": "PPY",
       "amount": "40000000",
+      "begin_balance": "40000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1LTG8pVyo4YHde2euh1eh5YKD5zA9rtQog",
       "asset_symbol": "PPY",
       "amount": "180000000",
+      "begin_balance": "180000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "14wPTRGz4aYXvrGURbgQCQ9kpWFqnLjnVW",
       "asset_symbol": "PPY",
       "amount": "290000000",
+      "begin_balance": "290000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1PtaBrrNTtS7zoA5nLHq5VmGLtzfF5paxA",
       "asset_symbol": "PPY",
       "amount": "374000000",
+      "begin_balance": "374000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1EG9G2fSmZSPxfUvTwf2vPRR9ung3YKScc",
       "asset_symbol": "PPY",
       "amount": "940000000",
+      "begin_balance": "940000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1GHGhNMcHBztzXanqjQpiHJ9JfpVd9eALL",
       "asset_symbol": "PPY",
       "amount": "1370000000",
+      "begin_balance": "1370000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "14VuWcBbs9WRAXtdmEKwNHzt8gzhaDU5Yg",
       "asset_symbol": "PPY",
       "amount": "620000000",
+      "begin_balance": "620000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1GPCezeDHYvMuUpHYEWCLJ1S8mpfcNGpWS",
       "asset_symbol": "PPY",
       "amount": "3720000000",
+      "begin_balance": "3720000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1KoYBd3DS8FTMJvWtkkmeeS34woAd5fMQj",
       "asset_symbol": "PPY",
       "amount": "240000000",
+      "begin_balance": "240000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "191HBQwkPDYBBJ7aZyYL8JeYcQuXCKjW9F",
       "asset_symbol": "PPY",
       "amount": "1046000000",
+      "begin_balance": "1046000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "1JAEcjRFbkNxJ2ReHwNprThUUiCpbzwjoN",
       "asset_symbol": "PPY",
       "amount": "840000000",
+      "begin_balance": "840000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "16xXotDgtQtusuWDBZBjWf9J92TJBQ7rKy",
       "asset_symbol": "PPY",
       "amount": "320000000",
+      "begin_balance": "320000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "18Y9PQuu3azN5RUGQ2nJszci7DfBdnQfGB",
       "asset_symbol": "PPY",
       "amount": "280000000",
+      "begin_balance": "280000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "15724800"
    },{
       "owner": "13gCqsEBAieRtXuzQ6vWoDchJkgwA7mm4C",
       "asset_symbol": "PPY",
       "amount": "2000000000",
+      "begin_balance": "2000000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "15yhUT92gWKn7JYLcXMkvhNKBTgD2jDxof",
       "asset_symbol": "PPY",
       "amount": "700000000",
+      "begin_balance": "700000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "17rufurwVj69gvnXE2QUDeYRevZKP5Ukuz",
       "asset_symbol": "PPY",
       "amount": "900000000",
+      "begin_balance": "900000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "1La9aVpFVtqcKpMsfwBwt2zDjSUSfAWJ7L",
       "asset_symbol": "PPY",
       "amount": "8000000000",
+      "begin_balance": "8000000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "141hQzPz6hzasE131zT18fDAR28MhbUjki",
       "asset_symbol": "PPY",
       "amount": "10000000000",
+      "begin_balance": "10000000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "1FiKd1otiozi78FSDUDnAdvBiBSrttvuMo",
       "asset_symbol": "PPY",
       "amount": "8000000000",
+      "begin_balance": "8000000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "128ZHa3ZAv7Js91L96QYfQPW8HjRLGEQrc",
       "asset_symbol": "PPY",
       "amount": "500000000",
+      "begin_balance": "500000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "1LmMyqMHEj1pjPNGCbBzizVMaKvZ7Ecpv4",
       "asset_symbol": "PPY",
       "amount": "2500000000",
+      "begin_balance": "2500000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "1LPD9Y4hLQG6kdrcYoAu7m9YNPox38gwUn",
       "asset_symbol": "PPY",
       "amount": "2500000000",
+      "begin_balance": "2500000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "1NA2NSgkoEUHTKgbfDRAtA2ho3TJE7nT1W",
       "asset_symbol": "PPY",
       "amount": "1500000000",
+      "begin_balance": "1500000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "14FWmkv8dCzBgb6QNpwEYCYRpMKUNpaD6r",
       "asset_symbol": "PPY",
       "amount": "1500000000",
+      "begin_balance": "1500000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "1Cs3T4241pAH4PxVEyWbvoF2igWoDBz2pv",
       "asset_symbol": "PPY",
       "amount": "3000000000",
+      "begin_balance": "3000000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "18b3wSzrfW9Pzk1bmpouPAru9L8NscyDot",
       "asset_symbol": "PPY",
       "amount": "2500000000",
+      "begin_balance": "2500000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "1CKZLouRDFd7s4B4t1ckpRnHk1tmu7qF33",
       "asset_symbol": "PPY",
       "amount": "3000000000",
+      "begin_balance": "3000000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "1MpPunDiHD7mfQd5o7tVG3nTmcSzjAtRFv",
       "asset_symbol": "PPY",
       "amount": "200000000",
+      "begin_balance": "200000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "19exGYKLmB1kQFWgR1phLC9Cse61xnhPH9",
       "asset_symbol": "PPY",
       "amount": "500000000",
+      "begin_balance": "500000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "16fgC5cnQdZrU4A5z4dveBA76FmjPfAwtd",
       "asset_symbol": "PPY",
       "amount": "1000000000",
+      "begin_balance": "1000000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "1FArZczMsTykRAAJVKvdDSdKrK1QNhHWDk",
       "asset_symbol": "PPY",
       "amount": "10000000000",
+      "begin_balance": "10000000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "1NvkyfjRepVvHHicFucAy38XQ4DYhX47Tf",
       "asset_symbol": "PPY",
       "amount": "1400000000",
+      "begin_balance": "1400000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "15woNtu3K96AiyH9FNwXKSBAFHif6LGcZa",
       "asset_symbol": "PPY",
       "amount": "2500000000",
+      "begin_balance": "2500000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "1MiKJ1pmSDqjMesqQ7YGfLh6M5HVyYHRD6",
       "asset_symbol": "PPY",
       "amount": "300000000",
+      "begin_balance": "300000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "1PLz2zVujs9wHF8PjLdoRHuK77heXKdZSD",
       "asset_symbol": "PPY",
       "amount": "20000000000",
+      "begin_balance": "20000000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "149VMB5pRuKC4SwCFmFWbhTb1ZJ8RPQThu",
       "asset_symbol": "PPY",
       "amount": "3000000000",
+      "begin_balance": "3000000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "16wgUrf38K269BbmX7A2EDvAXE3iX8mPee",
       "asset_symbol": "PPY",
       "amount": "3000000000",
+      "begin_balance": "3000000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "19B659fnnVVUw6SvL8tJezx2nmj7NznPbT",
       "asset_symbol": "PPY",
       "amount": "3000000000",
+      "begin_balance": "3000000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "1NV678qFF6nXcj4d4yjgtEQqRdRRZerGa4",
       "asset_symbol": "PPY",
       "amount": "2500000000",
+      "begin_balance": "2500000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "1JeawAojqAiw3tjaqpeQJck5osqqbUqReo",
       "asset_symbol": "PPY",
       "amount": "2000000000",
+      "begin_balance": "2000000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "1BJLYbfWBusYPpzfJsJWwfCxg1kgmGaw8T",
       "asset_symbol": "PPY",
       "amount": "1500000000",
+      "begin_balance": "1500000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
    },{
       "owner": "1QFPzmcDe87gpYqtxapDZ32KkrxEyc6xnL",
       "asset_symbol": "PPY",
       "amount": "2500000000",
+      "begin_balance": "2500000000",
       "begin_timestamp": "2017-05-30T08:09:05",
       "vesting_duration_seconds": "31536000"
-   }  
+   }
   ],
   "initial_active_witnesses": 11,
   "initial_witness_candidates": [{
