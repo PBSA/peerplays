@@ -368,8 +368,8 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       create<asset_dividend_data_object>([&](asset_dividend_data_object& a) {
            a.options.minimum_distribution_interval = 3*24*60*60;
            a.options.minimum_fee_percentage = 10*GRAPHENE_1_PERCENT;
-           a.options.next_payout_time = genesis_state.initial_timestamp + fc::hours(1);
-           a.options.payout_interval = 7*24*60*60;
+           a.options.next_payout_time = genesis_state.initial_timestamp + fc::days(1);
+           a.options.payout_interval = 30*24*60*60;
            a.dividend_distribution_account = TOURNAMENT_RAKE_FEE_ACCOUNT_ID;
       });
 
