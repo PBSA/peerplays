@@ -1,5 +1,5 @@
 {
-	"initial_timestamp": "2017-04-20T14:00:00",
+	"initial_timestamp": "2017-05-20T14:00:00",
 	"max_core_supply": "1000000000000000",
 	"initial_parameters": {
 		"current_fees": {
@@ -362,80 +362,80 @@
 	"initial_accounts": [
 		{
 			"name": "init0",
-			"owner_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-			"active_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"owner_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"active_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
 			"is_lifetime_member": true
 		},
 		{
 			"name": "init1",
-			"owner_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-			"active_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"owner_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"active_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
 			"is_lifetime_member": true
 		},
 		{
 			"name": "init2",
-			"owner_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-			"active_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"owner_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"active_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
 			"is_lifetime_member": true
 		},
 		{
 			"name": "init3",
-			"owner_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-			"active_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"owner_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"active_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
 			"is_lifetime_member": true
 		},
 		{
 			"name": "init4",
-			"owner_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-			"active_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"owner_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"active_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
 			"is_lifetime_member": true
 		},
 		{
 			"name": "init5",
-			"owner_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-			"active_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"owner_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"active_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
 			"is_lifetime_member": true
 		},
 		{
 			"name": "init6",
-			"owner_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-			"active_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"owner_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"active_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
 			"is_lifetime_member": true
 		},
 		{
 			"name": "init7",
-			"owner_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-			"active_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"owner_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"active_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
 			"is_lifetime_member": true
 		},
 		{
 			"name": "init8",
-			"owner_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-			"active_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"owner_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"active_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
 			"is_lifetime_member": true
 		},
 		{
 			"name": "init9",
-			"owner_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-			"active_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"owner_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"active_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
 			"is_lifetime_member": true
 		},
 		{
 			"name": "init10",
-			"owner_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-			"active_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"owner_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"active_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
 			"is_lifetime_member": true
 		},
 		{
 			"name": "nathan",
-			"owner_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-			"active_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"owner_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+			"active_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
 			"is_lifetime_member": true
 		},
 		{
 			"name": "pixel-gateway",
-			"owner_key": "TEST8dkWexMv9Z7fwoCdfKZfqpBUFB77D1PzfPBU2hHwMpN9B5t6wZ",
-			"active_key": "TEST8dkWexMv9Z7fwoCdfKZfqpBUFB77D1PzfPBU2hHwMpN9B5t6wZ",
+			"owner_key": "BTS8dkWexMv9Z7fwoCdfKZfqpBUFB77D1PzfPBU2hHwMpN9B5t6wZ",
+			"active_key": "BTS8dkWexMv9Z7fwoCdfKZfqpBUFB77D1PzfPBU2hHwMpN9B5t6wZ",
 			"is_lifetime_member": true
 		}
 	],
@@ -446,7 +446,7 @@
 				{
 					"collateral": -1,
 			                "debt":  1000000000000000,
-					"owner": "TEST6eTLvHVD1Qg5rUoEnKgTvpXaW2p7xHyce"
+					"owner": "BTS6eTLvHVD1Qg5rUoEnKgTvpXaW2p7xHyce"
 				}
 			],
 			"description": "1 bitcoin",
@@ -462,7 +462,7 @@
 				{
 					"collateral": -1,
 			                "debt":  1000000000000000,
-					"owner": "TEST6eTLvHVD1Qg5rUoEnKgTvpXaW2p7xHyce"
+					"owner": "BTS6eTLvHVD1Qg5rUoEnKgTvpXaW2p7xHyce"
 				}
 			],
 			"description": "1 steem",
@@ -475,19 +475,14 @@
 	],
 	"initial_balances": [
 		{
-			"owner": "TESTFAbAx7yuxt725qSZvfwWqkdCwp9ZnUama",
-			"asset_symbol": "TESTPLAYS",
-			"amount": "1000000000000000"
-		},
-		{
-			"owner": "TEST6eTLvHVD1Qg5rUoEnKgTvpXaW2p7xHyce",
-			"asset_symbol": "PIXEL.BITCOIN",
-			"amount": "1000000000000000"
-		},
-		{
-			"owner": "TEST6eTLvHVD1Qg5rUoEnKgTvpXaW2p7xHyce",
-			"asset_symbol": "PIXEL.STEEM",
-			"amount": "1000000000000000"
+			"owner": "BTSFAbAx7yuxt725qSZvfwWqkdCwp9ZnUama",
+			"asset_symbol": "PPY",
+			"amount": "10000000000000"
+	        },{
+	          "owner": "BTS51B1EWJZQsJhZQnbiF1j2adGPrDufNXbw",
+	          "xowner": "1CgspkHAGoziG3rPTUxgq7f3TcT69GjVpV",
+	          "asset_symbol": "PPY",
+			"amount": "12345"
 		}
 	],
 	"initial_vesting_balances": [],
@@ -495,47 +490,47 @@
 	"initial_witness_candidates": [
 		{
 			"owner_name": "init0",
-			"block_signing_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+			"block_signing_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
 		},
 		{
 			"owner_name": "init1",
-			"block_signing_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+			"block_signing_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
 		},
 		{
 			"owner_name": "init2",
-			"block_signing_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+			"block_signing_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
 		},
 		{
 			"owner_name": "init3",
-			"block_signing_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+			"block_signing_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
 		},
 		{
 			"owner_name": "init4",
-			"block_signing_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+			"block_signing_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
 		},
 		{
 			"owner_name": "init5",
-			"block_signing_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+			"block_signing_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
 		},
 		{
 			"owner_name": "init6",
-			"block_signing_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+			"block_signing_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
 		},
 		{
 			"owner_name": "init7",
-			"block_signing_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+			"block_signing_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
 		},
 		{
 			"owner_name": "init8",
-			"block_signing_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+			"block_signing_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
 		},
 		{
 			"owner_name": "init9",
-			"block_signing_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+			"block_signing_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
 		},
 		{
 			"owner_name": "init10",
-			"block_signing_key": "TEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+			"block_signing_key": "BTS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
 		}
 	],
 	"initial_committee_candidates": [
