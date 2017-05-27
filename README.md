@@ -130,7 +130,8 @@ Vote for yourself
 vote_for_witness your_witness_account your_witness_account true true
 ```
 
-### Ask to be voted in!
+Ask to be voted in!
+--------------
 
 Join @Peerplays Telegram group to find information about the witness group.
 http://t.me/@peerplayswitness
@@ -144,7 +145,11 @@ You will get logs that look like this:
 2073000ms th_a       witness.cpp:201               block_production_loo ] Not producing block because it isn't my turn
 ```
 
-Assuming you've received votes, you will start producing as a witness at the next maintenance interval (once per hour).
+Assuming you've received votes, you will start producing as a witness at the next maintenance interval (once per hour). You can check your votes with.
+
+```
+get_witness your_witness_account
+```
 
 
 Running specific tests
