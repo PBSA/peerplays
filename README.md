@@ -57,7 +57,7 @@ Testnet
 
 - chain-id - 82c339d32256728bcc4df63bcc3e3244f6140a16fef31f707a6613ad189156ae
 - seed node - 213.184.225.234:59500
-- faucet address - https://595-dev-faucet.pixelplex.by
+- faucet address - https://595-dev.pixelplex.by/
 
 Register your username at the faucet address. 
 
