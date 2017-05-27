@@ -3378,6 +3378,14 @@ brain_key_info wallet_api::suggest_brain_key()const
    result.pub_key = priv_key.get_public_key();
    return result;
 }
+ 
+pair<public_key_type,string> wallet_api::get_private_key_from_password( string account, string role, string password )const {
+   auto seed = account + role + password;
+   FC_ASSERT( seed.size() );
+   auto secret = fc::sha256::hash( seed.c_str(), seed.size() );
+   auto priv = fc::ecc::private_key::regenerate( secret );
+   return std::make_pair( public_key_type( priv.get_public_key() ), key_to_wif( priv ) );
+}
 
 string wallet_api::serialize_transaction( signed_transaction tx )const
 {
