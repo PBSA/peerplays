@@ -95,6 +95,7 @@ Compare this result to
 ```
 dump_private_keys
 ```
+You should see 4 pairs of keys. The last pair should match your block_signing_key and this is the one you will use in the next step!
 
 Get your witness id
 -----------------
