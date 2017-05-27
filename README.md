@@ -74,7 +74,7 @@ get_witness username (note the "id" for your config)
 
 Modify your witness_node config.ini to include your witness id and private key pair.
 
-start your witness specifying the seed node: ./programs/cli_wallet/cli_wallet --seed-node=213.184.225.234:59500
+start your witness specifying the seed node: ./programs/witness_node/witness_node --seed-node=213.184.225.234:59500
 
 Join @Peerplays Telegram group to find information about the witness group.
 
