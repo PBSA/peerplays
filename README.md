@@ -3,7 +3,7 @@ Intro for new developers and witnesses
 
 This is a quick introduction to get new developers and witnesses up to speed on Peerplays blockchain.
 
-Starting A Peerpalys Noe
+Starting A Peerpalys Node
 -----------------
 
 For Ubuntu 14.04 LTS and up users, see this link first:
@@ -28,7 +28,7 @@ Then, in a separate terminal window, start the command-line wallet `cli_wallet`:
 
     ./programs/cli_wallet/cli_wallet
 
-To set your iniital password to 'password' use:
+To set your initial password to 'password' use:
 
     >>> set_password password
     >>> unlock password
