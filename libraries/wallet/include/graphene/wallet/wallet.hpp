@@ -579,6 +579,11 @@ class wallet_api
        * @returns a suggested brain_key
        */
       brain_key_info suggest_brain_key()const;
+   
+      /**
+       *  @param role - active | owner | memo
+       */
+      pair<public_key_type,string>  get_private_key_from_password( string account, string role, string password )const;
 
       /** Converts a signed_transaction in JSON form to its binary representation.
        *
@@ -1656,6 +1661,7 @@ FC_API( graphene::wallet::wallet_api,
         (import_account_keys)
         (import_balance)
         (suggest_brain_key)
+        (get_private_key_from_password)
         (register_account)
         (upgrade_account)
         (create_account_with_brain_key)
