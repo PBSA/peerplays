@@ -3380,7 +3380,7 @@ brain_key_info wallet_api::suggest_brain_key()const
 }
  
 pair<public_key_type,string> wallet_api::get_private_key_from_password( string account, string role, string password )const {
-   auto seed = account + role + password;
+   auto seed = password + account + role;
    FC_ASSERT( seed.size() );
    auto secret = fc::sha256::hash( seed.c_str(), seed.size() );
    auto priv = fc::ecc::private_key::regenerate( secret );
