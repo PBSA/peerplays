@@ -3,7 +3,7 @@ Intro for new developers and witnesses
 
 This is a quick introduction to get new developers and witnesses up to speed on Peerplays blockchain.
 
-Starting A Peerpalys Noe
+Starting A Peerpalys Node
 -----------------
 
 For Ubuntu 14.04 LTS and up users, see this link first:
