@@ -14,7 +14,7 @@ and then proceed with:
     git clone https://github.com/pbsa/peerplays.git
     cd peerplays
     git submodule update --init --recursive
-    cmake -DCMAKE_BUILD_TYPE=Debug .
+    cmake -DCMAKE_BUILD_TYPE=Release .
     make
     ./programs/witness_node/witness_node
     
