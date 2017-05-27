@@ -3,7 +3,7 @@ Intro for new developers and witnesses
 
 This is a quick introduction to get new developers and witnesses up to speed on Peerplays blockchain.
 
-Starting A Peerpalys Noe
+Starting A Peerplays Node
 -----------------
 
 For Ubuntu 14.04 LTS and up users, see this link first:
@@ -28,7 +28,7 @@ Then, in a separate terminal window, start the command-line wallet `cli_wallet`:
 
     ./programs/cli_wallet/cli_wallet
 
-To set your iniital password to 'password' use:
+To set your initial password to 'password' use:
 
     >>> set_password password
     >>> unlock password
@@ -56,25 +56,62 @@ Testnet
 ----------------------
 
 - chain-id - 82c339d32256728bcc4df63bcc3e3244f6140a16fef31f707a6613ad189156ae
-- seed node - 213.184.225.234:59500
-- faucet address - https://595-dev.pixelplex.by/
 
-Register your username at the faucet address. 
 
-Use the get_private_key_from_password command in cli_wallet with the password downloaded during your username signup to access your private keys. You will need owner, active, and memo
+### Add this seed node to config.ini
+```
+vim witness_node_data_dir/config.ini
 
-import_keys into your cli_wallet
+seed-node = 213.184.225.234:59500
+```
 
-upgrade_account username true
+### Register your username at the faucet address
+https://595-dev.pixelplex.by/
 
-create_witness username url true
+
+### Use the get_private_key_from_password command in cli_wallet with the password downloaded during your username signup to access your private keys. You will need owner, active, and memo
+```
+get_private_key_from_password the_key_you_received_from_the_faucet your_witness_username active
+```
+This will reveal an array `['PPYxxx', 'xxxx']`
+
+### import_keys into your cli_wallet 
+- use the second value in the array returned from the previous step for the private key
+- be sure to wrap your username in quotes
+```
+import_key "your_witness_username" private_key_from_previous_step
+```
+
+### Upgrade your account to lifetime membership
+```
+upgrade_account your_witness_username true
+```
+
+### Create your witness (substitute the url for your witness information)
+```
+create_witness your_witness_username url true
+```
 Be sure to take note of the block_signing_key and use get_private_key so you can have your key pair for your config.
 
+### Get your witness id
+```
 get_witness username (note the "id" for your config)
+```
 
-Modify your witness_node config.ini to include your witness id and private key pair.
+### Modify your witness_node config.ini to include **your** witness id and private key pair.
+```
+vim witness_node_data_dir/config.ini
 
-start your witness specifying the seed node: ./programs/cli_wallet/cli_wallet --seed-node=213.184.225.234:59500
+witness-id = "1.6.x"
+private-keys = ['PPYxxx'.'xxxx']
+```
+
+### start your witness with resync
+```
+./programs/cli_wallet/cli_wallet --resync --replay
+```
+
+### Ask to be voted in!
 
 Join @Peerplays Telegram group to find information about the witness group.
 
