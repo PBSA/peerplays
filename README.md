@@ -108,7 +108,7 @@ private-keys = ['PPYxxx'.'xxxx']
 
 ### start your witness with resync
 ```
-./programs/cli_wallet/cli_wallet --resync --replay
+./programs/witness_node/witness_node --resync --replay
 ```
 
 ### Ask to be voted in!
