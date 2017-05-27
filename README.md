@@ -114,6 +114,18 @@ private-keys = ['PPYxxx'.'xxxx']
 ### Ask to be voted in!
 
 Join @Peerplays Telegram group to find information about the witness group.
+http://t.me/@peerplayswitness
+
+You will get logs that look like this:
+
+```
+2070264ms th_a       application.cpp:506           handle_block         ] Got block: #87913 time: 2017-05-27T16:34:30 latency: 264 ms from: bhuz-witness  irreversible: 87903 (-10)
+2071000ms th_a       witness.cpp:204               block_production_loo ] Not producing block because slot has not yet arrived
+2072000ms th_a       witness.cpp:204               block_production_loo ] Not producing block because slot has not yet arrived
+2073000ms th_a       witness.cpp:201               block_production_loo ] Not producing block because it isn't my turn
+```
+
+Assuming you've received votes, you will start producing as a witness at the next maintenance interval (once per hour).
 
 
 Running specific tests
