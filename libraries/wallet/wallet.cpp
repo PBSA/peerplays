@@ -1753,6 +1753,7 @@ public:
       fc::raw::pack(enc, secret_hash_type());
       witness_create_op.initial_secret = secret_hash_type::hash(enc.result());
 
+      
       if (_remote_db->get_witness_by_account(witness_create_op.witness_account))
          FC_THROW("Account ${owner_account} is already a witness", ("owner_account", owner_account));
 
@@ -1780,9 +1781,10 @@ public:
       witness_update_op.witness_account = witness_account.id;
       if( url != "" )
          witness_update_op.new_url = url;
-      if( block_signing_key != "" )
+      if( block_signing_key != "" ) {
          witness_update_op.new_signing_key = public_key_type( block_signing_key );
-
+         witness_update_op.new_initial_secret = secret_hash_type::hash(secret_hash_type());
+      }
       signed_transaction tx;
       tx.operations.push_back( witness_update_op );
       set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
