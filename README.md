@@ -110,7 +110,7 @@ Comment out the existing private-key before adding yours
 vim witness_node_data_dir/config.ini
 
 witness-id = "1.6.x"
-private-keys = ['block_signing_key'.'private_key_for_your_block_signing_key']
+private-keys = ['block_signing_key','private_key_for_your_block_signing_key']
 ```
 
 start your witness back up
