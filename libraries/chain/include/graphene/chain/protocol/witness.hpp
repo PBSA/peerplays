@@ -68,7 +68,9 @@ namespace graphene { namespace chain {
       optional< string > new_url;
       /// The new block signing key.
       optional< public_key_type > new_signing_key;
-
+      /// The new secreat hash.
+      optional<secret_hash_type> new_initial_secret;
+      
       account_id_type fee_payer()const { return witness_account; }
       void            validate()const;
    };
