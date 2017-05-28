@@ -52,8 +52,10 @@ Register your username at the faucet address
 https://595-dev.pixelplex.by/
 
 
-Use the get_private_key_from_password command in cli_wallet with the password downloaded during your username signup to access your private keys. You will need owner, active, and memo
+Use the get_private_key_from_password command
 ---------------------------------
+You will to generate owner and active keys
+
 ```
 get_private_key_from_password the_key_you_received_from_the_faucet your_witness_username active
 get_private_key_from_password the_key_you_received_from_the_faucet your_witness_username owner
