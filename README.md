@@ -60,16 +60,16 @@ You will to generate owner and active keys
 get_private_key_from_password the_key_you_received_from_the_faucet your_witness_username active
 get_private_key_from_password the_key_you_received_from_the_faucet your_witness_username owner
 ```
-This will reveal an array for each `['PPYxxx', 'xxxx']`
+This will reveal an array for each `['PPYxxx', 'private_key']`
 
 import_keys into your cli_wallet
 -------------------------------
 - use the second value in each array returned from the previous step for the private key
 - be sure to wrap your username in quotes
-- import all 3 keys received above
+- import both keys received above
 ```
-import_key "your_witness_username" xxxx
-import_key "your_witness_username" xxxx
+import_key "your_witness_username" private_key
+import_key "your_witness_username" private_key
 ```
 
 Upgrade your account to lifetime membership
