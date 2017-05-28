@@ -56,7 +56,6 @@ Use the get_private_key_from_password command in cli_wallet with the password do
 ---------------------------------
 ```
 get_private_key_from_password the_key_you_received_from_the_faucet your_witness_username active
-get_private_key_from_password the_key_you_received_from_the_faucet your_witness_username memo
 get_private_key_from_password the_key_you_received_from_the_faucet your_witness_username owner
 ```
 This will reveal an array for each `['PPYxxx', 'xxxx']`
@@ -67,7 +66,6 @@ import_keys into your cli_wallet
 - be sure to wrap your username in quotes
 - import all 3 keys received above
 ```
-import_key "your_witness_username" xxxx
 import_key "your_witness_username" xxxx
 import_key "your_witness_username" xxxx
 ```
