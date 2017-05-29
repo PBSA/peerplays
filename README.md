@@ -21,7 +21,7 @@ and then proceed with:
 Launching the witness creates required directories. Next, **stop the witness** and continue.
 
     vi witness_node_data_dir/config.ini
-    p2p-endpoint = 0.0.0.0:7777
+    p2p-endpoint = 0.0.0.0:9777
     rpc-endpoint = 127.0.0.1:8090
     seed-node = 213.184.225.234:59500
     
