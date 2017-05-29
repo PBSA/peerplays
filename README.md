@@ -54,7 +54,7 @@ https://595-dev.pixelplex.by/
 
 Use the get_private_key_from_password command
 ---------------------------------
-You will to generate owner and active keys
+Generate **owner** and **active** keys
 
 ```
 get_private_key_from_password the_key_you_received_from_the_faucet your_witness_username active
