@@ -1,7 +1,7 @@
 Intro for new developers and witnesses
 ------------------------
 
-This is a quick introduction to get new developers and witnesses up to speed on Peerplays blockchain. It is intended for witnesses plannig to join a live, already deployed blockchain.
+This is a quick introduction to get new developers and witnesses up to speed on the Peerplays blockchain. It is intended for witnesses planning to join a live, already deployed blockchain.
 
 Starting A Peerplays Node
 -----------------
