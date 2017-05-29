@@ -496,7 +496,7 @@
   "initial_balances": [{
       "owner": "PPYFAbAx7yuxt725qSZvfwWqkdCwp9ZnUama",
       "asset_symbol": "PPY2T",
-      "amount": "1000000000000000"
+      "amount": "100000000000"
     },{
 			"owner": "PPYKdXdwpLonR1tzdLPC9KN75wikAD3vUwcd",
 			"asset_symbol": "PPY2T",
