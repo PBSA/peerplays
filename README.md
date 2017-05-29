@@ -119,12 +119,6 @@ start your witness back up
 ./programs/witness_node/witness_node
 ```
 
-If it fails to start, try with these flags (not for permanent use)
-
-```
-./programs/witness_node/witness_node --resync --replay
-```
-
 Vote for yourself
 --------------
 ```
