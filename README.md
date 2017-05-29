@@ -119,6 +119,12 @@ start your witness back up
 ./programs/witness_node/witness_node
 ```
 
+NOTE: If you are a witness on a testnet, it's important that you send the `--resync` flag if/when the testnet chainid changes. Resync ensures that all the data from the previous chain is deleted. You only need to do this once. Additionally, if all else fails, you can try sending the `--resync` flag to get you back on track.
+
+```
+./programs/witness_node/witness_node --resync
+```
+
 Vote for yourself
 --------------
 ```
