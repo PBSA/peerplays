@@ -45,7 +45,7 @@ A list of CLI wallet commands is available
 
 Testnet
 ----------------------
-- chain-id - 82c339d32256728bcc4df63bcc3e3244f6140a16fef31f707a6613ad189156ae
+- chain-id - f63221f375c735b4cfc9b30be11bb3466808ee796ccc9c5311f0446c4c527767
 
 Register your username at the faucet address
 ---------------------------
@@ -66,7 +66,7 @@ import_keys into your cli_wallet
 -------------------------------
 - use the second value in each array returned from the previous step for the private key
 - be sure to wrap your username in quotes
-- import all 3 keys received above
+- import all 2 keys received above
 ```
 import_key "your_witness_username" xxxx
 import_key "your_witness_username" xxxx
@@ -95,7 +95,7 @@ Compare this result to
 ```
 dump_private_keys
 ```
-You should see 4 pairs of keys. The last pair should match your block_signing_key and this is the one you will use in the next step!
+You should see 3 pairs of keys. The last pair should match your block_signing_key and this is the one you will use in the next step!
 
 Get your witness id
 -----------------
