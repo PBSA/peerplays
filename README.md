@@ -152,6 +152,56 @@ Assuming you've received votes, you will start producing as a witness at the nex
 get_witness your_witness_account
 ```
 
+systemd
+----------------
+It's important for your witness to start when your system boots up. The filepaths here assume that you installed your witness into `/home/ubuntu/peerplays`
+
+Create a logfile to hold your stdout/err logging
+```bash
+sudo touch /var/log/peerplays.log
+```
+
+Save this file in your peerplays directory. `vi /home/ubuntu/peerplays/start.sh`
+```bash
+#!/bin/bash
+
+cd /home/ubuntu/peerplays
+./programs/witness_node/witness_node &> /var/log/peerplays.log
+```
+Make it executable
+```bash
+chmod 744 /home/ubuntu/peerplays/start.sh
+```
+Create this file: `sudo vi /etc/systemd/system/peerplays.service`
+Note the path for start.sh. Change it to match where your start.sh file is if necessary.
+```
+[Unit]
+Description=Peerplays Witness
+After=network.target
+
+[Service]
+ExecStart=/home/ubuntu/peerplays/start.sh
+
+[Install]
+WantedBy = multi-user.target
+```
+Enable the service
+```bash
+systemctl enable peerplays.service
+```
+Make sure you don't get any errors
+```bash
+sudo systemctl status peerplays.service
+```
+Stop your witness if it is currently running form previous steps, then start it with the service.
+```bash
+sudo systemctl start peerplays.service
+```
+Check your logfile for entries
+```bash
+tail -f /var/log/peerplays.log
+```
+
 
 Running specific tests
 ----------------------
