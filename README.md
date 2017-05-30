@@ -193,7 +193,7 @@ Make sure you don't get any errors
 ```bash
 sudo systemctl status peerplays.service
 ```
-Stop your witness if it is currently running form previous steps, then start it with the service.
+Stop your witness if it is currently running from previous steps, then start it with the service.
 ```bash
 sudo systemctl start peerplays.service
 ```
