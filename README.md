@@ -60,7 +60,7 @@ You will to generate owner and active keys
 get_private_key_from_password the_key_you_received_from_the_faucet your_witness_username active
 get_private_key_from_password the_key_you_received_from_the_faucet your_witness_username owner
 ```
-This will reveal an array for each `['PPYxxx', 'xxxx']`
+This will reveal an array for each `["PPYxxx", "xxxx"]`
 
 import_keys into your cli_wallet
 -------------------------------
@@ -110,7 +110,7 @@ Comment out the existing private-key before adding yours
 vim witness_node_data_dir/config.ini
 
 witness-id = "1.6.x"
-private-keys = ['block_signing_key','private_key_for_your_block_signing_key']
+private-keys = ["block_signing_key","private_key_for_your_block_signing_key"]
 ```
 
 start your witness back up
