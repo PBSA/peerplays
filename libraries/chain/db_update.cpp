@@ -55,8 +55,9 @@ void database::update_global_dynamic_data( const signed_block& b )
 #else
    assert( missed_blocks != 0 );
 #endif
-   if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SHUFFLED_ALGORITHM)
-   {
+// bad if-condition, this code needs to execute for both shuffled and rng algorithms
+//     if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SHUFFLED_ALGORITHM)
+//     {
        missed_blocks--;
        for( uint32_t i = 0; i < missed_blocks; ++i ) {
           const auto& witness_missed = get_scheduled_witness( i+1 )(*this);
@@ -72,7 +73,7 @@ void database::update_global_dynamic_data( const signed_block& b )
              });
           }
        }
-   }
+//   }
 #ifdef DIRTY_TRICK
    }
 #endif
