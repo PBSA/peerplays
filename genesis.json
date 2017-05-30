@@ -241,7 +241,7 @@
     "accounts_per_fee_scale": 1000,
     "account_fee_scale_bitshifts": 0,
     "max_authority_depth": 2,
-    "witness_schedule_algorithm": 1,
+    "witness_schedule_algorithm": 0,
     "min_round_delay": 1,
     "max_round_delay": 300,
     "min_time_per_commit_move": 15,
@@ -496,7 +496,7 @@
   "initial_balances": [{
       "owner": "PPYFAbAx7yuxt725qSZvfwWqkdCwp9ZnUama",
       "asset_symbol": "PPY2T",
-      "amount": "1000000000000000"
+      "amount": "100000000000"
     },{
 			"owner": "PPYKdXdwpLonR1tzdLPC9KN75wikAD3vUwcd",
 			"asset_symbol": "PPY2T",
@@ -627,12 +627,18 @@
       "owner_name": "init5"
     },{
       "owner_name": "init6"
+    },{
+      "owner_name": "init7"
+    },{
+      "owner_name": "init8"
+    },{
+      "owner_name": "init9"
     }
   ],
   "initial_worker_candidates": [],
   "initial_chain_id": "aa34045518f1469a28fa4578240d5f039afa9959c0b95ce3b39674efa691fb21",
   "immutable_parameters": {
-    "min_committee_member_count": 11,
+    "min_committee_member_count": 9,
     "min_witness_count": 11,
     "num_special_accounts": 0,
     "num_special_assets": 0

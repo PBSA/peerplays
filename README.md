@@ -21,7 +21,7 @@ and then proceed with:
 Launching the witness creates required directories. Next, **stop the witness** and continue.
 
     vi witness_node_data_dir/config.ini
-    p2p-endpoint = 0.0.0.0:7777
+    p2p-endpoint = 0.0.0.0:9777
     rpc-endpoint = 127.0.0.1:8090
     seed-node = 213.184.225.234:59500
     
@@ -45,7 +45,7 @@ A list of CLI wallet commands is available
 
 Testnet
 ----------------------
-- chain-id - 82c339d32256728bcc4df63bcc3e3244f6140a16fef31f707a6613ad189156ae
+- chain-id - f63221f375c735b4cfc9b30be11bb3466808ee796ccc9c5311f0446c4c527767
 
 Register your username at the faucet address
 ---------------------------
@@ -67,6 +67,7 @@ import_keys into your cli_wallet
 - use the second value in each array returned from the previous step for the private key
 - be sure to wrap your username in quotes
 - import both keys received above
+
 ```
 import_key "your_witness_username" private_key
 import_key "your_witness_username" private_key
