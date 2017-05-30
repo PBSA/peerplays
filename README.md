@@ -187,7 +187,7 @@ WantedBy = multi-user.target
 ```
 Enable the service
 ```bash
-systemctl enable peerplays.service
+sudo systemctl enable peerplays.service
 ```
 Make sure you don't get any errors
 ```bash
