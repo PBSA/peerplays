@@ -642,11 +642,14 @@ void database::init_genesis(const genesis_state_type& genesis_state)
 
    // Create balances for all bts accounts
    for( const auto& account : genesis_state.initial_bts_accounts )
-      if (account.core_balance != share_type())
+      if (account.core_balance != share_type()) {
+         total_supplies[asset_id_type()] += account.core_balance;
+
          create<account_balance_object>([&](account_balance_object& b) {
             b.owner = get_account_id(account.name);
             b.balance = account.core_balance;
          });
+      }
 
    // Create initial balances
    share_type total_allocation;
