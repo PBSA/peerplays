@@ -45,7 +45,7 @@ A list of CLI wallet commands is available
 
 Testnet
 ----------------------
-- chain-id - f63221f375c735b4cfc9b30be11bb3466808ee796ccc9c5311f0446c4c527767
+- chain-id - 32a70325bb61da8369af93a1898b9da5ba44180fb07204bbda3fa9ec30ef7eb3
 
 Register your username at the faucet address
 ---------------------------
