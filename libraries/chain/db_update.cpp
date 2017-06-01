@@ -55,32 +55,33 @@ void database::update_global_dynamic_data( const signed_block& b )
 #else
    assert( missed_blocks != 0 );
 #endif
-   if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SHUFFLED_ALGORITHM)
-   {
-       missed_blocks--;
-       for( uint32_t i = 0; i < missed_blocks; ++i ) {
-          const auto& witness_missed = get_scheduled_witness( i+1 )(*this);
-          if(  witness_missed.id != b.witness ) {
-             /*
-             const auto& witness_account = witness_missed.witness_account(*this);
-             if( (fc::time_point::now() - b.timestamp) < fc::seconds(30) )
-                wlog( "Witness ${name} missed block ${n} around ${t}", ("name",witness_account.name)("n",b.block_num())("t",b.timestamp) );
-                */
+// bad if-condition, this code needs to execute for both shuffled and rng algorithms
+//  if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SHUFFLED_ALGORITHM)
+//  {
+        missed_blocks--;
+        for( uint32_t i = 0; i < missed_blocks; ++i ) {
+           const auto& witness_missed = get_scheduled_witness( i+1 )(*this);
+           if(  witness_missed.id != b.witness ) {
+              /*
+              const auto& witness_account = witness_missed.witness_account(*this);
+              if( (fc::time_point::now() - b.timestamp) < fc::seconds(30) )
+                 wlog( "Witness ${name} missed block ${n} around ${t}", ("name",witness_account.name)("n",b.block_num())("t",b.timestamp) );
+                 */
 
-             modify( witness_missed, [&]( witness_object& w ) {
-               w.total_missed++;
-             });
-          }
-       }
-   }
+              modify( witness_missed, [&]( witness_object& w ) {
+                  w.total_missed++;
+              });
+           }
+        }
+//   }
 #ifdef DIRTY_TRICK
    }
 #endif
    // dynamic global properties updating
    modify( _dgp, [&]( dynamic_global_property_object& dgp ){
-      secret_hash_type::encoder enc;       
-      fc::raw::pack( enc, dgp.random );       
-      fc::raw::pack( enc, b.previous_secret );        
+      secret_hash_type::encoder enc;
+      fc::raw::pack( enc, dgp.random );
+      fc::raw::pack( enc, b.previous_secret );
       dgp.random = enc.result();
 
       _random_number_generator = fc::hash_ctr_rng<secret_hash_type, 20>(dgp.random.data());
@@ -257,7 +258,7 @@ bool database::check_for_blackswan( const asset_object& mia, bool enable_black_s
     }
 
     auto least_collateral = call_itr->collateralization();
-    if( ~least_collateral >= highest  ) 
+    if( ~least_collateral >= highest  )
     {
        elog( "Black Swan detected: \n"
              "   Least collateralized call: ${lc}  ${~lc}\n"
@@ -271,7 +272,7 @@ bool database::check_for_blackswan( const asset_object& mia, bool enable_black_s
        FC_ASSERT( enable_black_swan, "Black swan was detected during a margin update which is not allowed to trigger a blackswan" );
        globally_settle_asset(mia, ~least_collateral );
        return true;
-    } 
+    }
     return false;
 }
 
@@ -428,8 +429,8 @@ void database::clear_expired_orders()
             }
             try {
                settled += match(*itr, order, settlement_price, max_settlement);
-            } 
-            catch ( const black_swan_exception& e ) { 
+            }
+            catch ( const black_swan_exception& e ) {
                wlog( "black swan detected: ${e}", ("e", e.to_detail_string() ) );
                cancel_order( order );
                break;
@@ -552,7 +553,7 @@ void start_fully_registered_tournaments(database& db)
       // find the first tournament waiting to start; if its start time has arrived, start it
       auto start_iter = start_time_index.lower_bound(boost::make_tuple(tournament_state::awaiting_start));
       if (start_iter != start_time_index.end() &&
-          start_iter->get_state() == tournament_state::awaiting_start && 
+          start_iter->get_state() == tournament_state::awaiting_start &&
           *start_iter->start_time <= db.head_block_time())
       {
          db.modify(*start_iter, [&](tournament_object& t) {
@@ -575,7 +576,7 @@ void initiate_next_games(database& db)
    auto& next_timeout_index = db.get_index_type<game_index>().indices().get<by_next_timeout>();
    while (1)
    {
-      // empty time_points are sorted to the beginning, so upper_bound takes us to the first 
+      // empty time_points are sorted to the beginning, so upper_bound takes us to the first
       // non-empty time_point
       auto start_iter = next_timeout_index.upper_bound(boost::make_tuple(optional<time_point_sec>()));
       if (start_iter != next_timeout_index.end() &&
