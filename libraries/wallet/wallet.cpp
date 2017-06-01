@@ -451,6 +451,20 @@ private:
             {
             //   idump((e));
             }
+            try
+            {
+               object_id_type id = changed_object_variant["id"].as<account_id_type>();
+               if (_wallet.my_accounts.find(id) != _wallet.my_accounts.end())
+               {
+                  account_object account = changed_object_variant.as<account_object>();
+                  _wallet.update_account(account);
+               }
+               continue;
+            }
+            catch (const fc::exception& e)
+            {
+            //   idump((e));
+            }
          }
       }
    }
