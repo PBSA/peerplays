@@ -767,9 +767,9 @@ void schedule_pending_dividend_balances(database& db,
    for (const vesting_balance_object& vesting_balance_obj : boost::make_iterator_range(vesting_balances_begin, vesting_balances_end))
    {
         vesting_amounts[vesting_balance_obj.owner] += vesting_balance_obj.balance.amount;
-        dlog("Vesting balance for account: ${owner}, amount: ${amount}",
-             ("owner", vesting_balance_obj.owner(db).name)
-             ("amount", vesting_balance_obj.balance.amount));
+        //dlog("Vesting balance for account: ${owner}, amount: ${amount}",
+        //     ("owner", vesting_balance_obj.owner(db).name)
+        //     ("amount", vesting_balance_obj.balance.amount));
    }
 
    auto current_distribution_account_balance_iter = current_distribution_account_balance_range.first;
@@ -1232,9 +1232,9 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
          for (const vesting_balance_object& vesting_balance_obj : boost::make_iterator_range(vesting_balances_begin, vesting_balances_end))
          {
             vesting_amounts[vesting_balance_obj.owner] += vesting_balance_obj.balance.amount;
-            dlog("Vesting balance for account: ${owner}, amount: ${amount}",
-                 ("owner", vesting_balance_obj.owner(d).name)
-                 ("amount", vesting_balance_obj.balance.amount));
+            //dlog("Vesting balance for account: ${owner}, amount: ${amount}",
+            //     ("owner", vesting_balance_obj.owner(d).name)
+            //     ("amount", vesting_balance_obj.balance.amount));
          }
       }
 
