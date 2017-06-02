@@ -51,7 +51,7 @@ void generate_genesis_plugin::plugin_set_program_options(
     command_line_options.add_options()
             ("output-genesis-file,o", bpo::value<std::string>()->default_value("genesis.json"), "Genesis file to create")
             ("output-csvlog-file,o", bpo::value<std::string>()->default_value("log.csv"), "CSV log file to create")
-            ("snapshot-block-number", bpo::value<uint32_t>()->default_value(0), "Block number at which to snapshot balances")
+            ("snapshot-block-number", bpo::value<uint32_t>(), "Block number at which to snapshot balances")
             ;
     config_file_options.add(command_line_options);
 }
@@ -68,7 +68,8 @@ void generate_genesis_plugin::plugin_initialize(const boost::program_options::va
 
         _genesis_filename = options["output-genesis-file"].as<std::string>();
         _csvlog_filename = options["output-csvlog-file"].as<std::string>();
-        _block_to_snapshot = options["snapshot-block-number"].as<uint32_t>();
+        if (options.count("snapshot-block-number"))
+            _block_to_snapshot = options["snapshot-block-number"].as<uint32_t>();
         database().applied_block.connect([this](const graphene::chain::signed_block& b){ block_applied(b); });
         ilog("generate genesis plugin:  plugin_initialize() end");
     } FC_LOG_AND_RETHROW() }
@@ -76,24 +77,29 @@ void generate_genesis_plugin::plugin_initialize(const boost::program_options::va
 void generate_genesis_plugin::plugin_startup()
 { try {
         ilog("generate genesis plugin:  plugin_startup() begin");
-        chain::database& d = database();
-        if (d.head_block_num() == _block_to_snapshot)
+        if (_block_to_snapshot)
         {
-            ilog("generate genesis plugin: already at snapshot block");
-            generate_snapshot();
+            chain::database& d = database();
+            if (d.head_block_num() == *_block_to_snapshot)
+            {
+                ilog("generate genesis plugin: already at snapshot block");
+                generate_snapshot();
+            }
+            else if (d.head_block_num() > *_block_to_snapshot)
+                elog("generate genesis plugin: already passed snapshot block, you must reindex to return to the snapshot state");
+            else
+                elog("generate genesis plugin: waiting for block ${snapshot_block} to generate snapshot, current head is ${head}",
+                     ("snapshot_block", _block_to_snapshot)("head", d.head_block_num()));
         }
-        else if (d.head_block_num() > _block_to_snapshot)
-            elog("generate genesis plugin: already passed snapshot block, you must reindex to return to the snapshot state");
         else
-            elog("generate genesis plugin: waiting for block ${snapshot_block} to generate snapshot, current head is ${head}",
-                 ("snapshot_block", _block_to_snapshot)("head", d.head_block_num()));
+            ilog("generate genesis plugin: no snapshot block number provided, plugin is disabled");
 
         ilog("generate genesis plugin:  plugin_startup() end");
     } FC_CAPTURE_AND_RETHROW() }
 
 void generate_genesis_plugin::block_applied(const graphene::chain::signed_block& b)
 {
-    if (b.block_num() == _block_to_snapshot)
+    if (_block_to_snapshot && b.block_num() == *_block_to_snapshot)
     {
         ilog("generate genesis plugin: snapshot block has arrived");
         generate_snapshot();
