@@ -57,18 +57,16 @@ Use the get_private_key_from_password command
 You will to generate owner and active keys
 
 ```
-get_private_key_from_password the_key_you_received_from_the_faucet your_witness_username active
-get_private_key_from_password the_key_you_received_from_the_faucet your_witness_username owner
+get_private_key_from_password your_witness_username active the_key_you_received_from_the_faucet
 ```
-This will reveal an array for each `["PPYxxx", "xxxx"]`
+This will reveal an array for your active key `["PPYxxx", "xxxx"]`
 
 import_keys into your cli_wallet
 -------------------------------
-- use the second value in each array returned from the previous step for the private key
+- use the second value in the array returned from the previous step for the private key
 - be sure to wrap your username in quotes
-- import all 2 keys received above
+- import the key with this command
 ```
-import_key "your_witness_username" xxxx
 import_key "your_witness_username" xxxx
 ```
 
