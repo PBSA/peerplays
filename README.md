@@ -57,8 +57,8 @@ Use the get_private_key_from_password command
 You will to generate owner and active keys
 
 ```
-get_private_key_from_password the_key_you_received_from_the_faucet your_witness_username active
-get_private_key_from_password the_key_you_received_from_the_faucet your_witness_username owner
+get_private_key_from_password your_witness_username active the_key_you_received_from_the_faucet
+get_private_key_from_password your_witness_username owner the_key_you_received_from_the_faucet
 ```
 This will reveal an array for each `['PPYxxx', 'xxxx']`
 
