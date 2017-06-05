@@ -674,6 +674,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
                   new_vesting_policy.coin_seconds_earned_last_update = initial_cdd_vesting_policy.coin_seconds_earned_last_update;
                   vbo.policy = new_vesting_policy;
                }
+               total_supplies[get_asset_id(vesting_balance.asset_symbol)] += vesting_balance.amount;
             });
          }
    }
