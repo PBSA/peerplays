@@ -1349,6 +1349,38 @@ class wallet_api
                                           bool approve,
                                           bool broadcast = false);
 
+      /** Change your witness votes.
+       *
+       * An account can publish a list of all witnesses they approve of.  
+       * Each account's vote is weighted according to the number of shares of the
+       * core asset owned by that account at the time the votes are tallied.
+       * This command allows you to add or remove one or more witnesses from this list 
+       * in one call.  When you are changing your vote on several witnesses, this
+       * may be easier than multiple `vote_for_witness` and 
+       * `set_desired_witness_and_committee_member_count` calls.
+       *
+       * @note you cannot vote against a witness, you can only vote for the witness
+       *       or not vote for the witness.
+       *
+       * @param voting_account the name or id of the account who is voting with their shares
+       * @param witnesses_to_approve the names or ids of the witnesses owner accounts you wish
+       *                             to approve (these will be added to the list of witnesses
+       *                             you currently approve).  This list can be empty.
+       * @param witnesses_to_reject the names or ids of the witnesses owner accounts you wish
+       *                            to reject (these will be removed fromthe list of witnesses
+       *                            you currently approve).  This list can be empty.
+       * @param desired_number_of_witnesses the number of witnesses you believe the network
+       *                                    should have.  You must vote for at least this many
+       *                                    witnesses.  You can set this to 0 to abstain from 
+       *                                    voting on the number of witnesses.
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed transaction changing your vote for the given witnesses
+       */
+      signed_transaction update_witness_votes(string voting_account,
+                                              std::vector<std::string> witnesses_to_approve,
+                                              std::vector<std::string> witnesses_to_reject,
+                                              uint16_t desired_number_of_witnesses,
+                                              bool broadcast = false);
       /** Set the voting proxy for an account.
        *
        * If a user does not wish to take an active part in voting, they can choose
@@ -1700,6 +1732,7 @@ FC_API( graphene::wallet::wallet_api,
         (withdraw_vesting)
         (vote_for_committee_member)
         (vote_for_witness)
+        (update_witness_votes)
         (set_voting_proxy)
         (set_desired_witness_and_committee_member_count)
         (get_account)

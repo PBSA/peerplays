@@ -377,7 +377,6 @@ void database::initialize_budget_record( fc::time_point_sec now, budget_record& 
  */
 void database::process_budget()
 {
-   return;
    try
    {
       const global_property_object& gpo = get_global_properties();
@@ -414,9 +413,9 @@ void database::process_budget()
       rec.witness_budget = witness_budget;
       available_funds -= witness_budget;
 
-      fc::uint128_t worker_budget_u128 = uint64_t(1); //DLN Q&D HACK gpo.parameters.worker_budget_per_day.value;
-      //DLN worker_budget_u128 *= uint64_t(time_to_maint);
-      //DLN worker_budget_u128 /= 60*60*24;
+      fc::uint128_t worker_budget_u128 = gpo.parameters.worker_budget_per_day.value;
+      worker_budget_u128 *= uint64_t(time_to_maint);
+      worker_budget_u128 /= 60*60*24;
 
       share_type worker_budget;
       if( worker_budget_u128 >= available_funds.value )
@@ -768,9 +767,9 @@ void schedule_pending_dividend_balances(database& db,
    for (const vesting_balance_object& vesting_balance_obj : boost::make_iterator_range(vesting_balances_begin, vesting_balances_end))
    {
         vesting_amounts[vesting_balance_obj.owner] += vesting_balance_obj.balance.amount;
-        dlog("Vesting balance for account: ${owner}, amount: ${amount}",
-             ("owner", vesting_balance_obj.owner(db).name)
-             ("amount", vesting_balance_obj.balance.amount));
+        //dlog("Vesting balance for account: ${owner}, amount: ${amount}",
+        //     ("owner", vesting_balance_obj.owner(db).name)
+        //     ("amount", vesting_balance_obj.balance.amount));
    }
 
    auto current_distribution_account_balance_iter = current_distribution_account_balance_range.first;
@@ -1233,9 +1232,9 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
          for (const vesting_balance_object& vesting_balance_obj : boost::make_iterator_range(vesting_balances_begin, vesting_balances_end))
          {
             vesting_amounts[vesting_balance_obj.owner] += vesting_balance_obj.balance.amount;
-            dlog("Vesting balance for account: ${owner}, amount: ${amount}",
-                 ("owner", vesting_balance_obj.owner(d).name)
-                 ("amount", vesting_balance_obj.balance.amount));
+            //dlog("Vesting balance for account: ${owner}, amount: ${amount}",
+            //     ("owner", vesting_balance_obj.owner(d).name)
+            //     ("amount", vesting_balance_obj.balance.amount));
          }
       }
 

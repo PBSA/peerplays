@@ -166,7 +166,15 @@ struct egenesis_info
       else if( genesis_json.valid() )
       {
          // If genesis not exist, generate from genesis_json
-         genesis = fc::json::from_string( *genesis_json ).as< genesis_state_type >();
+         try
+         {
+            genesis = fc::json::from_string( *genesis_json ).as< genesis_state_type >();
+         }
+         catch (const fc::exception& e)
+         {
+            edump((e));
+            throw;
+         }
       }
       else
       {

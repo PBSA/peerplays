@@ -641,12 +641,43 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    }
 
    // Create balances for all bts accounts
-   for( const auto& account : genesis_state.initial_bts_accounts )
-      if (account.core_balance != share_type())
+   for( const auto& account : genesis_state.initial_bts_accounts ) {
+      if (account.core_balance != share_type()) {
+         total_supplies[asset_id_type()] += account.core_balance;
+
          create<account_balance_object>([&](account_balance_object& b) {
             b.owner = get_account_id(account.name);
             b.balance = account.core_balance;
          });
+      }
+
+      // create any vesting balances for this account
+      if (account.vesting_balances)
+         for (const auto& vesting_balance : *account.vesting_balances) {
+            create<vesting_balance_object>([&](vesting_balance_object& vbo) {
+               vbo.owner = get_account_id(account.name);
+               vbo.balance = asset(vesting_balance.amount, get_asset_id(vesting_balance.asset_symbol));
+               if (vesting_balance.policy_type == "linear") {
+                  auto initial_linear_vesting_policy = vesting_balance.policy.as<genesis_state_type::initial_bts_account_type::initial_linear_vesting_policy>();
+                  linear_vesting_policy new_vesting_policy;
+                  new_vesting_policy.begin_timestamp = initial_linear_vesting_policy.begin_timestamp;
+                  new_vesting_policy.vesting_cliff_seconds = initial_linear_vesting_policy.vesting_cliff_seconds;
+                  new_vesting_policy.vesting_duration_seconds = initial_linear_vesting_policy.vesting_duration_seconds;
+                  new_vesting_policy.begin_balance = initial_linear_vesting_policy.begin_balance;
+                  vbo.policy = new_vesting_policy;
+               } else if (vesting_balance.policy_type == "cdd") {
+                  auto initial_cdd_vesting_policy = vesting_balance.policy.as<genesis_state_type::initial_bts_account_type::initial_cdd_vesting_policy>();
+                  cdd_vesting_policy new_vesting_policy;
+                  new_vesting_policy.vesting_seconds = initial_cdd_vesting_policy.vesting_seconds;
+                  new_vesting_policy.coin_seconds_earned = initial_cdd_vesting_policy.coin_seconds_earned;
+                  new_vesting_policy.start_claim = initial_cdd_vesting_policy.start_claim;
+                  new_vesting_policy.coin_seconds_earned_last_update = initial_cdd_vesting_policy.coin_seconds_earned_last_update;
+                  vbo.policy = new_vesting_policy;
+               }
+            });
+         }
+   }
+
 
    // Create initial balances
    share_type total_allocation;
@@ -671,7 +702,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
 
          linear_vesting_policy policy;
          policy.begin_timestamp = vest.begin_timestamp;
-         policy.vesting_cliff_seconds = 0;
+         policy.vesting_cliff_seconds = vest.vesting_cliff_seconds ? *vest.vesting_cliff_seconds : 0;
          policy.vesting_duration_seconds = vest.vesting_duration_seconds;
          policy.begin_balance = vest.begin_balance;
 
