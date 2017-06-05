@@ -702,7 +702,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
 
          linear_vesting_policy policy;
          policy.begin_timestamp = vest.begin_timestamp;
-         policy.vesting_cliff_seconds = 0;
+         policy.vesting_cliff_seconds = vest.vesting_cliff_seconds ? *vest.vesting_cliff_seconds : 0;
          policy.vesting_duration_seconds = vest.vesting_duration_seconds;
          policy.begin_balance = vest.begin_balance;
 

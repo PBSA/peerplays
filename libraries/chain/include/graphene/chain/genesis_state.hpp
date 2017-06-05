@@ -121,6 +121,7 @@ struct genesis_state_type {
       string asset_symbol;
       share_type amount;
       time_point_sec begin_timestamp;
+      fc::optional<uint32_t> vesting_cliff_seconds;
       uint32_t vesting_duration_seconds = 0;
       share_type begin_balance;
    };
@@ -180,7 +181,7 @@ FC_REFLECT(graphene::chain::genesis_state_type::initial_balance_type,
            (owner)(asset_symbol)(amount))
 
 FC_REFLECT(graphene::chain::genesis_state_type::initial_vesting_balance_type,
-           (owner)(asset_symbol)(amount)(begin_timestamp)(vesting_duration_seconds)(begin_balance))
+           (owner)(asset_symbol)(amount)(begin_timestamp)(vesting_cliff_seconds)(vesting_duration_seconds)(begin_balance))
 
 FC_REFLECT(graphene::chain::genesis_state_type::initial_witness_type, (owner_name)(block_signing_key))
 
