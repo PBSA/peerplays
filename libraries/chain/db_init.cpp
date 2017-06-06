@@ -754,10 +754,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       }
       ++it;
    }
-// @romek
-#if 0
    FC_ASSERT( !has_imbalanced_assets );
-#endif
 
    // Save tallied supplies
    for( const auto& item : total_supplies )
