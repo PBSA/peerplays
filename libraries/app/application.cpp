@@ -152,7 +152,7 @@ namespace detail {
          else
          {
             vector<string> seeds = {
-               "peerplays.blocktrades.info:2776"
+               "190.14.37.222:2776"
             };
             for( const string& endpoint_string : seeds )
             {
