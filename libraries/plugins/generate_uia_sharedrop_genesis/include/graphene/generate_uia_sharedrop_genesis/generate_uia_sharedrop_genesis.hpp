@@ -30,50 +30,50 @@
 
 namespace graphene { namespace generate_uia_sharedrop_genesis {
 
-        class generate_uia_sharedrop_genesis_plugin : public graphene::app::plugin {
-        public:
-            ~generate_uia_sharedrop_genesis_plugin() {
-            }
+class generate_uia_sharedrop_genesis_plugin : public graphene::app::plugin {
+public:
+   ~generate_uia_sharedrop_genesis_plugin() {
+   }
 
-            std::string plugin_name()const override;
+   std::string plugin_name()const override;
 
-            virtual void plugin_set_program_options(
-                    boost::program_options::options_description &command_line_options,
-                    boost::program_options::options_description &config_file_options
-            ) override;
+   virtual void plugin_set_program_options(
+      boost::program_options::options_description &command_line_options,
+      boost::program_options::options_description &config_file_options
+      ) override;
 
-            virtual void plugin_initialize( const boost::program_options::variables_map& options ) override;
-            virtual void plugin_startup() override;
-            virtual void plugin_shutdown() override;
+   virtual void plugin_initialize( const boost::program_options::variables_map& options ) override;
+   virtual void plugin_startup() override;
+   virtual void plugin_shutdown() override;
 
-        private:
-            void block_applied(const graphene::chain::signed_block& b);
-            void generate_snapshot();
+private:
+   void block_applied(const graphene::chain::signed_block& b);
+   void generate_snapshot();
 
-            boost::program_options::variables_map _options;
+   boost::program_options::variables_map _options;
 
-            fc::optional<uint32_t> _block_to_snapshot;
-            std::string _input_genesis_filename;
-            std::string _output_genesis_filename;
-            std::string _csvlog_filename;
-        };
+   fc::optional<uint32_t> _block_to_snapshot;
+   std::string _input_genesis_filename;
+   std::string _output_genesis_filename;
+   std::string _csvlog_filename;
+};
 
-        class uia_sharedrop_balance_object
-        {
-        public:
-            graphene::chain::account_id_type   account_id;
+class uia_sharedrop_balance_object
+{
+public:
+   graphene::chain::account_id_type   account_id;
 
-            graphene::chain::share_type        genesis;
-            graphene::chain::share_type        balance;
-            graphene::chain::share_type        orders;
+   graphene::chain::share_type        genesis;
+   graphene::chain::share_type        balance;
+   graphene::chain::share_type        orders;
 
-            graphene::chain::share_type        sharedrop;
-        };
+   graphene::chain::share_type        sharedrop;
+};
 
-        using namespace boost::multi_index;
-        struct by_account{};
-        typedef multi_index_container<uia_sharedrop_balance_object,
-        indexed_by<ordered_unique<tag<by_account>,
-        member<uia_sharedrop_balance_object, graphene::chain::account_id_type, &uia_sharedrop_balance_object::account_id> > > > uia_sharedrop_balance_object_index_type;
+using namespace boost::multi_index;
+struct by_account{};
+typedef multi_index_container<uia_sharedrop_balance_object, 
+                              indexed_by<ordered_unique<tag<by_account>,
+                                                        member<uia_sharedrop_balance_object, graphene::chain::account_id_type, &uia_sharedrop_balance_object::account_id> > > > uia_sharedrop_balance_object_index_type;
 
-    } } //graphene::generate_uia_sharedrop_genesis_plugin
+} } //graphene::generate_uia_sharedrop_genesis_plugin

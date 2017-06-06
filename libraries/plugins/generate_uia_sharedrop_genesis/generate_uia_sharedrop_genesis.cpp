@@ -47,11 +47,11 @@ void generate_uia_sharedrop_genesis_plugin::plugin_set_program_options(boost::pr
                                                                        boost::program_options::options_description& config_file_options)
 {
     command_line_options.add_options()
-            ("input-uia-sharedrop-genesis-file", bpo::value<std::string>()->default_value("genesis.json"), "Genesis file to read")
-            ("output-uia-sharedrop-genesis-file", bpo::value<std::string>()->default_value("genesis.json"), "Genesis file to create")
-            ("output-uia-sharedrop-csvlog-file", bpo::value<std::string>()->default_value("log.csv"), "CSV log file to create")
-            ("uia-sharedrop-snapshot-block-number", bpo::value<uint32_t>(), "Block number at which to snapshot balances")
-            ;
+        ("input-uia-sharedrop-genesis-file", bpo::value<std::string>()->default_value("genesis.json"), "Genesis file to read")
+        ("output-uia-sharedrop-genesis-file", bpo::value<std::string>()->default_value("genesis.json"), "Genesis file to create")
+        ("output-uia-sharedrop-csvlog-file", bpo::value<std::string>()->default_value("log.csv"), "CSV log file to create")
+        ("uia-sharedrop-snapshot-block-number", bpo::value<uint32_t>(), "Block number at which to snapshot balances")
+        ;
     config_file_options.add(command_line_options);
 }
 
@@ -105,7 +105,7 @@ void generate_uia_sharedrop_genesis_plugin::block_applied(const graphene::chain:
     }
 }
 
-namespace
+namespace 
 {
     // anonymous namespace for file-scoped helper functions
 
@@ -128,53 +128,53 @@ namespace
     bool is_scam(const std::string& account_name)
     {
         static std::set<std::string> scam_accounts{
-                "polonie-wallet",
-                "polonie-xwallet",
-                "poloniewallet",
-                "poloniex-deposit",
-                "poloniex-wallet",
-                "poloniexwall-et",
-                "poloniexwallett",
-                "poloniexwall-t",
-                "poloniexwalle",
-                "poloniex",
-                "poloneix",
-                "poloniex1",
-                "bittrex-deopsit",
-                "bittrex-deposi",
-                "bittrex-depositt",
-                "bittrex-dposit",
-                "bittrex",
-                "bittrex-deposits",
-                "coinbase",
-                "blocktrade",
-                "locktrades",
-                "yun.bts",
-                "transwiser-walle",
-                "transwiser-wallets",
-                "ranswiser-wallet",
-                "yun.btc",
-                "pay.coinbase.com",
-                "pay.bts.com",
-                "btc38.com",
-                "yunbi.com",
-                "coinbase.com",
-                "ripple.com"
+            "polonie-wallet",
+            "polonie-xwallet",
+            "poloniewallet",
+            "poloniex-deposit",
+            "poloniex-wallet",
+            "poloniexwall-et",
+            "poloniexwallett",
+            "poloniexwall-t",
+            "poloniexwalle",
+            "poloniex",
+            "poloneix",
+            "poloniex1",
+            "bittrex-deopsit",
+            "bittrex-deposi",
+            "bittrex-depositt",
+            "bittrex-dposit",
+            "bittrex",
+            "bittrex-deposits",
+            "coinbase",
+            "blocktrade",
+            "locktrades",
+            "yun.bts",
+            "transwiser-walle",
+            "transwiser-wallets",
+            "ranswiser-wallet",
+            "yun.btc",
+            "pay.coinbase.com",
+            "pay.bts.com",
+            "btc38.com",
+            "yunbi.com",
+            "coinbase.com",
+            "ripple.com" 
         };
         return scam_accounts.find(account_name) != scam_accounts.end();
-    }
-
+    }   
+    
     bool is_exchange(const std::string& account_name)
     {
         static std::set<std::string> exchange_accounts{
-                "poloniexcoldstorage",
-                "btc38-public-for-bts-cold",
-                "poloniexwallet",
-                "btercom",
-                "yunbi-cold-wallet",
-                "btc38-btsx-octo-72722",
-                "bittrex-deposit",
-                "btc38btsxwithdrawal"
+            "poloniexcoldstorage",
+            "btc38-public-for-bts-cold",
+            "poloniexwallet",
+            "btercom",
+            "yunbi-cold-wallet",
+            "btc38-btsx-octo-72722",
+            "bittrex-deposit",
+            "btc38btsxwithdrawal"
         };
         return exchange_accounts.find(account_name) != exchange_accounts.end();
     }
@@ -283,7 +283,7 @@ void generate_uia_sharedrop_genesis_plugin::generate_snapshot()
     }
 
 
-    // Generate CSV file of all sharedrops and the balances we used to calculate them
+    // Generate CSV file of all sharedrops and the balances we used to calculate them 
     std::ofstream csv_log_file;
     csv_log_file.open(_csvlog_filename);
     assert(csv_log_file.is_open());
@@ -342,9 +342,9 @@ void generate_uia_sharedrop_genesis_plugin::generate_snapshot()
                 active.address_auths = account_obj.active.address_auths;
 
                 new_genesis_state.initial_bts_accounts.emplace_back(
-                        graphene::chain::genesis_state_type::initial_bts_account_type(modify_account_name(account_obj.name),
-                                                                                      owner, active,
-                                                                                      sharedrop_amount));
+                            graphene::chain::genesis_state_type::initial_bts_account_type(modify_account_name(account_obj.name),
+                                                                                          owner, active,
+                                                                                          sharedrop_amount));
                 already_generated.insert(account_id);
                 ++accounts_generated_this_round;
             }
@@ -359,3 +359,4 @@ void generate_uia_sharedrop_genesis_plugin::generate_snapshot()
 void generate_uia_sharedrop_genesis_plugin::plugin_shutdown()
 {
 }
+

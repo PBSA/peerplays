@@ -70,6 +70,8 @@ int main( int argc, char** argv )
             ("dev-account-count", bpo::value<uint32_t>()->default_value(0), "Prefix for dev accounts")
             ("dev-balance-count", bpo::value<uint32_t>()->default_value(0), "Prefix for dev balances")
             ("dev-balance-amount", bpo::value<uint64_t>()->default_value(uint64_t(1000)*uint64_t(1000)*uint64_t(100000)), "Amount in each dev balance")
+            ("nop", "just write the genesis file out after reading it in, do not alter any keys or add accounts or balances.  used to pretty-print a genesis file")
+            ("replace-all-keys", bpo::value<boost::filesystem::path>(), "Replace all keys/addresses in the genesis files with dev keys based on dev-key-prefix and dump the new keys to this filename.")
             ;
 
       bpo::variables_map options;
@@ -116,54 +118,134 @@ int main( int argc, char** argv )
          genesis = graphene::app::detail::create_example_genesis();
       }
 
-      std::string dev_key_prefix = options["dev-key-prefix"].as<std::string>();
-
-      auto get_dev_key = [&]( std::string prefix, uint32_t i ) -> public_key_type
+      if (!options.count("nop"))
       {
-         return fc::ecc::private_key::regenerate( fc::sha256::hash( dev_key_prefix + prefix + std::to_string(i) ) ).get_public_key();
-      };
-
-      uint32_t dev_account_count = options["dev-account-count"].as<uint32_t>();
-      std::string dev_account_prefix = options["dev-account-prefix"].as<std::string>();
-      for(uint32_t i=0;i<dev_account_count;i++)
-      {
-         genesis_state_type::initial_account_type acct(
-            dev_account_prefix+std::to_string(i),
-            get_dev_key( "owner-", i ),
-            get_dev_key( "active-", i ),
-            false );
-
-         genesis.initial_accounts.push_back( acct );
-      }
-
-      uint32_t dev_balance_count = options["dev-balance-count"].as<uint32_t>();
-      uint64_t dev_balance_amount = options["dev-balance-amount"].as<uint64_t>();
-      for(uint32_t i=0;i<dev_balance_count;i++)
-      {
-         genesis_state_type::initial_balance_type bal;
-         bal.owner = address( get_dev_key( "balance-", i ) );
-         bal.asset_symbol = "CORE";
-         bal.amount = dev_balance_amount;
-         genesis.initial_balances.push_back( bal );
-      }
-
-      std::map< std::string, size_t > name2index;
-      size_t num_accounts = genesis.initial_accounts.size();
-      for( size_t i=0; i<num_accounts; i++ )
-         name2index[ genesis.initial_accounts[i].name ] = i;
-
-      for( uint32_t i=0; i<genesis.initial_active_witnesses; i++ )
-      {
-         genesis_state_type::initial_witness_type& wit = genesis.initial_witness_candidates[ i ];
-         genesis_state_type::initial_account_type& wit_acct = genesis.initial_accounts[ name2index[ wit.owner_name ] ];
-         if( wit.owner_name.substr(0, 4) != "init" )
+         std::string dev_key_prefix = options["dev-key-prefix"].as<std::string>();
+         auto get_dev_key = [&]( std::string prefix, uint32_t i ) -> public_key_type
          {
-            std::cerr << "need " << genesis.initial_active_witnesses << " init accounts as first entries in initial_active_witnesses\n";
-            return 1;
+            return fc::ecc::private_key::regenerate( fc::sha256::hash( dev_key_prefix + prefix + std::to_string(i) ) ).get_public_key();
+         };
+
+         if (options.count("replace-all-keys"))
+         {
+            unsigned dev_keys_used = 0;
+            std::map<std::string, fc::ecc::private_key> replacement_keys;
+            auto get_replacement_key = [&](const std::string& original_key) -> fc::ecc::private_key {
+               auto iter = replacement_keys.find(original_key);
+               if (iter != replacement_keys.end())
+                  return iter->second;
+               fc::ecc::private_key new_private_key = fc::ecc::private_key::regenerate(fc::sha256::hash(dev_key_prefix + std::to_string(dev_keys_used++)));
+               replacement_keys[original_key] = new_private_key;
+               return new_private_key;
+            };
+
+            for (genesis_state_type::initial_balance_type& initial_balance : genesis.initial_balances)
+            {
+               std::string address_string = (std::string)initial_balance.owner;
+               initial_balance.owner = address(get_replacement_key(address_string).get_public_key());
+            }
+
+            for (genesis_state_type::initial_vesting_balance_type& initial_balance : genesis.initial_vesting_balances)
+            {
+               std::string address_string = (std::string)initial_balance.owner;
+               initial_balance.owner = address(get_replacement_key(address_string).get_public_key());
+            }
+
+            for (genesis_state_type::initial_witness_type& initial_witness : genesis.initial_witness_candidates)
+            {
+               std::string public_key_string = (std::string)initial_witness.block_signing_key;
+               initial_witness.block_signing_key = get_replacement_key(public_key_string).get_public_key();
+            }
+
+            for (genesis_state_type::initial_account_type& initial_account : genesis.initial_accounts)
+            {
+               std::string public_key_string = (std::string)initial_account.owner_key;
+               initial_account.owner_key = get_replacement_key(public_key_string).get_public_key();
+               public_key_string = (std::string)initial_account.active_key;
+               initial_account.active_key = get_replacement_key(public_key_string).get_public_key();
+            }
+
+            for (genesis_state_type::initial_bts_account_type& initial_account : genesis.initial_bts_accounts)
+            {
+               for (auto iter = initial_account.owner_authority.key_auths.begin();
+                    iter != initial_account.owner_authority.key_auths.end(); ++iter)
+               {
+                  std::string public_key_string = (std::string)iter->first;
+                  iter->first = get_replacement_key(public_key_string).get_public_key();
+               }
+               for (auto iter = initial_account.active_authority.key_auths.begin();
+                    iter != initial_account.active_authority.key_auths.end(); ++iter)
+               {
+                  std::string public_key_string = (std::string)iter->first;
+                  iter->first = get_replacement_key(public_key_string).get_public_key();
+               }
+               for (auto iter = initial_account.owner_authority.address_auths.begin();
+                    iter != initial_account.owner_authority.address_auths.end(); ++iter)
+               {
+                  std::string address_string = (std::string)iter->first;
+                  iter->first = address(get_replacement_key(address_string).get_public_key());
+               }
+               for (auto iter = initial_account.active_authority.address_auths.begin();
+                    iter != initial_account.active_authority.address_auths.end(); ++iter)
+               {
+                  std::string address_string = (std::string)iter->first;
+                  iter->first = address(get_replacement_key(address_string).get_public_key());
+               }
+            }
+            fc::path keys_csv_path = options["replace-all-keys"].as<boost::filesystem::path>();
+            std::ofstream keys_csv(keys_csv_path.string());
+            keys_csv << "wif_private_key,public_key,address\n";
+            for (const auto& value : replacement_keys)
+               keys_csv << graphene::utilities::key_to_wif(value.second) << "," << std::string(public_key_type(value.second.get_public_key()))
+                        << "," << std::string(address(value.second.get_public_key())) << "\n";
+
+ 
          }
-         wit.block_signing_key = get_dev_key( "wit-block-signing-", i );
-         wit_acct.owner_key = get_dev_key( "wit-owner-", i );
-         wit_acct.active_key = get_dev_key( "wit-active-", i );
+         else
+         {
+            uint32_t dev_account_count = options["dev-account-count"].as<uint32_t>();
+            std::string dev_account_prefix = options["dev-account-prefix"].as<std::string>();
+            for(uint32_t i=0;i<dev_account_count;i++)
+            {
+               genesis_state_type::initial_account_type acct(
+                  dev_account_prefix+std::to_string(i),
+                  get_dev_key( "owner-", i ),
+                  get_dev_key( "active-", i ),
+                  false );
+
+               genesis.initial_accounts.push_back( acct );
+            }
+
+            uint32_t dev_balance_count = options["dev-balance-count"].as<uint32_t>();
+            uint64_t dev_balance_amount = options["dev-balance-amount"].as<uint64_t>();
+            for(uint32_t i=0;i<dev_balance_count;i++)
+            {
+               genesis_state_type::initial_balance_type bal;
+               bal.owner = address( get_dev_key( "balance-", i ) );
+               bal.asset_symbol = "CORE";
+               bal.amount = dev_balance_amount;
+               genesis.initial_balances.push_back( bal );
+            }
+
+            std::map< std::string, size_t > name2index;
+            size_t num_accounts = genesis.initial_accounts.size();
+            for( size_t i=0; i<num_accounts; i++ )
+               name2index[ genesis.initial_accounts[i].name ] = i;
+
+            for( uint32_t i=0; i<genesis.initial_active_witnesses; i++ )
+            {
+               genesis_state_type::initial_witness_type& wit = genesis.initial_witness_candidates[ i ];
+               genesis_state_type::initial_account_type& wit_acct = genesis.initial_accounts[ name2index[ wit.owner_name ] ];
+               if( wit.owner_name.substr(0, 4) != "init" )
+               {
+                  std::cerr << "need " << genesis.initial_active_witnesses << " init accounts as first entries in initial_active_witnesses\n";
+                  return 1;
+               }
+               wit.block_signing_key = get_dev_key( "wit-block-signing-", i );
+               wit_acct.owner_key = get_dev_key( "wit-owner-", i );
+               wit_acct.active_key = get_dev_key( "wit-active-", i );
+            }
+         }
       }
 
       fc::path output_filename = options["out"].as<boost::filesystem::path>();
