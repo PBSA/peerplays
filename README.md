@@ -1,7 +1,7 @@
 Intro for new developers and witnesses
 ------------------------
 
-This is a quick introduction to get new developers and witnesses up to speed on Peerplays blockchain. It is intended for witnesses plannig to join a live, already deployed blockchain.
+This is a quick introduction to get new developers and witnesses up to speed on the Peerplays blockchain. It is intended for witnesses planning to join a live, already deployed blockchain.
 
 Starting A Peerplays Node
 -----------------
@@ -54,22 +54,23 @@ https://595-dev.pixelplex.by/
 
 Use the get_private_key_from_password command
 ---------------------------------
-You will to generate owner and active keys
+Generate **owner** and **active** keys
 
 ```
 get_private_key_from_password the_key_you_received_from_the_faucet your_witness_username active
 get_private_key_from_password the_key_you_received_from_the_faucet your_witness_username owner
 ```
-This will reveal an array for each `['PPYxxx', 'xxxx']`
+This will reveal an array for each `['PPYxxx', 'private_key']`
 
 import_keys into your cli_wallet
 -------------------------------
 - use the second value in each array returned from the previous step for the private key
 - be sure to wrap your username in quotes
-- import all 2 keys received above
+- import both keys received above
+
 ```
-import_key "your_witness_username" xxxx
-import_key "your_witness_username" xxxx
+import_key "your_witness_username" private_key
+import_key "your_witness_username" private_key
 ```
 
 Upgrade your account to lifetime membership
@@ -119,10 +120,10 @@ start your witness back up
 ./programs/witness_node/witness_node
 ```
 
-If it fails to start, try with these flags (not for permanent use)
+NOTE: If you are a witness on a testnet, it's important that you send the `--resync` flag if/when the testnet chainid changes. Resync ensures that all the data from the previous chain is deleted. You only need to do this once. Additionally, if all else fails, you can try setting the `--resync` flag to get you back on track.
 
 ```
-./programs/witness_node/witness_node --resync --replay
+./programs/witness_node/witness_node --resync
 ```
 
 Vote for yourself
