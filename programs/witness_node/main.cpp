@@ -25,6 +25,7 @@
 
 #include <graphene/witness/witness.hpp>
 #include <graphene/account_history/account_history_plugin.hpp>
+#include <graphene/accounts_list/accounts_list_plugin.hpp>
 #include <graphene/market_history/market_history_plugin.hpp>
 //#include <graphene/generate_genesis/generate_genesis_plugin.hpp>
 //#include <graphene/generate_uia_sharedrop_genesis/generate_uia_sharedrop_genesis.hpp>
@@ -78,6 +79,7 @@ int main(int argc, char** argv) {
       auto market_history_plug = node->register_plugin<market_history::market_history_plugin>();
       //auto generate_genesis_plug = node->register_plugin<generate_genesis_plugin::generate_genesis_plugin>();
       //auto generate_uia_sharedrop_genesis_plug = node->register_plugin<generate_uia_sharedrop_genesis::generate_uia_sharedrop_genesis_plugin>();
+      auto list_plug = node->register_plugin<accounts_list::accounts_list_plugin>();
 
       try
       {

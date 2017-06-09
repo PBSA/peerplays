@@ -2461,6 +2461,21 @@ public:
          return ss.str();
       };
 
+      m["list_core_accounts"] = [this](variant result, const fc::variants& a)
+      {
+         std::stringstream ss;
+
+         auto balances = result.as<vector<account_balance_object>>();
+         for (const account_balance_object& balance: balances)
+         {
+             const account_object& account = get_account(balance.owner);
+             //ss << account.name << " " <<  std::string(balance.id) << " " << balance.balance.value << "\n";
+             ss << account.name << " " <<  std::string(balance.id) << " " << get_asset(balance.asset_type).amount_to_pretty_string(balance.balance) << "\n";
+         }
+
+         return ss.str();
+      };
+
       m["get_blind_balances"] = [this](variant result, const fc::variants& a)
       {
          auto r = result.as<vector<asset>>();
@@ -3386,6 +3401,10 @@ vector<operation_detail> wallet_api::get_account_history(string name, int limit)
    return result;
 }
 
+vector<account_balance_object> wallet_api::list_core_accounts()const
+{
+   return my->_remote_hist->list_core_accounts();
+}
 
 vector<bucket_object> wallet_api::get_market_history( string symbol1, string symbol2, uint32_t bucket )const
 {

@@ -29,6 +29,7 @@
 #include <graphene/chain/protocol/confidential.hpp>
 
 #include <graphene/market_history/market_history_plugin.hpp>
+#include <graphene/accounts_list/accounts_list_plugin.hpp>
 
 #include <graphene/debug_witness/debug_api.hpp>
 
@@ -49,6 +50,7 @@
 namespace graphene { namespace app {
    using namespace graphene::chain;
    using namespace graphene::market_history;
+   using namespace graphene::accounts_list;
    using namespace fc::ecc;
    using namespace std;
 
@@ -113,6 +115,7 @@ namespace graphene { namespace app {
          vector<order_history_object> get_fill_order_history( asset_id_type a, asset_id_type b, uint32_t limit )const;
          vector<bucket_object> get_market_history( asset_id_type a, asset_id_type b, uint32_t bucket_seconds,
                                                    fc::time_point_sec start, fc::time_point_sec end )const;
+         vector<account_balance_object> list_core_accounts()const;
          flat_set<uint32_t> get_market_history_buckets()const;
       private:
            application& _app;
@@ -316,6 +319,7 @@ FC_API(graphene::app::history_api,
        (get_fill_order_history)
        (get_market_history)
        (get_market_history_buckets)
+       (list_core_accounts)
      )
 FC_API(graphene::app::network_broadcast_api,
        (broadcast_transaction)
