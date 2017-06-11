@@ -180,7 +180,11 @@ namespace detail {
                "212.71.253.163:9777",	            // xtar
                "51.15.35.96:9777",	               // lafona
                "anyx.ca:9777"                      // anyx
-            };
+               "ppy001.bts-nodes.net:7777          // baxters-sports
+               "ppy002.bts-nodes.net:7777          // baxters-sports
+               "ppy003.bts-nodes.net:7777          // baxters-sports
+               "ppy004.bts-nodes.net:7777          // baxters-sports
+};
             for( const string& endpoint_string : seeds )
             {
                try {
