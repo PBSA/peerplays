@@ -1,8 +1,8 @@
 [submodule "docs"]
-	path = docs
-	url = https://github.com/cryptonomex/graphene.wiki.git
- ignore = dirty
+    path = docs
+    url = https://github.com/bitshares/bitshares-core.wiki.git
+    ignore = dirty
 [submodule "libraries/fc"]
-	path = libraries/fc
-	url = git@bitbucket.org:peerplaysblockchain/peerplays-fc.git
- ignore = dirty
+    path = libraries/fc
+    url = git@bitbucket.org:peerplaysblockchain/peerplays-fc.git
+    ignore = dirty

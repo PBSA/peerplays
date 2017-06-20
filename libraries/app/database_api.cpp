@@ -76,6 +76,7 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
 
       // Keys
       vector<vector<account_id_type>> get_key_references( vector<public_key_type> key )const;
+     bool is_public_key_registered(string public_key) const;
 
       // Accounts
       vector<optional<account_object>> get_accounts(const vector<account_id_type>& account_ids)const;
@@ -503,6 +504,35 @@ vector<vector<account_id_type>> database_api_impl::get_key_references( vector<pu
    return final_result;
 }
 
+bool database_api::is_public_key_registered(string public_key) const
+{
+    return my->is_public_key_registered(public_key);
+}
+
+bool database_api_impl::is_public_key_registered(string public_key) const
+{
+    // Short-circuit
+    if (public_key.empty()) {
+        return false;
+    }
+
+    // Search among all keys using an existing map of *current* account keys
+    public_key_type key;
+    try {
+        key = public_key_type(public_key);
+    } catch ( ... ) {
+        // An invalid public key was detected
+        return false;
+    }
+    const auto& idx = _db.get_index_type<account_index>();
+    const auto& aidx = dynamic_cast<const primary_index<account_index>&>(idx);
+    const auto& refs = aidx.get_secondary_index<graphene::chain::account_member_index>();
+    auto itr = refs.account_to_key_memberships.find(key);
+    bool is_known = itr != refs.account_to_key_memberships.end();
+
+    return is_known;
+}
+
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
 // Accounts                                                         //
@@ -618,6 +648,22 @@ std::map<std::string, full_account> database_api_impl::get_full_accounts( const 
                     [&acnt] (const call_order_object& call) {
                        acnt.call_orders.emplace_back(call);
                     });
+					
+      // get assets issued by user
+      auto asset_range = _db.get_index_type<asset_index>().indices().get<by_issuer>().equal_range(account->id);
+      std::for_each(asset_range.first, asset_range.second,
+                    [&acnt] (const asset_object& asset) {
+                       acnt.assets.emplace_back(asset.id);
+                    });
+					
+      // get withdraws permissions
+      auto withdraw_range = _db.get_index_type<withdraw_permission_index>().indices().get<by_from>().equal_range(account->id);
+      std::for_each(withdraw_range.first, withdraw_range.second,
+                    [&acnt] (const withdraw_permission_object& withdraw) {
+                       acnt.withdraws.emplace_back(withdraw);
+                    });
+	  
+	  
       results[account_name_or_id] = acnt;
    }
    return results;

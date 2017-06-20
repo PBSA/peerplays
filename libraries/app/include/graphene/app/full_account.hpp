@@ -26,6 +26,7 @@
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/market_evaluator.hpp>
+#include <graphene/chain/withdraw_permission_object.hpp>
 
 namespace graphene { namespace app {
    using namespace graphene::chain;
@@ -44,6 +45,8 @@ namespace graphene { namespace app {
       vector<limit_order_object>       limit_orders;
       vector<call_order_object>        call_orders;
       vector<proposal_object>          proposals;
+      vector<asset_id_type>            assets;
+      vector<withdraw_permission_object> withdraws;
    };
 
 } }
@@ -61,4 +64,6 @@ FC_REFLECT( graphene::app::full_account,
             (limit_orders)
             (call_orders)
             (proposals) 
+            (assets)
+            (withdraws)
           )

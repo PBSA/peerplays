@@ -79,6 +79,10 @@ namespace graphene { namespace app {
        {
           _database_api = std::make_shared< database_api >( std::ref( *_app.chain_database() ) );
        }
+       else if( api_name == "block_api" )
+       {
+          _block_api = std::make_shared< block_api >( std::ref( *_app.chain_database() ) );
+       }
        else if( api_name == "network_broadcast_api" )
        {
           _network_broadcast_api = std::make_shared< network_broadcast_api >( std::ref( _app ) );
@@ -95,6 +99,10 @@ namespace graphene { namespace app {
        {
           _crypto_api = std::make_shared< crypto_api >();
        }
+       else if( api_name == "asset_api" )
+       {
+          _asset_api = std::make_shared< asset_api >( std::ref( *_app.chain_database() ) );
+       }
        else if( api_name == "debug_api" )
        {
           // can only enable this API if the plugin was loaded
@@ -102,6 +110,20 @@ namespace graphene { namespace app {
              _debug_api = std::make_shared< graphene::debug_witness::debug_api >( std::ref(_app) );
        }
        return;
+    }
+
+    // block_api
+    block_api::block_api(graphene::chain::database& db) : _db(db) { }
+    block_api::~block_api() { }
+
+    vector<optional<signed_block>> block_api::get_blocks(uint32_t block_num_from, uint32_t block_num_to)const
+    {
+       FC_ASSERT( block_num_to >= block_num_from );
+       vector<optional<signed_block>> res;
+       for(uint32_t block_num=block_num_from; block_num<=block_num_to; block_num++) {
+          res.push_back(_db.fetch_block_by_number(block_num));
+       }
+       return res;
     }
 
     network_broadcast_api::network_broadcast_api(application& a):_app(a)
@@ -193,6 +215,12 @@ namespace graphene { namespace app {
        return *_network_broadcast_api;
     }
 
+    fc::api<block_api> login_api::block()const
+    {
+       FC_ASSERT(_block_api);
+       return *_block_api;
+    }
+
     fc::api<network_node_api> login_api::network_node()const
     {
        FC_ASSERT(_network_node_api);
@@ -215,6 +243,12 @@ namespace graphene { namespace app {
     {
        FC_ASSERT(_crypto_api);
        return *_crypto_api;
+    }
+
+    fc::api<asset_api> login_api::asset() const
+    {
+       FC_ASSERT(_asset_api);
+       return *_asset_api;
     }
 
     fc::api<graphene::debug_witness::debug_api> login_api::debug() const
@@ -437,6 +471,37 @@ namespace graphene { namespace app {
        return result;
     }
     
+    vector<operation_history_object> history_api::get_account_history_operations( account_id_type account, 
+                                                                       int operation_id,
+                                                                       operation_history_id_type start, 
+                                                                       operation_history_id_type stop,
+                                                                       unsigned limit) const
+    {
+       FC_ASSERT( _app.chain_database() );
+       const auto& db = *_app.chain_database();
+       FC_ASSERT( limit <= 100 );
+       vector<operation_history_object> result;
+       const auto& stats = account(db).statistics(db);
+       if( stats.most_recent_op == account_transaction_history_id_type() ) return result;
+       const account_transaction_history_object* node = &stats.most_recent_op(db);
+       if( start == operation_history_id_type() )
+          start = node->operation_id;
+
+       while(node && node->operation_id.instance.value > stop.instance.value && result.size() < limit)
+       {
+          if( node->operation_id.instance.value <= start.instance.value ) {
+
+             if(node->operation_id(db).op.which() == operation_id)
+               result.push_back( node->operation_id(db) );
+             }
+          if( node->next == account_transaction_history_id_type() )
+             node = nullptr;
+          else node = &node->next(db);
+       }
+       return result;
+    }
+
+
     vector<operation_history_object> history_api::get_relative_account_history( account_id_type account, 
                                                                                 uint32_t stop, 
                                                                                 unsigned limit, 
@@ -566,6 +631,71 @@ namespace graphene { namespace app {
     range_proof_info crypto_api::range_get_info( const std::vector<char>& proof )
     {
        return fc::ecc::range_get_info( proof );
+    }
+
+    // asset_api
+    asset_api::asset_api(graphene::chain::database& db) : _db(db) { }
+    asset_api::~asset_api() { }
+
+    vector<account_asset_balance> asset_api::get_asset_holders( asset_id_type asset_id ) const {
+
+      const auto& bal_idx = _db.get_index_type< account_balance_index >().indices().get< by_asset_balance >();
+      auto range = bal_idx.equal_range( boost::make_tuple( asset_id ) );
+
+      vector<account_asset_balance> result;
+
+      for( const account_balance_object& bal : boost::make_iterator_range( range.first, range.second ) )
+      {
+        if( bal.balance.value == 0 ) continue;
+
+        auto account = _db.find(bal.owner);
+
+        account_asset_balance aab;
+        aab.name       = account->name;
+        aab.account_id = account->id;
+        aab.amount     = bal.balance.value;
+
+        result.push_back(aab);
+      }
+
+      return result;
+    }
+    // get number of asset holders.
+    int asset_api::get_asset_holders_count( asset_id_type asset_id ) const {
+
+      const auto& bal_idx = _db.get_index_type< account_balance_index >().indices().get< by_asset_balance >();
+      auto range = bal_idx.equal_range( boost::make_tuple( asset_id ) );
+            
+      int count = boost::distance(range) - 1;
+
+      return count;
+    }
+    // function to get vector of system assets with holders count.
+    vector<asset_holders> asset_api::get_all_asset_holders() const {
+            
+      vector<asset_holders> result;
+            
+      vector<asset_id_type> total_assets;
+      for( const asset_object& asset_obj : _db.get_index_type<asset_index>().indices() )
+      {
+        const auto& dasset_obj = asset_obj.dynamic_asset_data_id(_db);
+
+        asset_id_type asset_id;
+        asset_id = dasset_obj.id;
+
+        const auto& bal_idx = _db.get_index_type< account_balance_index >().indices().get< by_asset_balance >();
+        auto range = bal_idx.equal_range( boost::make_tuple( asset_id ) );
+
+        int count = boost::distance(range) - 1;
+                
+        asset_holders ah;
+        ah.asset_id       = asset_id;
+        ah.count     = count;
+
+        result.push_back(ah);
+      }
+
+      return result;
     }
 
 } } // graphene::app
