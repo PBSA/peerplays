@@ -185,7 +185,18 @@ struct get_impacted_account_visitor
    {
       _impacted.insert( op.account_id );
    }
-
+   void operator()(const sport_create_operation&){}
+   void operator()(const competitor_create_operation&){}
+   void operator()(const event_group_create_operation&){}
+   void operator()(const event_create_operation&){}
+   void operator()(const betting_market_group_create_operation&){}
+   void operator()(const betting_market_create_operation&){}
+   void operator()(const bet_place_operation&){}
+   void operator()(const betting_market_resolve_operation&){}
+   void operator()(const betting_market_resolved_operation &){}
+   void operator()(const bet_matched_operation &){}
+   void operator()(const bet_cancel_operation&){}
+   void operator()(const bet_canceled_operation &){}
 };
 
 void operation_get_impacted_accounts( const operation& op, flat_set<account_id_type>& result )

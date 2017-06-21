@@ -164,9 +164,12 @@ namespace detail {
             vector<string> seeds = {
                "104.236.144.84:1777",               // puppies      (USA)
                "128.199.143.47:2015",               // Harvey       (Singapore)
-               "212.47.249.84:50696",               // iHashFury    (France)
+               "23.92.53.182:1776",                 // sahkan       (USA)
+               "192.121.166.162:1776",              // sahkan       (UK)
                "51.15.61.160:1776",                 // lafona       (France)
                "bts-seed1.abit-more.com:62015",     // abit         (China)
+               "node.blckchnd.com:4243",            // blckchnd     (Germany)
+               "seed.bitsharesdex.com:50696",       // iHashFury    (Europe)
                "seed.bitsharesnodes.com:1776",      // wackou       (Netherlands)
                "seed.blocktrades.us:1776",          // BlockTrades  (USA)
                "seed.cubeconnex.com:1777",          // cube         (USA)
@@ -384,79 +387,67 @@ namespace detail {
          }
          _chain_db->add_checkpoints( loaded_checkpoints );
 
-         if( _options->count("replay-blockchain") )
+         bool replay = false;
+         std::string replay_reason = "reason not provided";
+
+         // never replay if data dir is empty
+         if( fc::exists( _data_dir ) && fc::directory_iterator( _data_dir ) != fc::directory_iterator() )
          {
-            ilog("Replaying blockchain on user request.");
-            _chain_db->reindex(_data_dir/"blockchain", initial_state());
-         } else if( clean ) {
-
-            auto is_new = [&]() -> bool
+            if( _options->count("replay-blockchain") )
             {
-               // directory doesn't exist
-               if( !fc::exists( _data_dir ) )
-                  return true;
-               // if directory exists but is empty, return true; else false.
-               return ( fc::directory_iterator( _data_dir ) == fc::directory_iterator() );
-            };
-
-            auto is_outdated = [&]() -> bool
+               replay = true;
+               replay_reason = "replay-blockchain argument specified";
+            }
+            else if( !clean )
             {
-               if( !fc::exists( _data_dir / "db_version" ) )
-                  return true;
-               std::string version_str;
-               fc::read_file_contents( _data_dir / "db_version", version_str );
-               return (version_str != GRAPHENE_CURRENT_DB_VERSION);
-            };
-
-            bool need_reindex = (!is_new() && is_outdated());
-            std::string reindex_reason = "version upgrade";
-
-            if( !need_reindex )
+               replay = true;
+               replay_reason = "unclean shutdown detected";
+            }
+            else if( !fc::exists( _data_dir / "db_version" ) )
             {
-               try
+               replay = true;
+               replay_reason = "db_version file not found";
+            }
+            else
+            {
+               std::string version_string;
+               fc::read_file_contents( _data_dir / "db_version", version_string );
+
+               if( version_string != GRAPHENE_CURRENT_DB_VERSION )
                {
-                  _chain_db->open(_data_dir / "blockchain", initial_state);
-               }
-               catch( const fc::exception& e )
-               {
-                  ilog( "caught exception ${e} in open()", ("e", e.to_detail_string()) );
-                  need_reindex = true;
-                  reindex_reason = "exception in open()";
+                   replay = true;
+                   replay_reason = "db_version file content mismatch";
                }
             }
-
-            if( need_reindex )
-            {
-               ilog("Replaying blockchain due to ${reason}", ("reason", reindex_reason) );
-
-               fc::remove_all( _data_dir / "db_version" );
-               _chain_db->reindex(_data_dir / "blockchain", initial_state());
-
-               // doing this down here helps ensure that DB will be wiped
-               // if any of the above steps were interrupted on a previous run
-               if( !fc::exists( _data_dir / "db_version" ) )
-               {
-                  std::ofstream db_version(
-                     (_data_dir / "db_version").generic_string().c_str(),
-                     std::ios::out | std::ios::binary | std::ios::trunc );
-                  std::string version_string = GRAPHENE_CURRENT_DB_VERSION;
-                  db_version.write( version_string.c_str(), version_string.size() );
-                  db_version.close();
-               }
-            }
-         } else {
-            wlog("Detected unclean shutdown. Replaying blockchain...");
-            _chain_db->reindex(_data_dir / "blockchain", initial_state());
          }
 
-         if (!_options->count("genesis-json") &&
-             _chain_db->get_chain_id() != graphene::egenesis::get_egenesis_chain_id()) {
-            elog("Detected old database. Nuking and starting over.");
-            _chain_db->wipe(_data_dir / "blockchain", true);
-            _chain_db.reset();
-            _chain_db = std::make_shared<chain::database>();
-            _chain_db->add_checkpoints(loaded_checkpoints);
-            _chain_db->open(_data_dir / "blockchain", initial_state);
+         if( !replay )
+         {
+            try
+            {
+               _chain_db->open( _data_dir / "blockchain", initial_state );
+            }
+            catch( const fc::exception& e )
+            {
+               ilog( "Caught exception ${e} in open()", ("e", e.to_detail_string()) );
+
+               replay = true;
+               replay_reason = "exception in open()";
+            }
+         }
+
+         if( replay )
+         {
+            ilog( "Replaying blockchain due to: ${reason}", ("reason", replay_reason) );
+
+            fc::remove_all( _data_dir / "db_version" );
+            _chain_db->reindex( _data_dir / "blockchain", initial_state() );
+
+            const auto mode = std::ios::out | std::ios::binary | std::ios::trunc;
+            std::ofstream db_version( (_data_dir / "db_version").generic_string().c_str(), mode );
+            std::string version_string = GRAPHENE_CURRENT_DB_VERSION;
+            db_version.write( version_string.c_str(), version_string.size() );
+            db_version.close();
          }
 
          if( _options->count("force-validate") )
@@ -843,6 +834,9 @@ namespace detail {
             if (high_block_num == 0)
               return synopsis; // we have no blocks
           }
+
+          if( low_block_num == 0)
+             low_block_num = 1;
 
           // at this point:
           // low_block_num is the block before the first block we can undo,
