@@ -29,6 +29,7 @@
 #include <graphene/chain/block_summary_object.hpp>
 #include <graphene/chain/global_property_object.hpp>
 #include <graphene/chain/operation_history_object.hpp>
+
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/transaction_object.hpp>
 #include <graphene/chain/witness_object.hpp>
@@ -544,31 +545,7 @@ void database::_apply_block( const signed_block& next_block )
    notify_changed_objects();
 } FC_CAPTURE_AND_RETHROW( (next_block.block_num()) )  }
 
-void database::notify_changed_objects()
-{ try {
-   if( _undo_db.enabled() ) 
-   {
-      const auto& head_undo = _undo_db.head();
 
-      vector<object_id_type> new_ids;  new_ids.reserve(head_undo.new_ids.size());
-      for( const auto& item : head_undo.new_ids ) new_ids.push_back(item);
-
-      vector<object_id_type> changed_ids;  changed_ids.reserve(head_undo.old_values.size());
-      for( const auto& item : head_undo.old_values ) changed_ids.push_back(item.first);
-
-      vector<object_id_type> removed_ids; removed_ids.reserve( head_undo.removed.size() );
-      vector<const object*> removed; removed.reserve( head_undo.removed.size() );
-      for( const auto& item : head_undo.removed )
-      {
-        removed_ids.emplace_back( item.first );
-        removed.emplace_back( item.second.get() );
-      }
-
-      new_objects(new_ids);
-      changed_objects(changed_ids);
-      removed_objects(removed_ids, removed);
-   }
-} FC_CAPTURE_AND_LOG( () ) }
 
 processed_transaction database::apply_transaction(const signed_transaction& trx, uint32_t skip)
 {
