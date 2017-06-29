@@ -127,7 +127,7 @@ Vote for yourself
 --------------
 ```
 vote_for_witness your_witness_account your_witness_account true true
-```sudo systemctl start peerplays.service
+```
 
 Ask to be voted in!
 --------------
