@@ -246,13 +246,14 @@ BOOST_AUTO_TEST_CASE( chained_market_create_test )
    } FC_LOG_AND_RETHROW()
 }
 
+
 BOOST_AUTO_TEST_SUITE_END()
 
 // set up a fixture that places a series of two matched bets, we'll use this fixture to verify
 // the result in all three possible outcomes
 struct simple_bet_test_fixture : database_fixture {
    betting_market_id_type capitals_win_betting_market_id;
-   simple_bet_test_fixture() 
+   simple_bet_test_fixture()
    {
       ACTORS( (alice)(bob) );
       CREATE_ICE_HOCKEY_BETTING_MARKET();
@@ -284,7 +285,7 @@ BOOST_AUTO_TEST_CASE( win )
       GET_ACTOR(alice);
       GET_ACTOR(bob);
 
-      // alice starts with 10000, pays 100 (bet) + 2 (fee), wins 1100, then pays 1100 (bet) + 22 (fee), wins 0 
+      // alice starts with 10000, pays 100 (bet) + 2 (fee), wins 1100, then pays 1100 (bet) + 22 (fee), wins 0
       BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000 - 100 - 2 + 1100 - 1100 - 22 + 0);
       // bob starts with 10000, pays 1000 (bet) + 20 (fee), wins 0, then pays 1100 (bet) + 22 (fee), wins 2200
       BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000 - 1000 - 20 + 0 - 1100 - 22 + 2200);
@@ -300,7 +301,7 @@ BOOST_AUTO_TEST_CASE( not_win )
       GET_ACTOR(alice);
       GET_ACTOR(bob);
 
-      // alice starts with 10000, pays 100 (bet) + 2 (fee), wins 0, then pays 1100 (bet) + 22 (fee), wins 2200 
+      // alice starts with 10000, pays 100 (bet) + 2 (fee), wins 0, then pays 1100 (bet) + 22 (fee), wins 2200
       BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000 - 100 - 2 + 0 - 1100 - 22 + 2200);
       // bob starts with 10000, pays 1000 (bet) + 20 (fee), wins 1100, then pays 1100 (bet) + 22 (fee), wins 0
       BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000 - 1000 - 20 + 1100 - 1100 - 22 + 0);
