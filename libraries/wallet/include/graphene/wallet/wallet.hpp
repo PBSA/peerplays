@@ -1559,11 +1559,11 @@ class wallet_api
               share_type amount_reserved_for_fees,
               bool broadcast = false);
 
-      signed_transaction propose_resolve_betting_market(
+      signed_transaction propose_resolve_betting_market_group(
               const string& proposing_account,
               fc::time_point_sec expiration_time,
-              betting_market_id_type betting_market_id,
-              betting_market_resolution_type resolution,
+              betting_market_group_id_type betting_market_group_id,
+              const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions,
               bool broadcast = false);
 
       void dbg_make_uia(string creator, string symbol);
@@ -1779,6 +1779,6 @@ FC_API( graphene::wallet::wallet_api,
         (propose_create_betting_market_group)
         (propose_create_betting_market)
         (place_bet)
-        (propose_resolve_betting_market)
+        (propose_resolve_betting_market_group)
         (get_order_book)
       )

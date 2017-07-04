@@ -290,7 +290,7 @@ struct database_fixture {
    const betting_market_object& create_betting_market(betting_market_group_id_type group_id, internationalized_string_type payout_condition, asset_id_type asset_id);
 
    void place_bet(account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, asset amount_to_bet, bet_multiplier_type backer_multiplier, share_type amount_reserved_for_fees);
-   void resolve_betting_market(betting_market_id_type betting_market_id, betting_market_resolution_type resolution);
+   void resolve_betting_market_group(betting_market_group_id_type betting_market_group_id, std::map<betting_market_id_type, betting_market_resolution_type> resolutions);
 };
 
 namespace test {

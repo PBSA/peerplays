@@ -114,7 +114,9 @@ BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
       BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
 
       // caps win
-      resolve_betting_market(capitals_win_market.id, betting_market_resolution_type::win);
+      resolve_betting_market_group(moneyline_betting_markets.id,
+                                  {{capitals_win_market.id, betting_market_resolution_type::win},
+                                   {blackhawks_win_market.id, betting_market_resolution_type::cancel}});
 
       BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000);
       BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
@@ -253,6 +255,9 @@ BOOST_AUTO_TEST_SUITE_END()
 // the result in all three possible outcomes
 struct simple_bet_test_fixture : database_fixture {
    betting_market_id_type capitals_win_betting_market_id;
+   betting_market_id_type blackhawks_win_betting_market_id;
+   betting_market_group_id_type moneyline_betting_markets_id;
+
    simple_bet_test_fixture()
    {
       ACTORS( (alice)(bob) );
@@ -271,6 +276,8 @@ struct simple_bet_test_fixture : database_fixture {
       place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(1100, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 22);
 
       capitals_win_betting_market_id = capitals_win_market.id;
+      blackhawks_win_betting_market_id = blackhawks_win_market.id;
+      moneyline_betting_markets_id = moneyline_betting_markets.id;
    }
 };
 
@@ -280,7 +287,9 @@ BOOST_AUTO_TEST_CASE( win )
 {
    try
    {
-      resolve_betting_market(capitals_win_betting_market_id, betting_market_resolution_type::win);
+      resolve_betting_market_group(moneyline_betting_markets_id,
+                                  {{capitals_win_betting_market_id, betting_market_resolution_type::win},
+                                   {blackhawks_win_betting_market_id, betting_market_resolution_type::cancel}});
 
       GET_ACTOR(alice);
       GET_ACTOR(bob);
@@ -296,7 +305,9 @@ BOOST_AUTO_TEST_CASE( not_win )
 {
    try
    {
-      resolve_betting_market(capitals_win_betting_market_id, betting_market_resolution_type::not_win);
+      resolve_betting_market_group(moneyline_betting_markets_id,
+                                  {{capitals_win_betting_market_id, betting_market_resolution_type::not_win},
+                                   {blackhawks_win_betting_market_id, betting_market_resolution_type::cancel}});
 
       GET_ACTOR(alice);
       GET_ACTOR(bob);
@@ -312,7 +323,9 @@ BOOST_AUTO_TEST_CASE( cancel )
 {
    try
    {
-      resolve_betting_market(capitals_win_betting_market_id, betting_market_resolution_type::cancel);
+      resolve_betting_market_group(moneyline_betting_markets_id,
+                                  {{capitals_win_betting_market_id, betting_market_resolution_type::cancel},
+                                   {blackhawks_win_betting_market_id, betting_market_resolution_type::cancel}});
 
       GET_ACTOR(alice);
       GET_ACTOR(bob);

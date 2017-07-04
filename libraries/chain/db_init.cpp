@@ -218,7 +218,7 @@ void database::initialize_evaluators()
    register_evaluator<betting_market_group_create_evaluator>();
    register_evaluator<betting_market_create_evaluator>();
    register_evaluator<bet_place_evaluator>();
-   register_evaluator<betting_market_resolve_evaluator>();
+   register_evaluator<betting_market_group_resolve_evaluator>();
 }
 
 void database::initialize_indexes()
