@@ -28,6 +28,29 @@
 
 namespace graphene { namespace chain {
 
+struct betting_market_rules_create_operation : public base_operation
+{
+   struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
+   asset             fee;
+
+   /**
+    * A short name for the rules, like "Premier League Rules 1.0", probably not 
+    * displayed to the user
+    */
+   internationalized_string_type name;
+
+   /**
+    * The full text of the rules to be displayed to the user.  As yet, there is
+    * no standard format (html, markdown, etc)
+    */
+   internationalized_string_type description;
+
+   extensions_type   extensions;
+
+   account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
+   void            validate()const;
+};
+
 struct betting_market_group_create_operation : public base_operation
 {
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
@@ -44,6 +67,12 @@ struct betting_market_group_create_operation : public base_operation
     * relative object id that resolves to a event_id_type
     */
    object_id_type event_id;
+
+   /**
+    * This can be a betting_market_rules_id_type, or a
+    * relative object id that resolves to a betting_market_rules_id_type
+    */
+   object_id_type rules_id;
 
    extensions_type   extensions;
 
@@ -245,6 +274,10 @@ struct bet_canceled_operation : public base_operation
 
 
 } }
+
+FC_REFLECT( graphene::chain::betting_market_rules_create_operation::fee_parameters_type, (fee) )
+FC_REFLECT( graphene::chain::betting_market_rules_create_operation, 
+            (fee)(name)(description)(extensions) )
 
 FC_REFLECT( graphene::chain::betting_market_group_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_group_create_operation, 

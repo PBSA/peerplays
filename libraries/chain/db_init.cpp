@@ -146,6 +146,9 @@ const uint8_t event_group_object::type_id;
 const uint8_t event_object::space_id;
 const uint8_t event_object::type_id;
 
+const uint8_t betting_market_rules_object::space_id;
+const uint8_t betting_market_rules_object::type_id;
+
 const uint8_t betting_market_group_object::space_id;
 const uint8_t betting_market_group_object::type_id;
 
@@ -209,6 +212,7 @@ void database::initialize_evaluators()
    register_evaluator<sport_create_evaluator>();
    register_evaluator<event_group_create_evaluator>();
    register_evaluator<event_create_evaluator>();
+   register_evaluator<betting_market_rules_create_evaluator>();
    register_evaluator<betting_market_group_create_evaluator>();
    register_evaluator<betting_market_create_evaluator>();
    register_evaluator<bet_place_evaluator>();
@@ -244,6 +248,7 @@ void database::initialize_indexes()
    add_index< primary_index<sport_object_index > >();
    add_index< primary_index<event_group_object_index > >();
    add_index< primary_index<event_object_index > >();
+   add_index< primary_index<betting_market_rules_object_index > >();
    add_index< primary_index<betting_market_group_object_index > >();
    add_index< primary_index<betting_market_object_index > >();
    add_index< primary_index<bet_object_index > >();

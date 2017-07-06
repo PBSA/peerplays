@@ -31,6 +31,22 @@
 
 namespace graphene { namespace chain {
 
+void_result betting_market_rules_create_evaluator::do_evaluate(const betting_market_rules_create_operation& op)
+{ try {
+   FC_ASSERT(trx_state->_is_proposed_trx);
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+object_id_type betting_market_rules_create_evaluator::do_apply(const betting_market_rules_create_operation& op)
+{ try {
+   const betting_market_rules_object& new_betting_market_rules =
+     db().create<betting_market_rules_object>( [&]( betting_market_rules_object& betting_market_rules_obj ) {
+         betting_market_rules_obj.name = op.name;
+         betting_market_rules_obj.description = op.description;
+     });
+   return new_betting_market_rules.id;
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
 void_result betting_market_group_create_evaluator::do_evaluate(const betting_market_group_create_operation& op)
 { try {
    FC_ASSERT(trx_state->_is_proposed_trx);
@@ -46,6 +62,18 @@ void_result betting_market_group_create_evaluator::do_evaluate(const betting_mar
              "event_id must refer to a event_id_type");
    event_id = resolved_event_id;
    FC_ASSERT( db().find_object(event_id), "Invalid event specified" );
+
+   // the rules_id in the operation can be a relative id.  If it is,
+   // resolve it and verify that it is truly rules
+   object_id_type resolved_rules_id = op.rules_id;
+   if (is_relative(op.rules_id))
+      resolved_rules_id = get_relative_id(op.rules_id);
+
+   FC_ASSERT(resolved_rules_id.space() == betting_market_rules_id_type::space_id && 
+             resolved_rules_id.type() == betting_market_rules_id_type::type_id, 
+             "rules_id must refer to a betting_market_rules_id_type");
+   rules_id = resolved_rules_id;
+   FC_ASSERT( db().find_object(rules_id), "Invalid rules specified" );
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -54,6 +82,7 @@ object_id_type betting_market_group_create_evaluator::do_apply(const betting_mar
    const betting_market_group_object& new_betting_market_group =
      db().create<betting_market_group_object>( [&]( betting_market_group_object& betting_market_group_obj ) {
          betting_market_group_obj.event_id = event_id;
+         betting_market_group_obj.rules_id = rules_id;
          betting_market_group_obj.description = op.description;
      });
    return new_betting_market_group.id;

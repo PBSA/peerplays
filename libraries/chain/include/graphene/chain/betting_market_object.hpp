@@ -37,6 +37,17 @@ class database;
 struct by_event_id;
 struct by_betting_market_group_id;
 
+class betting_market_rules_object : public graphene::db::abstract_object< betting_market_rules_object >
+{
+   public:
+      static const uint8_t space_id = protocol_ids;
+      static const uint8_t type_id = betting_market_rules_object_type;
+
+      internationalized_string_type name;
+
+      internationalized_string_type description;
+};
+
 class betting_market_group_object : public graphene::db::abstract_object< betting_market_group_object >
 {
    public:
@@ -46,6 +57,8 @@ class betting_market_group_object : public graphene::db::abstract_object< bettin
       internationalized_string_type description;
 
       event_id_type event_id;
+
+      betting_market_rules_id_type rules_id;
 };
 
 class betting_market_object : public graphene::db::abstract_object< betting_market_object >
@@ -103,6 +116,13 @@ class betting_market_position_object : public graphene::db::abstract_object< bet
       
       share_type reduce();
 };
+
+typedef multi_index_container<
+   betting_market_rules_object,
+   indexed_by<
+      ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >
+   > > betting_market_rules_object_multi_index_type;
+typedef generic_index<betting_market_rules_object, betting_market_rules_object_multi_index_type> betting_market_rules_object_index;
 
 typedef multi_index_container<
    betting_market_group_object,
@@ -404,6 +424,7 @@ typedef multi_index_container<
 typedef generic_index<betting_market_position_object, betting_market_position_multi_index_type> betting_market_position_index;
 } } // graphene::chain
 
+FC_REFLECT_DERIVED( graphene::chain::betting_market_rules_object, (graphene::db::object), (name)(description) )
 FC_REFLECT_DERIVED( graphene::chain::betting_market_group_object, (graphene::db::object), (event_id)(description) )
 FC_REFLECT_DERIVED( graphene::chain::betting_market_object, (graphene::db::object), (group_id)(description)(payout_condition)(asset_id) )
 FC_REFLECT_DERIVED( graphene::chain::bet_object, (graphene::db::object), (bettor_id)(betting_market_id)(amount_to_bet)(backer_multiplier)(amount_reserved_for_fees)(back_or_lay) )

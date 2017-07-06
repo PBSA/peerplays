@@ -188,6 +188,7 @@ struct get_impacted_account_visitor
    void operator()(const sport_create_operation&){}
    void operator()(const event_group_create_operation&){}
    void operator()(const event_create_operation&){}
+   void operator()(const betting_market_rules_create_operation&){}
    void operator()(const betting_market_group_create_operation&){}
    void operator()(const betting_market_create_operation&){}
    void operator()(const bet_place_operation&){}

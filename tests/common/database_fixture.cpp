@@ -1150,11 +1150,22 @@ const event_object& database_fixture::create_event(internationalized_string_type
    return *event_index.rbegin();
 } FC_CAPTURE_AND_RETHROW( (event_group_id) ) }
 
-const betting_market_group_object& database_fixture::create_betting_market_group(internationalized_string_type description, event_id_type event_id)
+const betting_market_rules_object& database_fixture::create_betting_market_rules(internationalized_string_type name, internationalized_string_type description)
+{ try {
+   betting_market_rules_create_operation betting_market_rules_create_op;
+   betting_market_rules_create_op.name = name;
+   betting_market_rules_create_op.description = description;
+   process_operation_by_witnesses(betting_market_rules_create_op);
+   const auto& betting_market_rules_index = db.get_index_type<betting_market_rules_object_index>().indices().get<by_id>();
+   return *betting_market_rules_index.rbegin();
+} FC_CAPTURE_AND_RETHROW( (name) ) }
+
+const betting_market_group_object& database_fixture::create_betting_market_group(internationalized_string_type description, event_id_type event_id, betting_market_rules_id_type rules_id)
 { try {
    betting_market_group_create_operation betting_market_group_create_op;
    betting_market_group_create_op.description = description;
    betting_market_group_create_op.event_id = event_id;
+   betting_market_group_create_op.rules_id = rules_id;
    process_operation_by_witnesses(betting_market_group_create_op);
    const auto& betting_market_group_index = db.get_index_type<betting_market_group_object_index>().indices().get<by_id>();
    return *betting_market_group_index.rbegin();

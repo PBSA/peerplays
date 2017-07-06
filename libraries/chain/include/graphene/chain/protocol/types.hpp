@@ -137,6 +137,7 @@ namespace graphene { namespace chain {
       sport_object_type,
       event_group_object_type,
       event_object_type,
+      betting_market_rules_object_type,
       betting_market_group_object_type,
       betting_market_object_type,
       bet_object_type,
@@ -186,6 +187,7 @@ namespace graphene { namespace chain {
    class sport_object;
    class event_group_object;
    class event_object;
+   class betting_market_rules_object;
    class betting_market_group_object;
    class betting_market_object;
    class bet_object;
@@ -207,6 +209,7 @@ namespace graphene { namespace chain {
    typedef object_id< protocol_ids, sport_object_type,              sport_object>                 sport_id_type;
    typedef object_id< protocol_ids, event_group_object_type,        event_group_object>           event_group_id_type;
    typedef object_id< protocol_ids, event_object_type,              event_object>                 event_id_type;
+   typedef object_id< protocol_ids, betting_market_rules_object_type, betting_market_rules_object> betting_market_rules_id_type;
    typedef object_id< protocol_ids, betting_market_group_object_type, betting_market_group_object> betting_market_group_id_type;
    typedef object_id< protocol_ids, betting_market_object_type,     betting_market_object>        betting_market_id_type;
    typedef object_id< protocol_ids, bet_object_type,                bet_object>                   bet_id_type;
@@ -371,6 +374,7 @@ FC_REFLECT_ENUM( graphene::chain::object_type,
                  (sport_object_type)
                  (event_group_object_type)
                  (event_object_type)
+                 (betting_market_rules_object_type)
                  (betting_market_group_object_type)
                  (betting_market_object_type)
                  (bet_object_type)
@@ -417,6 +421,7 @@ FC_REFLECT_TYPENAME( graphene::chain::balance_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::sport_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::event_group_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::event_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::betting_market_rules_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::betting_market_group_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::betting_market_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::bet_id_type )
