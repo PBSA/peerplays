@@ -283,10 +283,9 @@ struct database_fixture {
    vector< operation_history_object > get_operation_history( account_id_type account_id )const;
    void process_operation_by_witnesses(operation op);
    const sport_object& create_sport(internationalized_string_type name);
-   const competitor_object& create_competitor(internationalized_string_type name, sport_id_type sport_id);
    const event_group_object& create_event_group(internationalized_string_type name, sport_id_type sport_id);
-   const event_object& create_event(internationalized_string_type season, event_group_id_type event_group_id, vector<competitor_id_type> competitors);
-   const betting_market_group_object& create_betting_market_group(event_id_type event_id, betting_market_options_type options);
+   const event_object& create_event(internationalized_string_type name, internationalized_string_type season, event_group_id_type event_group_id);
+   const betting_market_group_object& create_betting_market_group(internationalized_string_type description, event_id_type event_id);
    const betting_market_object& create_betting_market(betting_market_group_id_type group_id, internationalized_string_type payout_condition, asset_id_type asset_id);
 
    void place_bet(account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, asset amount_to_bet, bet_multiplier_type backer_multiplier, share_type amount_reserved_for_fees);

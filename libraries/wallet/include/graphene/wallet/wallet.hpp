@@ -1513,13 +1513,6 @@ class wallet_api
               internationalized_string_type name,
               bool broadcast = false);
 
-      signed_transaction propose_create_competitor(
-              const string& proposing_account,
-              fc::time_point_sec expiration_time,
-              internationalized_string_type name,
-              sport_id_type sport_id,
-              bool broadcast = false);
-
       signed_transaction propose_create_event_group(
               const string& proposing_account,
               fc::time_point_sec expiration_time,
@@ -1532,14 +1525,13 @@ class wallet_api
               fc::time_point_sec expiration_time,
               internationalized_string_type season,
               event_group_id_type event_group_id,
-              vector<competitor_id_type> competitors,
               bool broadcast = false);
 
       signed_transaction propose_create_betting_market_group(
               const string& proposing_account,
               fc::time_point_sec expiration_time,
+              internationalized_string_type description,
               event_id_type event_id,
-              betting_market_options_type options,
               bool broadcast = false);
 
       signed_transaction propose_create_betting_market(
@@ -1773,7 +1765,6 @@ FC_API( graphene::wallet::wallet_api,
         (list_betting_markets)
         (get_global_betting_statistics)
         (propose_create_sport)
-        (propose_create_competitor)
         (propose_create_event_group)
         (propose_create_event)
         (propose_create_betting_market_group)

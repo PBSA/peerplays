@@ -34,7 +34,6 @@
 #include <graphene/chain/sport_object.hpp>
 #include <graphene/chain/event_object.hpp>
 #include <graphene/chain/event_group_object.hpp>
-#include <graphene/chain/competitor_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/betting_market_object.hpp>
 
@@ -48,14 +47,11 @@ BOOST_FIXTURE_TEST_SUITE( betting_tests, database_fixture )
 
 #define CREATE_ICE_HOCKEY_BETTING_MARKET() \
   const sport_object& ice_hockey = create_sport({{"en", "Ice Hockey"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}}); \
-  const competitor_object& capitals = create_competitor({{"en", "Washington Capitals"}, {"zh_Hans", "華盛頓首都隊"}, {"ja", "ワシントン・キャピタルズ"}}, ice_hockey.id); \
-  const competitor_object& blackhawks = create_competitor({{"en", "Chicago Blackhawks"}, {"zh_Hans", "芝加哥黑鷹"}, {"ja", "シカゴ・ブラックホークス"}}, ice_hockey.id); \
   const event_group_object& nhl = create_event_group({{"en", "NHL"}, {"zh_Hans", "國家冰球聯盟"}, {"ja", "ナショナルホッケーリーグ"}}, ice_hockey.id); \
-  const event_object& capitals_vs_blackhawks = create_event({{"en", "2016-17"}}, nhl.id, {capitals.id, blackhawks.id}); \
-  const betting_market_group_object& moneyline_betting_markets = create_betting_market_group(capitals_vs_blackhawks.id, moneyline_market_options{}); \
+  const event_object& capitals_vs_blackhawks = create_event({{"en", "Washington Capitals/Chicago Blackhawks"}, {"zh_Hans", "華盛頓首都隊/芝加哥黑鷹"}, {"ja", "ワシントン・キャピタルズ/シカゴ・ブラックホークス"}}, {{"en", "2016-17"}}, nhl.id); \
+  const betting_market_group_object& moneyline_betting_markets = create_betting_market_group({{"en", "Moneyline"}}, capitals_vs_blackhawks.id); \
   const betting_market_object& capitals_win_market = create_betting_market(moneyline_betting_markets.id, {{"en", "Washington Capitals win"}}, asset_id_type()); \
   const betting_market_object& blackhawks_win_market = create_betting_market(moneyline_betting_markets.id, {{"en", "Chicago Blackhawks win"}}, asset_id_type());
-
 
 #if 0
 BOOST_AUTO_TEST_CASE(generate_block)
@@ -142,49 +138,33 @@ BOOST_AUTO_TEST_CASE( chained_market_create_test )
             sport_create_op.name.insert(internationalized_string_type::value_type("ja", "アイスホッケー"));
 
             // operation 1
-            competitor_create_operation competitor1_create_op;
-            competitor1_create_op.sport_id = object_id_type(relative_protocol_ids, 0, 0);
-            competitor1_create_op.name.insert(internationalized_string_type::value_type("en", "Washington Capitals"));
-            competitor1_create_op.name.insert(internationalized_string_type::value_type("zh_Hans", "華盛頓首都隊"));
-            competitor1_create_op.name.insert(internationalized_string_type::value_type("ja", "ワシントン・キャピタルズ"));
-            //BOOST_TEST_MESSAGE("Just constructed competitor_create_operation " << fc::json::to_pretty_string(competitor1_create_op));
-
-            // operation 2
-            competitor_create_operation competitor2_create_op;
-            competitor2_create_op.sport_id = object_id_type(relative_protocol_ids, 0, 0);
-            competitor2_create_op.name.insert(internationalized_string_type::value_type("en", "Chicago Blackhawks"));
-            competitor2_create_op.name.insert(internationalized_string_type::value_type("zh_Hans", "芝加哥黑鷹"));
-            competitor2_create_op.name.insert(internationalized_string_type::value_type("ja", "シカゴ・ブラックホークス"));
-
-            // operation 3
             event_group_create_operation event_group_create_op;
             event_group_create_op.name.insert(internationalized_string_type::value_type("en", "NHL"));
             event_group_create_op.name.insert(internationalized_string_type::value_type("zh_Hans", "國家冰球聯盟"));
             event_group_create_op.name.insert(internationalized_string_type::value_type("ja", "ナショナルホッケーリーグ"));
             event_group_create_op.sport_id = object_id_type(relative_protocol_ids, 0, 0);
 
-            // operation 4
+            // operation 2
             // leave name and start time blank
             event_create_operation event_create_op;
+            event_create_op.name = {{"en", "Washington Capitals/Chicago Blackhawks"}, {"zh_Hans", "華盛頓首都隊/芝加哥黑鷹"}, {"ja", "ワシントン・キャピタルズ/シカゴ・ブラックホークス"}};
             event_create_op.season.insert(internationalized_string_type::value_type("en", "2016-17"));
             event_create_op.event_group_id = object_id_type(relative_protocol_ids, 0, 3);
-            event_create_op.competitors.push_back(object_id_type(relative_protocol_ids, 0, 1));
-            event_create_op.competitors.push_back(object_id_type(relative_protocol_ids, 0, 2));
 
-            // operation 5
+            // operation 3
             betting_market_group_create_operation betting_market_group_create_op;
-            betting_market_group_create_op.event_id = object_id_type(relative_protocol_ids, 0, 4);
-            betting_market_group_create_op.options = moneyline_market_options{};
+            betting_market_group_create_op.description = {{"en", "Moneyline"}};
+            betting_market_group_create_op.event_id = object_id_type(relative_protocol_ids, 0, 2);
 
-            // operation 6
+            // operation 4
             betting_market_create_operation caps_win_betting_market_create_op;
-            caps_win_betting_market_create_op.group_id = object_id_type(relative_protocol_ids, 0, 5);
+            caps_win_betting_market_create_op.group_id = object_id_type(relative_protocol_ids, 0, 3);
             caps_win_betting_market_create_op.payout_condition.insert(internationalized_string_type::value_type("en", "Washington Capitals win"));
             caps_win_betting_market_create_op.asset_id = asset_id_type();
 
-            // operation 7
+            // operation 5
             betting_market_create_operation blackhawks_win_betting_market_create_op;
-            blackhawks_win_betting_market_create_op.group_id = object_id_type(relative_protocol_ids, 0, 5);
+            blackhawks_win_betting_market_create_op.group_id = object_id_type(relative_protocol_ids, 0, 4);
             blackhawks_win_betting_market_create_op.payout_condition.insert(internationalized_string_type::value_type("en", "Chicago Blackhawks win"));
             blackhawks_win_betting_market_create_op.asset_id = asset_id_type();
 
@@ -192,8 +172,6 @@ BOOST_AUTO_TEST_CASE( chained_market_create_test )
             proposal_create_operation proposal_op;
             proposal_op.fee_paying_account = (*active_witnesses.begin())(db).witness_account;
             proposal_op.proposed_ops.emplace_back(sport_create_op);
-            proposal_op.proposed_ops.emplace_back(competitor1_create_op);
-            proposal_op.proposed_ops.emplace_back(competitor2_create_op);
             proposal_op.proposed_ops.emplace_back(event_group_create_op);
             proposal_op.proposed_ops.emplace_back(event_create_op);
             proposal_op.proposed_ops.emplace_back(betting_market_group_create_op);
@@ -233,10 +211,8 @@ BOOST_AUTO_TEST_CASE( chained_market_create_test )
                db.push_transaction(tx, ~0);
                if (db.get_index_type<sport_object_index>().indices().size() == 1)
                {
-                  BOOST_REQUIRE_EQUAL(db.get_index_type<competitor_object_index>().indices().size(), 2);
                   //BOOST_TEST_MESSAGE("The sport creation operation has been approved, new sport object on the blockchain is " << fc::json::to_pretty_string(*db.get_index_type<sport_object_index>().indices().rbegin()));
-                  //BOOST_TEST_MESSAGE("The first competitor object on the blockchain is " << fc::json::to_pretty_string(*db.get_index_type<competitor_object_index>().indices().begin()));
-                  break;
+                break;
                }
             }
          }

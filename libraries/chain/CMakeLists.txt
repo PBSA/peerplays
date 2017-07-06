@@ -93,8 +93,6 @@ add_library( graphene_chain
 
              protocol/sport.cpp
              sport_evaluator.cpp
-             protocol/competitor.cpp
-             competitor_evaluator.cpp
              protocol/event_group.cpp
              event_group_evaluator.cpp
              protocol/event.cpp

@@ -43,9 +43,9 @@ class betting_market_group_object : public graphene::db::abstract_object< bettin
       static const uint8_t space_id = protocol_ids;
       static const uint8_t type_id = betting_market_group_object_type;
 
-      event_id_type event_id;
+      internationalized_string_type description;
 
-      betting_market_options_type options;
+      event_id_type event_id;
 };
 
 class betting_market_object : public graphene::db::abstract_object< betting_market_object >
@@ -55,6 +55,8 @@ class betting_market_object : public graphene::db::abstract_object< betting_mark
       static const uint8_t type_id = betting_market_object_type;
 
       betting_market_group_id_type group_id;
+
+      internationalized_string_type description;
 
       internationalized_string_type payout_condition;
 
@@ -402,8 +404,8 @@ typedef multi_index_container<
 typedef generic_index<betting_market_position_object, betting_market_position_multi_index_type> betting_market_position_index;
 } } // graphene::chain
 
-FC_REFLECT_DERIVED( graphene::chain::betting_market_group_object, (graphene::db::object), (event_id)(options) )
-FC_REFLECT_DERIVED( graphene::chain::betting_market_object, (graphene::db::object), (group_id)(payout_condition)(asset_id) )
+FC_REFLECT_DERIVED( graphene::chain::betting_market_group_object, (graphene::db::object), (event_id)(description) )
+FC_REFLECT_DERIVED( graphene::chain::betting_market_object, (graphene::db::object), (group_id)(description)(payout_condition)(asset_id) )
 FC_REFLECT_DERIVED( graphene::chain::bet_object, (graphene::db::object), (bettor_id)(betting_market_id)(amount_to_bet)(backer_multiplier)(amount_reserved_for_fees)(back_or_lay) )
 
 FC_REFLECT_DERIVED( graphene::chain::betting_market_position_object, (graphene::db::object), (bettor_id)(betting_market_id)(pay_if_payout_condition)(pay_if_not_payout_condition)(pay_if_canceled)(pay_if_not_canceled)(fees_collected) )

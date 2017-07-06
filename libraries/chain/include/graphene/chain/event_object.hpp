@@ -45,8 +45,6 @@ class event_object : public graphene::db::abstract_object< event_object >
 
       event_group_id_type event_group_id;
 
-      vector<competitor_id_type> competitors;
-
       event_status status;
       vector<string> scores;
 };
@@ -59,4 +57,4 @@ typedef multi_index_container<
 typedef generic_index<event_object, event_object_multi_index_type> event_object_index;
 } } // graphene::chain
 
-FC_REFLECT_DERIVED( graphene::chain::event_object, (graphene::db::object), (name)(season)(start_time)(event_group_id)(status)(competitors)(scores) )
+FC_REFLECT_DERIVED( graphene::chain::event_object, (graphene::db::object), (name)(season)(start_time)(event_group_id)(status)(scores) )

@@ -39,7 +39,6 @@
 #include <graphene/chain/protocol/witness.hpp>
 #include <graphene/chain/protocol/worker.hpp>
 #include <graphene/chain/protocol/sport.hpp>
-#include <graphene/chain/protocol/competitor.hpp>
 #include <graphene/chain/protocol/event_group.hpp>
 #include <graphene/chain/protocol/event.hpp>
 #include <graphene/chain/protocol/betting_market.hpp>
@@ -98,7 +97,6 @@ namespace graphene { namespace chain {
             asset_claim_fees_operation,
             fba_distribute_operation,        // VIRTUAL
             sport_create_operation,
-            competitor_create_operation,
             event_group_create_operation,
             event_create_operation,
             betting_market_group_create_operation,

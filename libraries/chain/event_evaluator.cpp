@@ -24,7 +24,6 @@
 #include <graphene/chain/event_evaluator.hpp>
 #include <graphene/chain/event_object.hpp>
 #include <graphene/chain/event_group_object.hpp>
-#include <graphene/chain/competitor_object.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/hardfork.hpp>
@@ -51,23 +50,6 @@ void_result event_create_evaluator::do_evaluate(const event_create_operation& op
    event_group_id = resolved_event_group_id;
    const event_group_object& event_group = event_group_id(d);
 
-   // Likewise for each competitor in the list
-   for (const object_id_type& raw_competitor_id : op.competitors)
-   {
-      object_id_type resolved_competitor_id = raw_competitor_id;
-      if (is_relative(raw_competitor_id))
-         resolved_competitor_id = get_relative_id(raw_competitor_id);
-
-      FC_ASSERT(resolved_competitor_id.space() == competitor_id_type::space_id && 
-                resolved_competitor_id.type() == competitor_id_type::type_id, 
-                "competitor must refer to a competitor_id_type");
-      competitor_id_type competitor_id = resolved_competitor_id;
-      const competitor_object& competitor = competitor_id(d);
-      FC_ASSERT(competitor.sport_id == event_group.sport_id, 
-                "competitor must compete in the same sport as the event they're competing in");
-      competitors.push_back(competitor_id);
-   }
-
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -80,9 +62,6 @@ object_id_type event_create_evaluator::do_apply(const event_create_operation& op
          event_obj.season = op.season;
          event_obj.start_time = op.start_time;
          event_obj.event_group_id = event_group_id;
-         event_obj.competitors = competitors;
-         // There should be exactly one score for each competitor (score is initially just an empty string).
-         event_obj.scores.resize( competitors.size() );
      });
    //increment number of active events in global betting statistics object
    const global_betting_statistics_object& betting_statistics = global_betting_statistics_id_type()(d);
@@ -99,8 +78,6 @@ void_result event_update_status_evaluator::do_evaluate(const event_update_status
    database& d = db();
    //check that the event to update exists
    _event_to_update = &op.event_id(d);
-   //if scores are reported, there must be a score for every competitor
-   FC_ASSERT( op.scores.empty() || _event_to_update->scores.size() == op.scores.size() );
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }

@@ -28,38 +28,22 @@
 
 namespace graphene { namespace chain {
 
-
-enum class betting_market_type {
-   moneyline,
-   spread,
-   over_under,
-   BETTING_MARKET_TYPE_COUNT
-};
-
-struct moneyline_market_options {};
-
-struct spread_market_options {
-   int32_t margin;
-};
-
-struct over_under_market_options {
-   uint32_t score;
-};
-
-typedef static_variant<moneyline_market_options, spread_market_options, over_under_market_options> betting_market_options_type;
-
 struct betting_market_group_create_operation : public base_operation
 {
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
    asset             fee;
 
    /**
+    * A description of the betting market, like "Moneyline", "Over/Under 180",
+    * used for display
+    */
+   internationalized_string_type description;
+
+   /**
     * This can be a event_id_type, or a
     * relative object id that resolves to a event_id_type
     */
    object_id_type event_id;
-
-   betting_market_options_type options;
 
    extensions_type   extensions;
 
@@ -262,16 +246,9 @@ struct bet_canceled_operation : public base_operation
 
 } }
 
-FC_REFLECT_ENUM( graphene::chain::betting_market_type, (moneyline)(spread)(over_under)(BETTING_MARKET_TYPE_COUNT) )
-
-FC_REFLECT( graphene::chain::moneyline_market_options, )
-FC_REFLECT( graphene::chain::spread_market_options, (margin) )
-FC_REFLECT( graphene::chain::over_under_market_options, (score) )
-FC_REFLECT_TYPENAME( graphene::chain::betting_market_options_type )
-
 FC_REFLECT( graphene::chain::betting_market_group_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_group_create_operation, 
-            (fee)(event_id)(options)(extensions) )
+            (fee)(description)(event_id)(extensions) )
 
 FC_REFLECT( graphene::chain::betting_market_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_create_operation, 

@@ -351,7 +351,6 @@ namespace graphene { namespace app {
                break;
             } 
             case sport_object_type:
-            case competitor_object_type:
             case event_group_object_type:
             case event_object_type:
             case betting_market_group_object_type:

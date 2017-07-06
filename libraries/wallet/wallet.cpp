@@ -4400,35 +4400,6 @@ signed_transaction wallet_api::propose_create_sport(
    return my->sign_transaction(tx, broadcast);
 }
 
-signed_transaction wallet_api::propose_create_competitor(
-        const string& proposing_account,
-        fc::time_point_sec expiration_time,
-        internationalized_string_type name,
-        sport_id_type sport_id,
-        bool broadcast /*= false*/)
-{
-   FC_ASSERT( !is_locked() );
-   const chain_parameters& current_params = get_global_properties().parameters;
-
-   competitor_create_operation competitor_create_op;
-   competitor_create_op.name = name;
-   competitor_create_op.sport_id = sport_id;
-
-   proposal_create_operation prop_op;
-   prop_op.expiration_time = expiration_time;
-   prop_op.review_period_seconds = current_params.committee_proposal_review_period;
-   prop_op.fee_paying_account = get_account(proposing_account).id;
-   prop_op.proposed_ops.emplace_back( competitor_create_op );
-   current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
-
-   signed_transaction tx;
-   tx.operations.push_back(prop_op);
-   my->set_operation_fees(tx, current_params.current_fees);
-   tx.validate();
-
-   return my->sign_transaction(tx, broadcast);
-}
-
 signed_transaction wallet_api::propose_create_event_group(
         const string& proposing_account,
         fc::time_point_sec expiration_time,
@@ -4463,7 +4434,6 @@ signed_transaction wallet_api::propose_create_event(
         fc::time_point_sec expiration_time,
         internationalized_string_type season,
         event_group_id_type event_group_id,
-        vector<competitor_id_type> competitors,
         bool broadcast /*= false*/)
 {
     FC_ASSERT( !is_locked() );
@@ -4472,7 +4442,6 @@ signed_transaction wallet_api::propose_create_event(
     event_create_operation event_create_op;
     event_create_op.season = season;
     event_create_op.event_group_id = event_group_id;
-    event_create_op.competitors.assign(competitors.begin(), competitors.end());
 
     proposal_create_operation prop_op;
     prop_op.expiration_time = expiration_time;
@@ -4492,16 +4461,16 @@ signed_transaction wallet_api::propose_create_event(
 signed_transaction wallet_api::propose_create_betting_market_group(
         const string& proposing_account,
         fc::time_point_sec expiration_time,
+        internationalized_string_type description,
         event_id_type event_id,
-        betting_market_options_type options,
         bool broadcast /*= false*/)
 {
     FC_ASSERT( !is_locked() );
     const chain_parameters& current_params = get_global_properties().parameters;
 
     betting_market_group_create_operation betting_market_group_create_op;
+    betting_market_group_create_op.description = description;
     betting_market_group_create_op.event_id = event_id;
-    betting_market_group_create_op.options = options;
 
     proposal_create_operation prop_op;
     prop_op.expiration_time = expiration_time;

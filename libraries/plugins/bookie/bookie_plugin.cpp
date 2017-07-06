@@ -68,8 +68,6 @@ class persistent_event_object : public graphene::db::abstract_object<event_objec
 
       event_group_id_type event_group_id;
 
-      vector<competitor_id_type> competitors;
-
       event_status status;
       vector<string> scores;
 };
@@ -84,7 +82,7 @@ typedef multi_index_container<
 
 typedef generic_index<persistent_event_object, persistent_event_object_multi_index_type> persistent_event_object_index;
 
-
+#if 0 // we no longer have competitors, just leaving this here as an example of how to do a secondary index
 class events_by_competitor_index : public secondary_index
 {
    public:
@@ -121,7 +119,7 @@ void events_by_competitor_index::object_modified( const object& after )
 {
    object_inserted(after);
 }
-
+#endif
 
 class bookie_plugin_impl
 {
@@ -193,7 +191,6 @@ void bookie_plugin_impl::on_objects_changed(const vector<object_id_type>& change
                saved_event_obj.season = new_event_obj->season;
                saved_event_obj.start_time = new_event_obj->start_time;;
                saved_event_obj.event_group_id = new_event_obj->event_group_id;
-               saved_event_obj.competitors = new_event_obj->competitors;
                saved_event_obj.status = new_event_obj->status;
                saved_event_obj.scores = new_event_obj->scores;
             });
@@ -207,7 +204,6 @@ void bookie_plugin_impl::on_objects_changed(const vector<object_id_type>& change
                saved_event_obj.season = new_event_obj->season;
                saved_event_obj.start_time = new_event_obj->start_time;;
                saved_event_obj.event_group_id = new_event_obj->event_group_id;
-               saved_event_obj.competitors = new_event_obj->competitors;
                saved_event_obj.status = new_event_obj->status;
                saved_event_obj.scores = new_event_obj->scores;
             });
@@ -323,7 +319,7 @@ void bookie_plugin::plugin_initialize(const boost::program_options::variables_ma
    database().applied_block.connect( [&]( const signed_block& b){ my->on_block_applied(b); } );
    database().changed_objects.connect([&](const vector<object_id_type>& changed_object_ids, const fc::flat_set<graphene::chain::account_id_type>& impacted_accounts){ my->on_objects_changed(changed_object_ids); });
    auto event_index = database().add_index<primary_index<detail::persistent_event_object_index> >();
-   event_index->add_secondary_index<detail::events_by_competitor_index>();
+   //event_index->add_secondary_index<detail::events_by_competitor_index>();
 
    LOAD_VALUE_SET(options, "tracked-accounts", my->_tracked_accounts, graphene::chain::account_id_type);
 }
@@ -338,5 +334,5 @@ flat_set<account_id_type> bookie_plugin::tracked_accounts() const
 }
 
 } }
-FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_event_object, (graphene::db::object), (event_object_id)(name)(season)(start_time)(event_group_id)(status)(competitors)(scores) )
+FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_event_object, (graphene::db::object), (event_object_id)(name)(season)(start_time)(event_group_id)(status)(scores) )
 

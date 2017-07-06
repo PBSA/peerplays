@@ -46,8 +46,6 @@ void_result betting_market_group_create_evaluator::do_evaluate(const betting_mar
              "event_id must refer to a event_id_type");
    event_id = resolved_event_id;
    FC_ASSERT( db().find_object(event_id), "Invalid event specified" );
-
-   // TODO: should we prevent creating multiple identical betting market groups for an event (same type & options)?
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -56,7 +54,7 @@ object_id_type betting_market_group_create_evaluator::do_apply(const betting_mar
    const betting_market_group_object& new_betting_market_group =
      db().create<betting_market_group_object>( [&]( betting_market_group_object& betting_market_group_obj ) {
          betting_market_group_obj.event_id = event_id;
-         betting_market_group_obj.options = op.options;
+         betting_market_group_obj.description = op.description;
      });
    return new_betting_market_group.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }

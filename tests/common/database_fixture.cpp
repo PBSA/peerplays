@@ -40,7 +40,6 @@
 #include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/sport_object.hpp>
-#include <graphene/chain/competitor_object.hpp>
 #include <graphene/chain/event_group_object.hpp>
 #include <graphene/chain/event_object.hpp>
 
@@ -1130,16 +1129,6 @@ const sport_object& database_fixture::create_sport(internationalized_string_type
    return *sport_index.rbegin();
 } FC_CAPTURE_AND_RETHROW( (name) ) }
 
-const competitor_object& database_fixture::create_competitor(internationalized_string_type name, sport_id_type sport_id)
-{ try {
-   competitor_create_operation competitor_create_op;
-   competitor_create_op.name = name;
-   competitor_create_op.sport_id = sport_id;
-   process_operation_by_witnesses(competitor_create_op);
-   const auto& competitor_index = db.get_index_type<competitor_object_index>().indices().get<by_id>();
-   return *competitor_index.rbegin();
-} FC_CAPTURE_AND_RETHROW( (name) ) }
-
 const event_group_object& database_fixture::create_event_group(internationalized_string_type name, sport_id_type sport_id)
 { try {
    event_group_create_operation event_group_create_op;
@@ -1150,22 +1139,22 @@ const event_group_object& database_fixture::create_event_group(internationalized
    return *event_group_index.rbegin();
 } FC_CAPTURE_AND_RETHROW( (name) ) }
 
-const event_object& database_fixture::create_event(internationalized_string_type season, event_group_id_type event_group_id, vector<competitor_id_type> competitors)
+const event_object& database_fixture::create_event(internationalized_string_type name, internationalized_string_type season, event_group_id_type event_group_id)
 { try {
    event_create_operation event_create_op;
+   event_create_op.name = name;
    event_create_op.season = season;
    event_create_op.event_group_id = event_group_id;
-   event_create_op.competitors.assign(competitors.begin(), competitors.end());
    process_operation_by_witnesses(event_create_op);
    const auto& event_index = db.get_index_type<event_object_index>().indices().get<by_id>();
    return *event_index.rbegin();
 } FC_CAPTURE_AND_RETHROW( (event_group_id) ) }
 
-const betting_market_group_object& database_fixture::create_betting_market_group(event_id_type event_id, betting_market_options_type options)
+const betting_market_group_object& database_fixture::create_betting_market_group(internationalized_string_type description, event_id_type event_id)
 { try {
    betting_market_group_create_operation betting_market_group_create_op;
+   betting_market_group_create_op.description = description;
    betting_market_group_create_op.event_id = event_id;
-   betting_market_group_create_op.options = options;
    process_operation_by_witnesses(betting_market_group_create_op);
    const auto& betting_market_group_index = db.get_index_type<betting_market_group_object_index>().indices().get<by_id>();
    return *betting_market_group_index.rbegin();

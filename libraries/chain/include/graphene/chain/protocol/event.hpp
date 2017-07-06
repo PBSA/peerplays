@@ -48,12 +48,6 @@ struct event_create_operation : public base_operation
     */
    object_id_type event_group_id;
 
-   /**
-    * Each entry in this vector can be a competitor_id_type, or a relative object id that 
-    * resolves to a competitor_id_type
-    */
-   vector<object_id_type> competitors;
-
    extensions_type   extensions;
 
    account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
@@ -96,7 +90,7 @@ struct event_update_status_operation : public base_operation
    event_status status;
 
    /*
-    * scores for each ompetitor stored in same order as competitors in event_object 
+    * scores for each competitor stored in same order as competitors in event_object 
     */
    vector<string> scores;
 
@@ -110,7 +104,7 @@ struct event_update_status_operation : public base_operation
 
 FC_REFLECT( graphene::chain::event_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::event_create_operation, 
-            (fee)(name)(season)(start_time)(event_group_id)(competitors)(extensions) )
+            (fee)(name)(season)(start_time)(event_group_id)(extensions) )
 FC_REFLECT_ENUM( graphene::chain::event_status, (upcoming)(in_progress)(completed)(canceled)(STATUS_COUNT) )
 FC_REFLECT( graphene::chain::event_update_status_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::event_update_status_operation, 
