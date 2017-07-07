@@ -381,7 +381,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
        a.membership_expiration_date = time_point_sec::maximum();
        a.network_fee_percentage = 0;
        a.lifetime_referrer_fee_percentage = GRAPHENE_100_PERCENT;
-   }).get_id() == TOURNAMENT_RAKE_FEE_ACCOUNT_ID);
+   }).get_id() == GRAPHENE_RAKE_FEE_ACCOUNT_ID);
 
    // Create more special accounts
    while( true )
@@ -415,7 +415,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
            a.options.minimum_fee_percentage = 10*GRAPHENE_1_PERCENT;
            a.options.next_payout_time = genesis_state.initial_timestamp + fc::hours(1);
            a.options.payout_interval = 7*24*60*60;
-           a.dividend_distribution_account = TOURNAMENT_RAKE_FEE_ACCOUNT_ID;
+           a.dividend_distribution_account = GRAPHENE_RAKE_FEE_ACCOUNT_ID;
       });
 
    const asset_object& core_asset =
@@ -447,7 +447,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
            a.options.minimum_fee_percentage = 10*GRAPHENE_1_PERCENT;
            a.options.next_payout_time = genesis_state.initial_timestamp + fc::hours(1);
            a.options.payout_interval = 7*24*60*60;
-           a.dividend_distribution_account = TOURNAMENT_RAKE_FEE_ACCOUNT_ID;
+           a.dividend_distribution_account = GRAPHENE_RAKE_FEE_ACCOUNT_ID;
       });
 
    const asset_object& default_asset =
@@ -458,7 +458,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
          a.precision = GRAPHENE_BLOCKCHAIN_PRECISION_DIGITS;
          a.options.flags = 0;
          a.options.issuer_permissions = 79;
-         a.issuer = TOURNAMENT_RAKE_FEE_ACCOUNT_ID;
+         a.issuer = GRAPHENE_RAKE_FEE_ACCOUNT_ID;
          a.options.core_exchange_rate.base.amount = 1;
          a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
          a.options.core_exchange_rate.quote.amount = 1;

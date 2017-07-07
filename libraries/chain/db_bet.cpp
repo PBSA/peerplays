@@ -92,6 +92,8 @@ void database::resolve_betting_market_group(const betting_market_group_object& b
   // walking through bettors' positions and collecting winings and fees respecting asset_id
   for (const auto& bettor_positions_pair: bettor_positions_map)
   {
+      uint16_t rake_fee_percentage = get_global_properties().parameters.betting_rake_fee_percentage;
+      std::map<asset_id_type, share_type> net_profits;
       std::map<asset_id_type, share_type> payout_amounts;
       std::map<asset_id_type, share_type> fees_collected;
       account_id_type bettor_id = bettor_positions_pair.first;
@@ -118,11 +120,17 @@ void database::resolve_betting_market_group(const betting_market_group_object& b
              payout_amounts[betting_market.asset_id] += position->pay_if_payout_condition;
              payout_amounts[betting_market.asset_id] += position->pay_if_not_canceled;
              fees_collected[betting_market.asset_id] += position->fees_collected;
+             net_profits[betting_market.asset_id] += position->pay_if_payout_condition;
+             net_profits[betting_market.asset_id] += position->pay_if_not_canceled;
+             net_profits[betting_market.asset_id] -= position->pay_if_canceled;
              break;
           case betting_market_resolution_type::not_win:
              payout_amounts[betting_market.asset_id] += position->pay_if_not_payout_condition;
              payout_amounts[betting_market.asset_id] += position->pay_if_not_canceled;
              fees_collected[betting_market.asset_id] += position->fees_collected;
+             net_profits[betting_market.asset_id] += position->pay_if_not_payout_condition;
+             net_profits[betting_market.asset_id] += position->pay_if_not_canceled;
+             net_profits[betting_market.asset_id] -= position->pay_if_canceled;
              break;
           case betting_market_resolution_type::cancel:
              payout_amounts[betting_market.asset_id] += position->pay_if_canceled;
@@ -138,15 +146,44 @@ void database::resolve_betting_market_group(const betting_market_group_object& b
       std::vector<asset> fees;
       for (const auto& payout_amount_pair: payout_amounts)
       {
-          asset payout = asset(payout_amount_pair.second, payout_amount_pair.first);
+          // pay the fees to the correct (dividend-distribution) account if net profit
+          asset_id_type asset_id = payout_amount_pair.first;
+          const asset_object & asset_obj = asset_id(*this);
+          optional<asset_dividend_data_id_type> dividend_id = asset_obj.dividend_data_id;
+          account_id_type rake_account_id;
+          if (dividend_id.valid())
+          {
+              const asset_dividend_data_id_type& asset_dividend_data_id_= *dividend_id;
+              const asset_dividend_data_object& dividend_obj = asset_dividend_data_id_(*this);
+              rake_account_id = dividend_obj.dividend_distribution_account;
+          }
+          asset fee = fees_collected[asset_id];
+          share_type net_profit = net_profits[asset_id];
+          share_type payout_amount = payout_amount_pair.second;
+          share_type rake_amount = 0;
+          if (dividend_id.valid())
+          {
+              if (net_profit.value > 0)
+              {
+                  rake_amount = (fc::uint128_t(net_profit.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
+                  if (rake_amount.value)
+                  {
+                      // adjusting balance of dividend_distribution_account
+                      asset rake(rake_amount, asset_id);
+                      adjust_balance(rake_account_id, rake);
+                  }
+              }
+              adjust_balance(rake_account_id, fee);
+          }
+          else
+          {
+              adjust_balance(account_id_type(), fee);
+          }
+          // pay winning - rake
+          asset payout = asset(payout_amount - rake_amount, asset_id);
           adjust_balance(bettor_id, payout);
+
           winnings.push_back(payout);
-      }
-      for (const auto& fee_collected_pair: fees_collected)
-      {
-          // TODO : pay the fees to the correct (dividend-distribution) account
-          asset fee = asset(fee_collected_pair.second, fee_collected_pair.first);
-          adjust_balance(account_id_type(), fee);
           fees.push_back(fee);
       }
       push_applied_operation(betting_market_group_resolved_operation(bettor_id,

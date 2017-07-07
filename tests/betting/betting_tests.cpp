@@ -118,7 +118,11 @@ BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
                                   {{capitals_win_market.id, betting_market_resolution_type::win},
                                    {blackhawks_win_market.id, betting_market_resolution_type::cancel}});
 
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000);
+
+      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+      uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
+      BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000 - rake_value);
       BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
 
    } FC_LOG_AND_RETHROW()
@@ -294,10 +298,16 @@ BOOST_AUTO_TEST_CASE( win )
       GET_ACTOR(alice);
       GET_ACTOR(bob);
 
+      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+      uint32_t rake_value;
+      //rake_value = (-100 + 1100 - 1100) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
       // alice starts with 10000, pays 100 (bet) + 2 (fee), wins 1100, then pays 1100 (bet) + 22 (fee), wins 0
       BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000 - 100 - 2 + 1100 - 1100 - 22 + 0);
+
+      rake_value = (-1000 - 1100 + 2200) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
       // bob starts with 10000, pays 1000 (bet) + 20 (fee), wins 0, then pays 1100 (bet) + 22 (fee), wins 2200
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000 - 1000 - 20 + 0 - 1100 - 22 + 2200);
+      BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000 - 1000 - 20 + 0 - 1100 - 22 + 2200 - rake_value);
    } FC_LOG_AND_RETHROW()
 }
 
@@ -312,8 +322,13 @@ BOOST_AUTO_TEST_CASE( not_win )
       GET_ACTOR(alice);
       GET_ACTOR(bob);
 
+      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+      uint32_t rake_value = (-100 - 1100 + 2200) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
       // alice starts with 10000, pays 100 (bet) + 2 (fee), wins 0, then pays 1100 (bet) + 22 (fee), wins 2200
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000 - 100 - 2 + 0 - 1100 - 22 + 2200);
+      BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000 - 100 - 2 + 0 - 1100 - 22 + 2200 - rake_value);
+
+      //rake_value = (-1000 + 1100 - 1100) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
       // bob starts with 10000, pays 1000 (bet) + 20 (fee), wins 1100, then pays 1100 (bet) + 22 (fee), wins 0
       BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000 - 1000 - 20 + 1100 - 1100 - 22 + 0);
    } FC_LOG_AND_RETHROW()
