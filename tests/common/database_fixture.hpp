@@ -280,6 +280,9 @@ struct database_fixture {
    void print_joint_market( const string& syma, const string& symb )const;
    int64_t get_balance( account_id_type account, asset_id_type a )const;
    int64_t get_balance( const account_object& account, const asset_object& a )const;
+   int64_t get_dividend_pending_payout_balance(asset_id_type dividend_holder_asset_type,
+                                               account_id_type dividend_holder_account_id, 
+                                               asset_id_type dividend_payout_asset_type) const;
    vector< operation_history_object > get_operation_history( account_id_type account_id )const;
    void process_operation_by_witnesses(operation op);
    const sport_object& create_sport(internationalized_string_type name);
@@ -290,7 +293,7 @@ struct database_fixture {
    const betting_market_object& create_betting_market(betting_market_group_id_type group_id, internationalized_string_type payout_condition, asset_id_type asset_id);
 
    void place_bet(account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, asset amount_to_bet, bet_multiplier_type backer_multiplier, share_type amount_reserved_for_fees);
-   void resolve_betting_market(betting_market_id_type betting_market_id, betting_market_resolution_type resolution);
+   void resolve_betting_market_group(betting_market_group_id_type betting_market_group_id, std::map<betting_market_id_type, betting_market_resolution_type> resolutions);
 };
 
 namespace test {

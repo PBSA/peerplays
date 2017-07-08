@@ -44,64 +44,163 @@ void database::cancel_all_betting_markets_for_event(const event_object& event_ob
    for (const betting_market_group_object& betting_market_group : 
         boost::make_iterator_range(betting_market_group_index.equal_range(event_obj.id)))
    {
-      //for each betting market in the betting market group
-      auto betting_market_itr = betting_market_index.lower_bound(betting_market_group.id);
-      while (betting_market_itr != betting_market_index.end() &&
-             betting_market_itr->group_id == betting_market_group.id)
-      {
-         auto old_betting_market_itr = betting_market_itr;
-         ++betting_market_itr;
-         resolve_betting_market(*old_betting_market_itr, betting_market_resolution_type::cancel);
-      }
+       resolve_betting_market_group(betting_market_group, {});
    }
-   //TODO: should we remove market groups once all their markets are resolved?
 }
 
-void database::resolve_betting_market(const betting_market_object& betting_market, 
-                                      betting_market_resolution_type resolution)
+void database::validate_betting_market_group_resolutions(const betting_market_group_object& betting_market_group,
+                                                         const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions)
 {
-   cancel_all_unmatched_bets_on_betting_market(betting_market);
+    auto& betting_market_index = get_index_type<betting_market_object_index>().indices().get<by_betting_market_group_id>();
+    auto betting_market_itr = betting_market_index.lower_bound(betting_market_group.id);
+    while (betting_market_itr != betting_market_index.end() &&  betting_market_itr->group_id == betting_market_group.id)
+    {
+       const betting_market_object& betting_market = *betting_market_itr;
+       // every betting market in the group tied with resolution
+       assert(resolutions.count(betting_market.id));
+       ++betting_market_itr;
+    }
+}
 
-   auto& index = get_index_type<betting_market_position_index>().indices().get<by_bettor_betting_market>();
-   auto position_itr = index.lower_bound(std::make_tuple(betting_market.id));
-   while (position_itr != index.end() &&
-          position_itr->betting_market_id == betting_market.id)
-   {
-      const betting_market_position_object& position = *position_itr;
-      ++position_itr;
+void database::resolve_betting_market_group(const betting_market_group_object& betting_market_group,
+                                            const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions)
+{
+  bool cancel = resolutions.size() == 0;
+  // collecting bettors and their positions
+  std::map<account_id_type, std::vector<const betting_market_position_object*> > bettor_positions_map;
 
-      share_type payout_amount = 0;
-      switch (resolution)
+  auto& betting_market_index = get_index_type<betting_market_object_index>().indices().get<by_betting_market_group_id>();
+  auto betting_market_itr = betting_market_index.lower_bound(betting_market_group.id);
+  while (betting_market_itr != betting_market_index.end() &&  betting_market_itr->group_id == betting_market_group.id)
+  {
+     const betting_market_object& betting_market = *betting_market_itr;
+     ++betting_market_itr;
+     cancel_all_unmatched_bets_on_betting_market(betting_market);
+
+     auto& index = get_index_type<betting_market_position_index>().indices().get<by_bettor_betting_market>();
+     auto position_itr = index.lower_bound(std::make_tuple(betting_market.id));
+
+     while (position_itr != index.end() && position_itr->betting_market_id == betting_market.id)
+     {
+        const betting_market_position_object& position = *position_itr;
+        ++position_itr;
+
+        bettor_positions_map[position.bettor_id].push_back(&position);
+     }
+  }
+
+  // walking through bettors' positions and collecting winings and fees respecting asset_id
+  for (const auto& bettor_positions_pair: bettor_positions_map)
+  {
+      uint16_t rake_fee_percentage = get_global_properties().parameters.betting_rake_fee_percentage;
+      std::map<asset_id_type, share_type> net_profits;
+      std::map<asset_id_type, share_type> payout_amounts;
+      std::map<asset_id_type, share_type> fees_collected;
+      account_id_type bettor_id = bettor_positions_pair.first;
+      const std::vector<const betting_market_position_object*>& bettor_positions = bettor_positions_pair.second;
+
+      for (const betting_market_position_object* position : bettor_positions)
       {
-      case betting_market_resolution_type::win:
-         payout_amount += position.pay_if_payout_condition;
-         payout_amount += position.pay_if_not_canceled;
-         //TODO: pay the fees to the correct (dividend-distribution) account
-         adjust_balance(account_id_type(), asset(position.fees_collected, betting_market.asset_id));
-         break;
-      case betting_market_resolution_type::not_win:
-         payout_amount += position.pay_if_not_payout_condition;
-         payout_amount += position.pay_if_not_canceled;
-         //TODO: pay the fees to the correct (dividend-distribution) account
-         adjust_balance(account_id_type(), asset(position.fees_collected, betting_market.asset_id));
-         break;
-      case betting_market_resolution_type::cancel:
-         payout_amount += position.pay_if_canceled;
-         payout_amount += position.fees_collected;
-         break;
+          betting_market_resolution_type resolution;
+          if (cancel)
+          {
+              resolution = betting_market_resolution_type::cancel;
+          }
+          else
+          {
+            // checked in evaluator, should never happen, see above
+            assert(resolutions.count(position->betting_market_id));
+            resolution = resolutions.at(position->betting_market_id);
+          }
+          const betting_market_object& betting_market = position->betting_market_id(*this);
+
+          switch (resolution)
+          {
+          case betting_market_resolution_type::win:
+             payout_amounts[betting_market.asset_id] += position->pay_if_payout_condition;
+             payout_amounts[betting_market.asset_id] += position->pay_if_not_canceled;
+             fees_collected[betting_market.asset_id] += position->fees_collected;
+             net_profits[betting_market.asset_id] += position->pay_if_payout_condition;
+             net_profits[betting_market.asset_id] += position->pay_if_not_canceled;
+             net_profits[betting_market.asset_id] -= position->pay_if_canceled;
+             break;
+          case betting_market_resolution_type::not_win:
+             payout_amounts[betting_market.asset_id] += position->pay_if_not_payout_condition;
+             payout_amounts[betting_market.asset_id] += position->pay_if_not_canceled;
+             fees_collected[betting_market.asset_id] += position->fees_collected;
+             net_profits[betting_market.asset_id] += position->pay_if_not_payout_condition;
+             net_profits[betting_market.asset_id] += position->pay_if_not_canceled;
+             net_profits[betting_market.asset_id] -= position->pay_if_canceled;
+             break;
+          case betting_market_resolution_type::cancel:
+             payout_amounts[betting_market.asset_id] += position->pay_if_canceled;
+             payout_amounts[betting_market.asset_id] += position->fees_collected;
+             break;
+          default:
+             continue;
+          }
+          remove(*position);
       }
 
-      adjust_balance(position.bettor_id, asset(payout_amount, betting_market.asset_id));
+      std::vector<asset> winnings;
+      std::vector<asset> fees;
+      for (const auto& payout_amount_pair: payout_amounts)
+      {
+          // pay the fees to the correct (dividend-distribution) account if net profit
+          asset_id_type asset_id = payout_amount_pair.first;
+          const asset_object & asset_obj = asset_id(*this);
+          optional<asset_dividend_data_id_type> dividend_id = asset_obj.dividend_data_id;
+          account_id_type rake_account_id;
+          if (dividend_id.valid())
+          {
+              const asset_dividend_data_id_type& asset_dividend_data_id_= *dividend_id;
+              const asset_dividend_data_object& dividend_obj = asset_dividend_data_id_(*this);
+              rake_account_id = dividend_obj.dividend_distribution_account;
+          }
+          asset fee = fees_collected[asset_id];
+          share_type net_profit = net_profits[asset_id];
+          share_type payout_amount = payout_amount_pair.second;
+          share_type rake_amount = 0;
+          if (dividend_id.valid())
+          {
+              if (net_profit.value > 0)
+              {
+                  rake_amount = (fc::uint128_t(net_profit.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
+                  if (rake_amount.value)
+                  {
+                      // adjusting balance of dividend_distribution_account
+                      asset rake(rake_amount, asset_id);
+                      adjust_balance(rake_account_id, rake);
+                  }
+              }
+              adjust_balance(rake_account_id, fee);
+          }
+          else
+          {
+              adjust_balance(account_id_type(), fee);
+          }
+          // pay winning - rake
+          asset payout = asset(payout_amount - rake_amount, asset_id);
+          adjust_balance(bettor_id, payout);
 
-      push_applied_operation(betting_market_resolved_operation(position.bettor_id,
-                                                               betting_market.id,
-                                                               resolution,
-                                                               payout_amount,
-                                                               position.fees_collected));
+          winnings.push_back(payout);
+          fees.push_back(fee);
+      }
+      push_applied_operation(betting_market_group_resolved_operation(bettor_id,
+                                                                     betting_market_group.id,
+                                                                     resolutions,
+                                                                     winnings,
+                                                                     fees));
+  }
 
-      remove(position);
+  betting_market_itr = betting_market_index.lower_bound(betting_market_group.id);
+  while (betting_market_itr != betting_market_index.end() &&  betting_market_itr->group_id == betting_market_group.id)
+  {
+     const betting_market_object& betting_market = *betting_market_itr;
+     ++betting_market_itr;
+     remove(betting_market);
    }
-   remove(betting_market);
+   remove(betting_market_group);
 }
 
 #if 0

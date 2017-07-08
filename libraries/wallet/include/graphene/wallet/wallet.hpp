@@ -1053,6 +1053,21 @@ class wallet_api
                                          bitasset_options new_options,
                                          bool broadcast = false);
 
+
+      /** Update the given asset's dividend asset options.
+       *
+       * If the asset is not already a dividend-paying asset, it will be converted into one.
+       *
+       * @param symbol the name or id of the asset to update, which must be a market-issued asset
+       * @param new_options the new dividend_asset_options object, which will entirely replace the existing
+       *                    options.
+       * @param broadcast true to broadcast the transaction on the network
+       * @returns the signed transaction updating the asset
+       */
+      signed_transaction update_dividend_asset(string symbol,
+                                               dividend_asset_options new_options,
+                                               bool broadcast = false);
+
       /** Update the set of feed-producing accounts for a BitAsset.
        *
        * BitAssets have price feeds selected by taking the median values of recommendations from a set of feed producers.
@@ -1484,6 +1499,20 @@ class wallet_api
          const variant_object& changed_values,
          bool broadcast = false);
 
+      /** Propose a dividend asset update.
+       *
+       * @param proposing_account The account paying the fee to propose the tx
+       * @param expiration_time Timestamp specifying when the proposal will either take effect or expire.
+       * @param changed_values dividend asset parameters to update
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed version of the transaction
+       */
+      signed_transaction propose_dividend_asset_update(
+         const string& proposing_account,
+         fc::time_point_sec expiration_time,
+         const variant_object& changed_values,
+         bool broadcast = false);
+
       /** Approve or disapprove a proposal.
        *
        * @param fee_paying_account The account paying the fee for the op.
@@ -1551,11 +1580,11 @@ class wallet_api
               share_type amount_reserved_for_fees,
               bool broadcast = false);
 
-      signed_transaction propose_resolve_betting_market(
+      signed_transaction propose_resolve_betting_market_group(
               const string& proposing_account,
               fc::time_point_sec expiration_time,
-              betting_market_id_type betting_market_id,
-              betting_market_resolution_type resolution,
+              betting_market_group_id_type betting_market_group_id,
+              const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions,
               bool broadcast = false);
 
       void dbg_make_uia(string creator, string symbol);
@@ -1689,6 +1718,7 @@ FC_API( graphene::wallet::wallet_api,
         (create_asset)
         (update_asset)
         (update_bitasset)
+        (update_dividend_asset)
         (update_asset_feed_producers)
         (publish_asset_feed)
         (issue_asset)
@@ -1737,6 +1767,7 @@ FC_API( graphene::wallet::wallet_api,
         (get_prototype_operation)
         (propose_parameter_change)
         (propose_fee_change)
+        (propose_dividend_asset_update)
         (approve_proposal)
         (dbg_make_uia)
         (dbg_make_mia)
@@ -1770,6 +1801,6 @@ FC_API( graphene::wallet::wallet_api,
         (propose_create_betting_market_group)
         (propose_create_betting_market)
         (place_bet)
-        (propose_resolve_betting_market)
+        (propose_resolve_betting_market_group)
         (get_order_book)
       )

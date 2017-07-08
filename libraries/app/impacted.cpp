@@ -90,6 +90,12 @@ struct get_impacted_account_visitor
    }
 
    void operator()( const asset_update_bitasset_operation& op ) {}
+   void operator()( const asset_update_dividend_operation& op ) {}
+   void operator()( const asset_dividend_distribution_operation& op ) 
+   {
+      _impacted.insert( op.account_id );
+   }
+
    void operator()( const asset_update_feed_producers_operation& op ) {}
 
    void operator()( const asset_issue_operation& op )
@@ -209,7 +215,7 @@ struct get_impacted_account_visitor
    void operator()( const betting_market_rules_create_operation& op ) {}
    void operator()( const betting_market_group_create_operation& op ) {}
    void operator()( const betting_market_create_operation& op ) {}
-   void operator()( const betting_market_resolve_operation& op ) {}
+   void operator()( const betting_market_group_resolve_operation& op ) {}
    void operator()( const bet_place_operation& op )
    {
       _impacted.insert( op.bettor_id );
@@ -226,7 +232,7 @@ struct get_impacted_account_visitor
    {
       _impacted.insert( op.bettor_id );
    }
-   void operator()( const betting_market_resolved_operation& op )
+   void operator()( const betting_market_group_resolved_operation& op )
    {
       _impacted.insert( op.bettor_id );
    }

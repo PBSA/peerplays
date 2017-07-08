@@ -33,6 +33,7 @@
 #include <boost/version.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/algorithm/string/join.hpp>
 
 #include <boost/range/adaptor/map.hpp>
 #include <boost/range/algorithm_ext/erase.hpp>
@@ -123,6 +124,7 @@ public:
    std::string operator()(const account_create_operation& op)const;
    std::string operator()(const account_update_operation& op)const;
    std::string operator()(const asset_create_operation& op)const;
+   std::string operator()(const asset_dividend_distribution_operation& op)const;
 };
 
 template<class T>
@@ -1199,6 +1201,27 @@ public:
       return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (symbol)(new_options)(broadcast) ) }
 
+   signed_transaction update_dividend_asset(string symbol,
+                                            dividend_asset_options new_options,
+                                            bool broadcast /* = false */)
+   { try {
+      optional<asset_object> asset_to_update = find_asset(symbol);
+      if (!asset_to_update)
+        FC_THROW("No asset with that symbol exists!");
+
+      asset_update_dividend_operation update_op;
+      update_op.issuer = asset_to_update->issuer;
+      update_op.asset_to_update = asset_to_update->id;
+      update_op.new_options = new_options;
+
+      signed_transaction tx;
+      tx.operations.push_back( update_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (symbol)(new_options)(broadcast) ) }
+
    signed_transaction update_asset_feed_producers(string symbol,
                                                   flat_set<string> new_feed_producers,
                                                   bool broadcast /* = false */)
@@ -2224,7 +2247,7 @@ public:
             << "\n====================================================================================="
             << "|=====================================================================================\n";
 
-         for (int i = 0; i < bids.size() || i < asks.size() ; i++)
+         for (unsigned i = 0; i < bids.size() || i < asks.size() ; i++)
          {
             if ( i < bids.size() )
             {
@@ -2370,6 +2393,46 @@ public:
 
       committee_member_update_global_parameters_operation update_op;
       update_op.new_parameters = new_params;
+
+      proposal_create_operation prop_op;
+
+      prop_op.expiration_time = expiration_time;
+      prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+      prop_op.fee_paying_account = get_account(proposing_account).id;
+
+      prop_op.proposed_ops.emplace_back( update_op );
+      current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+      signed_transaction tx;
+      tx.operations.push_back(prop_op);
+      set_operation_fees(tx, current_params.current_fees);
+      tx.validate();
+
+      return sign_transaction(tx, broadcast);
+   }
+
+   signed_transaction propose_dividend_asset_update(
+      const string& proposing_account,
+      fc::time_point_sec expiration_time,
+      const variant_object& changed_values,
+      bool broadcast = false)
+   {
+      FC_ASSERT( changed_values.contains("asset_to_update") );
+
+      const chain_parameters& current_params = get_global_properties().parameters;
+      asset_update_dividend_operation changed_op;
+      fc::reflector<asset_update_dividend_operation>::visit(
+         fc::from_variant_visitor<asset_update_dividend_operation>( changed_values, changed_op )
+         );
+
+      optional<asset_object> asset_to_update = find_asset(changed_op.asset_to_update);
+      if (!asset_to_update)
+        FC_THROW("No asset with that symbol exists!");
+
+      asset_update_dividend_operation update_op;
+      update_op.issuer = asset_to_update->issuer;
+      update_op.asset_to_update = asset_to_update->id;
+      update_op.new_options = changed_op.new_options;
 
       proposal_create_operation prop_op;
 
@@ -2635,9 +2698,7 @@ std::string operation_printer::operator()(const T& op)const
    operation_result_printer rprinter(wallet);
    std::string str_result = result.visit(rprinter);
    if( str_result != "" )
-   {
       out << "   result: " << str_result;
-   }
    return "";
 }
 std::string operation_printer::operator()(const transfer_from_blind_operation& op)const
@@ -2715,6 +2776,22 @@ std::string operation_printer::operator()(const asset_create_operation& op) cons
       out << "User-Issue Asset ";
    out << "'" << op.symbol << "' with issuer " << wallet.get_account(op.issuer).name;
    return fee(op.fee);
+}
+
+std::string operation_printer::operator()(const asset_dividend_distribution_operation& op)const
+{
+   asset_object dividend_paying_asset = wallet.get_asset(op.dividend_asset_id);
+   account_object receiver = wallet.get_account(op.account_id);
+
+   out << receiver.name << " received dividend payments for " << dividend_paying_asset.symbol << ": ";
+   std::vector<std::string> pretty_payout_amounts;
+   for (const asset& payment : op.amounts)
+   {
+      asset_object payout_asset = wallet.get_asset(payment.asset_id);
+      pretty_payout_amounts.push_back(payout_asset.amount_to_pretty_string(payment));
+   }
+   out << boost::algorithm::join(pretty_payout_amounts, ", ");
+   return "";
 }
 
 std::string operation_result_printer::operator()(const void_result& x) const
@@ -2827,7 +2904,7 @@ vector<operation_detail> wallet_api::get_account_history(string name, int limit)
          auto memo = o.op.visit(detail::operation_printer(ss, *my, o.result));
          result.push_back( operation_detail{ memo, ss.str(), o } );
       }
-      if( current.size() < std::min(100,limit) )
+      if( (int)current.size() < std::min(100,limit) )
          break;
       limit -= current.size();
    }
@@ -3232,6 +3309,14 @@ signed_transaction wallet_api::update_bitasset(string symbol,
    return my->update_bitasset(symbol, new_options, broadcast);
 }
 
+signed_transaction wallet_api::update_dividend_asset(string symbol,
+                                                     dividend_asset_options new_options,
+                                                     bool broadcast /* = false */)
+{
+   return my->update_dividend_asset(symbol, new_options, broadcast);
+}
+
+
 signed_transaction wallet_api::update_asset_feed_producers(string symbol,
                                                            flat_set<string> new_feed_producers,
                                                            bool broadcast /* = false */)
@@ -3479,6 +3564,16 @@ signed_transaction wallet_api::propose_fee_change(
    return my->propose_fee_change( proposing_account, expiration_time, changed_fees, broadcast );
 }
 
+signed_transaction wallet_api::propose_dividend_asset_update(
+   const string& proposing_account,
+   fc::time_point_sec expiration_time,
+   const variant_object& changed_fees,
+   bool broadcast /* = false */
+   )
+{
+   return my->propose_dividend_asset_update( proposing_account, expiration_time, changed_fees, broadcast );
+}
+
 signed_transaction wallet_api::approve_proposal(
    const string& fee_paying_account,
    const string& proposal_id,
@@ -3488,6 +3583,9 @@ signed_transaction wallet_api::approve_proposal(
 {
    return my->approve_proposal( fee_paying_account, proposal_id, delta, broadcast );
 }
+
+
+
 
 global_property_object wallet_api::get_global_properties() const
 {
@@ -4546,25 +4644,25 @@ signed_transaction wallet_api::place_bet(
     return my->sign_transaction(tx, broadcast);
 }
 
-signed_transaction wallet_api::propose_resolve_betting_market(
+signed_transaction wallet_api::propose_resolve_betting_market_group(
         const string& proposing_account,
         fc::time_point_sec expiration_time,
-        betting_market_id_type betting_market_id,
-        betting_market_resolution_type resolution,
+        betting_market_group_id_type betting_market_group_id,
+        const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions,
         bool broadcast /*= false*/)
 {
     FC_ASSERT( !is_locked() );
     const chain_parameters& current_params = get_global_properties().parameters;
 
-    betting_market_resolve_operation betting_market_resolve_op;
-    betting_market_resolve_op.betting_market_id = betting_market_id;
-    betting_market_resolve_op.resolution = resolution;
+    betting_market_group_resolve_operation betting_market_group_resolve_op;
+    betting_market_group_resolve_op.betting_market_group_id = betting_market_group_id;
+    betting_market_group_resolve_op.resolutions = resolutions;
 
     proposal_create_operation prop_op;
     prop_op.expiration_time = expiration_time;
     prop_op.review_period_seconds = current_params.committee_proposal_review_period;
     prop_op.fee_paying_account = get_account(proposing_account).id;
-    prop_op.proposed_ops.emplace_back( betting_market_resolve_op );
+    prop_op.proposed_ops.emplace_back( betting_market_group_resolve_op );
     current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
 
     signed_transaction tx;

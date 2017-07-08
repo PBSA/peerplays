@@ -311,6 +311,31 @@ namespace graphene { namespace chain {
          /** maps the referrer to the set of accounts that they have referred */
          map< account_id_type, set<account_id_type> > referred_by;
    };
+   
+   /**
+    * @brief Tracks a pending payout of a single dividend payout asset 
+    * from a single dividend holder asset to a holder's account.
+    * 
+    * Each maintenance interval, this will be adjusted to account for
+    * any new transfers to the dividend distribution account.
+    * @ingroup object
+    *
+    */
+   class pending_dividend_payout_balance_for_holder_object : public abstract_object<pending_dividend_payout_balance_for_holder_object>
+   {
+      public:
+         static const uint8_t space_id = implementation_ids;
+         static const uint8_t type_id  = impl_pending_dividend_payout_balance_for_holder_object_type;
+
+         account_id_type   owner;
+         asset_id_type     dividend_holder_asset_type;
+         asset_id_type     dividend_payout_asset_type;
+         share_type        pending_balance;
+
+         asset get_pending_balance()const { return asset(pending_balance, dividend_payout_asset_type); }
+         void  adjust_balance(const asset& delta);
+   };
+
 
    struct by_account_asset;
    struct by_asset_balance;
@@ -367,6 +392,49 @@ namespace graphene { namespace chain {
     */
    typedef generic_index<account_object, account_multi_index_type> account_index;
 
+   struct by_dividend_payout_account{}; // use when calculating pending payouts
+   struct by_dividend_account_payout{}; // use when doing actual payouts
+   struct by_account_dividend_payout{}; // use in get_full_accounts()
+
+   /**
+    * @ingroup object_index
+    */
+   typedef multi_index_container<
+      pending_dividend_payout_balance_for_holder_object,
+      indexed_by<
+         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
+         ordered_unique< tag<by_dividend_payout_account>,
+            composite_key<
+               pending_dividend_payout_balance_for_holder_object,
+               member<pending_dividend_payout_balance_for_holder_object, asset_id_type, &pending_dividend_payout_balance_for_holder_object::dividend_holder_asset_type>,
+               member<pending_dividend_payout_balance_for_holder_object, asset_id_type, &pending_dividend_payout_balance_for_holder_object::dividend_payout_asset_type>,
+               member<pending_dividend_payout_balance_for_holder_object, account_id_type, &pending_dividend_payout_balance_for_holder_object::owner>
+            >
+         >,
+         ordered_unique< tag<by_dividend_account_payout>,
+            composite_key<
+               pending_dividend_payout_balance_for_holder_object,
+               member<pending_dividend_payout_balance_for_holder_object, asset_id_type, &pending_dividend_payout_balance_for_holder_object::dividend_holder_asset_type>,
+               member<pending_dividend_payout_balance_for_holder_object, account_id_type, &pending_dividend_payout_balance_for_holder_object::owner>,
+               member<pending_dividend_payout_balance_for_holder_object, asset_id_type, &pending_dividend_payout_balance_for_holder_object::dividend_payout_asset_type>
+            >
+         >,
+         ordered_unique< tag<by_account_dividend_payout>,
+            composite_key<
+               pending_dividend_payout_balance_for_holder_object,
+               member<pending_dividend_payout_balance_for_holder_object, account_id_type, &pending_dividend_payout_balance_for_holder_object::owner>,
+               member<pending_dividend_payout_balance_for_holder_object, asset_id_type, &pending_dividend_payout_balance_for_holder_object::dividend_holder_asset_type>,
+               member<pending_dividend_payout_balance_for_holder_object, asset_id_type, &pending_dividend_payout_balance_for_holder_object::dividend_payout_asset_type>
+            >
+         >
+      >
+   > pending_dividend_payout_balance_for_holder_object_multi_index_type;
+
+   /**
+    * @ingroup object_index
+    */
+   typedef generic_index<pending_dividend_payout_balance_for_holder_object, pending_dividend_payout_balance_for_holder_object_multi_index_type> pending_dividend_payout_balance_for_holder_object_index;
+
 }}
 
 FC_REFLECT_DERIVED( graphene::chain::account_object,
@@ -394,4 +462,9 @@ FC_REFLECT_DERIVED( graphene::chain::account_statistics_object,
                     (lifetime_fees_paid)
                     (pending_fees)(pending_vested_fees)
                   )
+
+FC_REFLECT_DERIVED( graphene::chain::pending_dividend_payout_balance_for_holder_object,
+                    (graphene::db::object),
+                    (owner)(dividend_holder_asset_type)(dividend_payout_asset_type)(pending_balance) )
+
 

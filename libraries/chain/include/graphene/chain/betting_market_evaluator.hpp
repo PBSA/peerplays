@@ -86,15 +86,16 @@ namespace graphene { namespace chain {
          const bet_object* _bet_to_cancel;
    };
 
-   class betting_market_resolve_evaluator : public evaluator<betting_market_resolve_evaluator>
+   class betting_market_group_resolve_evaluator : public evaluator<betting_market_group_resolve_evaluator>
    {
       public:
-         typedef betting_market_resolve_operation operation_type;
+         typedef betting_market_group_resolve_operation operation_type;
 
-         void_result do_evaluate( const betting_market_resolve_operation& o );
-         void_result do_apply( const betting_market_resolve_operation& o );
+         void_result do_evaluate( const betting_market_group_resolve_operation& o );
+         void_result do_apply( const betting_market_group_resolve_operation& o );
       private:
-         const betting_market_object* _betting_market;
+         const betting_market_group_object* _betting_market_group;
    };
+
 
 } } // graphene::chain

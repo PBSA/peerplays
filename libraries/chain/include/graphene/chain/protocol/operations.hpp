@@ -96,6 +96,8 @@ namespace graphene { namespace chain {
             asset_settle_cancel_operation,  // VIRTUAL
             asset_claim_fees_operation,
             fba_distribute_operation,        // VIRTUAL
+            asset_update_dividend_operation,
+            asset_dividend_distribution_operation, // VIRTUAL
             sport_create_operation,
             event_group_create_operation,
             event_create_operation,
@@ -103,8 +105,8 @@ namespace graphene { namespace chain {
             betting_market_group_create_operation,
             betting_market_create_operation,
             bet_place_operation,
-            betting_market_resolve_operation,
-            betting_market_resolved_operation, // VIRTUAL
+            betting_market_group_resolve_operation,
+            betting_market_group_resolved_operation, // VIRTUAL
             bet_matched_operation, // VIRTUAL
             bet_cancel_operation,
             bet_canceled_operation // VIRTUAL
