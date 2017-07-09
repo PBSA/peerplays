@@ -4561,6 +4561,7 @@ signed_transaction wallet_api::propose_create_betting_market_group(
         fc::time_point_sec expiration_time,
         internationalized_string_type description,
         event_id_type event_id,
+        asset_id_type asset_id,
         bool broadcast /*= false*/)
 {
     FC_ASSERT( !is_locked() );
@@ -4569,6 +4570,7 @@ signed_transaction wallet_api::propose_create_betting_market_group(
     betting_market_group_create_operation betting_market_group_create_op;
     betting_market_group_create_op.description = description;
     betting_market_group_create_op.event_id = event_id;
+    betting_market_group_create_op.asset_id = asset_id;
 
     proposal_create_operation prop_op;
     prop_op.expiration_time = expiration_time;
@@ -4590,7 +4592,6 @@ signed_transaction wallet_api::propose_create_betting_market(
         fc::time_point_sec expiration_time,
         betting_market_group_id_type group_id,
         internationalized_string_type payout_condition,
-        asset_id_type asset_id,
         bool broadcast /*= false*/)
 {
     FC_ASSERT( !is_locked() );
@@ -4599,7 +4600,6 @@ signed_transaction wallet_api::propose_create_betting_market(
     betting_market_create_operation betting_market_create_op;
     betting_market_create_op.group_id = group_id;
     betting_market_create_op.payout_condition = payout_condition;
-    betting_market_create_op.asset_id = asset_id;
 
     proposal_create_operation prop_op;
     prop_op.expiration_time = expiration_time;

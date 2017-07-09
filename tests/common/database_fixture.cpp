@@ -217,8 +217,9 @@ void database_fixture::verify_asset_supplies( const database& db )
    for (const betting_market_position_object& o : db.get_index_type<betting_market_position_index>().indices())
    {
       const betting_market_object& betting_market = o.betting_market_id(db);
-      total_balances[betting_market.asset_id] += o.pay_if_canceled;
-      total_balances[betting_market.asset_id] += o.fees_collected;
+      const betting_market_group_object& betting_market_group = betting_market.group_id(db);
+      total_balances[betting_market_group.asset_id] += o.pay_if_canceled;
+      total_balances[betting_market_group.asset_id] += o.fees_collected;
    }
 
    total_balances[asset_id_type()] += db.get_dynamic_global_properties().witness_budget;
@@ -1174,23 +1175,23 @@ const betting_market_rules_object& database_fixture::create_betting_market_rules
    return *betting_market_rules_index.rbegin();
 } FC_CAPTURE_AND_RETHROW( (name) ) }
 
-const betting_market_group_object& database_fixture::create_betting_market_group(internationalized_string_type description, event_id_type event_id, betting_market_rules_id_type rules_id)
+const betting_market_group_object& database_fixture::create_betting_market_group(internationalized_string_type description, event_id_type event_id, betting_market_rules_id_type rules_id, asset_id_type asset_id)
 { try {
    betting_market_group_create_operation betting_market_group_create_op;
    betting_market_group_create_op.description = description;
    betting_market_group_create_op.event_id = event_id;
    betting_market_group_create_op.rules_id = rules_id;
+   betting_market_group_create_op.asset_id = asset_id;
    process_operation_by_witnesses(betting_market_group_create_op);
    const auto& betting_market_group_index = db.get_index_type<betting_market_group_object_index>().indices().get<by_id>();
    return *betting_market_group_index.rbegin();
 } FC_CAPTURE_AND_RETHROW( (event_id) ) }
 
-const betting_market_object& database_fixture::create_betting_market(betting_market_group_id_type group_id, internationalized_string_type payout_condition, asset_id_type asset_id)
+const betting_market_object& database_fixture::create_betting_market(betting_market_group_id_type group_id, internationalized_string_type payout_condition)
 { try {
    betting_market_create_operation betting_market_create_op;
    betting_market_create_op.group_id = group_id;
    betting_market_create_op.payout_condition = payout_condition;
-   betting_market_create_op.asset_id = asset_id;
    process_operation_by_witnesses(betting_market_create_op);
    const auto& betting_market_index = db.get_index_type<betting_market_object_index>().indices().get<by_id>();
    return *betting_market_index.rbegin();

@@ -1561,6 +1561,7 @@ class wallet_api
               fc::time_point_sec expiration_time,
               internationalized_string_type description,
               event_id_type event_id,
+              asset_id_type asset_id,
               bool broadcast = false);
 
       signed_transaction propose_create_betting_market(
@@ -1568,7 +1569,6 @@ class wallet_api
               fc::time_point_sec expiration_time,
               betting_market_group_id_type group_id,
               internationalized_string_type payout_condition,
-              asset_id_type asset_id,
               bool broadcast = false);
 
       signed_transaction place_bet(

@@ -63,6 +63,8 @@ void_result betting_market_group_create_evaluator::do_evaluate(const betting_mar
    event_id = resolved_event_id;
    FC_ASSERT( db().find_object(event_id), "Invalid event specified" );
 
+   FC_ASSERT( db().find_object(op.asset_id), "Invalid asset specified" );
+
    // the rules_id in the operation can be a relative id.  If it is,
    // resolve it and verify that it is truly rules
    object_id_type resolved_rules_id = op.rules_id;
@@ -84,6 +86,7 @@ object_id_type betting_market_group_create_evaluator::do_apply(const betting_mar
          betting_market_group_obj.event_id = event_id;
          betting_market_group_obj.rules_id = rules_id;
          betting_market_group_obj.description = op.description;
+         betting_market_group_obj.asset_id = op.asset_id;
          betting_market_group_obj.frozen = false;
      });
    return new_betting_market_group.id;
@@ -105,7 +108,6 @@ void_result betting_market_create_evaluator::do_evaluate(const betting_market_cr
    group_id = resolved_betting_market_group_id;
    FC_ASSERT( db().find_object(group_id), "Invalid betting_market_group specified" );
 
-   // TODO: should we prevent creating multiple identical betting markets groups in a group (same asset and payout condition)?
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -115,7 +117,6 @@ object_id_type betting_market_create_evaluator::do_apply(const betting_market_cr
      db().create<betting_market_object>( [&]( betting_market_object& betting_market_obj ) {
          betting_market_obj.group_id = group_id;
          betting_market_obj.payout_condition = op.payout_condition;
-         betting_market_obj.asset_id = op.asset_id;
      });
    return new_betting_market.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -127,12 +128,12 @@ void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
    _betting_market = &op.betting_market_id(d);
    _betting_market_group = &_betting_market->group_id(d);
 
-   FC_ASSERT( op.amount_to_bet.asset_id == _betting_market->asset_id,
+   FC_ASSERT( op.amount_to_bet.asset_id == _betting_market_group->asset_id,
               "Asset type bet does not match the market's asset type" );
 
    FC_ASSERT( !_betting_market_group->frozen, "Unable to place bets while the market is frozen" );
 
-   _asset = &_betting_market->asset_id(d);
+   _asset = &_betting_market_group->asset_id(d);
    FC_ASSERT( is_authorized_asset( d, *fee_paying_account, *_asset ) );
 
    const chain_parameters& current_params = d.get_global_properties().parameters;
@@ -199,7 +200,7 @@ object_id_type bet_place_evaluator::do_apply(const bet_place_operation& op)
          bet_obj.back_or_lay = op.back_or_lay;
      });
 
-   d.adjust_balance(fee_paying_account->id, asset(-_stake_plus_fees, _betting_market->asset_id));
+   d.adjust_balance(fee_paying_account->id, asset(-_stake_plus_fees, _betting_market_group->asset_id));
 
    bool bet_matched = d.place_bet(new_bet);
 

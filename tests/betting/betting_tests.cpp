@@ -50,9 +50,9 @@ BOOST_FIXTURE_TEST_SUITE( betting_tests, database_fixture )
   const event_group_object& nhl = create_event_group({{"en", "NHL"}, {"zh_Hans", "國家冰球聯盟"}, {"ja", "ナショナルホッケーリーグ"}}, ice_hockey.id); \
   const event_object& capitals_vs_blackhawks = create_event({{"en", "Washington Capitals/Chicago Blackhawks"}, {"zh_Hans", "華盛頓首都隊/芝加哥黑鷹"}, {"ja", "ワシントン・キャピタルズ/シカゴ・ブラックホークス"}}, {{"en", "2016-17"}}, nhl.id); \
   const betting_market_rules_object& betting_market_rules = create_betting_market_rules({{"en", "NHL Rules v1.0"}}, {{"en", "The winner will be the team with the most points at the end of the game.  The team with fewer points will not be the winner."}}); \
-  const betting_market_group_object& moneyline_betting_markets = create_betting_market_group({{"en", "Moneyline"}}, capitals_vs_blackhawks.id, betting_market_rules.id); \
-  const betting_market_object& capitals_win_market = create_betting_market(moneyline_betting_markets.id, {{"en", "Washington Capitals win"}}, asset_id_type()); \
-  const betting_market_object& blackhawks_win_market = create_betting_market(moneyline_betting_markets.id, {{"en", "Chicago Blackhawks win"}}, asset_id_type());
+  const betting_market_group_object& moneyline_betting_markets = create_betting_market_group({{"en", "Moneyline"}}, capitals_vs_blackhawks.id, betting_market_rules.id, asset_id_type()); \
+  const betting_market_object& capitals_win_market = create_betting_market(moneyline_betting_markets.id, {{"en", "Washington Capitals win"}}); \
+  const betting_market_object& blackhawks_win_market = create_betting_market(moneyline_betting_markets.id, {{"en", "Chicago Blackhawks win"}});
 
 #if 0
 BOOST_AUTO_TEST_CASE(generate_block)
@@ -162,18 +162,17 @@ BOOST_AUTO_TEST_CASE( chained_market_create_test )
             betting_market_group_create_operation betting_market_group_create_op;
             betting_market_group_create_op.description = {{"en", "Moneyline"}};
             betting_market_group_create_op.event_id = object_id_type(relative_protocol_ids, 0, 2);
+            betting_market_group_create_op.asset_id = asset_id_type();
 
             // operation 4
             betting_market_create_operation caps_win_betting_market_create_op;
             caps_win_betting_market_create_op.group_id = object_id_type(relative_protocol_ids, 0, 3);
             caps_win_betting_market_create_op.payout_condition.insert(internationalized_string_type::value_type("en", "Washington Capitals win"));
-            caps_win_betting_market_create_op.asset_id = asset_id_type();
 
             // operation 5
             betting_market_create_operation blackhawks_win_betting_market_create_op;
             blackhawks_win_betting_market_create_op.group_id = object_id_type(relative_protocol_ids, 0, 4);
             blackhawks_win_betting_market_create_op.payout_condition.insert(internationalized_string_type::value_type("en", "Chicago Blackhawks win"));
-            blackhawks_win_betting_market_create_op.asset_id = asset_id_type();
 
 
             proposal_create_operation proposal_op;

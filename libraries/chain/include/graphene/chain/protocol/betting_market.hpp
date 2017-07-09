@@ -74,6 +74,11 @@ struct betting_market_group_create_operation : public base_operation
     */
    object_id_type rules_id;
 
+   /**
+    * The asset used to place bets for all betting markets in this group
+    */
+   asset_id_type asset_id;
+
    extensions_type   extensions;
 
    account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
@@ -92,8 +97,6 @@ struct betting_market_create_operation : public base_operation
    object_id_type group_id;
 
    internationalized_string_type payout_condition;
-
-   asset_id_type asset_id;
 
    extensions_type   extensions;
 
@@ -130,8 +133,9 @@ struct betting_market_group_resolved_operation : public base_operation
    account_id_type bettor_id;
    betting_market_group_id_type betting_market_group_id;
    std::map<betting_market_id_type, betting_market_resolution_type> resolutions;
-   std::vector<asset> winnings;
-   std::vector<asset> fees_paid;
+
+   share_type winnings; // always the asset type of the betting market group
+   share_type fees_paid; // always the asset type of the betting market group
 
    asset             fee; // unused in a virtual operation
 
@@ -139,8 +143,8 @@ struct betting_market_group_resolved_operation : public base_operation
    betting_market_group_resolved_operation(account_id_type bettor_id,
                                            betting_market_group_id_type betting_market_group_id,
                                            const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions,
-                                           std::vector<asset> winnings,
-                                           std::vector<asset> fees_paid) :
+                                           share_type winnings,
+                                           share_type fees_paid) :
       bettor_id(bettor_id),
       betting_market_group_id(betting_market_group_id),
       resolutions(resolutions),
@@ -296,11 +300,11 @@ FC_REFLECT( graphene::chain::betting_market_rules_create_operation,
 
 FC_REFLECT( graphene::chain::betting_market_group_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_group_create_operation, 
-            (fee)(description)(event_id)(extensions) )
+            (fee)(description)(event_id)(rules_id)(asset_id)(extensions) )
 
 FC_REFLECT( graphene::chain::betting_market_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_create_operation, 
-            (fee)(group_id)(payout_condition)(asset_id)(extensions) )
+            (fee)(group_id)(payout_condition)(extensions) )
 
 FC_REFLECT_ENUM( graphene::chain::betting_market_resolution_type, (win)(not_win)(cancel)(BETTING_MARKET_RESOLUTION_COUNT) )
 
