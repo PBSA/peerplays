@@ -137,23 +137,36 @@ struct betting_market_group_resolved_operation : public base_operation
 
    betting_market_group_resolved_operation() {}
    betting_market_group_resolved_operation(account_id_type bettor_id,
-                                     betting_market_group_id_type betting_market_group_id,
-                                     const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions,
-                                     std::vector<asset> winnings,
-                                     std::vector<asset> fees_paid) :
+                                           betting_market_group_id_type betting_market_group_id,
+                                           const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions,
+                                           std::vector<asset> winnings,
+                                           std::vector<asset> fees_paid) :
       bettor_id(bettor_id),
       betting_market_group_id(betting_market_group_id),
       resolutions(resolutions),
       winnings(winnings),
       fees_paid(fees_paid)
    {
-       // TODO ?
    }
 
    account_id_type fee_payer()const { return bettor_id; }
    void            validate()const { FC_ASSERT(false, "virtual operation"); }
    /// This is a virtual operation; there is no fee
    share_type      calculate_fee(const fee_parameters_type& k)const { return 0; }
+};
+
+struct betting_market_group_freeze_operation : public base_operation
+{
+   struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
+   asset             fee;
+
+   betting_market_group_id_type betting_market_group_id;
+   bool freeze; // the new state of the betting market
+
+   extensions_type   extensions;
+
+   account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
+   void            validate()const;
 };
 
 enum class bet_type { back, lay };
@@ -298,6 +311,10 @@ FC_REFLECT( graphene::chain::betting_market_group_resolve_operation,
 FC_REFLECT( graphene::chain::betting_market_group_resolved_operation::fee_parameters_type, )
 FC_REFLECT( graphene::chain::betting_market_group_resolved_operation,
             (bettor_id)(betting_market_group_id)(resolutions)(winnings)(fees_paid)(fee) )
+
+FC_REFLECT( graphene::chain::betting_market_group_freeze_operation::fee_parameters_type, (fee) )
+FC_REFLECT( graphene::chain::betting_market_group_freeze_operation,
+            (fee)(betting_market_group_id)(freeze)(extensions) )
 
 FC_REFLECT_ENUM( graphene::chain::bet_type, (back)(lay) )
 FC_REFLECT( graphene::chain::bet_place_operation::fee_parameters_type, (fee) )

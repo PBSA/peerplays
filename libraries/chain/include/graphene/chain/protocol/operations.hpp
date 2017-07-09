@@ -107,6 +107,7 @@ namespace graphene { namespace chain {
             bet_place_operation,
             betting_market_group_resolve_operation,
             betting_market_group_resolved_operation, // VIRTUAL
+            betting_market_group_freeze_operation,
             bet_matched_operation, // VIRTUAL
             bet_cancel_operation,
             bet_canceled_operation // VIRTUAL

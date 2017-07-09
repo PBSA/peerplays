@@ -62,6 +62,7 @@ enum class event_status
 {
    upcoming,
    in_progress,
+   frozen,
    completed,
    canceled,
    STATUS_COUNT
@@ -105,7 +106,7 @@ struct event_update_status_operation : public base_operation
 FC_REFLECT( graphene::chain::event_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::event_create_operation, 
             (fee)(name)(season)(start_time)(event_group_id)(extensions) )
-FC_REFLECT_ENUM( graphene::chain::event_status, (upcoming)(in_progress)(completed)(canceled)(STATUS_COUNT) )
+FC_REFLECT_ENUM( graphene::chain::event_status, (upcoming)(in_progress)(frozen)(completed)(canceled)(STATUS_COUNT) )
 FC_REFLECT( graphene::chain::event_update_status_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::event_update_status_operation, 
             (fee)(event_id)(status)(scores)(extensions) )

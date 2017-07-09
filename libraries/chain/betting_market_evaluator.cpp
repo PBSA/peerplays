@@ -84,6 +84,7 @@ object_id_type betting_market_group_create_evaluator::do_apply(const betting_mar
          betting_market_group_obj.event_id = event_id;
          betting_market_group_obj.rules_id = rules_id;
          betting_market_group_obj.description = op.description;
+         betting_market_group_obj.frozen = false;
      });
    return new_betting_market_group.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -128,6 +129,8 @@ void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
 
    FC_ASSERT( op.amount_to_bet.asset_id == _betting_market->asset_id,
               "Asset type bet does not match the market's asset type" );
+
+   FC_ASSERT( !_betting_market_group->frozen, "Unable to place bets while the market is frozen" );
 
    _asset = &_betting_market->asset_id(d);
    FC_ASSERT( is_authorized_asset( d, *fee_paying_account, *_asset ) );
@@ -232,5 +235,21 @@ void_result betting_market_group_resolve_evaluator::do_apply(const betting_marke
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
+void_result betting_market_group_freeze_evaluator::do_evaluate(const betting_market_group_freeze_operation& op)
+{ try {
+   const database& d = db();
+   _betting_market_group = &op.betting_market_group_id(d);
+   FC_ASSERT(_betting_market_group->frozen != op.freeze, "Freeze operation would not change the state of the betting market group");
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+void_result betting_market_group_freeze_evaluator::do_apply(const betting_market_group_freeze_operation& op)
+{ try {
+   db().modify(*_betting_market_group, [&]( betting_market_group_object& betting_market_group_obj ) {
+       betting_market_group_obj.frozen = op.freeze;
+   });
+
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
 
 } } // graphene::chain
