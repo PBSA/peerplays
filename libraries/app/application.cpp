@@ -178,7 +178,8 @@ namespace detail {
                "seed05.bts-nodes.net:1776",	        // Thom         (USA)
                "seed06.bts-nodes.net:1776",	        // Thom         (USA)
                "seed07.bts-nodes.net:1776",	        // Thom         (Singapore)
-               "seeds.bitshares.eu:1776"            // pc           (http://seeds.quisquis.de/bitshares.html)
+               "seeds.bitshares.eu:1776",            // pc           (http://seeds.quisquis.de/bitshares.html)
+               "peerplays.blocktrades.info:2776"
             };
             for( const string& endpoint_string : seeds )
             {

@@ -45,6 +45,7 @@
 
 #include <graphene/chain/worker_object.hpp>
 #include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/tournament_object.hpp>
 
 #include <graphene/market_history/market_history_plugin.hpp>
 
@@ -606,6 +607,28 @@ class database_api
        */
       vector<blinded_balance_object> get_blinded_balances( const flat_set<commitment_type>& commitments )const;
 
+      /////////////////
+      // Tournaments //
+      /////////////////
+      /**
+       * @return the list of tournaments in the given state
+       */
+      vector<tournament_object> get_tournaments_in_state(tournament_state state, uint32_t limit) const;
+
+      vector<tournament_object> get_tournaments(tournament_id_type stop  = tournament_id_type(),
+                                                unsigned limit = 100,
+                                                tournament_id_type start = tournament_id_type());
+
+      vector<tournament_object> get_tournaments_by_state(tournament_id_type stop  = tournament_id_type(),
+                                                         unsigned limit = 100,
+                                                         tournament_id_type start = tournament_id_type(),
+                                                         tournament_state state = tournament_state::accepting_registrations);
+
+      /**
+       * @return the list of tournaments that a given account is registered to play in
+       */
+      vector<tournament_id_type> get_registered_tournaments(account_id_type account_filter, uint32_t limit) const;
+
    private:
       std::shared_ptr< database_api_impl > my;
 };
@@ -717,4 +740,10 @@ FC_API(graphene::app::database_api,
 
    // Blinded balances
    (get_blinded_balances)
+
+   // Tournaments
+   (get_tournaments_in_state)
+   (get_tournaments_by_state)
+   (get_tournaments )
+   (get_registered_tournaments)
 )

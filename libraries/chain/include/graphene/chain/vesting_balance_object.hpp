@@ -181,7 +181,8 @@ namespace graphene { namespace chain {
          ordered_non_unique< tag<by_account>,
             member<vesting_balance_object, account_id_type, &vesting_balance_object::owner>
          >,
-        ordered_unique< tag<by_asset_balance>,
+        //ordered_unique< tag<by_asset_balance>,
+        ordered_non_unique< tag<by_asset_balance>,
            composite_key<
               vesting_balance_object,
               member_offset<vesting_balance_object, asset_id_type, (size_t) (offset_s(vesting_balance_object,balance) + offset_s(asset,asset_id))>,

@@ -46,6 +46,9 @@
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/witness_schedule_object.hpp>
 #include <graphene/chain/worker_object.hpp>
+#include <graphene/chain/tournament_object.hpp>
+#include <graphene/chain/match_object.hpp>
+#include <graphene/chain/game_object.hpp>
 
 
 #include <graphene/chain/sport_object.hpp>
@@ -72,6 +75,7 @@
 #include <graphene/chain/event_group_evaluator.hpp>
 #include <graphene/chain/event_evaluator.hpp>
 #include <graphene/chain/betting_market_evaluator.hpp>
+#include <graphene/chain/tournament_evaluator.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
@@ -218,6 +222,10 @@ void database::initialize_evaluators()
    register_evaluator<betting_market_create_evaluator>();
    register_evaluator<bet_place_evaluator>();
    register_evaluator<betting_market_group_resolve_evaluator>();
+   register_evaluator<tournament_create_evaluator>();
+   register_evaluator<tournament_join_evaluator>();
+   register_evaluator<game_move_evaluator>();
+   register_evaluator<tournament_leave_evaluator>();
 }
 
 void database::initialize_indexes()
@@ -253,6 +261,12 @@ void database::initialize_indexes()
    add_index< primary_index<betting_market_group_object_index > >();
    add_index< primary_index<betting_market_object_index > >();
    add_index< primary_index<bet_object_index > >();
+
+   add_index< primary_index<tournament_index> >();
+   auto tournament_details_idx = add_index< primary_index<tournament_details_index> >();
+   tournament_details_idx->add_secondary_index<tournament_players_index>();
+   add_index< primary_index<match_index> >();
+   add_index< primary_index<game_index> >();
 
    //Implementation object indexes
    add_index< primary_index<transaction_index                             > >();
@@ -372,6 +386,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    }).get_id() == GRAPHENE_PROXY_TO_SELF_ACCOUNT);
    FC_ASSERT(create<account_object>([this](account_object& a) {
        a.name = "default-dividend-distribution";
+       //a.name = "test-dividend-distribution";
        a.statistics = create<account_statistics_object>([&](account_statistics_object& s){s.owner = a.id;}).id;
        a.owner.weight_threshold = 1;
        a.active.weight_threshold = 1;
@@ -380,7 +395,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
        a.network_fee_percentage = 0;
        a.lifetime_referrer_fee_percentage = GRAPHENE_100_PERCENT;
    }).get_id() == GRAPHENE_RAKE_FEE_ACCOUNT_ID);
-
+   //}).get_id() == TOURNAMENT_RAKE_FEE_ACCOUNT_ID);
    // Create more special accounts
    while( true )
    {
@@ -414,6 +429,9 @@ void database::init_genesis(const genesis_state_type& genesis_state)
            a.options.next_payout_time = genesis_state.initial_timestamp + fc::hours(1);
            a.options.payout_interval = 7*24*60*60;
            a.dividend_distribution_account = GRAPHENE_RAKE_FEE_ACCOUNT_ID;
+           //a.options.next_payout_time = genesis_state.initial_timestamp + fc::days(1);
+           //a.options.payout_interval = 30*24*60*60;
+           //a.dividend_distribution_account = TOURNAMENT_RAKE_FEE_ACCOUNT_ID;
       });
 
    const asset_object& core_asset =
@@ -434,6 +452,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    assert( asset_id_type(core_asset.id) == asset().asset_id );
    assert( get_balance(account_id_type(), asset_id_type()) == asset(dyn_asset.current_supply) );
 
+#ifdef _DEFAULT_DIVIDEND_ASSET
    // Create default dividend asset
    const asset_dynamic_data_object& dyn_asset1 =
       create<asset_dynamic_data_object>([&](asset_dynamic_data_object& a) {
@@ -446,17 +465,20 @@ void database::init_genesis(const genesis_state_type& genesis_state)
            a.options.next_payout_time = genesis_state.initial_timestamp + fc::hours(1);
            a.options.payout_interval = 7*24*60*60;
            a.dividend_distribution_account = GRAPHENE_RAKE_FEE_ACCOUNT_ID;
+           //a.dividend_distribution_account = TOURNAMENT_RAKE_FEE_ACCOUNT_ID;
       });
 
    const asset_object& default_asset =
      create<asset_object>( [&]( asset_object& a ) {
          a.symbol = "DEF";
+         //a.symbol = "DEFAULT";
          a.options.max_market_fee =
          a.options.max_supply = genesis_state.max_core_supply;
          a.precision = GRAPHENE_BLOCKCHAIN_PRECISION_DIGITS;
          a.options.flags = 0;
          a.options.issuer_permissions = 79;
          a.issuer = GRAPHENE_RAKE_FEE_ACCOUNT_ID;
+         //a.issuer = TOURNAMENT_RAKE_FEE_ACCOUNT_ID;
          a.options.core_exchange_rate.base.amount = 1;
          a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
          a.options.core_exchange_rate.quote.amount = 1;
@@ -465,6 +487,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
          a.dividend_data_id = div_asset1.id;
       });
    assert( default_asset.id == asset_id_type(1) );
+#endif
 
    // Create more special assets
    while( true )
@@ -523,6 +546,19 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    } );
    create<block_summary_object>([&](block_summary_object&) {});
 
+   // Create initial accounts from graphene-based chains
+   // graphene accounts can refer to other accounts in their authorities, so
+   // we first create all accounts with dummy authorities, then go back and 
+   // set up the authorities once the accounts all have ids assigned.
+   for( const auto& account : genesis_state.initial_bts_accounts )
+   {
+      account_create_operation cop;
+      cop.name = account.name;
+      cop.registrar = GRAPHENE_TEMP_ACCOUNT;
+      cop.owner = authority(1, GRAPHENE_TEMP_ACCOUNT, 1);
+      account_id_type account_id(apply_operation(genesis_eval_state, cop).get<object_id_type>());
+   }
+
    // Create initial accounts
    for( const auto& account : genesis_state.initial_accounts )
    {
@@ -560,6 +596,32 @@ void database::init_genesis(const genesis_state_type& genesis_state)
                 ("acct", name));
       return itr->get_id();
    };
+
+   for( const auto& account : genesis_state.initial_bts_accounts )
+   {
+      account_update_operation op;
+      op.account = get_account_id(account.name);
+
+      authority owner_authority;
+      owner_authority.weight_threshold = account.owner_authority.weight_threshold;
+      for (const auto& value : account.owner_authority.account_auths)
+         owner_authority.account_auths.insert(std::make_pair(get_account_id(value.first), value.second));
+      owner_authority.key_auths = account.owner_authority.key_auths;
+      owner_authority.address_auths = account.owner_authority.address_auths;
+
+      op.owner = std::move(owner_authority);
+
+      authority active_authority;
+      active_authority.weight_threshold = account.active_authority.weight_threshold;
+      for (const auto& value : account.active_authority.account_auths)
+         active_authority.account_auths.insert(std::make_pair(get_account_id(value.first), value.second));
+      active_authority.key_auths = account.active_authority.key_auths;
+      active_authority.address_auths = account.active_authority.address_auths;
+      
+      op.active = std::move(active_authority);
+
+      apply_operation(genesis_eval_state, op);
+   }
 
    // Helper function to get asset ID by symbol
    const auto& assets_by_symbol = get_index_type<asset_index>().indices().get<by_symbol>();
@@ -646,6 +708,46 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       });
    }
 
+   // Create balances for all bts accounts
+   for( const auto& account : genesis_state.initial_bts_accounts ) {
+      if (account.core_balance != share_type()) {
+         total_supplies[asset_id_type()] += account.core_balance;
+
+         create<account_balance_object>([&](account_balance_object& b) {
+            b.owner = get_account_id(account.name);
+            b.balance = account.core_balance;
+         });
+      }
+
+      // create any vesting balances for this account
+      if (account.vesting_balances)
+         for (const auto& vesting_balance : *account.vesting_balances) {
+            create<vesting_balance_object>([&](vesting_balance_object& vbo) {
+               vbo.owner = get_account_id(account.name);
+               vbo.balance = asset(vesting_balance.amount, get_asset_id(vesting_balance.asset_symbol));
+               if (vesting_balance.policy_type == "linear") {
+                  auto initial_linear_vesting_policy = vesting_balance.policy.as<genesis_state_type::initial_bts_account_type::initial_linear_vesting_policy>();
+                  linear_vesting_policy new_vesting_policy;
+                  new_vesting_policy.begin_timestamp = initial_linear_vesting_policy.begin_timestamp;
+                  new_vesting_policy.vesting_cliff_seconds = initial_linear_vesting_policy.vesting_cliff_seconds;
+                  new_vesting_policy.vesting_duration_seconds = initial_linear_vesting_policy.vesting_duration_seconds;
+                  new_vesting_policy.begin_balance = initial_linear_vesting_policy.begin_balance;
+                  vbo.policy = new_vesting_policy;
+               } else if (vesting_balance.policy_type == "cdd") {
+                  auto initial_cdd_vesting_policy = vesting_balance.policy.as<genesis_state_type::initial_bts_account_type::initial_cdd_vesting_policy>();
+                  cdd_vesting_policy new_vesting_policy;
+                  new_vesting_policy.vesting_seconds = initial_cdd_vesting_policy.vesting_seconds;
+                  new_vesting_policy.coin_seconds_earned = initial_cdd_vesting_policy.coin_seconds_earned;
+                  new_vesting_policy.start_claim = initial_cdd_vesting_policy.start_claim;
+                  new_vesting_policy.coin_seconds_earned_last_update = initial_cdd_vesting_policy.coin_seconds_earned_last_update;
+                  vbo.policy = new_vesting_policy;
+               }
+               total_supplies[get_asset_id(vesting_balance.asset_symbol)] += vesting_balance.amount;
+            });
+         }
+   }
+
+
    // Create initial balances
    share_type total_allocation;
    for( const auto& handout : genesis_state.initial_balances )
@@ -669,7 +771,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
 
          linear_vesting_policy policy;
          policy.begin_timestamp = vest.begin_timestamp;
-         policy.vesting_cliff_seconds = 0;
+         policy.vesting_cliff_seconds = vest.vesting_cliff_seconds ? *vest.vesting_cliff_seconds : 0;
          policy.vesting_duration_seconds = vest.vesting_duration_seconds;
          policy.begin_balance = vest.begin_balance;
 
@@ -687,8 +789,11 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    {
        total_supplies[ asset_id_type(0) ] = GRAPHENE_MAX_SHARE_SUPPLY;
    }
+#ifdef _DEFAULT_DIVIDEND_ASSET
    total_debts[ asset_id_type(1) ] =
    total_supplies[ asset_id_type(1) ] = 0;
+   // it is workaround, should be clarified
+   total_debts[ asset_id_type() ] = total_supplies[ asset_id_type() ];
 
    const auto& idx = get_index_type<asset_index>().indices().get<by_symbol>();
    auto it = idx.begin();
@@ -740,6 +845,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    std::for_each(genesis_state.initial_witness_candidates.begin(), genesis_state.initial_witness_candidates.end(),
                  [&](const genesis_state_type::initial_witness_type& witness) {
       witness_create_operation op;
+      op.initial_secret = secret_hash_type::hash(secret_hash_type());
       op.witness_account = get_account_id(witness.owner_name);
       op.block_signing_key = witness.block_signing_key;
       apply_operation(genesis_eval_state, op);
@@ -776,17 +882,47 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       }
    });
 
+   // Initialize witness schedule
+#ifndef NDEBUG
+   const witness_schedule_object& wso =
+#endif
+   create<witness_schedule_object>([&](witness_schedule_object& _wso)
+   {
+      // for scheduled
+      memset(_wso.rng_seed.begin(), 0, _wso.rng_seed.size());
+
+      witness_scheduler_rng rng(_wso.rng_seed.begin(), GRAPHENE_NEAR_SCHEDULE_CTR_IV);
+
+      auto init_witnesses = get_global_properties().active_witnesses;
+
+      _wso.scheduler = witness_scheduler();
+      _wso.scheduler._min_token_count = std::max(int(init_witnesses.size()) / 2, 1);
+      _wso.scheduler.update(init_witnesses);
+
+      for( size_t i=0; i<init_witnesses.size(); ++i )
+         _wso.scheduler.produce_schedule(rng);
+
+      _wso.last_scheduling_block = 0;
+
+      _wso.recent_slots_filled = fc::uint128::max_value();
+
+      // for shuffled
+      for( const witness_id_type& wid : get_global_properties().active_witnesses )
+         _wso.current_shuffled_witnesses.push_back( wid );
+   });
+   assert( wso.id == witness_schedule_id_type() );
+
    // Enable fees
    modify(get_global_properties(), [&genesis_state](global_property_object& p) {
       p.parameters.current_fees = genesis_state.initial_parameters.current_fees;
    });
 
    // Create witness scheduler
-   create<witness_schedule_object>([&]( witness_schedule_object& wso )
-   {
-      for( const witness_id_type& wid : get_global_properties().active_witnesses )
-         wso.current_shuffled_witnesses.push_back( wid );
-   });
+   //create<witness_schedule_object>([&]( witness_schedule_object& wso )
+   //{
+   //   for( const witness_id_type& wid : get_global_properties().active_witnesses )
+   //      wso.current_shuffled_witnesses.push_back( wid );
+   //});
 
    // Create FBA counters
    create<fba_accumulator_object>([&]( fba_accumulator_object& acc )

@@ -36,6 +36,7 @@
 #include <graphene/chain/transaction_object.hpp>
 #include <graphene/chain/withdraw_permission_object.hpp>
 #include <graphene/chain/worker_object.hpp>
+#include <graphene/chain/tournament_object.hpp>
 
 #include <fc/crypto/hex.hpp>
 #include <fc/smart_ref_impl.hpp>
@@ -268,6 +269,7 @@ namespace graphene { namespace app {
        return *_debug_api;
     }
 
+#if 0
     vector<account_id_type> get_relevant_accounts( const object* obj )
     {
        vector<account_id_type> result;
@@ -361,6 +363,13 @@ namespace graphene { namespace app {
                const auto& aobj = dynamic_cast<const bet_object*>(obj);
                assert( aobj != nullptr );
                result.push_back( aobj->bettor_id );
+            } case tournament_object_type:{
+               const tournament_object* tournament_obj = dynamic_cast<const tournament_object*>(obj);
+               assert(tournament_obj);
+               const tournament_details_object& details = tournament_obj->tournament_details_id(*_app.chain_database());
+               flat_set<account_id_type> impacted = details.registered_players;
+               impacted.insert(tournament_obj->creator);
+               std::copy(impacted.begin(), impacted.end(), std::back_inserter(result));
                break;
             }
           }
@@ -428,6 +437,7 @@ namespace graphene { namespace app {
        }
        return result;
     } // end get_relevant_accounts( obj )
+#endif
 
     vector<order_history_object> history_api::get_fill_order_history( asset_id_type a, asset_id_type b, uint32_t limit  )const
     {
@@ -544,6 +554,13 @@ namespace graphene { namespace app {
           while ( itr != itr_stop && result.size() < limit );
        }
        return result;
+    }
+
+    vector<account_balance_object> history_api::list_core_accounts()const
+    {
+       auto list = _app.get_plugin<accounts_list_plugin>( "accounts_list" );
+       FC_ASSERT( list );
+       return list->list_accounts();
     }
 
     flat_set<uint32_t> history_api::get_market_history_buckets()const

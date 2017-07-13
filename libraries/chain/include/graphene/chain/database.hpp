@@ -36,6 +36,8 @@
 #include <graphene/db/simple_index.hpp>
 #include <fc/signals.hpp>
 
+#include <fc/crypto/hash_ctr_rng.hpp>
+
 #include <graphene/chain/protocol/protocol.hpp>
 
 #include <fc/log/logger.hpp>
@@ -244,7 +246,9 @@ namespace graphene { namespace chain {
           */
          uint32_t get_slot_at_time(fc::time_point_sec when)const;
 
+         vector<witness_id_type> get_near_witness_schedule()const;
          void update_witness_schedule();
+         void update_witness_schedule(const signed_block& next_block);
 
          //////////////////// db_getter.cpp ////////////////////
 
@@ -255,6 +259,8 @@ namespace graphene { namespace chain {
          const dynamic_global_property_object&  get_dynamic_global_properties()const;
          const node_property_object&            get_node_properties()const;
          const fee_schedule&                    current_fee_schedule()const;
+
+         uint64_t                               get_random_bits( uint64_t bound );
 
          time_point_sec   head_block_time()const;
          uint32_t         head_block_num()const;
@@ -461,6 +467,7 @@ namespace graphene { namespace chain {
          void update_expired_feeds();
          void update_maintenance_flag( bool new_maintenance_flag );
          void update_withdraw_permissions();
+         void update_tournaments();
          bool check_for_blackswan( const asset_object& mia, bool enable_black_swan = true );
 
          ///Steps performed only at maintenance intervals
@@ -516,6 +523,7 @@ namespace graphene { namespace chain {
          flat_map<uint32_t,block_id_type>  _checkpoints;
 
          node_property_object              _node_property_object;
+         fc::hash_ctr_rng<secret_hash_type, 20> _random_number_generator;
    };
 
    namespace detail

@@ -23,8 +23,8 @@
  */
 #pragma once
 
-#define GRAPHENE_SYMBOL "BTS"
-#define GRAPHENE_ADDRESS_PREFIX "BTS"
+#define GRAPHENE_SYMBOL "PPY"
+#define GRAPHENE_ADDRESS_PREFIX "PPY"
 
 #define GRAPHENE_MIN_ACCOUNT_NAME_LENGTH 1
 #define GRAPHENE_MAX_ACCOUNT_NAME_LENGTH 63
@@ -113,6 +113,9 @@
 
 #define GRAPHENE_MAX_URL_LENGTH                               127
 
+#define GRAPHENE_WITNESS_SHUFFLED_ALGORITHM                   0
+#define GRAPHENE_WITNESS_SCHEDULED_ALGORITHM                  1
+
 // counter initialization values used to derive near and far future seeds for shuffling witnesses
 // we use the fractional bits of sqrt(2) in hex
 #define GRAPHENE_NEAR_SCHEDULE_CTR_IV                    ( (uint64_t( 0x6a09 ) << 0x30)    \
@@ -125,6 +128,10 @@
                                                          | (uint64_t( 0xae85 ) << 0x20)    \
                                                          | (uint64_t( 0x84ca ) << 0x10)    \
                                                          | (uint64_t( 0xa73b )        ) )
+
+// counter used to determine bits of entropy
+//        must be less than or equal to secret_hash_type::data_length()
+#define GRAPHENE_RNG_SEED_LENGTH (160 / 8)
 
 /**
  * every second, the fraction of burned core asset which cycles is
@@ -166,6 +173,7 @@
 #define GRAPHENE_PROXY_TO_SELF_ACCOUNT (graphene::chain::account_id_type(5))
 ///
 #define GRAPHENE_RAKE_FEE_ACCOUNT_ID (graphene::chain::account_id_type(6))
+#define TOURNAMENT_RAKE_FEE_ACCOUNT_ID (graphene::chain::account_id_type(6))
 /// Sentinel value used in the scheduler.
 #define GRAPHENE_NULL_WITNESS (graphene::chain::witness_id_type(0))
 ///@}
@@ -203,3 +211,18 @@
                                                              {  1000000,  50000},  /* <=  100:  5.00 */ \
                                                              { 10000000, 100000} } /* <= 1000: 10.00 */ 
 #define GRAPHENE_DEFAULT_BETTING_PERCENT_FEE (2 * GRAPHENE_1_PERCENT)
+#define TOURNAMENT_MIN_ROUND_DELAY                          0
+#define TOURNAMENT_MAX_ROUND_DELAY                          600
+#define TOURNAMENT_MIN_TIME_PER_COMMIT_MOVE                 0
+#define TOURNAMENT_MAN_TIME_PER_COMMIT_MOVE                 600
+#define TOURNAMENT_MIN_TIME_PER_REVEAL_MOVE                 0
+#define TOURNAMENT_MAX_TIME_PER_REVEAL_MOVE                 600
+#define TOURNAMENT_DEFAULT_RAKE_FEE_PERCENTAGE              (3*GRAPHENE_1_PERCENT)
+#define TOURNAMENT_MINIMAL_RAKE_FEE_PERCENTAGE              (1*GRAPHENE_1_PERCENT)
+#define TOURNAMENT_MAXIMAL_RAKE_FEE_PERCENTAGE              (20*GRAPHENE_1_PERCENT)
+#define TOURNAMENT_MAXIMAL_REGISTRATION_DEADLINE            (60*60*24*30) // seconds, 30 days
+#define TOURNAMENT_MAX_NUMBER_OF_WINS                       100
+#define TOURNAMENT_MAX_PLAYERS_NUMBER                       256
+#define TOURNAMENT_MAX_WHITELIST_LENGTH                     1000
+#define TOURNAMENT_MAX_START_TIME_IN_FUTURE                 (60*60*24*7*4) // 1 month
+#define TOURNAMENT_MAX_START_DELAY                          (60*60*24*7) // 1 week

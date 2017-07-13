@@ -42,6 +42,7 @@
 #include <graphene/chain/sport_object.hpp>
 #include <graphene/chain/event_group_object.hpp>
 #include <graphene/chain/event_object.hpp>
+#include <graphene/chain/tournament_object.hpp>
 
 #include <graphene/utilities/tempdir.hpp>
 
@@ -77,6 +78,7 @@ database_fixture::database_fixture()
       if( arg == "--show-test-names" )
          std::cout << "running test " << boost::unit_test::framework::current_test_case().p_name << std::endl;
    }
+
    auto ahplugin = app.register_plugin<graphene::account_history::account_history_plugin>();
    auto mhplugin = app.register_plugin<graphene::market_history::market_history_plugin>();
    //auto bookieplugin = app.register_plugin<graphene::bookie::bookie_plugin>();
@@ -85,9 +87,11 @@ database_fixture::database_fixture()
    boost::program_options::variables_map options;
 
    genesis_state.initial_timestamp = time_point_sec( GRAPHENE_TESTING_GENESIS_TIMESTAMP );
+   genesis_state.initial_timestamp = time_point_sec( (fc::time_point::now().sec_since_epoch() / GRAPHENE_DEFAULT_BLOCK_INTERVAL) * GRAPHENE_DEFAULT_BLOCK_INTERVAL );
+//   genesis_state.initial_parameters.witness_schedule_algorithm = GRAPHENE_WITNESS_SHUFFLED_ALGORITHM;
 
    genesis_state.initial_active_witnesses = 10;
-   for( int i = 0; i < genesis_state.initial_active_witnesses; ++i )
+   for( unsigned i = 0; i < genesis_state.initial_active_witnesses; ++i )
    {
       auto name = "init"+fc::to_string(i);
       genesis_state.initial_accounts.emplace_back(name,
@@ -164,10 +168,16 @@ void database_fixture::verify_asset_supplies( const database& db )
    const simple_index<account_statistics_object>& statistics_index = db.get_index_type<simple_index<account_statistics_object>>();
    const auto& balance_index = db.get_index_type<account_balance_index>().indices();
    const auto& settle_index = db.get_index_type<force_settlement_index>().indices();
+   const auto& tournaments_index = db.get_index_type<tournament_index>().indices();
+
    map<asset_id_type,share_type> total_balances;
    map<asset_id_type,share_type> total_debts;
    share_type core_in_orders;
    share_type reported_core_in_orders;
+
+   for( const tournament_object& t : tournaments_index )
+      if (t.get_state() != tournament_state::concluded && t.get_state() != tournament_state::registration_period_expired)
+        total_balances[t.options.buy_in.asset_id] += t.prize_pool;
 
    for( const account_balance_object& b : balance_index )
       total_balances[b.asset_type] += b.balance;
@@ -682,6 +692,10 @@ const witness_object& database_fixture::create_witness( const account_object& ow
    witness_create_operation op;
    op.witness_account = owner.id;
    op.block_signing_key = signing_private_key.get_public_key();
+   secret_hash_type::encoder enc;
+   fc::raw::pack(enc, signing_private_key);
+   fc::raw::pack(enc, secret_hash_type());
+   op.initial_secret = secret_hash_type::hash(enc.result());
    trx.operations.push_back(op);
    trx.validate();
    processed_transaction ptx = db.push_transaction(trx, ~0);

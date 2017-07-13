@@ -191,6 +191,8 @@ struct wallet_data
    key_label_index_type                                              labeled_keys;
    blind_receipt_index_type                                          blind_receipts;
 
+   std::map<rock_paper_scissors_throw_commit, rock_paper_scissors_throw_reveal> committed_game_moves;
+
    string                    ws_server = "ws://localhost:8090";
    string                    ws_user;
    string                    ws_password;
@@ -364,7 +366,9 @@ class wallet_api
        * @param start  the sequence number where to start looping back throw the history
        * @returns a list of \c operation_history_objects
        */
-     vector<operation_detail>  get_relative_account_history(string name, uint32_t stop, int limit, uint32_t start)const;
+      vector<operation_detail>  get_relative_account_history(string name, uint32_t stop, int limit, uint32_t start)const;
+
+      vector<account_balance_object> list_core_accounts()const;
 
       vector<bucket_object>             get_market_history(string symbol, string symbol2, uint32_t bucket, fc::time_point_sec start, fc::time_point_sec end)const;
       vector<limit_order_object>        get_limit_orders(string a, string b, uint32_t limit)const;
@@ -627,6 +631,10 @@ class wallet_api
       * @return Whether a public key is known
       */
      bool is_public_key_registered(string public_key) const;
+      /**
+       *  @param role - active | owner | memo
+       */
+      pair<public_key_type,string>  get_private_key_from_password( string account, string role, string password )const;
 
       /** Converts a signed_transaction in JSON form to its binary representation.
        *
@@ -1392,6 +1400,38 @@ class wallet_api
                                           bool approve,
                                           bool broadcast = false);
 
+      /** Change your witness votes.
+       *
+       * An account can publish a list of all witnesses they approve of.  
+       * Each account's vote is weighted according to the number of shares of the
+       * core asset owned by that account at the time the votes are tallied.
+       * This command allows you to add or remove one or more witnesses from this list 
+       * in one call.  When you are changing your vote on several witnesses, this
+       * may be easier than multiple `vote_for_witness` and 
+       * `set_desired_witness_and_committee_member_count` calls.
+       *
+       * @note you cannot vote against a witness, you can only vote for the witness
+       *       or not vote for the witness.
+       *
+       * @param voting_account the name or id of the account who is voting with their shares
+       * @param witnesses_to_approve the names or ids of the witnesses owner accounts you wish
+       *                             to approve (these will be added to the list of witnesses
+       *                             you currently approve).  This list can be empty.
+       * @param witnesses_to_reject the names or ids of the witnesses owner accounts you wish
+       *                            to reject (these will be removed fromthe list of witnesses
+       *                            you currently approve).  This list can be empty.
+       * @param desired_number_of_witnesses the number of witnesses you believe the network
+       *                                    should have.  You must vote for at least this many
+       *                                    witnesses.  You can set this to 0 to abstain from 
+       *                                    voting on the number of witnesses.
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed transaction changing your vote for the given witnesses
+       */
+      signed_transaction update_witness_votes(string voting_account,
+                                              std::vector<std::string> witnesses_to_approve,
+                                              std::vector<std::string> witnesses_to_reject,
+                                              uint16_t desired_number_of_witnesses,
+                                              bool broadcast = false);
       /** Set the voting proxy for an account.
        *
        * If a user does not wish to take an active part in voting, they can choose
@@ -1587,6 +1627,63 @@ class wallet_api
               const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions,
               bool broadcast = false);
 
+      /** Creates a new tournament
+       * @param creator the accout that is paying the fee to create the tournament
+       * @param options the options detailing the specifics of the tournament
+       * @return the signed version of the transaction
+       */
+      signed_transaction tournament_create( string creator, tournament_options options, bool broadcast = false );
+
+      /** Join an existing tournament
+       * @param payer_account the account that is paying the buy-in and the fee to join the tournament
+       * @param player_account the account that will be playing in the tournament
+       * @param buy_in_amount buy_in to pay
+       * @param buy_in_asset_symbol buy_in asset
+       * @param tournament_id the tournament the user wishes to join
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed version of the transaction
+       */
+      signed_transaction tournament_join( string payer_account, string player_account, tournament_id_type tournament_id, string buy_in_amount, string buy_in_asset_symbol, bool broadcast = false );
+
+      /** Leave an existing tournament
+       * @param payer_account the account that is paying the fee
+       * @param player_account the account that would be playing in the tournament
+       * @param tournament_id the tournament the user wishes to leave
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed version of the transaction
+       */
+      signed_transaction tournament_leave(string payer_account, string player_account, tournament_id_type tournament_id, bool broadcast = false);
+
+      /** Get a list of upcoming tournaments
+       * @param limit the number of tournaments to return
+       */
+      vector<tournament_object> get_upcoming_tournaments(uint32_t limit);
+
+      vector<tournament_object> get_tournaments(tournament_id_type stop,
+                                                unsigned limit,
+                                                tournament_id_type start);
+
+      vector<tournament_object> get_tournaments_by_state(tournament_id_type stop,
+                                                         unsigned limit,
+                                                         tournament_id_type start,
+                                                         tournament_state state);
+
+      /** Get specific information about a tournament
+       * @param tournament_id the ID of the tournament 
+       */
+      tournament_object get_tournament(tournament_id_type id);
+
+      /** Play a move in the rock-paper-scissors game
+       * @param game_id the id of the game
+       * @param player_account the name of the player
+       * @param gesture rock, paper, or scissors
+       * @return the signed version of the transaction
+       */
+      signed_transaction rps_throw(game_id_type game_id,
+                                   string player_account,
+                                   rock_paper_scissors_gesture gesture,
+                                   bool broadcast);
+
       void dbg_make_uia(string creator, string symbol);
       void dbg_make_mia(string creator, string symbol);
       void dbg_push_blocks( std::string src_filename, uint32_t count );
@@ -1634,6 +1731,7 @@ FC_REFLECT( graphene::wallet::wallet_data,
             (pending_account_registrations)(pending_witness_registrations)
             (labeled_keys)
             (blind_receipts)
+            (committed_game_moves)
             (ws_server)
             (ws_user)
             (ws_password)
@@ -1704,6 +1802,7 @@ FC_API( graphene::wallet::wallet_api,
         (import_balance)
         (suggest_brain_key)
         (derive_owner_keys_from_brain_key)
+        (get_private_key_from_password)
         (register_account)
         (upgrade_account)
         (create_account_with_brain_key)
@@ -1742,6 +1841,7 @@ FC_API( graphene::wallet::wallet_api,
         (withdraw_vesting)
         (vote_for_committee_member)
         (vote_for_witness)
+        (update_witness_votes)
         (set_voting_proxy)
         (set_desired_witness_and_committee_member_count)
         (get_account)
@@ -1751,6 +1851,7 @@ FC_API( graphene::wallet::wallet_api,
         (get_account_history)
         (get_relative_account_history)
         (is_public_key_registered)
+        (list_core_accounts)
         (get_market_history)
         (get_global_properties)
         (get_dynamic_global_properties)
@@ -1802,5 +1903,13 @@ FC_API( graphene::wallet::wallet_api,
         (propose_create_betting_market)
         (place_bet)
         (propose_resolve_betting_market_group)
+        (tournament_create)
+        (tournament_join)
+        (tournament_leave)
+        (rps_throw)
+        (get_upcoming_tournaments)
+        (get_tournaments)
+        (get_tournaments_by_state)
+        (get_tournament)
         (get_order_book)
       )

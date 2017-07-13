@@ -32,6 +32,7 @@
 #include <graphene/chain/committee_member_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/market_object.hpp>
+#include <graphene/chain/witness_schedule_object.hpp>
 
 #include <graphene/utilities/tempdir.hpp>
 
@@ -916,6 +917,45 @@ BOOST_FIXTURE_TEST_CASE( pop_block_twice, database_fixture )
    }
 }
 
+BOOST_FIXTURE_TEST_CASE( witness_scheduler_missed_blocks, database_fixture )
+{ try {
+
+  uint8_t witness_schedule_algorithm = db.get_global_properties().parameters.witness_schedule_algorithm;
+  if (witness_schedule_algorithm != GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
+        db.modify(db.get_global_properties(), [](global_property_object& p) {
+           p.parameters.witness_schedule_algorithm = GRAPHENE_WITNESS_SCHEDULED_ALGORITHM;
+        });
+
+   db.get_near_witness_schedule();
+   generate_block();
+   auto near_schedule = db.get_near_witness_schedule();
+
+   std::for_each(near_schedule.begin(), near_schedule.end(), [&](witness_id_type id) {
+      generate_block(0);
+      BOOST_CHECK(db.get_dynamic_global_properties().current_witness == id);
+   });
+
+   near_schedule = db.get_near_witness_schedule();
+   generate_block(0, init_account_priv_key, 2);
+   BOOST_CHECK(db.get_dynamic_global_properties().current_witness == near_schedule[2]);
+
+   near_schedule.erase(near_schedule.begin(), near_schedule.begin() + 3);
+   auto new_schedule = db.get_near_witness_schedule();
+   new_schedule.erase(new_schedule.end() - 3, new_schedule.end());
+   BOOST_CHECK(new_schedule == near_schedule);
+
+   std::for_each(near_schedule.begin(), near_schedule.end(), [&](witness_id_type id) {
+      generate_block(0);
+      BOOST_CHECK(db.get_dynamic_global_properties().current_witness == id);
+
+   if (db.get_global_properties().parameters.witness_schedule_algorithm != witness_schedule_algorithm)
+       db.modify(db.get_global_properties(), [&witness_schedule_algorithm](global_property_object& p) {
+          p.parameters.witness_schedule_algorithm = witness_schedule_algorithm;
+       });
+
+   });
+} FC_LOG_AND_RETHROW() }
+
 BOOST_FIXTURE_TEST_CASE( rsf_missed_blocks, database_fixture )
 {
    try
@@ -924,7 +964,11 @@ BOOST_FIXTURE_TEST_CASE( rsf_missed_blocks, database_fixture )
 
       auto rsf = [&]() -> string
       {
-         fc::uint128 rsf = db.get_dynamic_global_properties().recent_slots_filled;
+         fc::uint128 rsf;
+         if (db.get_global_properties().parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
+            rsf = db.get(witness_schedule_id_type()).recent_slots_filled;
+         else
+            rsf = db.get_dynamic_global_properties().recent_slots_filled;
          string result = "";
          result.reserve(128);
          for( int i=0; i<128; i++ )

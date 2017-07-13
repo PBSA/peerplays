@@ -24,6 +24,7 @@
 
 #include <graphene/app/database_api.hpp>
 #include <graphene/chain/get_config.hpp>
+#include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/account_object.hpp>
 
 #include <fc/bloom_filter.hpp>
@@ -150,6 +151,13 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
 
       // Blinded balances
       vector<blinded_balance_object> get_blinded_balances( const flat_set<commitment_type>& commitments )const;
+
+      // Tournaments
+      vector<tournament_object> get_tournaments_in_state(tournament_state state, uint32_t limit) const;
+      vector<tournament_object> get_tournaments(tournament_id_type stop, unsigned limit, tournament_id_type start);
+      vector<tournament_object> get_tournaments_by_state(tournament_id_type stop, unsigned limit, tournament_id_type start, tournament_state state);
+      vector<tournament_id_type> get_registered_tournaments(account_id_type account_filter, uint32_t limit) const;
+
 
    //private:
       template<typename T>
@@ -1886,6 +1894,99 @@ vector<blinded_balance_object> database_api_impl::get_blinded_balances( const fl
 
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
+// Tournament methods                                               //
+//                                                                  //
+//////////////////////////////////////////////////////////////////////
+vector<tournament_object> database_api::get_tournaments_in_state(tournament_state state, uint32_t limit) const
+{
+   return my->get_tournaments_in_state(state, limit);
+}
+
+vector<tournament_object> database_api_impl::get_tournaments_in_state(tournament_state state, uint32_t limit) const
+{
+   vector<tournament_object> result;
+   const auto& registration_deadline_index = _db.get_index_type<tournament_index>().indices().get<by_registration_deadline>();
+   const auto range = registration_deadline_index.equal_range(boost::make_tuple(state));
+   for (const tournament_object& tournament_obj : boost::make_iterator_range(range.first, range.second))
+   {
+      result.emplace_back(tournament_obj);
+      subscribe_to_item( tournament_obj.id );
+
+      if (result.size() >= limit)
+         break;
+   }
+   return result;
+}
+
+vector<tournament_object> database_api::get_tournaments(tournament_id_type stop,
+                                                        unsigned limit,
+                                                        tournament_id_type start)
+{
+   return my->get_tournaments(stop, limit, start);
+}
+
+vector<tournament_object> database_api_impl::get_tournaments(tournament_id_type stop,
+                                                             unsigned limit,
+                                                             tournament_id_type start) 
+{
+   vector<tournament_object> result;
+   const auto& tournament_idx = _db.get_index_type<tournament_index>().indices().get<by_id>();
+   for (auto elem: tournament_idx) {
+      if( result.size() >= limit ) break;
+      if( ( (elem.get_id().instance.value <= start.instance.value) || start == tournament_id_type()) &&
+          ( (elem.get_id().instance.value >=  stop.instance.value) || stop == tournament_id_type()))
+         result.push_back( elem );
+   }
+
+   return result;
+}
+
+
+vector<tournament_object> database_api::get_tournaments_by_state(tournament_id_type stop,
+                                                                 unsigned limit,
+                                                                 tournament_id_type start,
+                                                                 tournament_state state)
+{
+   return my->get_tournaments_by_state(stop, limit, start, state);
+}
+
+vector<tournament_object> database_api_impl::get_tournaments_by_state(tournament_id_type stop,
+                                                                      unsigned limit,
+                                                                      tournament_id_type start,
+                                                                      tournament_state state)
+{   
+   vector<tournament_object> result;
+   const auto& tournament_idx = _db.get_index_type<tournament_index>().indices().get<by_id>();
+   for (auto elem: tournament_idx) {
+      if( result.size() >= limit ) break;
+      if( ( (elem.get_id().instance.value <= start.instance.value) || start == tournament_id_type()) &&
+          ( (elem.get_id().instance.value >=  stop.instance.value) || stop ==  tournament_id_type()) &&
+          elem.get_state() == state )
+         result.push_back( elem );
+   }
+
+   return result;
+}
+
+vector<tournament_id_type> database_api::get_registered_tournaments(account_id_type account_filter, uint32_t limit) const
+{
+   return my->get_registered_tournaments(account_filter, limit);
+}
+
+vector<tournament_id_type> database_api_impl::get_registered_tournaments(account_id_type account_filter, uint32_t limit) const
+{
+   const auto& tournament_details_idx = _db.get_index_type<tournament_details_index>();
+   const auto& tournament_details_primary_idx = dynamic_cast<const primary_index<tournament_details_index>&>(tournament_details_idx);
+   const auto& players_idx = tournament_details_primary_idx.get_secondary_index<graphene::chain::tournament_players_index>();
+
+   vector<tournament_id_type> tournament_ids = players_idx.get_registered_tournaments_for_account(account_filter);
+   if (tournament_ids.size() >= limit)
+      tournament_ids.resize(limit);
+   return tournament_ids;
+}
+
+//////////////////////////////////////////////////////////////////////
+//                                                                  //
 // Private methods                                                  //
 //                                                                  //
 //////////////////////////////////////////////////////////////////////
@@ -1978,6 +2079,12 @@ void database_api_impl::handle_object_changed(bool force_notify, bool full_objec
    if( _market_subscriptions.size() )
    {
       market_queue_type broadcast_queue;
+   /// pushing the future back / popping the prior future if it is complete.
+   /// if a connection hangs then this could get backed up and result in
+   /// a failure to exit cleanly.
+   //fc::async([capture_this,this,updates,market_broadcast_queue](){
+   //if( _subscribe_callback ) 
+   //         _subscribe_callback( updates );
 
       for(auto id : ids)
       {

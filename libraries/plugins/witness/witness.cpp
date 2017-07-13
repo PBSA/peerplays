@@ -28,6 +28,8 @@
 
 #include <graphene/utilities/key_conversion.hpp>
 
+#include <boost/range/algorithm_ext/insert.hpp>
+
 #include <fc/smart_ref_impl.hpp>
 #include <fc/thread/thread.hpp>
 
@@ -66,11 +68,14 @@ void witness_plugin::plugin_set_program_options(
 {
    auto default_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(std::string("nathan")));
    string witness_id_example = fc::json::to_string(chain::witness_id_type(5));
+   string witness_id_example2 = fc::json::to_string(chain::witness_id_type(6));
    command_line_options.add_options()
          ("enable-stale-production", bpo::bool_switch()->notifier([this](bool e){_production_enabled = e;}), "Enable block production, even if the chain is stale.")
          ("required-participation", bpo::bool_switch()->notifier([this](int e){_required_witness_participation = uint32_t(e*GRAPHENE_1_PERCENT);}), "Percent of witnesses (0-99) that must be participating in order to produce blocks")
          ("witness-id,w", bpo::value<vector<string>>()->composing()->multitoken(),
           ("ID of witness controlled by this node (e.g. " + witness_id_example + ", quotes are required, may specify multiple times)").c_str())
+         ("witness-ids,W", bpo::value<string>(),
+          ("IDs of multiple witnesses controlled by this node (e.g. [" + witness_id_example + ", " + witness_id_example2 + "], quotes are required)").c_str())
          ("private-key", bpo::value<vector<string>>()->composing()->multitoken()->
           DEFAULT_VALUE_VECTOR(std::make_pair(chain::public_key_type(default_priv_key.get_public_key()), graphene::utilities::key_to_wif(default_priv_key))),
           "Tuple of [PublicKey, WIF private key] (may specify multiple times)")
@@ -88,6 +93,8 @@ void witness_plugin::plugin_initialize(const boost::program_options::variables_m
    ilog("witness plugin:  plugin_initialize() begin");
    _options = &options;
    LOAD_VALUE_SET(options, "witness-id", _witnesses, chain::witness_id_type)
+   if (options.count("witness-ids"))
+      boost::insert(_witnesses, fc::json::from_string(options.at("witness-ids").as<string>()).as<vector<chain::witness_id_type>>());
 
    if( options.count("private-key") )
    {
@@ -191,6 +198,7 @@ block_production_condition::block_production_condition_enum witness_plugin::bloc
          break;
       case block_production_condition::not_time_yet:
          //ilog("Not producing block because slot has not yet arrived");
+         dlog("Not producing block because slot has not yet arrived");
          break;
       case block_production_condition::no_private_key:
          ilog("Not producing block because I don't have the private key for ${scheduled_key}", (capture) );
@@ -247,6 +255,7 @@ block_production_condition::block_production_condition_enum witness_plugin::mayb
    assert( now > db.head_block_time() );
 
    graphene::chain::witness_id_type scheduled_witness = db.get_scheduled_witness( slot );
+
    // we must control the witness scheduled to produce the next block.
    if( _witnesses.find( scheduled_witness ) == _witnesses.end() )
    {
@@ -255,6 +264,7 @@ block_production_condition::block_production_condition_enum witness_plugin::mayb
    }
 
    fc::time_point_sec scheduled_time = db.get_slot_time( slot );
+   wdump((slot)(scheduled_witness)(scheduled_time)(now));
    graphene::chain::public_key_type scheduled_key = scheduled_witness( db ).signing_key;
    auto private_key_itr = _private_keys.find( scheduled_key );
 
@@ -271,11 +281,20 @@ block_production_condition::block_production_condition_enum witness_plugin::mayb
       return block_production_condition::low_participation;
    }
 
+   // the local clock must be at least 1 second ahead of head_block_time.
+   //if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
+   //if( (now - db.head_block_time()).to_seconds() < GRAPHENE_MIN_BLOCK_INTERVAL ) {
+   //    return block_production_condition::local_clock; //Not producing block because head block is less than a second old.
+   //}
+
    if( llabs((scheduled_time - now).count()) > fc::milliseconds( 500 ).count() )
    {
       capture("scheduled_time", scheduled_time)("now", now);
       return block_production_condition::lag;
    }
+
+   //if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
+   ilog("Witness ${id} production slot has arrived; generating a block now...", ("id", scheduled_witness));
 
    auto block = db.generate_block(
       scheduled_time,
@@ -283,6 +302,7 @@ block_production_condition::block_production_condition_enum witness_plugin::mayb
       private_key_itr->second,
       _production_skip_flags
       );
+
    capture("n", block.block_num())("t", block.timestamp)("c", now);
    fc::async( [this,block](){ p2p_node().broadcast(net::block_message(block)); } );
 

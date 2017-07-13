@@ -1,0 +1,10 @@
+
+options:
+ -R test standard 'rand' instead of 'get_random_bits';
+ -A run all dieharder tests, default is to run only selected tests.
+
+conclusion:
+ quality of randomness of 'get_random_bits' is comparable with randomness standard 'rand' function, 
+ however about an order of magnitude slower than 'rand';
+ and distinctly weaker compared to e.g. /dev/urandom that is assessed by dieharder as almost perfect.
+

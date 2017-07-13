@@ -40,6 +40,9 @@
 #include <graphene/chain/event_group_object.hpp>
 #include <graphene/chain/event_object.hpp>
 #include <graphene/chain/betting_market_object.hpp>
+#include <graphene/chain/tournament_object.hpp>
+#include <graphene/chain/match_object.hpp>
+#include <graphene/chain/game_object.hpp>
 
 #include <fc/smart_ref_impl.hpp>
 #include <iostream>
@@ -383,9 +386,10 @@ template<typename T, bool reflected>
 struct serializer
 {
    static_assert( fc::reflector<T>::is_defined::value == reflected, "invalid template arguments" );
+
    static void init()
    {
-	  serializer_init_helper< T, typename fc::reflector<T>::is_enum >::init();
+     serializer_init_helper< T, typename fc::reflector<T>::is_enum >::init();
    }
 };
 

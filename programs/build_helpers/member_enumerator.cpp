@@ -158,7 +158,7 @@ struct if_reflected<fc::true_type>
    template< typename T >
    static void process_class( class_processor* proc, const T* dummy )
    {
-	  if_enum< typename fc::reflector<T>::is_enum >::process_class(proc, dummy);
+      if_enum< typename fc::reflector<T>::is_enum >::process_class(proc, dummy);
    }
 };
 

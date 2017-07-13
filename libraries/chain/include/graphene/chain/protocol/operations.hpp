@@ -42,6 +42,7 @@
 #include <graphene/chain/protocol/event_group.hpp>
 #include <graphene/chain/protocol/event.hpp>
 #include <graphene/chain/protocol/betting_market.hpp>
+#include <graphene/chain/protocol/tournament.hpp>
 
 namespace graphene { namespace chain {
 
@@ -110,7 +111,14 @@ namespace graphene { namespace chain {
             betting_market_group_freeze_operation,
             bet_matched_operation, // VIRTUAL
             bet_cancel_operation,
-            bet_canceled_operation // VIRTUAL
+            bet_canceled_operation, // VIRTUAL
+            tournament_create_operation,
+            tournament_join_operation,
+            game_move_operation,
+            asset_update_dividend_operation,
+            asset_dividend_distribution_operation, // VIRTUAL
+            tournament_payout_operation, // VIRTUAL
+            tournament_leave_operation
          > operation;
 
    /// @} // operations group

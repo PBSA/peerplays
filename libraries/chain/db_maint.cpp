@@ -45,6 +45,7 @@
 #include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/vote_count.hpp>
 #include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/witness_schedule_object.hpp>
 #include <graphene/chain/worker_object.hpp>
 
 #define USE_VESTING_OBJECT_BY_ASSET_BALANCE_INDEX // vesting_balance_object by_asset_balance index needed
@@ -242,6 +243,11 @@ void database::update_active_witnesses()
       });
    });
 
+   const witness_schedule_object& wso = witness_schedule_id_type()(*this);
+   modify(wso, [&](witness_schedule_object& _wso)
+   {
+      _wso.scheduler.update(gpo.active_witnesses);
+   });
 } FC_CAPTURE_AND_RETHROW() }
 
 void database::update_active_committee_members()
@@ -934,7 +940,6 @@ void schedule_pending_dividend_balances(database& db,
                   auto itr = vesting_amounts.find(holder_balance_object.owner);
                   if (itr != vesting_amounts.end())
                       holder_balance += itr->second;
-                  //if (holder_balance.value)
 
                   fc::uint128_t amount_to_credit(delta_balance.value);
                   amount_to_credit *= holder_balance.value;
