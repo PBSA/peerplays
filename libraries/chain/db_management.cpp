@@ -64,11 +64,16 @@ void database::reindex( fc::path data_dir )
    uint32_t undo_point = last_block_num - 50;
 
    ilog( "Replaying blocks..." );
-   // Right now, we leave undo_db enabled when replaying when the bookie plugin is
-   // enabled.  It depends on new/changed/removed object notifications, and those are 
-   // only fired when the undo_db is enabled
-   if (!_slow_replays)
-      _undo_db.disable();
+   if( head_block_num() >= undo_point )
+      _fork_db.start_block( *fetch_block_by_number( head_block_num() ) );
+   else
+   {
+       // Right now, we leave undo_db enabled when replaying when the bookie plugin is
+       // enabled.  It depends on new/changed/removed object notifications, and those are
+       // only fired when the undo_db is enabled
+        if (!_slow_replays)
+            _undo_db.disable();
+   }
    for( uint32_t i = head_block_num() + 1; i <= last_block_num; ++i )
    {
       if( i % 10000 == 0 ) std::cerr << "   " << double(i*100)/last_block_num << "%   "<<i << " of " <<last_block_num<<"   \n";
@@ -78,8 +83,6 @@ void database::reindex( fc::path data_dir )
          flush();
          ilog( "Done" );
       }
-      if( i == undo_point )
-         _undo_db.enable();
       fc::optional< signed_block > block = _block_id_to_block.fetch_by_number(i);
       if( !block.valid() )
       {
@@ -100,21 +103,26 @@ void database::reindex( fc::path data_dir )
          wlog( "Dropped ${n} blocks from after the gap", ("n", dropped_count) );
          break;
       }
-      if (_slow_replays)
-         push_block(*block, skip_fork_db |
-                            skip_witness_signature |
-                            skip_transaction_signatures |
-                            skip_transaction_dupe_check |
-                            skip_tapos_check |
-                            skip_witness_schedule_check |
-                            skip_authority_check);
-      else
+      if( i < undo_point && !_slow_replays)
+      {
          apply_block(*block, skip_witness_signature |
                              skip_transaction_signatures |
                              skip_transaction_dupe_check |
                              skip_tapos_check |
                              skip_witness_schedule_check |
                              skip_authority_check);
+      }
+      else
+      {
+          if (!_slow_replays)
+             _undo_db.enable();
+         push_block(*block, skip_witness_signature |
+                            skip_transaction_signatures |
+                            skip_transaction_dupe_check |
+                            skip_tapos_check |
+                            skip_witness_schedule_check |
+                            skip_authority_check);
+      }
    }
    if (!_slow_replays)
      _undo_db.enable();
