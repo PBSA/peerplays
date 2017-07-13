@@ -792,6 +792,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
 #ifdef _DEFAULT_DIVIDEND_ASSET
    total_debts[ asset_id_type(1) ] =
    total_supplies[ asset_id_type(1) ] = 0;
+#endif
    // it is workaround, should be clarified
    total_debts[ asset_id_type() ] = total_supplies[ asset_id_type() ];
 

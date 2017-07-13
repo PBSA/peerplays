@@ -204,6 +204,32 @@ struct get_impacted_account_visitor
    void operator()(const bet_matched_operation &){}
    void operator()(const bet_cancel_operation&){}
    void operator()(const bet_canceled_operation &){}
+
+   void operator()( const tournament_create_operation& op )
+   {
+      _impacted.insert( op.creator );
+      _impacted.insert( op.options.whitelist.begin(), op.options.whitelist.end() );
+   }
+   void operator()( const tournament_join_operation& op )
+   {
+      _impacted.insert( op.payer_account_id );
+      _impacted.insert( op.player_account_id );
+   }
+   void operator()( const tournament_leave_operation& op )
+   {
+      //if account canceling registration is not the player, it must be the payer
+      if (op.canceling_account_id != op.player_account_id)
+        _impacted.erase( op.canceling_account_id );
+      _impacted.erase( op.player_account_id );
+   }
+   void operator()( const game_move_operation& op )
+   {
+      _impacted.insert( op.player_account_id );
+   }
+   void operator()( const tournament_payout_operation& op )
+   {
+      _impacted.insert( op.payout_account_id );
+   }
 };
 
 void operation_get_impacted_accounts( const operation& op, flat_set<account_id_type>& result )

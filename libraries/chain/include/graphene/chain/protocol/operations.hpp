@@ -115,8 +115,6 @@ namespace graphene { namespace chain {
             tournament_create_operation,
             tournament_join_operation,
             game_move_operation,
-            asset_update_dividend_operation,
-            asset_dividend_distribution_operation, // VIRTUAL
             tournament_payout_operation, // VIRTUAL
             tournament_leave_operation
          > operation;

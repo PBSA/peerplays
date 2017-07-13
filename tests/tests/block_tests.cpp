@@ -946,14 +946,15 @@ BOOST_FIXTURE_TEST_CASE( witness_scheduler_missed_blocks, database_fixture )
 
    std::for_each(near_schedule.begin(), near_schedule.end(), [&](witness_id_type id) {
       generate_block(0);
+      //witness_id_type wid = db.get_dynamic_global_properties().current_witness;
       BOOST_CHECK(db.get_dynamic_global_properties().current_witness == id);
+   });
 
    if (db.get_global_properties().parameters.witness_schedule_algorithm != witness_schedule_algorithm)
        db.modify(db.get_global_properties(), [&witness_schedule_algorithm](global_property_object& p) {
           p.parameters.witness_schedule_algorithm = witness_schedule_algorithm;
        });
 
-   });
 } FC_LOG_AND_RETHROW() }
 
 BOOST_FIXTURE_TEST_CASE( rsf_missed_blocks, database_fixture )
@@ -1084,6 +1085,7 @@ BOOST_FIXTURE_TEST_CASE( rsf_missed_blocks, database_fixture )
    FC_LOG_AND_RETHROW()
 }
 
+// the test should be revised
 BOOST_FIXTURE_TEST_CASE( transaction_invalidated_in_cache, database_fixture )
 {
    try
