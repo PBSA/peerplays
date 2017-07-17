@@ -284,8 +284,7 @@ struct database_fixture {
                                                account_id_type dividend_holder_account_id, 
                                                asset_id_type dividend_payout_asset_type) const;
    vector< operation_history_object > get_operation_history( account_id_type account_id )const;
-   void process_operation_by_witnesses(operation op, bool not_all = false);
-   fc::optional<sport_id_type> try_create_sport(internationalized_string_type name);
+   void process_operation_by_witnesses(operation op);
    const sport_object& create_sport(internationalized_string_type name);
    const event_group_object& create_event_group(internationalized_string_type name, sport_id_type sport_id);
    const event_object& create_event(internationalized_string_type name, internationalized_string_type season, event_group_id_type event_group_id);
@@ -295,6 +294,9 @@ struct database_fixture {
 
    void place_bet(account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, asset amount_to_bet, bet_multiplier_type backer_multiplier, share_type amount_reserved_for_fees);
    void resolve_betting_market_group(betting_market_group_id_type betting_market_group_id, std::map<betting_market_id_type, betting_market_resolution_type> resolutions);
+
+   proposal_id_type propose_operation(operation op);
+   void process_proposal_by_witnesses(const std::vector<witness_id_type>& witnesses, proposal_id_type proposal_id, bool remove = false);
 };
 
 namespace test {

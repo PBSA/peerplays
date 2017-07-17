@@ -1111,9 +1111,8 @@ vector< operation_history_object > database_fixture::get_operation_history( acco
    return result;
 }
 
-void database_fixture::process_operation_by_witnesses(operation op, bool not_all)
+void database_fixture::process_operation_by_witnesses(operation op)
 {
-   uint16_t count = -1;
    const flat_set<witness_id_type>& active_witnesses = db.get_global_properties().active_witnesses;
 
    proposal_create_operation proposal_op;
@@ -1131,13 +1130,6 @@ void database_fixture::process_operation_by_witnesses(operation op, bool not_all
 
    for (const witness_id_type& witness_id : active_witnesses)
    {
-      if (not_all)
-      {
-          if (++count % 2)
-          {
-             continue;
-          }
-      }
       const witness_object& witness = witness_id(db);
       const account_object& witness_account = witness.witness_account(db);
 
@@ -1158,19 +1150,54 @@ void database_fixture::process_operation_by_witnesses(operation op, bool not_all
    }
 }
 
-fc::optional<sport_id_type> database_fixture::try_create_sport(internationalized_string_type name)
-{ try {
-   fc::optional<sport_id_type> result;
-   sport_create_operation sport_create_op;
-   sport_create_op.name = name;
-   process_operation_by_witnesses(sport_create_op, true);
-   const auto& sport_index = db.get_index_type<sport_object_index>().indices().get<by_id>();
-   if (sport_index.rbegin() != sport_index.rend())
+proposal_id_type database_fixture::propose_operation(operation op)
+{
+    const flat_set<witness_id_type>& active_witnesses = db.get_global_properties().active_witnesses;
+
+    proposal_create_operation proposal_op;
+    proposal_op.fee_paying_account = (*active_witnesses.begin())(db).witness_account;
+    proposal_op.proposed_ops.emplace_back(op);
+    proposal_op.expiration_time =  db.head_block_time() + fc::days(1);
+
+    signed_transaction tx;
+    tx.operations.push_back(proposal_op);
+    set_expiration(db, tx);
+    sign(tx, init_account_priv_key);
+
+    processed_transaction processed_tx = db.push_transaction(tx);
+    proposal_id_type proposal_id = processed_tx.operation_results[0].get<object_id_type>();
+
+    return proposal_id;
+}
+
+void database_fixture::process_proposal_by_witnesses(const std::vector<witness_id_type>& witnesses, proposal_id_type proposal_id, bool remove)
+{
+   const auto& proposal_idx = db.get_index_type<proposal_index>().indices().get<by_id>();
+
+   for (const witness_id_type& witness_id : witnesses)
    {
-       result = (*sport_index.rbegin()).id;
+      if (proposal_idx.find(proposal_id) == proposal_idx.end())
+          break;
+
+      const witness_object& witness = witness_id(db);
+      const account_object& witness_account = witness.witness_account(db);
+
+      proposal_update_operation pup;
+      pup.proposal = proposal_id;
+      pup.fee_paying_account = witness_account.id;
+      if (remove)
+          pup.active_approvals_to_remove.insert(witness_account.id);
+      else
+          pup.active_approvals_to_add.insert(witness_account.id);
+
+      signed_transaction tx;
+      tx.operations.push_back( pup );
+      set_expiration( db, tx );
+      sign(tx, init_account_priv_key);
+
+      db.push_transaction(tx, ~0);
    }
-   return result;
-} FC_CAPTURE_AND_RETHROW( (name) ) }
+}
 
 const sport_object& database_fixture::create_sport(internationalized_string_type name)
 { try {

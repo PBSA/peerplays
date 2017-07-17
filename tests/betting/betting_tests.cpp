@@ -68,57 +68,58 @@ BOOST_AUTO_TEST_CASE(generate_block)
 }
 #endif
 
-BOOST_AUTO_TEST_CASE(try_create_sport_and_try_again)
+BOOST_AUTO_TEST_CASE(try_create_sport)
 {
    try
    {
-     // "even" witnesses will approve the proposal
-     // we're expecting only 5 approvals, 6 needed
-     fc::optional<sport_id_type> sport_id = try_create_sport({{"en", "Ice Hockey"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}});
-     BOOST_REQUIRE(!sport_id.valid());
+        fc::optional<sport_id_type> result;
+        sport_create_operation sport_create_op;
+        sport_create_op.name = {{"en", "Ice Hockey"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}};
 
-     // adding new active witness
-     const auto& witnesses = db.get_global_properties().active_witnesses;
-     ACTOR(nathan);
-     upgrade_to_lifetime_member(nathan_id);
-     trx.clear();
-     witness_id_type nathan_witness_id = create_witness(nathan_id, nathan_private_key).id;
-     // give nathan some voting stake
-     transfer(committee_account, nathan_id, asset(10000000));
-     generate_block();
-     set_expiration( db, trx );
+        proposal_id_type proposal_id = propose_operation(sport_create_op);
 
-     // "even" witnesses vote for nathan
-     account_update_operation op;
-     op.account = nathan_id;
-     op.new_options = nathan_id(db).options;
-     op.new_options->votes.clear();
-     uint16_t count = -1;
-     uint16_t votes = 0;
-     for (const witness_id_type& witness_id : witnesses)
-     {
-       if (++count % 2)
-          continue;
-       op.new_options->votes.insert(witness_id(db).vote_id);
-       ++votes;
-     }
-     op.new_options->num_witness = votes;
-     op.new_options->num_committee = 0;
+        const auto& active_witnesses = db.get_global_properties().active_witnesses;
+        int voting_count = active_witnesses.size() / 2;
 
-     trx.operations.push_back(op);
-     sign( trx, nathan_private_key );
-     PUSH_TX( db, trx );
-     trx.clear();
+        // 5 for
+        std::vector<witness_id_type> witnesses;
+        for (const witness_id_type& witness_id : active_witnesses)
+        {
+            witnesses.push_back(witness_id);
+            if (--voting_count == 0)
+                break;
+        }
+        process_proposal_by_witnesses(witnesses, proposal_id);
 
-     generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
-     // make sure nathan is in active_witnesses
-     auto itr = std::find(witnesses.begin(), witnesses.end(), nathan_witness_id);
-     BOOST_CHECK(itr != witnesses.end());
+        // 1st out
+        witnesses.clear();
+        auto itr = active_witnesses.begin();
+        witnesses.push_back(*itr);
+        process_proposal_by_witnesses(witnesses, proposal_id, true);
 
-     // now we're expecting 6 votes for
-     sport_id = try_create_sport({{"en", "Ice Hockey"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}});
-     BOOST_REQUIRE(sport_id.valid());
-     BOOST_REQUIRE(*sport_id == sport_id_type());
+        const auto& sport_index = db.get_index_type<sport_object_index>().indices().get<by_id>();
+        // not yet approved
+        BOOST_REQUIRE(sport_index.rbegin() == sport_index.rend());
+
+        // 6th for
+        witnesses.clear();
+        itr += 5;
+        witnesses.push_back(*itr);
+        process_proposal_by_witnesses(witnesses, proposal_id);
+
+        // not yet approved
+        BOOST_REQUIRE(sport_index.rbegin() == sport_index.rend());
+
+        // 7th for
+        witnesses.clear();
+        ++itr;
+        witnesses.push_back(*itr);
+        process_proposal_by_witnesses(witnesses, proposal_id);
+
+        // done
+        BOOST_REQUIRE(sport_index.rbegin() != sport_index.rend());
+        sport_id_type sport_id = (*sport_index.rbegin()).id;
+        BOOST_REQUIRE(sport_id == sport_id_type());
 
    } FC_LOG_AND_RETHROW()
 }
