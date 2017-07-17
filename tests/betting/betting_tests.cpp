@@ -68,6 +68,61 @@ BOOST_AUTO_TEST_CASE(generate_block)
 }
 #endif
 
+BOOST_AUTO_TEST_CASE(try_create_sport_and_try_again)
+{
+   try
+   {
+     // "even" witnesses will approve the proposal
+     // we're expecting only 5 approvals, 6 needed
+     fc::optional<sport_id_type> sport_id = try_create_sport({{"en", "Ice Hockey"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}});
+     BOOST_REQUIRE(!sport_id.valid());
+
+     // adding new active witness
+     const auto& witnesses = db.get_global_properties().active_witnesses;
+     ACTOR(nathan);
+     upgrade_to_lifetime_member(nathan_id);
+     trx.clear();
+     witness_id_type nathan_witness_id = create_witness(nathan_id, nathan_private_key).id;
+     // give nathan some voting stake
+     transfer(committee_account, nathan_id, asset(10000000));
+     generate_block();
+     set_expiration( db, trx );
+
+     // "even" witnesses vote for nathan
+     account_update_operation op;
+     op.account = nathan_id;
+     op.new_options = nathan_id(db).options;
+     op.new_options->votes.clear();
+     uint16_t count = -1;
+     uint16_t votes = 0;
+     for (const witness_id_type& witness_id : witnesses)
+     {
+       if (++count % 2)
+          continue;
+       op.new_options->votes.insert(witness_id(db).vote_id);
+       ++votes;
+     }
+     op.new_options->num_witness = votes;
+     op.new_options->num_committee = 0;
+
+     trx.operations.push_back(op);
+     sign( trx, nathan_private_key );
+     PUSH_TX( db, trx );
+     trx.clear();
+
+     generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+     // make sure nathan is in active_witnesses
+     auto itr = std::find(witnesses.begin(), witnesses.end(), nathan_witness_id);
+     BOOST_CHECK(itr != witnesses.end());
+
+     // now we're expecting 6 votes for
+     sport_id = try_create_sport({{"en", "Ice Hockey"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}});
+     BOOST_REQUIRE(sport_id.valid());
+     BOOST_REQUIRE(*sport_id == sport_id_type());
+
+   } FC_LOG_AND_RETHROW()
+}
+
 BOOST_AUTO_TEST_CASE(simple_bet_win)
 {
    try

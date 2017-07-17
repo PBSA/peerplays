@@ -284,7 +284,8 @@ struct database_fixture {
                                                account_id_type dividend_holder_account_id, 
                                                asset_id_type dividend_payout_asset_type) const;
    vector< operation_history_object > get_operation_history( account_id_type account_id )const;
-   void process_operation_by_witnesses(operation op);
+   void process_operation_by_witnesses(operation op, bool not_all = false);
+   fc::optional<sport_id_type> try_create_sport(internationalized_string_type name);
    const sport_object& create_sport(internationalized_string_type name);
    const event_group_object& create_event_group(internationalized_string_type name, sport_id_type sport_id);
    const event_object& create_event(internationalized_string_type name, internationalized_string_type season, event_group_id_type event_group_id);

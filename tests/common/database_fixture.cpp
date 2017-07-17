@@ -1111,8 +1111,9 @@ vector< operation_history_object > database_fixture::get_operation_history( acco
    return result;
 }
 
-void database_fixture::process_operation_by_witnesses(operation op)
+void database_fixture::process_operation_by_witnesses(operation op, bool not_all)
 {
+   uint16_t count = -1;
    const flat_set<witness_id_type>& active_witnesses = db.get_global_properties().active_witnesses;
 
    proposal_create_operation proposal_op;
@@ -1130,6 +1131,13 @@ void database_fixture::process_operation_by_witnesses(operation op)
 
    for (const witness_id_type& witness_id : active_witnesses)
    {
+      if (not_all)
+      {
+          if (++count % 2)
+          {
+             continue;
+          }
+      }
       const witness_object& witness = witness_id(db);
       const account_object& witness_account = witness.witness_account(db);
 
@@ -1144,12 +1152,25 @@ void database_fixture::process_operation_by_witnesses(operation op)
       sign(tx, init_account_priv_key);
 
       db.push_transaction(tx, ~0);
-
       const auto& proposal_idx = db.get_index_type<proposal_index>().indices().get<by_id>();
       if (proposal_idx.find(proposal_id) == proposal_idx.end())
          break;
    }
 }
+
+fc::optional<sport_id_type> database_fixture::try_create_sport(internationalized_string_type name)
+{ try {
+   fc::optional<sport_id_type> result;
+   sport_create_operation sport_create_op;
+   sport_create_op.name = name;
+   process_operation_by_witnesses(sport_create_op, true);
+   const auto& sport_index = db.get_index_type<sport_object_index>().indices().get<by_id>();
+   if (sport_index.rbegin() != sport_index.rend())
+   {
+       result = (*sport_index.rbegin()).id;
+   }
+   return result;
+} FC_CAPTURE_AND_RETHROW( (name) ) }
 
 const sport_object& database_fixture::create_sport(internationalized_string_type name)
 { try {
