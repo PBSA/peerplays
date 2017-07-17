@@ -21,6 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <fc/smart_ref_impl.hpp>
+
 #include <graphene/chain/betting_market_evaluator.hpp>
 #include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/account_object.hpp>
