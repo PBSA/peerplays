@@ -264,7 +264,7 @@ void_result betting_market_group_cancel_all_bets_evaluator::do_evaluate(const be
 
 void_result betting_market_group_cancel_all_bets_evaluator::do_apply(const betting_market_group_cancel_all_bets_operation& op)
 { try {
-   db().resolve_betting_market_group(*_betting_market_group, {});
+   db().resolve_betting_market_group(*_betting_market_group, {}, true);
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 

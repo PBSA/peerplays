@@ -61,7 +61,8 @@ void database::validate_betting_market_group_resolutions(const betting_market_gr
 }
 
 void database::resolve_betting_market_group(const betting_market_group_object& betting_market_group,
-                                            const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions)
+                                            const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions,
+                                            bool  do_not_remove)
 {
    bool cancel = resolutions.size() == 0;
 
@@ -174,9 +175,11 @@ void database::resolve_betting_market_group(const betting_market_group_object& b
    {
       const betting_market_object& betting_market = *betting_market_itr;
       ++betting_market_itr;
-      remove(betting_market);
+      if (!do_not_remove)
+        remove(betting_market);
    }
-   remove(betting_market_group);
+   if (!do_not_remove)
+       remove(betting_market_group);
 }
 
 #if 0

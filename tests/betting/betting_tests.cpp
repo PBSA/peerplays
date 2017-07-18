@@ -205,6 +205,16 @@ BOOST_AUTO_TEST_CASE( cancel_betting_group_test )
       BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000);
       BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000);
 
+      // bet again
+      // have bob lay a bet for 1M (+20k fees) at 1:1 odds
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(2000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+      // have alice back a matching bet at 1:1 odds (also costing 1.02M)
+      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(2000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 2000000 - 20000);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 2000000 - 20000);
+
+
    } FC_LOG_AND_RETHROW()
 }
 
