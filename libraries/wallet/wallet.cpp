@@ -5222,6 +5222,33 @@ signed_transaction wallet_api::propose_resolve_betting_market_group(
     return my->sign_transaction(tx, broadcast);
 }
 
+signed_transaction wallet_api::propose_cancel_betting_market_group(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        betting_market_group_id_type betting_market_group_id,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    betting_market_group_cancel_all_bets_operation betting_market_group_cancel_all_bets_op;
+    betting_market_group_cancel_all_bets_op.betting_market_group_id = betting_market_group_id;
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( betting_market_group_cancel_all_bets_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
 signed_transaction wallet_api::tournament_create( string creator, tournament_options options, bool broadcast )
 {
    FC_ASSERT( !is_locked() );

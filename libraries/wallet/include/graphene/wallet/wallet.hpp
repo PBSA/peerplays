@@ -1627,6 +1627,12 @@ class wallet_api
               const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions,
               bool broadcast = false);
 
+      signed_transaction propose_cancel_betting_market_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              betting_market_group_id_type betting_market_group_id,
+              bool broadcast = false);
+
       /** Creates a new tournament
        * @param creator the accout that is paying the fee to create the tournament
        * @param options the options detailing the specifics of the tournament

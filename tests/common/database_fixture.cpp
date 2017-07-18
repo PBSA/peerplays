@@ -1286,6 +1286,14 @@ void database_fixture::resolve_betting_market_group(betting_market_group_id_type
    process_operation_by_witnesses(betting_market_group_resolve_op);
 } FC_CAPTURE_AND_RETHROW( (betting_market_group_id)(resolutions) ) }
 
+void database_fixture::cancel_all_bets_in_betting_market_group(betting_market_group_id_type betting_market_group_id)
+{ try {
+   betting_market_group_cancel_all_bets_operation betting_market_group_cancel_all_bets_op;
+   betting_market_group_cancel_all_bets_op.betting_market_group_id = betting_market_group_id;
+   process_operation_by_witnesses(betting_market_group_cancel_all_bets_op);
+} FC_CAPTURE_AND_RETHROW( (betting_market_group_id) ) }
+
+
 namespace test {
 
 void set_expiration( const database& db, transaction& tx )

@@ -217,6 +217,8 @@ struct get_impacted_account_visitor
    void operator()( const betting_market_create_operation& op ) {}
    void operator()( const betting_market_group_resolve_operation& op ) {}
    void operator()( const betting_market_group_freeze_operation& op ) {}
+   void operator()( const betting_market_group_cancel_all_bets_operation& op ) {}
+
    void operator()( const bet_place_operation& op )
    {
       _impacted.insert( op.bettor_id );
