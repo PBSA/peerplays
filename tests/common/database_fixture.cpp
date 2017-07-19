@@ -1208,6 +1208,14 @@ const sport_object& database_fixture::create_sport(internationalized_string_type
    return *sport_index.rbegin();
 } FC_CAPTURE_AND_RETHROW( (name) ) }
 
+void database_fixture::update_sport(sport_id_type sport_id, internationalized_string_type name)
+{ try {
+   sport_update_operation sport_update_op;
+   sport_update_op.sport_id = sport_id;
+   sport_update_op.new_name = name;
+   process_operation_by_witnesses(sport_update_op);
+} FC_CAPTURE_AND_RETHROW( (sport_id)(name) ) }
+
 const event_group_object& database_fixture::create_event_group(internationalized_string_type name, sport_id_type sport_id)
 { try {
    event_group_create_operation event_group_create_op;

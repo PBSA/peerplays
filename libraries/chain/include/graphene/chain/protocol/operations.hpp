@@ -100,7 +100,9 @@ namespace graphene { namespace chain {
             asset_update_dividend_operation,
             asset_dividend_distribution_operation, // VIRTUAL
             sport_create_operation,
+            sport_update_operation,
             event_group_create_operation,
+            /*event_group_update_operation,*/
             event_create_operation,
             betting_market_rules_create_operation,
             betting_market_group_create_operation,

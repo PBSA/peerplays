@@ -286,6 +286,7 @@ struct database_fixture {
    vector< operation_history_object > get_operation_history( account_id_type account_id )const;
    void process_operation_by_witnesses(operation op);
    const sport_object& create_sport(internationalized_string_type name);
+   void  update_sport(sport_id_type sport_id, internationalized_string_type name);
    const event_group_object& create_event_group(internationalized_string_type name, sport_id_type sport_id);
    const event_object& create_event(internationalized_string_type name, internationalized_string_type season, event_group_id_type event_group_id);
    const betting_market_rules_object& create_betting_market_rules(internationalized_string_type name, internationalized_string_type description);

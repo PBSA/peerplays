@@ -47,4 +47,26 @@ object_id_type sport_create_evaluator::do_apply(const sport_create_operation& op
    return new_sport.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
+
+void_result sport_update_evaluator::do_evaluate(const sport_update_operation& op)
+{ try {
+   FC_ASSERT(trx_state->_is_proposed_trx);
+   FC_ASSERT(op.new_name.valid());
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+ void_result sport_update_evaluator::do_apply(const sport_update_operation& op)
+{ try {
+   database& _db = db();
+   _db.modify(
+      _db.get(op.sport_id),
+      [&]( sport_object& spo )
+      {
+         if( op.new_name.valid() )
+             spo.name = *op.new_name;
+      });
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+
 } } // graphene::chain

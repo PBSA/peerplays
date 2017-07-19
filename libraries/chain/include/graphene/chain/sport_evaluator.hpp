@@ -38,4 +38,14 @@ namespace graphene { namespace chain {
          object_id_type do_apply( const sport_create_operation& o );
    };
 
+   class sport_update_evaluator : public evaluator<sport_update_evaluator>
+   {
+      public:
+         typedef sport_update_operation operation_type;
+
+         void_result do_evaluate( const sport_update_operation& o );
+         void_result do_apply( const sport_update_operation& o );
+   };
+
+
 } } // graphene::chain
