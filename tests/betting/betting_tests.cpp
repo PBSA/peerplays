@@ -180,7 +180,7 @@ BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
    } FC_LOG_AND_RETHROW()
 }
 
-BOOST_AUTO_TEST_CASE( cancel_betting_group_test )
+BOOST_AUTO_TEST_CASE( cancel_unmatched_in_betting_group_test )
 {
    try
    {
@@ -195,25 +195,18 @@ BOOST_AUTO_TEST_CASE( cancel_betting_group_test )
       place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
       // have alice back a matching bet at 1:1 odds (also costing 1.02M)
       place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+      // place unmatched
+      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(500, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 10);
+      place_bet(bob_id, blackhawks_win_market.id, bet_type::lay, asset(600, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 20);
+
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 - 500 - 10);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000 - 600 - 20);
+
+      // cancel unmatched
+      cancel_unmatched_bets(moneyline_betting_markets.id);
 
       BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
       BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
-
-      // cancel
-      cancel_all_bets_in_betting_market_group(moneyline_betting_markets.id);
-
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000);
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000);
-
-      // bet again
-      // have bob lay a bet for 1M (+20k fees) at 1:1 odds
-      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(2000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
-      // have alice back a matching bet at 1:1 odds (also costing 1.02M)
-      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(2000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
-
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 2000000 - 20000);
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 2000000 - 20000);
-
 
    } FC_LOG_AND_RETHROW()
 }

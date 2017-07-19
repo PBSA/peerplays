@@ -255,16 +255,16 @@ void_result betting_market_group_freeze_evaluator::do_apply(const betting_market
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
-void_result betting_market_group_cancel_all_bets_evaluator::do_evaluate(const betting_market_group_cancel_all_bets_operation& op)
+void_result betting_market_group_cancel_unmatched_bets_evaluator::do_evaluate(const betting_market_group_cancel_unmatched_bets_operation& op)
 { try {
    const database& d = db();
    _betting_market_group = &op.betting_market_group_id(d);
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
-void_result betting_market_group_cancel_all_bets_evaluator::do_apply(const betting_market_group_cancel_all_bets_operation& op)
+void_result betting_market_group_cancel_unmatched_bets_evaluator::do_apply(const betting_market_group_cancel_unmatched_bets_operation& op)
 { try {
-   db().resolve_betting_market_group(*_betting_market_group, {}, true);
+   db().cancel_all_unmatched_bets_on_betting_market_group(*_betting_market_group);
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 

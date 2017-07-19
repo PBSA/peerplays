@@ -60,6 +60,19 @@ void database::validate_betting_market_group_resolutions(const betting_market_gr
     }
 }
 
+void database::cancel_all_unmatched_bets_on_betting_market_group(const betting_market_group_object& betting_market_group)
+{
+   auto& betting_market_index = get_index_type<betting_market_object_index>().indices().get<by_betting_market_group_id>();
+   auto betting_market_itr = betting_market_index.lower_bound(betting_market_group.id);
+   while (betting_market_itr != betting_market_index.end() &&  betting_market_itr->group_id == betting_market_group.id)
+   {
+      const betting_market_object& betting_market = *betting_market_itr;
+      ++betting_market_itr;
+      cancel_all_unmatched_bets_on_betting_market(betting_market);
+   }
+
+}
+
 void database::resolve_betting_market_group(const betting_market_group_object& betting_market_group,
                                             const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions,
                                             bool  do_not_remove)

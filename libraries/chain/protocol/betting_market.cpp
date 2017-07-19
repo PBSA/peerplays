@@ -50,7 +50,7 @@ void betting_market_group_freeze_operation::validate() const
    FC_ASSERT( fee.amount >= 0 );
 }
 
-void betting_market_group_cancel_all_bets_operation::validate() const
+void betting_market_group_cancel_unmatched_bets_operation::validate() const
 {
    FC_ASSERT( fee.amount >= 0 );
 }

@@ -294,7 +294,7 @@ struct database_fixture {
 
    void place_bet(account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, asset amount_to_bet, bet_multiplier_type backer_multiplier, share_type amount_reserved_for_fees);
    void resolve_betting_market_group(betting_market_group_id_type betting_market_group_id, std::map<betting_market_id_type, betting_market_resolution_type> resolutions);
-   void cancel_all_bets_in_betting_market_group(betting_market_group_id_type betting_market_group_id);
+   void cancel_unmatched_bets(betting_market_group_id_type betting_market_group_id);
 
    proposal_id_type propose_operation(operation op);
    void process_proposal_by_witnesses(const std::vector<witness_id_type>& witnesses, proposal_id_type proposal_id, bool remove = false);

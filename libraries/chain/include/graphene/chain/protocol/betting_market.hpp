@@ -173,7 +173,7 @@ struct betting_market_group_freeze_operation : public base_operation
    void            validate()const;
 };
 
-struct betting_market_group_cancel_all_bets_operation : public base_operation
+struct betting_market_group_cancel_unmatched_bets_operation : public base_operation
 {
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
    asset             fee;
@@ -333,8 +333,8 @@ FC_REFLECT( graphene::chain::betting_market_group_freeze_operation::fee_paramete
 FC_REFLECT( graphene::chain::betting_market_group_freeze_operation,
             (fee)(betting_market_group_id)(freeze)(extensions) )
 
-FC_REFLECT( graphene::chain::betting_market_group_cancel_all_bets_operation::fee_parameters_type, (fee) )
-FC_REFLECT( graphene::chain::betting_market_group_cancel_all_bets_operation,
+FC_REFLECT( graphene::chain::betting_market_group_cancel_unmatched_bets_operation::fee_parameters_type, (fee) )
+FC_REFLECT( graphene::chain::betting_market_group_cancel_unmatched_bets_operation,
             (fee)(betting_market_group_id)(extensions) )
 
 FC_REFLECT_ENUM( graphene::chain::bet_type, (back)(lay) )
