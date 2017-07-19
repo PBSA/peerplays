@@ -60,4 +60,25 @@ object_id_type event_group_create_evaluator::do_apply(const event_group_create_o
    return new_event_group.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
+void_result event_group_update_evaluator::do_evaluate(const event_group_update_operation& op)
+{ try {
+   FC_ASSERT(trx_state->_is_proposed_trx);
+   FC_ASSERT(op.new_name.valid());
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+void_result event_group_update_evaluator::do_apply(const event_group_update_operation& op)
+{ try {
+    database& _db = db();
+    _db.modify(
+       _db.get(op.event_group_id),
+       [&]( event_group_object& ego )
+       {
+          if( op.new_name.valid() )
+              ego.name = *op.new_name;
+       });
+    return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+
 } } // graphene::chain

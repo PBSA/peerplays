@@ -47,5 +47,4 @@ namespace graphene { namespace chain {
          void_result do_apply( const sport_update_operation& o );
    };
 
-
 } } // graphene::chain

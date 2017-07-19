@@ -1226,6 +1226,15 @@ const event_group_object& database_fixture::create_event_group(internationalized
    return *event_group_index.rbegin();
 } FC_CAPTURE_AND_RETHROW( (name) ) }
 
+
+void database_fixture::update_event_group(event_group_id_type event_group_id, internationalized_string_type name)
+{ try {
+   event_group_update_operation event_group_update_op;
+   event_group_update_op.new_name = name;
+   event_group_update_op.event_group_id = event_group_id;
+   process_operation_by_witnesses(event_group_update_op);
+} FC_CAPTURE_AND_RETHROW( (name) ) }
+
 const event_object& database_fixture::create_event(internationalized_string_type name, internationalized_string_type season, event_group_id_type event_group_id)
 { try {
    event_create_operation event_create_op;

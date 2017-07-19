@@ -50,8 +50,28 @@ struct event_group_create_operation : public base_operation
    void            validate()const;
 };
 
+struct event_group_update_operation : public base_operation
+{
+   struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
+   asset             fee;
+
+   event_group_id_type event_group_id;
+
+   optional<internationalized_string_type> new_name;
+
+   extensions_type   extensions;
+
+   account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
+   void            validate()const;
+};
+
+
 } }
 
 FC_REFLECT( graphene::chain::event_group_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::event_group_create_operation, 
             (fee)(name)(sport_id)(extensions) )
+
+FC_REFLECT( graphene::chain::event_group_update_operation::fee_parameters_type, (fee) )
+FC_REFLECT( graphene::chain::event_group_update_operation,
+            (fee)(new_name)(event_group_id)(extensions) )

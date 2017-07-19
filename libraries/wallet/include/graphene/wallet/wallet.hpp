@@ -1596,6 +1596,13 @@ class wallet_api
               sport_id_type sport_id,
               bool broadcast = false);
 
+      signed_transaction propose_update_event_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              event_group_id_type event_group,
+              fc::optional<internationalized_string_type> name,
+              bool broadcast = false);
+
       signed_transaction propose_create_event(
               const string& proposing_account,
               fc::time_point_sec expiration_time,

@@ -41,4 +41,15 @@ namespace graphene { namespace chain {
          sport_id_type sport_id;
    };
 
+   class event_group_update_evaluator : public evaluator<event_group_update_evaluator>
+   {
+      public:
+         typedef event_group_update_operation operation_type;
+
+         void_result do_evaluate( const event_group_update_operation& o );
+         void_result do_apply( const event_group_update_operation& o );
+
+      private:
+         sport_id_type sport_id;
+   };
 } } // graphene::chain

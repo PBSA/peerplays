@@ -186,7 +186,7 @@ BOOST_AUTO_TEST_CASE(peerplays_sport_update_test)
    {
       ACTORS( (alice) );
       CREATE_ICE_HOCKEY_BETTING_MARKET();
-      update_sport(ice_hockey.id, {{"en", "Hockey on Ice"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}});
+      update_sport(ice_hockey.id, {{"en", "Hockey on Ice"}, {"zh_Hans", "冰"}, {"ja", "アイスホッケ"}});
 
       transfer(account_id_type(), alice_id, asset(10000000));
       place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
@@ -194,8 +194,23 @@ BOOST_AUTO_TEST_CASE(peerplays_sport_update_test)
       BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
 
     } FC_LOG_AND_RETHROW()
- }
+}
 
+BOOST_AUTO_TEST_CASE(peerplays_event_group_update_test)
+{
+   try
+   {
+      ACTORS( (alice) );
+      CREATE_ICE_HOCKEY_BETTING_MARKET();
+      update_event_group(nhl.id, {{"en", "IBM"}, {"zh_Hans", "國家冰球聯"}, {"ja", "ナショナルホッケーリー"}}); \
+
+      transfer(account_id_type(), alice_id, asset(10000000));
+      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
+
+    } FC_LOG_AND_RETHROW()
+}
 
 BOOST_AUTO_TEST_CASE( cancel_unmatched_in_betting_group_test )
 {

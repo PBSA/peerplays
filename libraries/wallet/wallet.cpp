@@ -5105,6 +5105,35 @@ signed_transaction wallet_api::propose_create_event_group(
     return my->sign_transaction(tx, broadcast);
 }
 
+signed_transaction wallet_api::propose_update_event_group(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        event_group_id_type event_group,
+        fc::optional<internationalized_string_type> name,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    event_group_update_operation event_group_update_op;
+    event_group_update_op.new_name = name;
+    event_group_update_op.event_group_id = event_group;
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( event_group_update_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
 signed_transaction wallet_api::propose_create_event(
         const string& proposing_account,
         fc::time_point_sec expiration_time,

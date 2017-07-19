@@ -102,7 +102,7 @@ namespace graphene { namespace chain {
             sport_create_operation,
             sport_update_operation,
             event_group_create_operation,
-            /*event_group_update_operation,*/
+            event_group_update_operation,
             event_create_operation,
             betting_market_rules_create_operation,
             betting_market_group_create_operation,
