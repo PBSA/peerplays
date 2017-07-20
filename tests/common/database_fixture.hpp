@@ -288,7 +288,7 @@ struct database_fixture {
    const sport_object& create_sport(internationalized_string_type name);
    void  update_sport(sport_id_type sport_id, internationalized_string_type name);
    const event_group_object& create_event_group(internationalized_string_type name, sport_id_type sport_id);
-   void  update_event_group(event_group_id_type event_group_id, internationalized_string_type name);
+   void  update_event_group(event_group_id_type event_group_id, fc::optional<object_id_type> sport_id, fc::optional<internationalized_string_type> name);
    const event_object& create_event(internationalized_string_type name, internationalized_string_type season, event_group_id_type event_group_id);
    void  update_event(event_id_type event_id, fc::optional<internationalized_string_type> name, fc::optional<internationalized_string_type> season);
    const betting_market_rules_object& create_betting_market_rules(internationalized_string_type name, internationalized_string_type description);

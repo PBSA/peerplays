@@ -5109,6 +5109,7 @@ signed_transaction wallet_api::propose_update_event_group(
         const string& proposing_account,
         fc::time_point_sec expiration_time,
         event_group_id_type event_group,
+        fc::optional<object_id_type> sport_id,
         fc::optional<internationalized_string_type> name,
         bool broadcast /*= false*/)
 {
@@ -5116,6 +5117,7 @@ signed_transaction wallet_api::propose_update_event_group(
     const chain_parameters& current_params = get_global_properties().parameters;
 
     event_group_update_operation event_group_update_op;
+    event_group_update_op.new_sport_id = sport_id;
     event_group_update_op.new_name = name;
     event_group_update_op.event_group_id = event_group;
 

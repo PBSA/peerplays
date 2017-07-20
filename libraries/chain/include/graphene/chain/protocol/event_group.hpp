@@ -57,6 +57,12 @@ struct event_group_update_operation : public base_operation
 
    event_group_id_type event_group_id;
 
+    /**
+    * This can be a sport_id_type, or a
+    * relative object id that resolves to a sport_id_type
+    */
+   optional<object_id_type> new_sport_id;
+
    optional<internationalized_string_type> new_name;
 
    extensions_type   extensions;
@@ -74,4 +80,4 @@ FC_REFLECT( graphene::chain::event_group_create_operation,
 
 FC_REFLECT( graphene::chain::event_group_update_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::event_group_update_operation,
-            (fee)(new_name)(event_group_id)(extensions) )
+            (fee)(new_sport_id)(new_name)(event_group_id)(extensions) )

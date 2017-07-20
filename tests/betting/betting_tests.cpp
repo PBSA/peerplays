@@ -200,16 +200,72 @@ BOOST_AUTO_TEST_CASE(peerplays_event_group_update_test)
 {
    try
    {
-      ACTORS( (alice) );
+      ACTORS( (alice)(bob) );
       CREATE_ICE_HOCKEY_BETTING_MARKET();
-      update_event_group(nhl.id, {{"en", "IBM"}, {"zh_Hans", "國家冰球聯"}, {"ja", "ナショナルホッケーリー"}}); \
 
       transfer(account_id_type(), alice_id, asset(10000000));
+      transfer(account_id_type(), bob_id, asset(10000000));
+
       place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
 
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
+      internationalized_string_type n = {{"en", "IBM"}, {"zh_Hans", "國家冰球聯"}, {"ja", "ナショナルホッケーリー"}};
+      const sport_object& ice_on_hockey = create_sport({{"en", "Hockey on Ice"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}}); \
 
-    } FC_LOG_AND_RETHROW()
+      fc::optional<internationalized_string_type> name = n;
+
+      object_id_type object_id = ice_on_hockey.id;
+      fc::optional<object_id_type> sport_id = object_id;
+
+      update_event_group(nhl.id, fc::optional<object_id_type>(), name);
+      update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>());
+      update_event_group(nhl.id, sport_id, name);
+
+#if 0
+      // nothing to change
+      //GRAPHENE_REQUIRE_THROW(update_event_group(nhl.id, fc::optional<object_id_type>(), fc::optional<internationalized_string_type>()), fc::assert_exception);
+      try
+      {
+          update_event_group(nhl.id, fc::optional<object_id_type>(), fc::optional<internationalized_string_type>());
+          FC_ASSERT(false, "expected error hasn't occured");
+      }
+      catch (fc::exception& e)
+      {
+        edump((e.code()));
+      }
+
+      // no sport object
+      //object_id = capitals_win_market.id;
+      //sport_id = object_id;
+      //GRAPHENE_REQUIRE_THROW(update_event_group(nhl.id, sport_id, name), fc::assert_exception);
+
+      // sport object doesn't exist
+#endif
+
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+
+      // caps win
+      resolve_betting_market_group(moneyline_betting_markets.id,
+                                  {{capitals_win_market.id, betting_market_resolution_type::win},
+                                   {blackhawks_win_market.id, betting_market_resolution_type::cancel}});
+
+
+      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+      uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
+      BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000 - rake_value);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+
+    }
+    catch (fc::exception& e)
+    {
+      edump((e.to_detail_string()));
+      throw;
+    }
+    //} FC_LOG_AND_RETHROW()
+
 }
 
 

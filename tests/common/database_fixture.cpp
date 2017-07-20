@@ -1227,10 +1227,11 @@ const event_group_object& database_fixture::create_event_group(internationalized
 } FC_CAPTURE_AND_RETHROW( (name) ) }
 
 
-void database_fixture::update_event_group(event_group_id_type event_group_id, internationalized_string_type name)
+void database_fixture::update_event_group(event_group_id_type event_group_id, fc::optional<object_id_type> sport_id, fc::optional<internationalized_string_type> name)
 { try {
    event_group_update_operation event_group_update_op;
    event_group_update_op.new_name = name;
+   event_group_update_op.new_sport_id = sport_id;
    event_group_update_op.event_group_id = event_group_id;
    process_operation_by_witnesses(event_group_update_op);
 } FC_CAPTURE_AND_RETHROW( (name) ) }

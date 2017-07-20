@@ -63,7 +63,19 @@ object_id_type event_group_create_evaluator::do_apply(const event_group_create_o
 void_result event_group_update_evaluator::do_evaluate(const event_group_update_operation& op)
 { try {
    FC_ASSERT(trx_state->_is_proposed_trx);
-   FC_ASSERT(op.new_name.valid());
+   FC_ASSERT(op.new_sport_id.valid() || op.new_name.valid());
+   if( op.new_sport_id.valid() )
+   {
+       object_id_type resolved_id = *op.new_sport_id;
+       if (is_relative(*op.new_sport_id))
+          resolved_id = get_relative_id(*op.new_sport_id);
+
+       FC_ASSERT(resolved_id.space() == sport_id_type::space_id &&
+                 resolved_id.type() == sport_id_type::type_id, "sport_id must refer to a sport_id_type");
+       sport_id = resolved_id;
+
+       FC_ASSERT( db().find_object(sport_id), "Invalid sport specified" );
+   }
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -76,6 +88,8 @@ void_result event_group_update_evaluator::do_apply(const event_group_update_oper
        {
           if( op.new_name.valid() )
               ego.name = *op.new_name;
+          if( op.new_sport_id.valid() )
+              ego.sport_id = sport_id;
        });
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }

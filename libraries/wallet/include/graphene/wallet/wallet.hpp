@@ -1600,6 +1600,7 @@ class wallet_api
               const string& proposing_account,
               fc::time_point_sec expiration_time,
               event_group_id_type event_group,
+              fc::optional<object_id_type> sport_id,
               fc::optional<internationalized_string_type> name,
               bool broadcast = false);
 
