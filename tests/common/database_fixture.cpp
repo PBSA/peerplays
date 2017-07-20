@@ -1246,6 +1246,15 @@ const event_object& database_fixture::create_event(internationalized_string_type
    return *event_index.rbegin();
 } FC_CAPTURE_AND_RETHROW( (event_group_id) ) }
 
+void database_fixture::update_event(event_id_type event_id, fc::optional<internationalized_string_type> name, fc::optional<internationalized_string_type> season)
+{ try {
+   event_update_operation event_update_op;
+   event_update_op.event_id = event_id;
+   event_update_op.new_name = name;
+   event_update_op.new_season = season;
+   process_operation_by_witnesses(event_update_op);
+} FC_CAPTURE_AND_RETHROW( (name)(season) ) }
+
 const betting_market_rules_object& database_fixture::create_betting_market_rules(internationalized_string_type name, internationalized_string_type description)
 { try {
    betting_market_rules_create_operation betting_market_rules_create_op;

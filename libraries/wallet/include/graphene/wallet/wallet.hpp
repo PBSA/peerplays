@@ -1606,8 +1606,19 @@ class wallet_api
       signed_transaction propose_create_event(
               const string& proposing_account,
               fc::time_point_sec expiration_time,
+              internationalized_string_type name,
               internationalized_string_type season,
+              fc::optional<time_point_sec> start_time,
               event_group_id_type event_group_id,
+              bool broadcast = false);
+
+      signed_transaction propose_update_event(
+              const string& proposing_account,
+              event_id_type event_id,
+              fc::time_point_sec expiration_time,
+              fc::optional<internationalized_string_type> name,
+              fc::optional<internationalized_string_type> season,
+              fc::optional<time_point_sec> start_time,
               bool broadcast = false);
 
       signed_transaction propose_create_betting_market_group(

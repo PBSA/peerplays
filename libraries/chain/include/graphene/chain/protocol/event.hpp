@@ -54,6 +54,25 @@ struct event_create_operation : public base_operation
    void            validate()const;
 };
 
+struct event_update_operation : public base_operation
+{
+   struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
+   asset             fee;
+
+   event_id_type event_id;
+
+   optional<internationalized_string_type> new_name;
+
+   optional<internationalized_string_type> new_season;
+
+   optional<time_point_sec> new_start_time;
+
+   extensions_type   extensions;
+
+   account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
+   void            validate()const;
+};
+
 /**
  * The status of an event; this is only used for display, the blockchain does
  * not care about the event's status
@@ -106,6 +125,11 @@ struct event_update_status_operation : public base_operation
 FC_REFLECT( graphene::chain::event_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::event_create_operation, 
             (fee)(name)(season)(start_time)(event_group_id)(extensions) )
+
+FC_REFLECT( graphene::chain::event_update_operation::fee_parameters_type, (fee) )
+FC_REFLECT( graphene::chain::event_update_operation,
+            (fee)(event_id)(new_name)(new_season)(new_start_time)(extensions) )
+
 FC_REFLECT_ENUM( graphene::chain::event_status, (upcoming)(in_progress)(frozen)(completed)(canceled)(STATUS_COUNT) )
 FC_REFLECT( graphene::chain::event_update_status_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::event_update_status_operation, 

@@ -5137,7 +5137,9 @@ signed_transaction wallet_api::propose_update_event_group(
 signed_transaction wallet_api::propose_create_event(
         const string& proposing_account,
         fc::time_point_sec expiration_time,
+        internationalized_string_type name,
         internationalized_string_type season,
+        fc::optional<time_point_sec> start_time,
         event_group_id_type event_group_id,
         bool broadcast /*= false*/)
 {
@@ -5145,6 +5147,8 @@ signed_transaction wallet_api::propose_create_event(
     const chain_parameters& current_params = get_global_properties().parameters;
 
     event_create_operation event_create_op;
+    event_create_op.start_time = start_time;
+    event_create_op.name = name;
     event_create_op.season = season;
     event_create_op.event_group_id = event_group_id;
 
@@ -5162,6 +5166,40 @@ signed_transaction wallet_api::propose_create_event(
 
     return my->sign_transaction(tx, broadcast);
 }
+
+signed_transaction wallet_api::propose_update_event(
+        const string& proposing_account,
+        event_id_type event_id,
+        fc::time_point_sec expiration_time,
+        fc::optional<internationalized_string_type> name,
+        fc::optional<internationalized_string_type> season,
+        fc::optional<time_point_sec> start_time,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    event_update_operation event_update_op;
+    event_update_op.event_id = event_id;
+    event_update_op.new_start_time = start_time;
+    event_update_op.new_name = name;
+    event_update_op.new_season = season;
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( event_update_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
 
 signed_transaction wallet_api::propose_create_betting_market_group(
         const string& proposing_account,

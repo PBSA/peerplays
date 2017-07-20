@@ -71,6 +71,30 @@ object_id_type event_create_evaluator::do_apply(const event_create_operation& op
    return new_event.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
+void_result event_update_evaluator::do_evaluate(const event_update_operation& op)
+{ try {
+   FC_ASSERT(trx_state->_is_proposed_trx);
+   FC_ASSERT(op.new_name.valid() || op.new_season.valid() || op.new_start_time.valid());
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+void_result event_update_evaluator::do_apply(const event_update_operation& op)
+{ try {
+        database& _db = db();
+        _db.modify(
+           _db.get(op.event_id),
+           [&]( event_object& eo )
+           {
+              if( op.new_name.valid() )
+                  eo.name = *op.new_name;
+              if( op.new_season.valid() )
+                  eo.season = *op.new_season;
+              if( op.new_start_time.valid() )
+                  eo.start_time = *op.new_start_time;
+           });
+        return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
 void_result event_update_status_evaluator::do_evaluate(const event_update_status_operation& op)
 { try {
    FC_ASSERT(trx_state->_is_proposed_trx);
