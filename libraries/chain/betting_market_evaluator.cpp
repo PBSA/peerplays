@@ -49,6 +49,28 @@ object_id_type betting_market_rules_create_evaluator::do_apply(const betting_mar
    return new_betting_market_rules.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
+void_result betting_market_rules_update_evaluator::do_evaluate(const betting_market_rules_update_operation& op)
+{ try {
+   FC_ASSERT(trx_state->_is_proposed_trx);
+   FC_ASSERT(op.new_name.valid() || op.new_description.valid());
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+void_result betting_market_rules_update_evaluator::do_apply(const betting_market_rules_update_operation& op)
+{ try {
+        database& _db = db();
+        _db.modify(
+           _db.get(op.betting_market_rules_id),
+           [&]( betting_market_rules_object& bmro )
+           {
+              if( op.new_name.valid() )
+                  bmro.name = *op.new_name;
+              if( op.new_description.valid() )
+                  bmro.description = *op.new_description;
+           });
+        return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
 void_result betting_market_group_create_evaluator::do_evaluate(const betting_market_group_create_operation& op)
 { try {
    FC_ASSERT(trx_state->_is_proposed_trx);

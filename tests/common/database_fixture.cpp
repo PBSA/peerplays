@@ -1265,6 +1265,17 @@ const betting_market_rules_object& database_fixture::create_betting_market_rules
    return *betting_market_rules_index.rbegin();
 } FC_CAPTURE_AND_RETHROW( (name) ) }
 
+void database_fixture::update_betting_market_rules(betting_market_rules_id_type rules_id,
+                                                   fc::optional<internationalized_string_type> name,
+                                                   fc::optional<internationalized_string_type> description)
+{ try {
+   betting_market_rules_update_operation betting_market_rules_update_op;
+   betting_market_rules_update_op.betting_market_rules_id = rules_id;
+   betting_market_rules_update_op.new_name = name;
+   betting_market_rules_update_op.new_description = description;
+   process_operation_by_witnesses(betting_market_rules_update_op);
+} FC_CAPTURE_AND_RETHROW( (name)(description) ) }
+
 const betting_market_group_object& database_fixture::create_betting_market_group(internationalized_string_type description, event_id_type event_id, betting_market_rules_id_type rules_id, asset_id_type asset_id)
 { try {
    betting_market_group_create_operation betting_market_group_create_op;

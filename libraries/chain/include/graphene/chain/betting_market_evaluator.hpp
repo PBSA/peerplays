@@ -38,6 +38,15 @@ namespace graphene { namespace chain {
          object_id_type do_apply( const betting_market_rules_create_operation& o );
    };
 
+   class betting_market_rules_update_evaluator : public evaluator<betting_market_rules_update_evaluator>
+   {
+      public:
+         typedef betting_market_rules_update_operation operation_type;
+
+         void_result do_evaluate( const betting_market_rules_update_operation& o );
+         void_result do_apply( const betting_market_rules_update_operation& o );
+   };
+
    class betting_market_group_create_evaluator : public evaluator<betting_market_group_create_evaluator>
    {
       public:

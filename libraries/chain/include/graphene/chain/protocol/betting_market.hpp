@@ -51,6 +51,24 @@ struct betting_market_rules_create_operation : public base_operation
    void            validate()const;
 };
 
+
+struct betting_market_rules_update_operation : public base_operation
+{
+   struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
+   asset             fee;
+
+   betting_market_rules_id_type betting_market_rules_id;
+
+   fc::optional<internationalized_string_type> new_name;
+
+   fc::optional<internationalized_string_type> new_description;
+
+   extensions_type   extensions;
+
+   account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
+   void            validate()const;
+};
+
 struct betting_market_group_create_operation : public base_operation
 {
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
@@ -310,6 +328,10 @@ struct bet_canceled_operation : public base_operation
 FC_REFLECT( graphene::chain::betting_market_rules_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_rules_create_operation, 
             (fee)(name)(description)(extensions) )
+
+FC_REFLECT( graphene::chain::betting_market_rules_update_operation::fee_parameters_type, (fee) )
+FC_REFLECT( graphene::chain::betting_market_rules_update_operation,
+            (fee)(new_name)(new_description)(extensions)(betting_market_rules_id) )
 
 FC_REFLECT( graphene::chain::betting_market_group_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_group_create_operation, 

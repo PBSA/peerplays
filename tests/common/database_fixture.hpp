@@ -292,6 +292,9 @@ struct database_fixture {
    const event_object& create_event(internationalized_string_type name, internationalized_string_type season, event_group_id_type event_group_id);
    void  update_event(event_id_type event_id, fc::optional<internationalized_string_type> name, fc::optional<internationalized_string_type> season);
    const betting_market_rules_object& create_betting_market_rules(internationalized_string_type name, internationalized_string_type description);
+   void  update_betting_market_rules(betting_market_rules_id_type rules_id,
+                                     fc::optional<internationalized_string_type> name,
+                                     fc::optional<internationalized_string_type> description);
    const betting_market_group_object& create_betting_market_group(internationalized_string_type description, event_id_type event_id, betting_market_rules_id_type rules_id, asset_id_type asset_id);
    const betting_market_object& create_betting_market(betting_market_group_id_type group_id, internationalized_string_type payout_condition);
 

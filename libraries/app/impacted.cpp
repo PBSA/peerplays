@@ -216,6 +216,7 @@ struct get_impacted_account_visitor
    void operator()( const event_create_operation& op ) {}
    void operator()( const event_update_operation& op ) {}
    void operator()( const betting_market_rules_create_operation& op ) {}
+   void operator()( const betting_market_rules_update_operation& op ) {}
    void operator()( const betting_market_group_create_operation& op ) {}
    void operator()( const betting_market_create_operation& op ) {}
    void operator()( const betting_market_group_resolve_operation& op ) {}

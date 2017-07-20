@@ -241,6 +241,34 @@ BOOST_AUTO_TEST_CASE(peerplays_event_update_test)
     } FC_LOG_AND_RETHROW()
 }
 
+BOOST_AUTO_TEST_CASE(peerplays_betting_market_rules_update_test)
+{
+   try
+   {
+      ACTORS( (alice) );
+      CREATE_ICE_HOCKEY_BETTING_MARKET();
+
+      internationalized_string_type n = {{"en", "NHL Rules v1.1"}};
+      internationalized_string_type d = {{"en", "The winner will be the team with the most points at the end of the game. The team with fewer points will not be the winner."}};
+
+      fc::optional<internationalized_string_type> empty;
+      fc::optional<internationalized_string_type> name = n;
+      fc::optional<internationalized_string_type> desc = d;
+
+      update_betting_market_rules(betting_market_rules.id, name, empty);
+      update_betting_market_rules(betting_market_rules.id, empty, desc);
+      update_betting_market_rules(betting_market_rules.id, name, desc);
+
+      transfer(account_id_type(), alice_id, asset(10000000));
+      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
+
+      //GRAPHENE_REQUIRE_THROW(update_betting_market_rules(betting_market_rules.id, empty, empty), fc::exception);
+
+    } FC_LOG_AND_RETHROW()
+}
+
 
 BOOST_AUTO_TEST_CASE( cancel_unmatched_in_betting_group_test )
 {
