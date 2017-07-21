@@ -48,7 +48,7 @@ void_result event_create_evaluator::do_evaluate(const event_create_operation& op
              resolved_event_group_id.type() == event_group_id_type::type_id, 
              "event_group_id must refer to a event_group_id_type");
    event_group_id = resolved_event_group_id;
-   const event_group_object& event_group = event_group_id(d);
+   //const event_group_object& event_group = event_group_id(d);
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -74,7 +74,20 @@ object_id_type event_create_evaluator::do_apply(const event_create_operation& op
 void_result event_update_evaluator::do_evaluate(const event_update_operation& op)
 { try {
    FC_ASSERT(trx_state->_is_proposed_trx);
-   FC_ASSERT(op.new_name.valid() || op.new_season.valid() || op.new_start_time.valid());
+   FC_ASSERT(op.new_event_group_id.valid() || op.new_name.valid() || op.new_season.valid() || op.new_start_time.valid(), "nothing to change");
+
+   if (op.new_event_group_id.valid())
+   {
+       object_id_type resolved_event_group_id = *op.new_event_group_id;
+       if (is_relative(*op.new_event_group_id))
+          resolved_event_group_id = get_relative_id(*op.new_event_group_id);
+
+       FC_ASSERT(resolved_event_group_id.space() == event_group_id_type::space_id &&
+                 resolved_event_group_id.type() == event_group_id_type::type_id,
+                 "event_group_id must refer to a event_group_id_type");
+       event_group_id = resolved_event_group_id;
+   }
+
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -91,6 +104,8 @@ void_result event_update_evaluator::do_apply(const event_update_operation& op)
                   eo.season = *op.new_season;
               if( op.new_start_time.valid() )
                   eo.start_time = *op.new_start_time;
+              if( op.new_event_group_id.valid() )
+                  eo.event_group_id = event_group_id;
            });
         return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }

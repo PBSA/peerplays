@@ -1617,6 +1617,7 @@ class wallet_api
               const string& proposing_account,
               event_id_type event_id,
               fc::time_point_sec expiration_time,
+              fc::optional<object_id_type> event_group_id,
               fc::optional<internationalized_string_type> name,
               fc::optional<internationalized_string_type> season,
               fc::optional<time_point_sec> start_time,

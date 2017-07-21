@@ -61,6 +61,8 @@ struct event_update_operation : public base_operation
 
    event_id_type event_id;
 
+   optional<object_id_type> new_event_group_id;
+
    optional<internationalized_string_type> new_name;
 
    optional<internationalized_string_type> new_season;
@@ -128,7 +130,7 @@ FC_REFLECT( graphene::chain::event_create_operation,
 
 FC_REFLECT( graphene::chain::event_update_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::event_update_operation,
-            (fee)(event_id)(new_name)(new_season)(new_start_time)(extensions) )
+            (fee)(event_id)(new_event_group_id)(new_name)(new_season)(new_start_time)(extensions) )
 
 FC_REFLECT_ENUM( graphene::chain::event_status, (upcoming)(in_progress)(frozen)(completed)(canceled)(STATUS_COUNT) )
 FC_REFLECT( graphene::chain::event_update_status_operation::fee_parameters_type, (fee) )
