@@ -1150,6 +1150,38 @@ void database_fixture::process_operation_by_witnesses(operation op)
    }
 }
 
+void database_fixture::set_is_proposed_trx(operation op)
+{
+    const flat_set<witness_id_type>& active_witnesses = db.get_global_properties().active_witnesses;
+
+    proposal_create_operation proposal_op;
+    proposal_op.fee_paying_account = (*active_witnesses.begin())(db).witness_account;
+    proposal_op.proposed_ops.emplace_back(op);
+    proposal_op.expiration_time =  db.head_block_time() + fc::days(1);
+
+    signed_transaction tx;
+    tx.operations.push_back(proposal_op);
+    set_expiration(db, tx);
+    sign(tx, init_account_priv_key);
+
+    processed_transaction processed_tx = db.push_transaction(tx);
+    proposal_id_type proposal_id = processed_tx.operation_results[0].get<object_id_type>();
+
+    for (const witness_id_type& witness_id : active_witnesses)
+    {
+       const witness_object& witness = witness_id(db);
+       const account_object& witness_account = witness.witness_account(db);
+
+       proposal_update_operation pup;
+       pup.proposal = proposal_id;
+       pup.fee_paying_account = witness_account.id;
+       pup.active_approvals_to_add.insert(witness_account.id);
+
+       db.push_proposal(pup.proposal(db));
+       break;
+    }
+}
+
 proposal_id_type database_fixture::propose_operation(operation op)
 {
     const flat_set<witness_id_type>& active_witnesses = db.get_global_properties().active_witnesses;
@@ -1227,14 +1259,41 @@ const event_group_object& database_fixture::create_event_group(internationalized
 } FC_CAPTURE_AND_RETHROW( (name) ) }
 
 
-void database_fixture::update_event_group(event_group_id_type event_group_id, fc::optional<object_id_type> sport_id, fc::optional<internationalized_string_type> name)
+void database_fixture::update_event_group(event_group_id_type event_group_id,
+                                          fc::optional<object_id_type> sport_id,
+                                          fc::optional<internationalized_string_type> name)
 { try {
    event_group_update_operation event_group_update_op;
    event_group_update_op.new_name = name;
    event_group_update_op.new_sport_id = sport_id;
    event_group_update_op.event_group_id = event_group_id;
    process_operation_by_witnesses(event_group_update_op);
-} FC_CAPTURE_AND_RETHROW( (name) ) }
+} FC_CAPTURE_AND_RETHROW( (name) )
+}
+
+void database_fixture::try_update_event_group(event_group_id_type event_group_id,
+                                              fc::optional<object_id_type> sport_id,
+                                              fc::optional<internationalized_string_type> name,
+                                              bool dont_set_is_proposed_trx /* = false */)
+{
+   event_group_update_operation event_group_update_op;
+   event_group_update_op.new_name = name;
+   event_group_update_op.new_sport_id = sport_id;
+   event_group_update_op.event_group_id = event_group_id;
+
+   if (!dont_set_is_proposed_trx)
+        set_is_proposed_trx(event_group_update_op);
+
+   const chain_parameters& params = db.get_global_properties().parameters;
+   signed_transaction trx;
+   trx.operations = {event_group_update_op};
+   for( auto& op : trx.operations )
+       db.current_fee_schedule().set_fee(op);
+   trx.validate();
+   trx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
+   sign(trx, init_account_priv_key);
+   PUSH_TX(db, trx);
+}
 
 const event_object& database_fixture::create_event(internationalized_string_type name, internationalized_string_type season, event_group_id_type event_group_id)
 { try {

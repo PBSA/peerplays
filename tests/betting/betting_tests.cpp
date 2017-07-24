@@ -42,9 +42,6 @@
 using namespace graphene::chain;
 using namespace graphene::chain::test;
 
-
-BOOST_FIXTURE_TEST_SUITE( betting_tests, database_fixture )
-
 #define CREATE_ICE_HOCKEY_BETTING_MARKET() \
   const sport_object& ice_hockey = create_sport({{"en", "Ice Hockey"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}}); \
   const event_group_object& nhl = create_event_group({{"en", "NHL"}, {"zh_Hans", "國家冰球聯盟"}, {"ja", "ナショナルホッケーリーグ"}}, ice_hockey.id); \
@@ -53,6 +50,9 @@ BOOST_FIXTURE_TEST_SUITE( betting_tests, database_fixture )
   const betting_market_group_object& moneyline_betting_markets = create_betting_market_group({{"en", "Moneyline"}}, capitals_vs_blackhawks.id, betting_market_rules.id, asset_id_type()); \
   const betting_market_object& capitals_win_market = create_betting_market(moneyline_betting_markets.id, {{"en", "Washington Capitals win"}}); \
   const betting_market_object& blackhawks_win_market = create_betting_market(moneyline_betting_markets.id, {{"en", "Chicago Blackhawks win"}});
+
+
+BOOST_FIXTURE_TEST_SUITE( betting_tests, database_fixture )
 
 #if 0
 BOOST_AUTO_TEST_CASE(generate_block)
@@ -595,96 +595,95 @@ struct simple_bet_test_fixture_2 : database_fixture {
    }
 };
 
-
+// testing assertions
 BOOST_AUTO_TEST_SUITE(other_betting_tests)
 
 #define TRY_EXPECT_THROW( expr, exc_type, reason )          \
 {                                                           \
-    try                                                     \
-    {                                                       \
-        expr;                                               \
-        FC_THROW("no error has occured");                   \
-    }                                                       \
-    catch (exc_type& e)                                     \
-    {                                                       \
-        edump(("###"));                                     \
-        edump((e.to_detail_string()));                      \
-        edump(("###"));                                     \
-        FC_ASSERT(e.to_detail_string().find(reason) !=      \
-        std::string::npos, "expected error hasn't occured");\
-    }                                                       \
-    catch (...)                                             \
-    {                                                       \
-        FC_THROW("expected throw hasn't occured");          \
-    }                                                       \
+   try                                                     \
+   {                                                       \
+       expr;                                               \
+       FC_THROW("no error has occured");                   \
+   }                                                       \
+   catch (exc_type& e)                                     \
+   {                                                       \
+       edump(("###"));                                     \
+       edump((e.to_detail_string()));                      \
+       edump(("###"));                                     \
+       FC_ASSERT(e.to_detail_string().find(reason) !=      \
+       std::string::npos, "expected error hasn't occured");\
+   }                                                       \
+   catch (...)                                             \
+   {                                                       \
+       FC_THROW("expected throw hasn't occured");          \
+   }                                                       \
 }
 
-BOOST_FIXTURE_TEST_CASE( another_peerplays_event_group_update_test, database_fixture)
+BOOST_FIXTURE_TEST_CASE( another_event_group_update_test, database_fixture)
 {
-   try
-   {
-      ACTORS( (alice)(bob) );
-      CREATE_ICE_HOCKEY_BETTING_MARKET();
+  try
+  {
+     ACTORS( (alice)(bob)(nathan) );
+     CREATE_ICE_HOCKEY_BETTING_MARKET();
 
-      transfer(account_id_type(), alice_id, asset(10000000));
-      transfer(account_id_type(), bob_id, asset(10000000));
+     transfer(account_id_type(), alice_id, asset(10000000));
+     transfer(account_id_type(), bob_id, asset(10000000));
 
-      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
 
-      internationalized_string_type n = {{"en", "IBM"}, {"zh_Hans", "國家冰球聯"}, {"ja", "ナショナルホッケーリー"}};
-      const sport_object& ice_on_hockey = create_sport({{"en", "Hockey on Ice"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}}); \
+     internationalized_string_type n = {{"en", "IBM"}, {"zh_Hans", "國家冰球聯"}, {"ja", "ナショナルホッケーリー"}};
+     const sport_object& ice_on_hockey = create_sport({{"en", "Hockey on Ice"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}}); \
 
-      fc::optional<internationalized_string_type> name = n;
+     fc::optional<internationalized_string_type> name = n;
 
-      object_id_type object_id = ice_on_hockey.id;
-      fc::optional<object_id_type> sport_id = object_id;
+     object_id_type object_id = ice_on_hockey.id;
+     fc::optional<object_id_type> sport_id = object_id;
 
-      update_event_group(nhl.id, fc::optional<object_id_type>(), name);
-      update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>());
-      update_event_group(nhl.id, sport_id, name);
+     update_event_group(nhl.id, fc::optional<object_id_type>(), name);
+     update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>());
+     update_event_group(nhl.id, sport_id, name);
 
-      // #! nothing to change
-      update_event_group(nhl.id, fc::optional<object_id_type>(), fc::optional<internationalized_string_type>());
-      //GRAPHENE_REQUIRE_THROW(update_event_group(nhl.id, fc::optional<object_id_type>(), fc::optional<internationalized_string_type>()), fc::exception);
-      //TRY_EXPECT_THROW(update_event_group(nhl.id, fc::optional<object_id_type>(), fc::optional<internationalized_string_type>()), fc::exception, "nothing to change" );
+     // trx_state->_is_proposed_trx
+     //GRAPHENE_REQUIRE_THROW(try_update_event_group(nhl.id, fc::optional<object_id_type>(), fc::optional<internationalized_string_type>(), true), fc::exception);
+     TRY_EXPECT_THROW(try_update_event_group(nhl.id, fc::optional<object_id_type>(), fc::optional<internationalized_string_type>(), true), fc::exception, "_is_proposed_trx");
 
-      // #! sport_id must refer to a sport_id_type
-      object_id = capitals_win_market.id;
-      sport_id = object_id;
-      update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>());
+     // #! nothing to change
+     //GRAPHENE_REQUIRE_THROW(try_update_event_group(nhl.id, fc::optional<object_id_type>(), fc::optional<internationalized_string_type>()), fc::exception);
+     TRY_EXPECT_THROW(try_update_event_group(nhl.id, fc::optional<object_id_type>(), fc::optional<internationalized_string_type>()), fc::exception, "nothing to change");
 
-      // #! invalid sport specified
-      object_id = sport_id_type(13);
-      sport_id = object_id;
-      update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>());
+     // #! sport_id must refer to a sport_id_type
+     object_id = capitals_win_market.id;
+     sport_id = object_id;
+     //GRAPHENE_REQUIRE_THROW(try_update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>()), fc::exception);
+     TRY_EXPECT_THROW(try_update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>()), fc::exception, "sport_id must refer to a sport_id_type");
 
-      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+     // #! invalid sport specified
+     object_id = sport_id_type(13);
+     sport_id = object_id;
+     //GRAPHENE_REQUIRE_THROW(try_update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>()), fc::exception);
+     TRY_EXPECT_THROW(try_update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>()), fc::exception, "invalid sport specified");
 
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+     place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
 
-      // caps win
-      resolve_betting_market_group(moneyline_betting_markets.id,
-                                  {{capitals_win_market.id, betting_market_resolution_type::win},
-                                   {blackhawks_win_market.id, betting_market_resolution_type::cancel}});
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+
+     // caps win
+     resolve_betting_market_group(moneyline_betting_markets.id,
+                                 {{capitals_win_market.id, betting_market_resolution_type::win},
+                                  {blackhawks_win_market.id, betting_market_resolution_type::cancel}});
 
 
-      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
-      uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
-      BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000 - rake_value);
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
-    }
-    catch (fc::exception& e)
-    {
-        edump((e.to_detail_string()));
-        throw;
-    }
-    //} FC_LOG_AND_RETHROW()
+     uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+     uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
+     BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000 - rake_value);
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+
+   } FC_LOG_AND_RETHROW()
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
 
 //#define BOOST_TEST_MODULE "C++ Unit Tests for Graphene Blockchain Database"
 #include <cstdlib>
