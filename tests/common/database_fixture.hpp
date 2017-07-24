@@ -297,16 +297,24 @@ struct database_fixture {
                                 fc::optional<internationalized_string_type> name,
                                 bool dont_set_is_proposed_trx = false);
    const event_object& create_event(internationalized_string_type name, internationalized_string_type season, event_group_id_type event_group_id);
-   void  update_event(event_id_type event_id,
+   void update_event(event_id_type event_id,
                                        fc::optional<object_id_type> event_group_id,
                                        fc::optional<internationalized_string_type> name,
                                        fc::optional<internationalized_string_type> season);
-     const betting_market_rules_object& create_betting_market_rules(internationalized_string_type name, internationalized_string_type description);
-   void  update_betting_market_rules(betting_market_rules_id_type rules_id,
+   const betting_market_rules_object& create_betting_market_rules(internationalized_string_type name, internationalized_string_type description);
+   void update_betting_market_rules(betting_market_rules_id_type rules_id,
                                      fc::optional<internationalized_string_type> name,
                                      fc::optional<internationalized_string_type> description);
    const betting_market_group_object& create_betting_market_group(internationalized_string_type description, event_id_type event_id, betting_market_rules_id_type rules_id, asset_id_type asset_id);
+   void update_betting_market_group(betting_market_group_id_type betting_market_group_id,
+                                    fc::optional<internationalized_string_type> description,
+                                    fc::optional<object_id_type> event_id,
+                                    fc::optional<object_id_type> rules_id);
+
    const betting_market_object& create_betting_market(betting_market_group_id_type group_id, internationalized_string_type payout_condition);
+   void update_betting_market(betting_market_id_type betting_market_id,
+                                                fc::optional<object_id_type> group_id,
+                                                fc::optional<internationalized_string_type> payout_condition);
 
    void place_bet(account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, asset amount_to_bet, bet_multiplier_type backer_multiplier, share_type amount_reserved_for_fees);
    void resolve_betting_market_group(betting_market_group_id_type betting_market_group_id, std::map<betting_market_id_type, betting_market_resolution_type> resolutions);

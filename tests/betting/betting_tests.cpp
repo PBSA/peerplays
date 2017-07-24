@@ -180,147 +180,6 @@ BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
    } FC_LOG_AND_RETHROW()
 }
 
-BOOST_AUTO_TEST_CASE(peerplays_sport_update_test)
-{
-   try
-   {
-      ACTORS( (alice) );
-      CREATE_ICE_HOCKEY_BETTING_MARKET();
-      update_sport(ice_hockey.id, {{"en", "Hockey on Ice"}, {"zh_Hans", "冰"}, {"ja", "アイスホッケ"}});
-
-      transfer(account_id_type(), alice_id, asset(10000000));
-      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
-
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
-
-    } FC_LOG_AND_RETHROW()
-}
-
-BOOST_AUTO_TEST_CASE(peerplays_event_group_update_test)
-{
-   try
-   {
-      ACTORS( (alice)(bob) );
-      CREATE_ICE_HOCKEY_BETTING_MARKET();
-
-      transfer(account_id_type(), alice_id, asset(10000000));
-      transfer(account_id_type(), bob_id, asset(10000000));
-
-      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
-
-      internationalized_string_type n = {{"en", "IBM"}, {"zh_Hans", "國家冰球聯"}, {"ja", "ナショナルホッケーリー"}};
-      const sport_object& ice_on_hockey = create_sport({{"en", "Hockey on Ice"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}}); \
-
-      fc::optional<internationalized_string_type> name = n;
-
-      object_id_type object_id = ice_on_hockey.id;
-      fc::optional<object_id_type> sport_id = object_id;
-
-      update_event_group(nhl.id, fc::optional<object_id_type>(), name);
-      update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>());
-      update_event_group(nhl.id, sport_id, name);
-
-      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
-
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
-
-      // caps win
-      resolve_betting_market_group(moneyline_betting_markets.id,
-                                  {{capitals_win_market.id, betting_market_resolution_type::win},
-                                   {blackhawks_win_market.id, betting_market_resolution_type::cancel}});
-
-
-      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
-      uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
-      BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000 - rake_value);
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
-
-   } FC_LOG_AND_RETHROW()
-}
-
-
-BOOST_AUTO_TEST_CASE(peerplays_event_update_test)
-{
-   try
-   {
-      ACTORS( (alice)(bob) );
-      CREATE_ICE_HOCKEY_BETTING_MARKET();
-
-      transfer(account_id_type(), alice_id, asset(10000000));
-      transfer(account_id_type(), bob_id, asset(10000000));
-
-      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
-
-      internationalized_string_type n = {{"en", "Washington Capitals vs. Chicago Blackhawks"}, {"zh_Hans", "華盛頓首都隊/芝加哥黑"}, {"ja", "ワシントン・キャピタルズ/シカゴ・ブラックホーク"}};
-      internationalized_string_type s = {{"en", "2017-18"}};
-
-      fc::optional<internationalized_string_type> empty;
-      fc::optional<internationalized_string_type> name = n;
-      fc::optional<internationalized_string_type> season = s;
-      fc::optional<object_id_type> empty_object_id;
-
-      update_event(capitals_vs_blackhawks.id, empty_object_id, name, empty);
-      update_event(capitals_vs_blackhawks.id, empty_object_id, empty, season);
-      update_event(capitals_vs_blackhawks.id, empty_object_id, name, season);
-
-      const sport_object& ice_on_hockey = create_sport({{"en", "Hockey on Ice"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}}); \
-      const event_group_object& nhl2 = create_event_group({{"en", "NHL2"}, {"zh_Hans", "國家冰球聯盟"}, {"ja", "ナショナルホッケーリーグ"}}, ice_on_hockey.id); \
-      object_id_type object_id = nhl2.id;
-      fc::optional<object_id_type> event_group_id = object_id;
-
-      update_event(capitals_vs_blackhawks.id, event_group_id , empty, empty);
-
-      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
-
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
-
-      // caps win
-      resolve_betting_market_group(moneyline_betting_markets.id,
-                                  {{capitals_win_market.id, betting_market_resolution_type::win},
-                                   {blackhawks_win_market.id, betting_market_resolution_type::cancel}});
-
-
-      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
-      uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
-      BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000 - rake_value);
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
-
-    } FC_LOG_AND_RETHROW()
-}
-
-BOOST_AUTO_TEST_CASE(peerplays_betting_market_rules_update_test)
-{
-   try
-   {
-      ACTORS( (alice) );
-      CREATE_ICE_HOCKEY_BETTING_MARKET();
-
-      internationalized_string_type n = {{"en", "NHL Rules v1.1"}};
-      internationalized_string_type d = {{"en", "The winner will be the team with the most points at the end of the game. The team with fewer points will not be the winner."}};
-
-      fc::optional<internationalized_string_type> empty;
-      fc::optional<internationalized_string_type> name = n;
-      fc::optional<internationalized_string_type> desc = d;
-
-      update_betting_market_rules(betting_market_rules.id, name, empty);
-      update_betting_market_rules(betting_market_rules.id, empty, desc);
-      update_betting_market_rules(betting_market_rules.id, name, desc);
-
-      transfer(account_id_type(), alice_id, asset(10000000));
-      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
-
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
-
-      //GRAPHENE_REQUIRE_THROW(update_betting_market_rules(betting_market_rules.id, empty, empty), fc::exception);
-
-    } FC_LOG_AND_RETHROW()
-}
-
-
 BOOST_AUTO_TEST_CASE( cancel_unmatched_in_betting_group_test )
 {
    try
@@ -595,6 +454,194 @@ struct simple_bet_test_fixture_2 : database_fixture {
    }
 };
 
+BOOST_FIXTURE_TEST_SUITE( update_tests, database_fixture )
+
+BOOST_AUTO_TEST_CASE(sport_update_test)
+{
+  try
+  {
+     ACTORS( (alice) );
+     CREATE_ICE_HOCKEY_BETTING_MARKET();
+     update_sport(ice_hockey.id, {{"en", "Hockey on Ice"}, {"zh_Hans", "冰"}, {"ja", "アイスホッケ"}});
+
+     transfer(account_id_type(), alice_id, asset(10000000));
+     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
+
+   } FC_LOG_AND_RETHROW()
+}
+
+BOOST_AUTO_TEST_CASE(event_group_update_test)
+{
+  try
+  {
+     ACTORS( (alice)(bob) );
+     CREATE_ICE_HOCKEY_BETTING_MARKET();
+
+     transfer(account_id_type(), alice_id, asset(10000000));
+     transfer(account_id_type(), bob_id, asset(10000000));
+
+     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+
+     internationalized_string_type n = {{"en", "IBM"}, {"zh_Hans", "國家冰球聯"}, {"ja", "ナショナルホッケーリー"}};
+     const sport_object& ice_on_hockey = create_sport({{"en", "Hockey on Ice"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}}); \
+
+     fc::optional<internationalized_string_type> name = n;
+
+     fc::optional<object_id_type> sport_id = ice_on_hockey.id;
+
+     update_event_group(nhl.id, fc::optional<object_id_type>(), name);
+     update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>());
+     update_event_group(nhl.id, sport_id, name);
+
+     place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+
+     // caps win
+     resolve_betting_market_group(moneyline_betting_markets.id,
+                                 {{capitals_win_market.id, betting_market_resolution_type::win},
+                                  {blackhawks_win_market.id, betting_market_resolution_type::cancel}});
+
+
+     uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+     uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
+     BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000 - rake_value);
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+
+  } FC_LOG_AND_RETHROW()
+}
+
+
+BOOST_AUTO_TEST_CASE(event_update_test)
+{
+  try
+  {
+     ACTORS( (alice)(bob) );
+     CREATE_ICE_HOCKEY_BETTING_MARKET();
+
+     transfer(account_id_type(), alice_id, asset(10000000));
+     transfer(account_id_type(), bob_id, asset(10000000));
+
+     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+
+     internationalized_string_type n = {{"en", "Washington Capitals vs. Chicago Blackhawks"}, {"zh_Hans", "華盛頓首都隊/芝加哥黑"}, {"ja", "ワシントン・キャピタルズ/シカゴ・ブラックホーク"}};
+     internationalized_string_type s = {{"en", "2017-18"}};
+
+     fc::optional<internationalized_string_type> empty;
+     fc::optional<internationalized_string_type> name = n;
+     fc::optional<internationalized_string_type> season = s;
+     fc::optional<object_id_type> empty_object_id;
+
+     update_event(capitals_vs_blackhawks.id, empty_object_id, name, empty);
+     update_event(capitals_vs_blackhawks.id, empty_object_id, empty, season);
+     update_event(capitals_vs_blackhawks.id, empty_object_id, name, season);
+
+     const sport_object& ice_on_hockey = create_sport({{"en", "Hockey on Ice"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}}); \
+     const event_group_object& nhl2 = create_event_group({{"en", "NHL2"}, {"zh_Hans", "國家冰球聯盟"}, {"ja", "ナショナルホッケーリーグ"}}, ice_on_hockey.id); \
+     fc::optional<object_id_type> event_group_id = nhl2.id;
+
+     update_event(capitals_vs_blackhawks.id, event_group_id , empty, empty);
+
+     place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+
+     // caps win
+     resolve_betting_market_group(moneyline_betting_markets.id,
+                                 {{capitals_win_market.id, betting_market_resolution_type::win},
+                                  {blackhawks_win_market.id, betting_market_resolution_type::cancel}});
+
+
+     uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+     uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
+     BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000 - rake_value);
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+
+   } FC_LOG_AND_RETHROW()
+}
+
+BOOST_AUTO_TEST_CASE(betting_market_rules_update_test)
+{
+  try
+  {
+     ACTORS( (alice) );
+     CREATE_ICE_HOCKEY_BETTING_MARKET();
+
+     internationalized_string_type n = {{"en", "NHL Rules v1.1"}};
+     internationalized_string_type d = {{"en", "The winner will be the team with the most points at the end of the game. The team with fewer points will not be the winner."}};
+
+     fc::optional<internationalized_string_type> empty;
+     fc::optional<internationalized_string_type> name = n;
+     fc::optional<internationalized_string_type> desc = d;
+
+     update_betting_market_rules(betting_market_rules.id, name, empty);
+     update_betting_market_rules(betting_market_rules.id, empty, desc);
+     update_betting_market_rules(betting_market_rules.id, name, desc);
+
+     transfer(account_id_type(), alice_id, asset(10000000));
+     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
+
+   } FC_LOG_AND_RETHROW()
+}
+
+BOOST_AUTO_TEST_CASE(betting_market_group_update_test)
+{
+  try
+  {
+     ACTORS( (alice)(bob) );
+     CREATE_ICE_HOCKEY_BETTING_MARKET();
+
+     transfer(account_id_type(), alice_id, asset(10000000));
+     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+
+     fc::optional<internationalized_string_type> dempty;
+     fc::optional<object_id_type> empty_object_id;
+
+     internationalized_string_type d = {{"en", "Money line"}};
+     fc::optional<internationalized_string_type> new_desc = d;
+
+     const event_object& odd_vs_even = create_event({{"en", "Capitals vs. Blackhawks"}}, {{"en", "2017-18"}}, nhl.id); \
+     fc::optional<object_id_type> new_event = odd_vs_even.id;
+
+     const betting_market_rules_object& new_betting_market_rules = create_betting_market_rules({{"en", "NHL Rules v2.0"}}, {{"en", "The winner will be the team with the most points at the end of the game. The team with fewer points will not be the winner."}});
+     fc::optional<object_id_type> new_rule = new_betting_market_rules.id;
+
+     update_betting_market_group(moneyline_betting_markets.id, new_desc, empty_object_id, empty_object_id);
+     update_betting_market_group(moneyline_betting_markets.id, dempty, new_event, empty_object_id);
+     update_betting_market_group(moneyline_betting_markets.id, dempty, empty_object_id, new_rule);
+     update_betting_market_group(moneyline_betting_markets.id, new_desc, new_event, new_rule);
+
+     transfer(account_id_type(), bob_id, asset(10000000));
+     place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+
+     // caps win
+     resolve_betting_market_group(moneyline_betting_markets.id,
+                                 {{capitals_win_market.id, betting_market_resolution_type::win},
+                                  {blackhawks_win_market.id, betting_market_resolution_type::cancel}});
+
+
+     uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+     uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
+     BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000 - rake_value);
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+
+   } FC_LOG_AND_RETHROW()
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
 // testing assertions
 BOOST_AUTO_TEST_SUITE(other_betting_tests)
 
@@ -607,9 +654,12 @@ BOOST_AUTO_TEST_SUITE(other_betting_tests)
    }                                                       \
    catch (exc_type& e)                                     \
    {                                                       \
+       if (1)                                              \
+       {                                                   \
        edump(("###"));                                     \
        edump((e.to_detail_string()));                      \
        edump(("###"));                                     \
+       }                                                   \
        FC_ASSERT(e.to_detail_string().find(reason) !=      \
        std::string::npos, "expected error hasn't occured");\
    }                                                       \
@@ -623,7 +673,7 @@ BOOST_FIXTURE_TEST_CASE( another_event_group_update_test, database_fixture)
 {
   try
   {
-     ACTORS( (alice)(bob)(nathan) );
+     ACTORS( (alice)(bob) );
      CREATE_ICE_HOCKEY_BETTING_MARKET();
 
      transfer(account_id_type(), alice_id, asset(10000000));
@@ -632,12 +682,10 @@ BOOST_FIXTURE_TEST_CASE( another_event_group_update_test, database_fixture)
      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
 
      internationalized_string_type n = {{"en", "IBM"}, {"zh_Hans", "國家冰球聯"}, {"ja", "ナショナルホッケーリー"}};
-     const sport_object& ice_on_hockey = create_sport({{"en", "Hockey on Ice"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}}); \
-
      fc::optional<internationalized_string_type> name = n;
 
-     object_id_type object_id = ice_on_hockey.id;
-     fc::optional<object_id_type> sport_id = object_id;
+     const sport_object& ice_on_hockey = create_sport({{"en", "Hockey on Ice"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}}); \
+     fc::optional<object_id_type> sport_id = ice_on_hockey.id;
 
      update_event_group(nhl.id, fc::optional<object_id_type>(), name);
      update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>());
@@ -652,14 +700,12 @@ BOOST_FIXTURE_TEST_CASE( another_event_group_update_test, database_fixture)
      TRY_EXPECT_THROW(try_update_event_group(nhl.id, fc::optional<object_id_type>(), fc::optional<internationalized_string_type>()), fc::exception, "nothing to change");
 
      // #! sport_id must refer to a sport_id_type
-     object_id = capitals_win_market.id;
-     sport_id = object_id;
+     sport_id = capitals_win_market.id;
      //GRAPHENE_REQUIRE_THROW(try_update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>()), fc::exception);
      TRY_EXPECT_THROW(try_update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>()), fc::exception, "sport_id must refer to a sport_id_type");
 
      // #! invalid sport specified
-     object_id = sport_id_type(13);
-     sport_id = object_id;
+     sport_id = sport_id_type(13);
      //GRAPHENE_REQUIRE_THROW(try_update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>()), fc::exception);
      TRY_EXPECT_THROW(try_update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>()), fc::exception, "invalid sport specified");
 

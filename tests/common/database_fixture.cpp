@@ -1352,6 +1352,21 @@ const betting_market_group_object& database_fixture::create_betting_market_group
    return *betting_market_group_index.rbegin();
 } FC_CAPTURE_AND_RETHROW( (event_id) ) }
 
+
+void database_fixture::update_betting_market_group(betting_market_group_id_type betting_market_group_id,
+                                                   fc::optional<internationalized_string_type> description,
+                                                   fc::optional<object_id_type> event_id,
+                                                   fc::optional<object_id_type> rules_id)
+{ try {
+   betting_market_group_update_operation betting_market_group_update_op;
+   betting_market_group_update_op.betting_market_group_id = betting_market_group_id;
+   betting_market_group_update_op.new_description = description;
+   betting_market_group_update_op.new_event_id = event_id;
+   betting_market_group_update_op.new_rules_id = rules_id;
+   process_operation_by_witnesses(betting_market_group_update_op);
+} FC_CAPTURE_AND_RETHROW( (betting_market_group_id)(description)(event_id)(rules_id)) }
+
+
 const betting_market_object& database_fixture::create_betting_market(betting_market_group_id_type group_id, internationalized_string_type payout_condition)
 { try {
    betting_market_create_operation betting_market_create_op;
@@ -1361,6 +1376,18 @@ const betting_market_object& database_fixture::create_betting_market(betting_mar
    const auto& betting_market_index = db.get_index_type<betting_market_object_index>().indices().get<by_id>();
    return *betting_market_index.rbegin();
 } FC_CAPTURE_AND_RETHROW( (payout_condition) ) }
+
+void database_fixture::update_betting_market(betting_market_id_type betting_market_id,
+                                             fc::optional<object_id_type> group_id,
+                                             fc::optional<internationalized_string_type> payout_condition)
+{ try {
+   betting_market_update_operation betting_market_update_op;
+   betting_market_update_op.betting_market_id = betting_market_id;
+   betting_market_update_op.new_group_id = group_id;
+   betting_market_update_op.new_payout_condition = payout_condition;
+   process_operation_by_witnesses(betting_market_update_op);
+} FC_CAPTURE_AND_RETHROW( (betting_market_id) (group_id) (payout_condition) ) }
+
 
  void database_fixture::place_bet(account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, asset amount_to_bet, bet_multiplier_type backer_multiplier, share_type amount_reserved_for_fees)
 { try {

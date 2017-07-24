@@ -116,6 +116,61 @@ object_id_type betting_market_group_create_evaluator::do_apply(const betting_mar
    return new_betting_market_group.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
+void_result betting_market_group_update_evaluator::do_evaluate(const betting_market_group_update_operation& op)
+{ try {
+   FC_ASSERT(trx_state->_is_proposed_trx);
+   FC_ASSERT(op.new_event_id.valid() || op.new_description || op.new_rules_id, "nothing to change");
+
+   // the event_id in the operation can be a relative id.  If it is,
+   // resolve it and verify that it is truly an event
+   if (op.new_event_id.valid())
+   {
+       object_id_type resolved_event_id = *op.new_event_id;
+       if (is_relative(*op.new_event_id))
+          resolved_event_id = get_relative_id(*op.new_event_id);
+
+       FC_ASSERT(resolved_event_id.space() == event_id_type::space_id &&
+                 resolved_event_id.type() == event_id_type::type_id,
+                 "event_id must refer to a event_id_type");
+       event_id = resolved_event_id;
+       FC_ASSERT( db().find_object(event_id), "invalid event specified" );
+   }
+
+   if (op.new_rules_id.valid())
+   {
+       // the rules_id in the operation can be a relative id.  If it is,
+       // resolve it and verify that it is truly rules
+       object_id_type resolved_rules_id = *op.new_rules_id;
+       if (is_relative(*op.new_rules_id))
+          resolved_rules_id = get_relative_id(*op.new_rules_id);
+
+       FC_ASSERT(resolved_rules_id.space() == betting_market_rules_id_type::space_id &&
+                 resolved_rules_id.type() == betting_market_rules_id_type::type_id,
+                 "rules_id must refer to a betting_market_rules_id_type");
+       rules_id = resolved_rules_id;
+       FC_ASSERT( db().find_object(rules_id), "invalid rules specified" );
+   }
+
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+void_result betting_market_group_update_evaluator::do_apply(const betting_market_group_update_operation& op)
+{ try {
+        database& _db = db();
+        _db.modify(
+           _db.get(op.betting_market_group_id),
+           [&]( betting_market_group_object& bmgo )
+           {
+              if( op.new_description.valid() )
+                  bmgo.description = *op.new_description;
+              if( op.new_event_id.valid() )
+                  bmgo.event_id = event_id;
+              if( op.new_rules_id.valid() )
+                  bmgo.rules_id = rules_id;
+           });
+        return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
 void_result betting_market_create_evaluator::do_evaluate(const betting_market_create_operation& op)
 { try {
    FC_ASSERT(trx_state->_is_proposed_trx);
@@ -143,6 +198,44 @@ object_id_type betting_market_create_evaluator::do_apply(const betting_market_cr
          betting_market_obj.payout_condition = op.payout_condition;
      });
    return new_betting_market.id;
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+void_result betting_market_update_evaluator::do_evaluate(const betting_market_update_operation& op)
+{ try {
+   FC_ASSERT(trx_state->_is_proposed_trx);
+   FC_ASSERT(op.new_group_id.valid() || op.new_payout_condition, "nothing to change");
+
+   if (op.new_group_id.valid())
+   {
+       // the betting_market_group_id in the operation can be a relative id.  If it is,
+       // resolve it and verify that it is truly an betting_market_group
+       object_id_type resolved_betting_market_group_id = *op.new_group_id;
+       if (is_relative(*op.new_group_id))
+          resolved_betting_market_group_id = get_relative_id(*op.new_group_id);
+
+       FC_ASSERT(resolved_betting_market_group_id.space() == betting_market_group_id_type::space_id &&
+                 resolved_betting_market_group_id.type() == betting_market_group_id_type::type_id,
+                 "betting_market_group_id must refer to a betting_market_group_id_type");
+       group_id = resolved_betting_market_group_id;
+       FC_ASSERT( db().find_object(group_id), "invalid betting_market_group specified" );
+   }
+
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+void_result betting_market_update_evaluator::do_apply(const betting_market_update_operation& op)
+{ try {
+        database& _db = db();
+        _db.modify(
+           _db.get(op.betting_market_id),
+           [&]( betting_market_object& bmo )
+           {
+              if( op.new_group_id.valid() )
+                  bmo.group_id = group_id;
+              if( op.new_payout_condition.valid() )
+                  bmo.payout_condition = *op.new_payout_condition;
+           });
+        return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
 void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)

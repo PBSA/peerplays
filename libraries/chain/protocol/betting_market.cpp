@@ -40,7 +40,17 @@ void betting_market_group_create_operation::validate() const
    FC_ASSERT( fee.amount >= 0 );
 }
 
+void betting_market_group_update_operation::validate() const
+{
+   FC_ASSERT( fee.amount >= 0 );
+}
+
 void betting_market_create_operation::validate() const
+{
+   FC_ASSERT( fee.amount >= 0 );
+}
+
+void betting_market_update_operation::validate() const
 {
    FC_ASSERT( fee.amount >= 0 );
 }

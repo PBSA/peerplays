@@ -121,7 +121,9 @@ namespace graphene { namespace chain {
             tournament_join_operation,
             game_move_operation,
             tournament_payout_operation, // VIRTUAL
-            tournament_leave_operation
+            tournament_leave_operation,
+            betting_market_group_update_operation,
+            betting_market_update_operation
          > operation;
 
    /// @} // operations group
