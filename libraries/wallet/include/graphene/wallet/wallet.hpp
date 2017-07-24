@@ -1623,11 +1623,19 @@ class wallet_api
               fc::optional<time_point_sec> start_time,
               bool broadcast = false);
 
+      signed_transaction propose_create_betting_market_rules(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              internationalized_string_type name,
+              internationalized_string_type description,
+              bool broadcast = false);
+
       signed_transaction propose_create_betting_market_group(
               const string& proposing_account,
               fc::time_point_sec expiration_time,
               internationalized_string_type description,
               event_id_type event_id,
+              betting_market_rules_id_type rules_id,
               asset_id_type asset_id,
               bool broadcast = false);
 
