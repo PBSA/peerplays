@@ -1647,11 +1647,28 @@ class wallet_api
               asset_id_type asset_id,
               bool broadcast = false);
 
+      signed_transaction propose_update_betting_market_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              betting_market_group_id_type betting_market_group_id,
+              fc::optional<internationalized_string_type> description,
+              fc::optional<object_id_type> event_id,
+              fc::optional<object_id_type> rules_id,
+              bool broadcast = false);
+
       signed_transaction propose_create_betting_market(
               const string& proposing_account,
               fc::time_point_sec expiration_time,
               betting_market_group_id_type group_id,
               internationalized_string_type payout_condition,
+              bool broadcast = false);
+
+      signed_transaction propose_update_betting_market(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              betting_market_id_type market_id,
+              fc::optional<object_id_type> group_id,
+              fc::optional<internationalized_string_type> payout_condition,
               bool broadcast = false);
 
       signed_transaction place_bet(
