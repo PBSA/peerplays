@@ -130,7 +130,7 @@ typedef multi_index_container<
    betting_market_group_object,
    indexed_by<
       ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
-      ordered_non_unique< tag<by_event_id>, member<betting_market_group_object, event_id_type, &betting_market_group_object::event_id > >
+      ordered_non_unique< tag<by_event_id>, member<betting_market_group_object, event_id_type, &betting_market_group_object::event_id> >
    > > betting_market_group_object_multi_index_type;
 typedef generic_index<betting_market_group_object, betting_market_group_object_multi_index_type> betting_market_group_object_index;
 
@@ -138,7 +138,7 @@ typedef multi_index_container<
    betting_market_object,
    indexed_by<
       ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
-      ordered_non_unique< tag<by_betting_market_group_id>, member< betting_market_object, betting_market_group_id_type, &betting_market_object::group_id > >
+      ordered_non_unique< tag<by_betting_market_group_id>, member<betting_market_object, betting_market_group_id_type, &betting_market_object::group_id> >
    > > betting_market_object_multi_index_type;
 
 typedef generic_index<betting_market_object, betting_market_object_multi_index_type> betting_market_object_index;

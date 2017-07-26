@@ -5335,6 +5335,7 @@ signed_transaction wallet_api::propose_create_betting_market(
         const string& proposing_account,
         fc::time_point_sec expiration_time,
         betting_market_group_id_type group_id,
+        internationalized_string_type description,
         internationalized_string_type payout_condition,
         bool broadcast /*= false*/)
 {
@@ -5343,6 +5344,7 @@ signed_transaction wallet_api::propose_create_betting_market(
 
     betting_market_create_operation betting_market_create_op;
     betting_market_create_op.group_id = group_id;
+    betting_market_create_op.description = description;
     betting_market_create_op.payout_condition = payout_condition;
 
     proposal_create_operation prop_op;

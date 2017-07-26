@@ -133,6 +133,8 @@ struct betting_market_create_operation : public base_operation
     */
    object_id_type group_id;
 
+   internationalized_string_type description;
+
    internationalized_string_type payout_condition;
 
    extensions_type   extensions;
@@ -379,7 +381,7 @@ FC_REFLECT( graphene::chain::betting_market_group_update_operation,
 
 FC_REFLECT( graphene::chain::betting_market_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_create_operation, 
-            (fee)(group_id)(payout_condition)(extensions) )
+            (fee)(group_id)(description)(payout_condition)(extensions) )
 
 FC_REFLECT( graphene::chain::betting_market_update_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_update_operation,

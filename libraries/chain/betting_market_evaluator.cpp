@@ -195,6 +195,7 @@ object_id_type betting_market_create_evaluator::do_apply(const betting_market_cr
    const betting_market_object& new_betting_market =
      db().create<betting_market_object>( [&]( betting_market_object& betting_market_obj ) {
          betting_market_obj.group_id = group_id;
+         betting_market_obj.description = op.description;
          betting_market_obj.payout_condition = op.payout_condition;
      });
    return new_betting_market.id;
