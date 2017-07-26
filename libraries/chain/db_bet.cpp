@@ -93,7 +93,9 @@ void database::resolve_betting_market_group(const betting_market_group_object& b
    std::map<account_id_type, std::vector<const betting_market_position_object*> > bettor_positions_map;
 
    auto& betting_market_index = get_index_type<betting_market_object_index>().indices().get<by_betting_market_group_id>();
-   auto& position_index = get_index_type<betting_market_position_index>().indices().get<by_bettor_betting_market>();
+   // [ROL] it seems to be my mistake - wrong index used
+   //auto& position_index = get_index_type<betting_market_position_index>().indices().get<by_bettor_betting_market>();
+   auto& position_index = get_index_type<betting_market_position_index>().indices().get<by_betting_market_bettor>();
    auto betting_market_itr = betting_market_index.lower_bound(betting_market_group.id);
    while (betting_market_itr != betting_market_index.end() &&  betting_market_itr->group_id == betting_market_group.id)
    {
@@ -101,7 +103,9 @@ void database::resolve_betting_market_group(const betting_market_group_object& b
       ++betting_market_itr;
       cancel_all_unmatched_bets_on_betting_market(betting_market);
 
-      auto position_itr = position_index.lower_bound(std::make_tuple(betting_market.id));
+      // [ROL] why tuple
+      //auto position_itr = position_index.lower_bound(std::make_tuple(betting_market.id));
+      auto position_itr = position_index.lower_bound(betting_market.id);
 
       while (position_itr != position_index.end() && position_itr->betting_market_id == betting_market.id)
       {
@@ -175,6 +179,8 @@ void database::resolve_betting_market_group(const betting_market_group_object& b
 
       // pay winning - rake
       adjust_balance(bettor_id, asset(payout_amounts - rake_amount, betting_market_group.asset_id));
+      // [ROL]
+      idump((payout_amounts)(net_profits.value)(rake_amount.value));
 
       push_applied_operation(betting_market_group_resolved_operation(bettor_id,
                              betting_market_group.id,

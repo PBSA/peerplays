@@ -51,7 +51,6 @@ using namespace graphene::chain::test;
   const betting_market_object& capitals_win_market = create_betting_market(moneyline_betting_markets.id, {{"en", "Washington Capitals win"}}); \
   const betting_market_object& blackhawks_win_market = create_betting_market(moneyline_betting_markets.id, {{"en", "Chicago Blackhawks win"}});
 
-
 BOOST_FIXTURE_TEST_SUITE( betting_tests, database_fixture )
 
 #if 0
@@ -762,6 +761,81 @@ BOOST_FIXTURE_TEST_CASE( another_event_group_update_test, database_fixture)
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_FIXTURE_TEST_SUITE( tennis_bet_tests, database_fixture )
+
+#define CREATE_TENNIS_BETTING_MARKET() \
+  const betting_market_rules_object& tennis_rules = create_betting_market_rules({{"en", "Tennis Rules v1.0"}}, {{"en", "The winner is the player who wins the last ball in the match."}}); \
+  const sport_object& tennis = create_sport({{"en", "Tennis"}}); \
+  const event_group_object& wimbledon = create_event_group({{"en", "Wimbledon"}}, tennis.id); \
+  const event_object& berdych_vs_federer = create_event({{"en", "R. Federer/T. Berdych"}}, {{"en", "2017"}}, wimbledon.id); \
+  const event_object& cilic_vs_querrey = create_event({{"en", "M. Cilic/S. Querrye"}}, {{"en", "2017"}}, wimbledon.id); \
+  const betting_market_group_object& moneyline_berdych_vs_federer = create_betting_market_group({{"en", "Moneyline 1st sf"}}, berdych_vs_federer.id, tennis_rules.id, asset_id_type()); \
+  const betting_market_group_object& moneyline_cilic_vs_querrey = create_betting_market_group({{"en", "Moneyline 2nd sf"}}, cilic_vs_querrey.id, tennis_rules.id, asset_id_type()); \
+  const betting_market_object& berdych_wins_market = create_betting_market(moneyline_berdych_vs_federer.id, {{"en", "T. Berdych defeats R. Federer"}}); \
+  const betting_market_object& federer_wins_market = create_betting_market(moneyline_berdych_vs_federer.id, {{"en", "R. Federer defeats T. Berdych"}}); \
+  const betting_market_object& cilic_wins_market = create_betting_market(moneyline_cilic_vs_querrey.id, {{"en", "M. Cilic defeats S. Querrey"}}); \
+  const betting_market_object& querrey_wins_market = create_betting_market(moneyline_cilic_vs_querrey.id, {{"en", "S. Querrey defeats M. Cilic"}});
+
+BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_sf_test )
+{
+   try
+   {
+      ACTORS( (alice)(bob) );
+      CREATE_TENNIS_BETTING_MARKET();
+
+      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+
+      transfer(account_id_type(), alice_id, asset(10000000));
+      transfer(account_id_type(), bob_id, asset(10000000));
+
+      BOOST_TEST_MESSAGE("moneyline_berdych_vs_federer event " << fc::variant(moneyline_berdych_vs_federer.event_id).as<std::string>());
+      BOOST_TEST_MESSAGE("moneyline_cilic_vs_querrey event " << fc::variant(moneyline_cilic_vs_querrey.event_id).as<std::string>());
+
+      BOOST_TEST_MESSAGE("berdych_wins_market group " << fc::variant(berdych_wins_market.group_id).as<std::string>());
+      BOOST_TEST_MESSAGE("federer_wins_market group " << fc::variant(federer_wins_market.group_id).as<std::string>());
+      BOOST_TEST_MESSAGE("cilic_wins_market group " << fc::variant(cilic_wins_market.group_id).as<std::string>());
+      BOOST_TEST_MESSAGE("querrey_wins_market group " << fc::variant(querrey_wins_market.group_id).as<std::string>());
+
+      place_bet(alice_id, berdych_wins_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+      place_bet(bob_id, berdych_wins_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()),   10000000 - 1000000 - 20000);
+
+      place_bet(alice_id, cilic_wins_market.id, bet_type::back, asset(100000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 100000 / 50 /* chain defaults to 2% fees */);
+      place_bet(bob_id, cilic_wins_market.id, bet_type::lay, asset(100000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 100000 / 50 /* chain defaults to 2% fees */);
+
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 - 100000 - 2000);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()),   10000000 - 1000000 - 20000 - 100000 - 2000);
+
+      // federer wins
+      resolve_betting_market_group(moneyline_berdych_vs_federer.id,
+                                  {{berdych_wins_market.id, betting_market_resolution_type::/*don't use cancel - there are bets for berdych*/not_win},
+                                   {federer_wins_market.id, betting_market_resolution_type::win}});
+
+      uint32_t bob_rake_value =   (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
+      BOOST_TEST_MESSAGE("Bob's rake value " +  std::to_string(bob_rake_value));
+
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 - 100000 - 2000);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()),   10000000 - 1000000 - 20000 - 100000 - 2000 + 2000000 - bob_rake_value);
+
+      // cilic wins
+      resolve_betting_market_group(moneyline_cilic_vs_querrey.id,
+                                  {{cilic_wins_market.id, betting_market_resolution_type::win},
+                                   {querrey_wins_market.id, betting_market_resolution_type::/*may use cancel - no bets for querrey*/not_win}});
+
+      uint32_t alice_rake_value = (-100000  +  200000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
+      BOOST_TEST_MESSAGE("Alice rake value " +  std::to_string(alice_rake_value));
+
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 - 100000 - 2000 + 200000  - alice_rake_value);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()),   10000000 - 1000000 - 20000 - 100000 - 2000 + 2000000 - bob_rake_value);
+
+   } FC_LOG_AND_RETHROW()
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
 
 //#define BOOST_TEST_MODULE "C++ Unit Tests for Graphene Blockchain Database"
 #include <cstdlib>
