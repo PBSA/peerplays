@@ -2,6 +2,7 @@ file(GLOB HEADERS "include/graphene/bookie/*.hpp")
 
 add_library( graphene_bookie 
              bookie_plugin.cpp
+             bookie_api.cpp
            )
 
 target_link_libraries( graphene_bookie graphene_chain graphene_app )

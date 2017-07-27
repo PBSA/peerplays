@@ -215,77 +215,7 @@ void bookie_plugin_impl::on_objects_changed(const vector<object_id_type>& change
 void bookie_plugin_impl::on_block_applied( const signed_block& )
 {
    graphene::chain::database& db = database();
-   const vector<optional< operation_history_object > >& hist = db.get_applied_operations();
-   for( const optional< operation_history_object >& o_op : hist )
-   {
-      // add to the operation history index
-      const auto& oho = db.create<operation_history_object>( [&]( operation_history_object& h )
-      {
-         if( o_op.valid() )
-            h = *o_op;
-      } );
-
-      if( !o_op.valid() )
-      {
-         ilog( "removing failed operation with ID: ${id}", ("id", oho.id) );
-         db.remove( oho );
-         continue;
-      }
-
-      const operation_history_object& op = *o_op;
-
-      // get the set of accounts this operation applies to
-      flat_set<account_id_type> impacted;
-      vector<authority> other;
-      operation_get_required_authorities( op.op, impacted, impacted, other );
-
-      if( op.op.which() == operation::tag< account_create_operation >::value )
-         impacted.insert( oho.result.get<object_id_type>() );
-      else
-         graphene::app::operation_get_impacted_accounts( op.op, impacted );
-
-      for( auto& a : other )
-         for( auto& item : a.account_auths )
-            impacted.insert( item.first );
-
-      // for each operation this account applies to that is in the config link it into the history
-      if( _tracked_accounts.size() == 0 )
-      {
-         for( auto& account_id : impacted )
-         {
-            // we don't do index_account_keys here anymore, because
-            // that indexing now happens in observers' post_evaluate()
-
-            // add history
-            const auto& stats_obj = account_id(db).statistics(db);
-            const auto& ath = db.create<account_transaction_history_object>( [&]( account_transaction_history_object& obj ){
-                obj.operation_id = oho.id;
-                obj.next = stats_obj.most_recent_op;
-            });
-            db.modify( stats_obj, [&]( account_statistics_object& obj ){
-                obj.most_recent_op = ath.id;
-            });
-         }
-      }
-      else
-      {
-         for( auto account_id : _tracked_accounts )
-         {
-            if( impacted.find( account_id ) != impacted.end() )
-            {
-               // add history
-               const auto& stats_obj = account_id(db).statistics(db);
-               const auto& ath = db.create<account_transaction_history_object>( [&]( account_transaction_history_object& obj ){
-                   obj.operation_id = oho.id;
-                   obj.next = stats_obj.most_recent_op;
-               });
-               db.modify( stats_obj, [&]( account_statistics_object& obj ){
-                   obj.most_recent_op = ath.id;
-               });
-            }
-         }
-      }
-   }
+   const vector<optional<operation_history_object> >& hist = db.get_applied_operations();
 }
 } // end namespace detail
 
@@ -308,24 +238,27 @@ void bookie_plugin::plugin_set_program_options(
    boost::program_options::options_description& cfg
    )
 {
-   cli.add_options()
-         ("track-account", boost::program_options::value<std::vector<std::string>>()->composing()->multitoken(), "Account ID to track history for (may specify multiple times)")
-         ;
-   cfg.add(cli);
+   //cli.add_options()
+   //      ("track-account", boost::program_options::value<std::vector<std::string>>()->composing()->multitoken(), "Account ID to track history for (may specify multiple times)")
+   //      ;
+   //cfg.add(cli);
 }
 
 void bookie_plugin::plugin_initialize(const boost::program_options::variables_map& options)
 {
-   database().applied_block.connect( [&]( const signed_block& b){ my->on_block_applied(b); } );
+   ilog("bookie plugin: plugin_startup() begin");
+   //database().applied_block.connect( [&]( const signed_block& b){ my->on_block_applied(b); } );
    database().changed_objects.connect([&](const vector<object_id_type>& changed_object_ids, const fc::flat_set<graphene::chain::account_id_type>& impacted_accounts){ my->on_objects_changed(changed_object_ids); });
    auto event_index = database().add_index<primary_index<detail::persistent_event_object_index> >();
    //event_index->add_secondary_index<detail::events_by_competitor_index>();
 
-   LOAD_VALUE_SET(options, "tracked-accounts", my->_tracked_accounts, graphene::chain::account_id_type);
+   //LOAD_VALUE_SET(options, "tracked-accounts", my->_tracked_accounts, graphene::chain::account_id_type);
+   ilog("bookie plugin: plugin_startup() end");
 }
 
 void bookie_plugin::plugin_startup()
 {
+   ilog("bookie plugin: plugin_startup()");
 }
 
 flat_set<account_id_type> bookie_plugin::tracked_accounts() const

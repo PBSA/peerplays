@@ -111,6 +111,12 @@ namespace graphene { namespace app {
           if( _app.get_plugin( "debug_witness" ) )
              _debug_api = std::make_shared< graphene::debug_witness::debug_api >( std::ref(_app) );
        }
+       else if( api_name == "bookie_api" )
+       {
+          // can only enable this API if the plugin was loaded
+          if( _app.get_plugin( "bookie" ) )
+             _bookie_api = std::make_shared<graphene::bookie::bookie_api>(std::ref(_app));
+       }
        return;
     }
 
@@ -267,6 +273,12 @@ namespace graphene { namespace app {
     {
        FC_ASSERT(_debug_api);
        return *_debug_api;
+    }
+
+    fc::api<graphene::bookie::bookie_api> login_api::bookie() const
+    {
+       FC_ASSERT(_bookie_api);
+       return *_bookie_api;
     }
 
 #if 0

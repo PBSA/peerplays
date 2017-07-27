@@ -228,6 +228,9 @@ namespace detail {
 
          wsc->register_api(login->database());
          wsc->register_api(fc::api<graphene::app::login_api>(login));
+
+         wsc->register_api(fc::api<graphene::app::login_api>(login));
+
          c->set_session_data( wsc );
 
          std::string username = "*";
@@ -455,6 +458,7 @@ namespace detail {
             wild_access.allowed_apis.push_back( "network_broadcast_api" );
             wild_access.allowed_apis.push_back( "history_api" );
             wild_access.allowed_apis.push_back( "crypto_api" );
+            wild_access.allowed_apis.push_back( "bookie_api" );
             _apiaccess.permission_map["*"] = wild_access;
          }
 
@@ -462,6 +466,7 @@ namespace detail {
          reset_websocket_server();
          reset_websocket_tls_server();
       } FC_LOG_AND_RETHROW() }
+
 
       optional< api_access_info > get_api_access_info(const string& username)const
       {
@@ -1083,3 +1088,7 @@ void application::startup_plugins()
 
 // namespace detail
 } }
+
+// for some reason, g++ isn't instantiating this function on its own, force it to here
+template 
+fc::api_id_type fc::api<graphene::bookie::bookie_api, fc::identity_member>::register_api(fc::api_connection&) const;
