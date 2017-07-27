@@ -5367,6 +5367,7 @@ signed_transaction wallet_api::propose_update_betting_market(
         fc::time_point_sec expiration_time,
         betting_market_id_type market_id,
         fc::optional<object_id_type> group_id,
+        fc::optional<internationalized_string_type> description,
         fc::optional<internationalized_string_type> payout_condition,
         bool broadcast /*= false*/)
 {
@@ -5376,6 +5377,7 @@ signed_transaction wallet_api::propose_update_betting_market(
     betting_market_update_operation betting_market_update_op;
     betting_market_update_op.betting_market_id = market_id;
     betting_market_update_op.new_group_id = group_id;
+    betting_market_update_op.new_description = description;
     betting_market_update_op.new_payout_condition = payout_condition;
 
     proposal_create_operation prop_op;

@@ -314,6 +314,7 @@ struct database_fixture {
    const betting_market_object& create_betting_market(betting_market_group_id_type group_id, internationalized_string_type payout_condition);
    void update_betting_market(betting_market_id_type betting_market_id,
                                                 fc::optional<object_id_type> group_id,
+                                                /*fc::optional<internationalized_string_type> description,*/
                                                 fc::optional<internationalized_string_type> payout_condition);
 
    void place_bet(account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, asset amount_to_bet, bet_multiplier_type backer_multiplier, share_type amount_reserved_for_fees);

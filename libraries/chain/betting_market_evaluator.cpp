@@ -204,7 +204,7 @@ object_id_type betting_market_create_evaluator::do_apply(const betting_market_cr
 void_result betting_market_update_evaluator::do_evaluate(const betting_market_update_operation& op)
 { try {
    FC_ASSERT(trx_state->_is_proposed_trx);
-   FC_ASSERT(op.new_group_id.valid() || op.new_payout_condition, "nothing to change");
+   FC_ASSERT(op.new_group_id.valid() || op.new_description.valid() || op.new_payout_condition.valid(), "nothing to change");
 
    if (op.new_group_id.valid())
    {
@@ -235,6 +235,8 @@ void_result betting_market_update_evaluator::do_apply(const betting_market_updat
                   bmo.group_id = group_id;
               if( op.new_payout_condition.valid() )
                   bmo.payout_condition = *op.new_payout_condition;
+              if( op.new_description.valid() )
+                  bmo.description = *op.new_description;
            });
         return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
