@@ -1088,7 +1088,3 @@ void application::startup_plugins()
 
 // namespace detail
 } }
-
-// for some reason, g++ isn't instantiating this function on its own, force it to here
-template 
-fc::api_id_type fc::api<graphene::bookie::bookie_api, fc::identity_member>::register_api(fc::api_connection&) const;
