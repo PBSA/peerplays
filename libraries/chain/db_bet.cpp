@@ -55,6 +55,7 @@ void database::validate_betting_market_group_resolutions(const betting_market_gr
     {
        const betting_market_object& betting_market = *betting_market_itr;
        // every betting market in the group tied with resolution
+       idump((betting_market.id)(resolutions));
        assert(resolutions.count(betting_market.id));
        ++betting_market_itr;
     }
@@ -283,7 +284,7 @@ bool bet_was_matched(database& db, const bet_object& bet,
 
    // generate a virtual "match" op
    asset asset_amount_bet(amount_bet, bet.amount_to_bet.asset_id);
-   db.push_applied_operation(bet_matched_operation(bet.bettor_id, bet.id,
+   db.push_applied_operation(bet_matched_operation(bet.bettor_id, bet.id, bet.betting_market_id,
                                                    asset_amount_bet,
                                                    fee_paid,
                                                    actual_multiplier,

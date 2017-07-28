@@ -5628,6 +5628,11 @@ order_book wallet_api::get_order_book( const string& base, const string& quote, 
    return( my->_remote_db->get_order_book( base, quote, limit ) );
 }
 
+asset wallet_api::get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id)
+{
+    return asset();
+}
+
 // default ctor necessary for FC_REFLECT
 signed_block_with_info::signed_block_with_info( const signed_block& block )
    : signed_block( block )

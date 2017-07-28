@@ -28,12 +28,14 @@
 
 #include <graphene/chain/account_evaluator.hpp>
 #include <graphene/chain/account_object.hpp>
+#include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/config.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/evaluator.hpp>
 #include <graphene/chain/event_object.hpp>
 #include <graphene/chain/operation_history_object.hpp>
 #include <graphene/chain/transaction_evaluation_state.hpp>
+
 
 #include <fc/smart_ref_impl.hpp>
 #include <fc/thread/thread.hpp>
@@ -141,6 +143,8 @@ class bookie_plugin_impl
        */
       void on_block_applied( const signed_block& b );
 
+      asset get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id);
+
       graphene::chain::database& database()
       {
          return _self.database();
@@ -216,6 +220,35 @@ void bookie_plugin_impl::on_block_applied( const signed_block& )
 {
    graphene::chain::database& db = database();
    const vector<optional<operation_history_object> >& hist = db.get_applied_operations();
+   for( const optional< operation_history_object >& o_op : hist )
+   {
+      if( !o_op.valid() )
+      {
+         continue;
+      }
+      const operation_history_object& op = *o_op;
+      if( op.op.which() == operation::tag< bet_matched_operation >::value )
+      {
+           const bet_matched_operation& bet_matched_op = op.op.get<bet_matched_operation>();
+           idump((bet_matched_op));
+           const asset& amount_bet = bet_matched_op.amount_bet;
+           // object may no longer exist
+           //const bet_object& bet = bet_matched_op.bet_id(db);
+           const betting_market_object& betting_market = bet_matched_op.betting_market_id(db);
+           const betting_market_group_object& betting_market_group = betting_market.group_id(db);
+           db.modify( betting_market_group, [&]( betting_market_group_object& obj ){
+               obj.total_matched_bets_amount += amount_bet.amount;
+           });
+      }
+   }
+}
+
+asset bookie_plugin_impl::get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id)
+{
+    graphene::chain::database& db = database();
+    FC_ASSERT( db.find_object(group_id), "Invalid betting market group specified" );
+    const betting_market_group_object& betting_market_group =  group_id(db);
+    return asset(betting_market_group.total_matched_bets_amount, betting_market_group.asset_id);
 }
 } // end namespace detail
 
@@ -247,7 +280,7 @@ void bookie_plugin::plugin_set_program_options(
 void bookie_plugin::plugin_initialize(const boost::program_options::variables_map& options)
 {
    ilog("bookie plugin: plugin_startup() begin");
-   //database().applied_block.connect( [&]( const signed_block& b){ my->on_block_applied(b); } );
+   database().applied_block.connect( [&]( const signed_block& b){ my->on_block_applied(b); } );
    database().changed_objects.connect([&](const vector<object_id_type>& changed_object_ids, const fc::flat_set<graphene::chain::account_id_type>& impacted_accounts){ my->on_objects_changed(changed_object_ids); });
    auto event_index = database().add_index<primary_index<detail::persistent_event_object_index> >();
    //event_index->add_secondary_index<detail::events_by_competitor_index>();
@@ -264,6 +297,12 @@ void bookie_plugin::plugin_startup()
 flat_set<account_id_type> bookie_plugin::tracked_accounts() const
 {
    return my->_tracked_accounts;
+}
+
+asset bookie_plugin::get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id)
+{
+     ilog("bookie  plugin: get_total_matched_bet_amount_for_betting_market_group($group_id)", ("group_d", group_id));
+     return my->get_total_matched_bet_amount_for_betting_market_group(group_id);
 }
 
 } }

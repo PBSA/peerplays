@@ -70,6 +70,7 @@ class bookie_plugin : public graphene::app::plugin
       virtual void plugin_startup() override;
 
       flat_set<account_id_type> tracked_accounts()const;
+      asset get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id);
 
       friend class detail::bookie_plugin_impl;
       std::unique_ptr<detail::bookie_plugin_impl> my;

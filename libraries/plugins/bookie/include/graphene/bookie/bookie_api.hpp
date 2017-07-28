@@ -7,6 +7,9 @@
 #include <fc/variant_object.hpp>
 
 #include <graphene/chain/protocol/types.hpp>
+#include <graphene/chain/protocol/asset.hpp>
+
+using namespace graphene::chain;
 
 namespace graphene { namespace app {
    class application;
@@ -39,6 +42,7 @@ class bookie_api
        * precision = 2 would bin on (1 - 1.01], (1.01 - 1.02]
        */
       binned_order_book get_binned_order_book(graphene::chain::betting_market_id_type betting_market_id, int32_t precision);
+      asset get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id);
 
       std::shared_ptr<detail::bookie_api_impl> my;
 };
@@ -50,5 +54,6 @@ FC_REFLECT(graphene::bookie::binned_order_book, (aggregated_back_bets)(aggregate
 
 FC_API(graphene::bookie::bookie_api,
        (get_binned_order_book)
+       (get_total_matched_bet_amount_for_betting_market_group)
      )
 

@@ -27,6 +27,7 @@ class bookie_api_impl
 
       binned_order_book get_binned_order_book(graphene::chain::betting_market_id_type betting_market_id, int32_t precision);
       std::shared_ptr<graphene::bookie::bookie_plugin> get_plugin();
+      asset get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id);
 
       graphene::app::application& app;
 };
@@ -107,6 +108,11 @@ std::shared_ptr<graphene::bookie::bookie_plugin> bookie_api_impl::get_plugin()
    return app.get_plugin<graphene::bookie::bookie_plugin>("bookie");
 }
 
+asset bookie_api_impl::get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id)
+{
+    return get_plugin()->get_total_matched_bet_amount_for_betting_market_group(group_id);
+}
+
 } // detail
 
 bookie_api::bookie_api(graphene::app::application& app) :
@@ -119,5 +125,11 @@ binned_order_book bookie_api::get_binned_order_book(graphene::chain::betting_mar
    return my->get_binned_order_book(betting_market_id, precision);
 }
 
+asset bookie_api::get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id)
+{
+    return my->get_total_matched_bet_amount_for_betting_market_group(group_id);
+}
+
 } } // graphene::bookie
+
 

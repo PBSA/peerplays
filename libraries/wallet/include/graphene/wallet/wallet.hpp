@@ -1570,6 +1570,8 @@ class wallet_api
          
       order_book get_order_book( const string& base, const string& quote, unsigned limit = 50);
 
+      asset get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id);
+
       vector<sport_object> list_sports() const;
       vector<event_group_object> list_event_groups(sport_id_type sport_id) const;
       vector<betting_market_group_object> list_betting_market_groups(event_id_type event_id) const;
@@ -1980,4 +1982,5 @@ FC_API( graphene::wallet::wallet_api,
         (get_tournaments_by_state)
         (get_tournament)
         (get_order_book)
+        (get_total_matched_bet_amount_for_betting_market_group)
       )
