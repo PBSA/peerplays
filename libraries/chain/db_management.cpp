@@ -60,12 +60,15 @@ void database::reindex( fc::path data_dir )
    ilog( "reindexing blockchain" );
    auto start = fc::time_point::now();
    const auto last_block_num = last_block->block_num();
-   uint32_t flush_point = last_block_num - 10000;
-   uint32_t undo_point = last_block_num - 50;
+   uint32_t flush_point = last_block_num < 10000 ? 0 : last_block_num - 10000;
+   uint32_t undo_point = last_block_num < 50 ? 0 : last_block_num - 50;
 
    ilog( "Replaying blocks, starting at ${next}...", ("next",head_block_num() + 1) );
    if( head_block_num() >= undo_point )
-      _fork_db.start_block( *fetch_block_by_number( head_block_num() ) );
+   {
+      if( head_block_num() > 0 )
+         _fork_db.start_block( *fetch_block_by_number( head_block_num() ) );
+   }
    else
    {
        // Right now, we leave undo_db enabled when replaying when the bookie plugin is
