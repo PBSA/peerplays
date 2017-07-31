@@ -41,3 +41,6 @@ object_database/*
 
 *.pyc
 *.pyo
+
+.romek
+.*

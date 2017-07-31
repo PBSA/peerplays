@@ -864,6 +864,11 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_final_test )
       auto cilic_wins_final_market_id = cilic_wins_final_market.id;
       auto federer_wins_final_market_id = federer_wins_final_market.id;
 
+      update_event(cilic_vs_federer.id,
+                   fc::optional<object_id_type>(),
+                   internationalized_string_type({{"en", "R. Federer vs. M. Cilic"}}),
+                   fc::optional<internationalized_string_type>());
+
       generate_blocks(13);
 
       const betting_market_group_object& betting_market_group = moneyline_cilic_vs_federer_id(db);

@@ -29,6 +29,7 @@
 using namespace graphene::app;
 using namespace graphene::chain;
 using namespace graphene::utilities;
+using namespace graphene::bookie;
 using namespace std;
 
 namespace fc
@@ -1571,6 +1572,7 @@ class wallet_api
       order_book get_order_book( const string& base, const string& quote, unsigned limit = 50);
 
       asset get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id);
+      std::vector<event_object> get_events_containing_sub_string(const std::string& sub_string, const std::string& language);
 
       vector<sport_object> list_sports() const;
       vector<event_group_object> list_event_groups(sport_id_type sport_id) const;
@@ -1983,4 +1985,5 @@ FC_API( graphene::wallet::wallet_api,
         (get_tournament)
         (get_order_book)
         (get_total_matched_bet_amount_for_betting_market_group)
+        (get_events_containing_sub_string)
       )

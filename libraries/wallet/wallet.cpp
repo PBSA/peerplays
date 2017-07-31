@@ -72,6 +72,8 @@
 #include <graphene/chain/protocol/rock_paper_scissors.hpp>
 #include <graphene/chain/rock_paper_scissors.hpp>
 
+#include <graphene/bookie/bookie_api.hpp>
+
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <graphene/utilities/git_revision.hpp>
 #include <graphene/utilities/key_conversion.hpp>
@@ -525,7 +527,8 @@ public:
         _remote_api(rapi),
         _remote_db(rapi->database()),
         _remote_net_broadcast(rapi->network_broadcast()),
-        _remote_hist(rapi->history())
+        _remote_hist(rapi->history()),
+        _remote_bookie(rapi->bookie())
    {
       chain_id_type remote_chain_id = _remote_db->get_chain_id();
       if( remote_chain_id != _chain_id )
@@ -3159,6 +3162,7 @@ public:
    fc::api<database_api>   _remote_db;
    fc::api<network_broadcast_api>   _remote_net_broadcast;
    fc::api<history_api>    _remote_hist;
+   fc::api<bookie_api>    _remote_bookie;
    optional< fc::api<network_node_api> > _remote_net_node;
    optional< fc::api<graphene::debug_witness::debug_api> > _remote_debug;
 
@@ -5630,7 +5634,12 @@ order_book wallet_api::get_order_book( const string& base, const string& quote, 
 
 asset wallet_api::get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id)
 {
-    return asset();
+    return( my->_remote_bookie->get_total_matched_bet_amount_for_betting_market_group(group_id) );
+}
+
+std::vector<event_object> wallet_api::get_events_containing_sub_string(const std::string& sub_string, const std::string& language)
+{
+    return( my->_remote_bookie->get_events_containing_sub_string(sub_string, language) );
 }
 
 // default ctor necessary for FC_REFLECT

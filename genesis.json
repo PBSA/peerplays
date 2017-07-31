@@ -254,9 +254,9 @@
       "scale": 10000
     },
     "block_interval": 5,
-    "maintenance_interval": 86400,
+    "maintenance_interval": 6000,
     "maintenance_skip_slots": 3,
-    "committee_proposal_review_period": 1209600,
+    "committee_proposal_review_period": 900,
     "maximum_transaction_size": 2048,
     "maximum_block_size": 2048000000,
     "maximum_time_until_expiration": 86400,
@@ -391,7 +391,12 @@
       "name": "nathan",
       "owner_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
       "active_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-      "is_lifetime_member": false
+      "is_lifetime_member": true
+    },{
+      "name": "romek",
+      "owner_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "active_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "is_lifetime_member": true
     }
   ],
   "initial_assets": [{

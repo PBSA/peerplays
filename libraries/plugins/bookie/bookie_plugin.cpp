@@ -36,6 +36,7 @@
 #include <graphene/chain/operation_history_object.hpp>
 #include <graphene/chain/transaction_evaluation_state.hpp>
 
+#include <boost/algorithm/string/case_conv.hpp>
 
 #include <fc/smart_ref_impl.hpp>
 #include <fc/thread/thread.hpp>
@@ -145,10 +146,28 @@ class bookie_plugin_impl
 
       asset get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id);
 
+      void fill_localized_event_strings();
+
+      void get_events_containing_sub_string(std::vector<event_object>& events, const std::string& sub_string, const std::string& language);
+
       graphene::chain::database& database()
       {
          return _self.database();
       }
+
+      //                1.18.          "Washington Capitals/Chicago Blackhawks"
+      typedef std::pair<event_id_type, std::string> event_string;
+      struct event_string_less : public std::less<const event_string&>
+      {
+          bool operator()(const event_string &_left, const event_string &_right) const
+          {
+              return (_left.first.instance < _right.first.instance);
+          }
+      };
+
+      typedef flat_set<event_string, event_string_less> event_string_set;
+      //       "en"
+      std::map<std::string, event_string_set> localized_event_strings;
 
       bookie_plugin& _self;
       flat_set<account_id_type> _tracked_accounts;
@@ -240,7 +259,67 @@ void bookie_plugin_impl::on_block_applied( const signed_block& )
                obj.total_matched_bets_amount += amount_bet.amount;
            });
       }
+      else if( op.op.which() == operation::tag< event_create_operation >::value )
+      {
+          FC_ASSERT(op.result.which() == operation_result::tag< object_id_type >::value);
+          //object_id_type object_id = op.result.get<object_id_type>();
+          event_id_type object_id = op.result.get<object_id_type>();
+          FC_ASSERT( db.find_object(object_id), "invalid event specified" );
+          const event_create_operation& event_create_op = op.op.get<event_create_operation>();
+          for(const std::pair<std::string, std::string>& pair : event_create_op.name)
+          {
+              localized_event_strings[pair.first].insert(event_string(object_id, pair.second));
+          }
+      }
+      else if( op.op.which() == operation::tag< event_update_operation >::value )
+      {
+          const event_update_operation& event_create_op = op.op.get<event_update_operation>();
+          if (!event_create_op.new_name.valid())
+              continue;
+          event_id_type event_id = event_create_op.event_id;
+          for(const std::pair<std::string, std::string>& pair : *event_create_op.new_name)
+          {
+              // try insert
+              std::pair<event_string_set::iterator, bool> result =
+                       localized_event_strings[pair.first].insert(event_string(event_id, pair.second));
+              if (!result.second)
+                   //  update string only
+                   result.first->second = pair.second;
+          }
+      }
    }
+}
+
+void bookie_plugin_impl::fill_localized_event_strings()
+{
+       graphene::chain::database& db = database();
+       const auto& event_index = db.get_index_type<event_object_index>().indices().get<by_id>();
+       auto event_itr = event_index.cbegin();
+       while (event_itr != event_index.cend())
+       {
+           const event_object& event_obj = *event_itr;
+           ++event_itr;
+           for(const std::pair<std::string, std::string>& pair : event_obj.name)
+           {
+                localized_event_strings[pair.first].insert(event_string(event_obj.id, pair.second));
+           }
+       }
+}
+
+void bookie_plugin_impl::get_events_containing_sub_string(std::vector<event_object>& events, const std::string& sub_string, const std::string& language)
+{
+    graphene::chain::database& db = database();
+    if (localized_event_strings.find(language) != localized_event_strings.end())
+    {
+        std::string lower_case_sub_string = boost::algorithm::to_lower_copy(sub_string);
+        const event_string_set& language_set = localized_event_strings[language];
+        for (const event_string& pair : language_set)
+        {
+               std::string lower_case_string = boost::algorithm::to_lower_copy(pair.second);
+               if (lower_case_string.find(lower_case_sub_string) != std::string::npos)
+               events.push_back(pair.first(db));
+        }
+    }
 }
 
 asset bookie_plugin_impl::get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id)
@@ -279,19 +358,21 @@ void bookie_plugin::plugin_set_program_options(
 
 void bookie_plugin::plugin_initialize(const boost::program_options::variables_map& options)
 {
-   ilog("bookie plugin: plugin_startup() begin");
-   database().applied_block.connect( [&]( const signed_block& b){ my->on_block_applied(b); } );
-   database().changed_objects.connect([&](const vector<object_id_type>& changed_object_ids, const fc::flat_set<graphene::chain::account_id_type>& impacted_accounts){ my->on_objects_changed(changed_object_ids); });
-   auto event_index = database().add_index<primary_index<detail::persistent_event_object_index> >();
-   //event_index->add_secondary_index<detail::events_by_competitor_index>();
+    ilog("bookie plugin: plugin_startup() begin");
+    database().applied_block.connect( [&]( const signed_block& b){ my->on_block_applied(b); } );
+    database().changed_objects.connect([&](const vector<object_id_type>& changed_object_ids, const fc::flat_set<graphene::chain::account_id_type>& impacted_accounts){ my->on_objects_changed(changed_object_ids); });
+    //auto event_index =
+    database().add_index<primary_index<detail::persistent_event_object_index> >();
+    //event_index->add_secondary_index<detail::events_by_competitor_index>();
+     //LOAD_VALUE_SET(options, "tracked-accounts", my->_tracked_accounts, graphene::chain::account_id_type);
 
-   //LOAD_VALUE_SET(options, "tracked-accounts", my->_tracked_accounts, graphene::chain::account_id_type);
-   ilog("bookie plugin: plugin_startup() end");
-}
+    ilog("bookie plugin: plugin_startup() end");
+ }
 
 void bookie_plugin::plugin_startup()
 {
    ilog("bookie plugin: plugin_startup()");
+    my->fill_localized_event_strings();
 }
 
 flat_set<account_id_type> bookie_plugin::tracked_accounts() const
@@ -301,8 +382,13 @@ flat_set<account_id_type> bookie_plugin::tracked_accounts() const
 
 asset bookie_plugin::get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id)
 {
-     ilog("bookie  plugin: get_total_matched_bet_amount_for_betting_market_group($group_id)", ("group_d", group_id));
+     ilog("bookie plugin: get_total_matched_bet_amount_for_betting_market_group($group_id)", ("group_d", group_id));
      return my->get_total_matched_bet_amount_for_betting_market_group(group_id);
+}
+void bookie_plugin::get_events_containing_sub_string(std::vector<event_object>& events, const std::string& sub_string, const std::string& language)
+{
+    ilog("bookie plugin: get_events_containing_sub_string($s, $l)", ("s", sub_string)("l", language));
+    my->get_events_containing_sub_string(events, sub_string, language);
 }
 
 } }

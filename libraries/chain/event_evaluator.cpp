@@ -36,8 +36,7 @@ void_result event_create_evaluator::do_evaluate(const event_create_operation& op
 { try {
    FC_ASSERT(trx_state->_is_proposed_trx);
 
-   database& d = db();
-
+   //database& d = db();
    // the event_group_id in the operation can be a relative id.  If it is,
    // resolve it and verify that it is truly an event_group
    object_id_type resolved_event_group_id = op.event_group_id;

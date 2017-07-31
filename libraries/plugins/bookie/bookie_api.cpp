@@ -28,6 +28,7 @@ class bookie_api_impl
       binned_order_book get_binned_order_book(graphene::chain::betting_market_id_type betting_market_id, int32_t precision);
       std::shared_ptr<graphene::bookie::bookie_plugin> get_plugin();
       asset get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id);
+      void get_events_containing_sub_string(std::vector<event_object>& events, const std::string& sub_string, const std::string& language);
 
       graphene::app::application& app;
 };
@@ -113,6 +114,11 @@ asset bookie_api_impl::get_total_matched_bet_amount_for_betting_market_group(bet
     return get_plugin()->get_total_matched_bet_amount_for_betting_market_group(group_id);
 }
 
+void bookie_api_impl::get_events_containing_sub_string(std::vector<event_object>& events, const std::string& sub_string, const std::string& language)
+{
+    get_plugin()->get_events_containing_sub_string(events, sub_string, language);
+}
+
 } // detail
 
 bookie_api::bookie_api(graphene::app::application& app) :
@@ -129,6 +135,14 @@ asset bookie_api::get_total_matched_bet_amount_for_betting_market_group(betting_
 {
     return my->get_total_matched_bet_amount_for_betting_market_group(group_id);
 }
+
+std::vector<event_object> bookie_api::get_events_containing_sub_string(const std::string& sub_string, const std::string& language)
+{
+    std::vector<event_object> events;
+    my->get_events_containing_sub_string(events, sub_string, language);
+    return events;
+}
+
 
 } } // graphene::bookie
 
