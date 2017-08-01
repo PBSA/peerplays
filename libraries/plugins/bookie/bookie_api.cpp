@@ -41,6 +41,7 @@ binned_order_book bookie_api_impl::get_binned_order_book(graphene::chain::bettin
 {
     std::shared_ptr<graphene::chain::database> db = app.chain_database();
     const auto& bet_odds_idx = db->get_index_type<graphene::chain::bet_object_index>().indices().get<graphene::chain::by_odds>();
+    const chain_parameters& current_params = db->get_global_properties().parameters;
 
     graphene::chain::bet_multiplier_type bin_size = GRAPHENE_BETTING_ODDS_PRECISION;
     if (precision > 0)
@@ -68,7 +69,8 @@ binned_order_book bookie_api_impl::get_binned_order_book(graphene::chain::bettin
             order_bin current_order_bin;
 
             current_order_bin.backer_multiplier = current_bin->backer_multiplier;
-            current_order_bin.amount_to_bet = current_bin->get_matching_amount();;
+            current_order_bin.amount_to_bet = current_bin->get_approximate_matching_amount(true /* round up */);
+            //idump((*current_bin)(current_order_bin));
             if (current_bin->back_or_lay == bet_type::lay)
                 result.aggregated_back_bets.emplace_back(std::move(current_order_bin));
             else // current_bin is aggregating back positions
@@ -91,12 +93,14 @@ binned_order_book bookie_api_impl::get_binned_order_book(graphene::chain::bettin
         {
             // if there is no current bin, create one appropriate for the bet we're processing
             current_bin = graphene::chain::bet_object();
+
             current_bin->backer_multiplier = (bet_odds_iter->backer_multiplier + bin_size - 1) / bin_size * bin_size;
-            current_bin->amount_to_bet.amount = 0;
+            current_bin->backer_multiplier = std::min<graphene::chain::bet_multiplier_type>(current_bin->backer_multiplier, current_params.max_bet_multiplier);
             current_bin->back_or_lay = bet_odds_iter->back_or_lay == bet_type::back ? bet_type::lay : bet_type::back;
+            current_bin->amount_to_bet.amount = 0;
         }
 
-        current_bin->amount_to_bet.amount += bet_odds_iter->get_matching_amount();
+        current_bin->amount_to_bet.amount += bet_odds_iter->get_exact_matching_amount();
     }
     if (current_bin)
         flush_current_bin();

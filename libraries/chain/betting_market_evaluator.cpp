@@ -274,7 +274,7 @@ void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
    }
 
    // is it possible to match this bet
-   FC_ASSERT(bet_object::get_matching_amount(op.amount_to_bet.amount, op.backer_multiplier, op.back_or_lay) != 0,
+   FC_ASSERT(bet_object::get_exact_matching_amount(op.amount_to_bet.amount, op.backer_multiplier, op.back_or_lay) != 0,
              "Bet cannot be matched");
 
 #if 0

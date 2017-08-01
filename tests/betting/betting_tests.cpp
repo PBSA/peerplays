@@ -37,6 +37,7 @@
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/betting_market_object.hpp>
 
+#include <graphene/bookie/bookie_api.hpp>
 //#include <boost/algorithm/string/replace.hpp>
 
 using namespace graphene::chain;
@@ -144,6 +145,95 @@ BOOST_AUTO_TEST_CASE(simple_bet_win)
    } FC_LOG_AND_RETHROW()
 }
 
+BOOST_AUTO_TEST_CASE(binned_order_books)
+{
+   try
+   {
+      ACTORS( (alice)(bob) );
+      CREATE_ICE_HOCKEY_BETTING_MARKET();
+
+      graphene::bookie::bookie_api bookie_api(app);
+
+      // give alice and bob 10k each
+      transfer(account_id_type(), alice_id, asset(10000));
+      transfer(account_id_type(), bob_id, asset(10000));
+
+      // place back bets at decimal odds of 1.55, 1.6, 1.65, 1.66, and 1.67
+      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 155 * GRAPHENE_BETTING_ODDS_PRECISION / 100, 2);
+      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 16 * GRAPHENE_BETTING_ODDS_PRECISION / 10, 2);
+      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 165 * GRAPHENE_BETTING_ODDS_PRECISION / 100, 2);
+      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 166 * GRAPHENE_BETTING_ODDS_PRECISION / 100, 2);
+      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 167 * GRAPHENE_BETTING_ODDS_PRECISION / 100, 2);
+
+      const auto& bet_odds_idx = db.get_index_type<bet_object_index>().indices().get<by_odds>();
+
+      auto bet_iter = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
+      while (bet_iter != bet_odds_idx.end() && 
+             bet_iter->betting_market_id == capitals_win_market.id)
+      {
+        idump((*bet_iter));
+        ++bet_iter;
+      }
+
+      graphene::bookie::binned_order_book binned_orders_point_one = bookie_api.get_binned_order_book(capitals_win_market.id, 1);
+      idump((binned_orders_point_one));
+
+      // the binned orders returned should be chosen so that we if we assume those orders are real and we place
+      // matching lay orders, we will completely consume the underlying orders and leave no orders on the books
+      BOOST_CHECK_EQUAL(binned_orders_point_one.aggregated_back_bets.size(), 2);
+      BOOST_CHECK_EQUAL(binned_orders_point_one.aggregated_lay_bets.size(), 0);
+      for (const graphene::bookie::order_bin& binned_order : binned_orders_point_one.aggregated_back_bets)
+      {
+        // compute the matching lay order
+        share_type lay_amount = bet_object::get_approximate_matching_amount(binned_order.amount_to_bet, binned_order.backer_multiplier, bet_type::back, false /* round down */);
+        ilog("Alice is laying with ${lay_amount} at odds ${odds} to match the binned back amount ${back_amount}", ("lay_amount", lay_amount)("odds", binned_order.backer_multiplier)("back_amount", binned_order.amount_to_bet));
+        place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(lay_amount, asset_id_type()), binned_order.backer_multiplier, 2);
+      }
+
+      bet_iter = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
+      while (bet_iter != bet_odds_idx.end() && 
+             bet_iter->betting_market_id == capitals_win_market.id)
+      {
+        idump((*bet_iter));
+        ++bet_iter;
+      }
+
+      BOOST_CHECK(bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id)) == bet_odds_idx.end());
+
+      // place lay bets at decimal odds of 1.55, 1.6, 1.65, 1.66, and 1.67
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 155 * GRAPHENE_BETTING_ODDS_PRECISION / 100, 2);
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 16 * GRAPHENE_BETTING_ODDS_PRECISION / 10, 2);
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 165 * GRAPHENE_BETTING_ODDS_PRECISION / 100, 2);
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 166 * GRAPHENE_BETTING_ODDS_PRECISION / 100, 2);
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 167 * GRAPHENE_BETTING_ODDS_PRECISION / 100, 2);
+
+      binned_orders_point_one = bookie_api.get_binned_order_book(capitals_win_market.id, 1);
+      idump((binned_orders_point_one));
+
+      // the binned orders returned should be chosen so that we if we assume those orders are real and we place
+      // matching lay orders, we will completely consume the underlying orders and leave no orders on the books
+      BOOST_CHECK_EQUAL(binned_orders_point_one.aggregated_back_bets.size(), 0);
+      BOOST_CHECK_EQUAL(binned_orders_point_one.aggregated_lay_bets.size(), 2);
+      for (const graphene::bookie::order_bin& binned_order : binned_orders_point_one.aggregated_lay_bets)
+      {
+        // compute the matching lay order
+        share_type back_amount = bet_object::get_approximate_matching_amount(binned_order.amount_to_bet, binned_order.backer_multiplier, bet_type::lay, false /* round down */);
+        ilog("Alice is backing with ${back_amount} at odds ${odds} to match the binned lay amount ${lay_amount}", ("back_amount", back_amount)("odds", binned_order.backer_multiplier)("lay_amount", binned_order.amount_to_bet));
+        place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(back_amount, asset_id_type()), binned_order.backer_multiplier, 2);
+      }
+
+      bet_iter = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
+      while (bet_iter != bet_odds_idx.end() && 
+             bet_iter->betting_market_id == capitals_win_market.id)
+      {
+        idump((*bet_iter));
+        ++bet_iter;
+      }
+
+      BOOST_CHECK(bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id)) == bet_odds_idx.end());
+
+   } FC_LOG_AND_RETHROW()
+}
 
 BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
 {

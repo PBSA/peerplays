@@ -98,8 +98,21 @@ class bet_object : public graphene::db::abstract_object< bet_object >
 
       bet_type back_or_lay;
 
-      static share_type get_matching_amount(share_type bet_amount, bet_multiplier_type backer_multiplier, bet_type back_or_lay);
-      share_type get_matching_amount() const;
+      static share_type get_approximate_matching_amount(share_type bet_amount, bet_multiplier_type backer_multiplier, bet_type back_or_lay, bool round_up = false);
+
+      // returns the amount of a bet that completely matches this bet
+      share_type get_approximate_matching_amount(bool round_up = false) const;
+
+      static share_type get_exact_matching_amount(share_type bet_amount, bet_multiplier_type backer_multiplier, bet_type back_or_lay);
+      share_type get_exact_matching_amount() const;
+
+      static std::pair<share_type, share_type> get_ratio(bet_multiplier_type backer_multiplier);
+      std::pair<share_type, share_type> get_ratio() const; 
+
+      // returns the minimum amount this bet could have that could be matched at these odds
+      share_type get_minimum_matchable_amount() const; 
+      // returns the minimum amount another user could bet to match this bet at these odds
+      share_type get_minimum_matching_amount() const;
 };
 
 class betting_market_position_object : public graphene::db::abstract_object< betting_market_position_object >

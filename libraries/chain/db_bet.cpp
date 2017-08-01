@@ -16,9 +16,13 @@ void database::cancel_bet( const bet_object& bet, bool create_virtual_op )
    adjust_balance(bet.bettor_id, amount_to_refund); //return unmatched stake + fees
    //TODO: do special fee accounting as required
    if (create_virtual_op)
-      push_applied_operation(bet_canceled_operation(bet.bettor_id, bet.id,
-                                                    bet.amount_to_bet,
-                                                    bet.amount_reserved_for_fees));
+   {
+      bet_canceled_operation bet_canceled_virtual_op(bet.bettor_id, bet.id,
+                                                     bet.amount_to_bet,
+                                                     bet.amount_reserved_for_fees);
+      //idump((bet_canceled_virtual_op));
+      push_applied_operation(std::move(bet_canceled_virtual_op));
+   }
    remove(bet);
 }
 
@@ -55,7 +59,7 @@ void database::validate_betting_market_group_resolutions(const betting_market_gr
     {
        const betting_market_object& betting_market = *betting_market_itr;
        // every betting market in the group tied with resolution
-       idump((betting_market.id)(resolutions));
+       //idump((betting_market.id)(resolutions));
        assert(resolutions.count(betting_market.id));
        ++betting_market_itr;
     }
@@ -181,7 +185,7 @@ void database::resolve_betting_market_group(const betting_market_group_object& b
       // pay winning - rake
       adjust_balance(bettor_id, asset(payout_amounts - rake_amount, betting_market_group.asset_id));
       // [ROL]
-      idump((payout_amounts)(net_profits.value)(rake_amount.value));
+      //idump((payout_amounts)(net_profits.value)(rake_amount.value));
 
       push_applied_operation(betting_market_group_resolved_operation(bettor_id,
                              betting_market_group.id,
@@ -212,14 +216,17 @@ void database::get_required_deposit_for_bet(const betting_market_object& betting
 bool maybe_cull_small_bet( database& db, const bet_object& bet_object_to_cull )
 {
    /**
-    *  There are times when this bet can't be matched (for example, it's now laying a 2:1 bet for
-    *  1 satoshi, so it could only be matched by half a satoshi).  Remove these bets from
-    *  the books.
+    *  There are times when this bet can't be even partially matched at its stated odds 
+    *  For example, say it's a back bet for 20 satoshis at 1.92 odds (which comes out to 25:23
+    *  odds).  It's not possible for it to match at exact odds since it's < 25 
+    *
+    *  Remove these bets from the books to reduce clutter.
     */
-
-   if( bet_object_to_cull.get_matching_amount() == 0 )
+   share_type minimum_matchable_amount = bet_object_to_cull.get_minimum_matchable_amount();
+   if (bet_object_to_cull.amount_to_bet.amount < minimum_matchable_amount)
    {
-      ilog("applied epsilon logic");
+      dlog("culling small bet of ${amount}, smaller than the minimum ${minimum_matchable_amount} at odds ${odds}",
+           ("amount", bet_object_to_cull.amount_to_bet.amount)("minimum_matchable_amount", minimum_matchable_amount)("odds", bet_object_to_cull.backer_multiplier));
       db.cancel_bet(bet_object_to_cull);
       return true;
    }
@@ -284,11 +291,14 @@ bool bet_was_matched(database& db, const bet_object& bet,
 
    // generate a virtual "match" op
    asset asset_amount_bet(amount_bet, bet.amount_to_bet.asset_id);
-   db.push_applied_operation(bet_matched_operation(bet.bettor_id, bet.id, bet.betting_market_id,
-                                                   asset_amount_bet,
-                                                   fee_paid,
-                                                   actual_multiplier,
-                                                   guaranteed_winnings_returned));
+
+   bet_matched_operation bet_matched_virtual_op(bet.bettor_id, bet.id, bet.betting_market_id,
+                                                asset_amount_bet,
+                                                fee_paid,
+                                                actual_multiplier,
+                                                guaranteed_winnings_returned);
+   //idump((bet_matched_virtual_op));
+   db.push_applied_operation(std::move(bet_matched_virtual_op));
 
    // update the bet on the books
    if (asset_amount_bet == bet.amount_to_bet)
@@ -328,23 +338,51 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
    assert(taker_bet.back_or_lay != maker_bet.back_or_lay);
 
    int result = 0;
-   share_type maximum_amount_to_match = taker_bet.get_matching_amount();
+   //idump((taker_bet)(maker_bet));
 
-   if (maximum_amount_to_match <= maker_bet.amount_to_bet.amount)
-   {
-      // we will consume the entire taker bet
-      result |= bet_was_matched(db, taker_bet, taker_bet.amount_to_bet.amount, maximum_amount_to_match, maker_bet.backer_multiplier, true);
-      result |= bet_was_matched(db, maker_bet, maximum_amount_to_match, taker_bet.amount_to_bet.amount, maker_bet.backer_multiplier, true) << 1;
-   }
-   else
-   {
-      // we will consume the entire maker bet.  Figure out how much of the taker bet we can fill.
-      share_type taker_amount = maker_bet.get_matching_amount();
-      share_type maker_amount = bet_object::get_matching_amount(taker_amount, maker_bet.backer_multiplier, taker_bet.back_or_lay);
+   // using the maker's odds, figure out how much of the maker's bet we would match, rounding down
+   // go ahead and get look up the ratio for the bet (a bet with odds 1.92 will have a ratio 25:23)
+   share_type back_odds_ratio;
+   share_type lay_odds_ratio;
+   std::tie(back_odds_ratio, lay_odds_ratio) = maker_bet.get_ratio();
 
-      result |= bet_was_matched(db, taker_bet, taker_amount, maker_amount, maker_bet.backer_multiplier, true);
-      result |= bet_was_matched(db, maker_bet, maker_amount, taker_amount, maker_bet.backer_multiplier, true) << 1;
+   // and make some shortcuts to get to the maker's and taker's side of the ratio
+   const share_type& maker_odds_ratio = maker_bet.back_or_lay == bet_type::back ? back_odds_ratio : lay_odds_ratio;
+   const share_type& taker_odds_ratio = maker_bet.back_or_lay == bet_type::back ? lay_odds_ratio : back_odds_ratio;
+   //idump((back_odds_ratio)(lay_odds_ratio));
+   //idump((maker_odds_ratio)(taker_odds_ratio));
+
+   // now figure out how much of the maker bet we'll consume.  We don't yet know whether the maker or taker
+   // will be the limiting factor.
+   share_type maximum_taker_factor = taker_bet.amount_to_bet.amount / taker_odds_ratio;
+   share_type maximum_maker_factor = maker_bet.amount_to_bet.amount / maker_odds_ratio;
+   share_type maximum_factor = std::min(maximum_taker_factor, maximum_maker_factor);
+   share_type maker_amount_to_match = maximum_factor * maker_odds_ratio;
+   share_type taker_amount_to_match = maximum_factor * taker_odds_ratio;
+   //idump((maker_amount_to_match)(taker_amount_to_match));
+
+   // TODO: analyze whether maximum_maker_amount_to_match can ever be zero here 
+   assert(maker_amount_to_match != 0);
+   if (maker_amount_to_match == 0)
+      return 0;
+
+#ifndef NDEBUG
+   assert(taker_amount_to_match <= taker_bet.amount_to_bet.amount);
+   assert(taker_amount_to_match / taker_odds_ratio * taker_odds_ratio == taker_amount_to_match);
+   {
+     // verify we're getting the odds we expect
+     fc::uint128_t payout_128 = maker_amount_to_match.value;
+     payout_128 += taker_amount_to_match.value;
+     payout_128 *= GRAPHENE_BETTING_ODDS_PRECISION;
+     payout_128 /= maker_bet.back_or_lay == bet_type::back ? maker_amount_to_match.value : taker_amount_to_match.value;
+     assert(payout_128.to_uint64() == maker_bet.backer_multiplier);
    }
+#endif
+
+   //idump((taker_amount_to_match)(maker_amount_to_match));
+
+   result |= bet_was_matched(db, taker_bet, taker_amount_to_match, maker_amount_to_match, maker_bet.backer_multiplier, true);
+   result |= bet_was_matched(db, maker_bet, maker_amount_to_match, taker_amount_to_match, maker_bet.backer_multiplier, true) << 1;
 
    assert(result != 0);
    return result;
