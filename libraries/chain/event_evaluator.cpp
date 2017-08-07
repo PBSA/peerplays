@@ -58,6 +58,7 @@ object_id_type event_create_evaluator::do_apply(const event_create_operation& op
    const event_object& new_event =
       d.create<event_object>( [&]( event_object& event_obj ) {
          event_obj.name = op.name;
+         event_obj.status = event_status::upcoming;
          event_obj.season = op.season;
          event_obj.start_time = op.start_time;
          event_obj.event_group_id = event_group_id;
@@ -97,6 +98,8 @@ void_result event_update_evaluator::do_apply(const event_update_operation& op)
            _db.get(op.event_id),
            [&]( event_object& eo )
            {
+              if (eo.status > event_status::STATUS_COUNT)
+                  eo.status = event_status::upcoming;
               if( op.new_name.valid() )
                   eo.name = *op.new_name;
               if( op.new_season.valid() )
