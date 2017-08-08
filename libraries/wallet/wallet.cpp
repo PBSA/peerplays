@@ -5642,6 +5642,11 @@ std::vector<event_object> wallet_api::get_events_containing_sub_string(const std
     return( my->_remote_bookie->get_events_containing_sub_string(sub_string, language) );
 }
 
+binned_order_book wallet_api::get_binned_order_book(graphene::chain::betting_market_id_type betting_market_id, int32_t precision)
+{
+    return( my->_remote_bookie->get_binned_order_book(betting_market_id, precision) );
+}
+
 // default ctor necessary for FC_REFLECT
 signed_block_with_info::signed_block_with_info( const signed_block& block )
    : signed_block( block )
