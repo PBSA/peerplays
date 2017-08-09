@@ -309,22 +309,27 @@ BOOST_AUTO_TEST_CASE(inexact_odds)
 
      transfer(account_id_type(), alice_id, asset(10000000));
      share_type alice_expected_balance = 10000000;
-     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
+     BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
+
+     // lay 46 at 1.94 odds (50:47) -- this is too small to be placed on the books and there's
+     // nothing for it to match, so it should be canceled
+     place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(46, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
+     BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
 
      // lay 47 at 1.94 odds (50:47) -- this is an exact amount, nothing surprising should happen here
      place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(47, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
      alice_expected_balance -= 47;
-     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
+     BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
 
      // lay 100 at 1.91 odds (100:91) -- this is an inexact match, we should get refunded 9 and leave a bet for 91 on the books
      place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 191 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
      alice_expected_balance -= 91;
-     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
+     BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
 
 
      transfer(account_id_type(), bob_id, asset(10000000));
      share_type bob_expected_balance = 10000000;
-     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
+     BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
 
      // now have bob match it with a back of 300 at 1.91
      // This should: 
@@ -335,7 +340,50 @@ BOOST_AUTO_TEST_CASE(inexact_odds)
      //   leaves a back bet of 100 @ 1.91 on the books
      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(300, asset_id_type()), 191 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
      bob_expected_balance -= 250;
-     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
+     BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
+  }
+  FC_LOG_AND_RETHROW()
+}
+
+BOOST_AUTO_TEST_CASE(persistent_objects_test)
+{
+  try
+  {
+     ACTORS( (alice)(bob) );
+     CREATE_ICE_HOCKEY_BETTING_MARKET();
+     graphene::bookie::bookie_api bookie_api(app);
+
+     transfer(account_id_type(), alice_id, asset(10000000));
+     transfer(account_id_type(), bob_id, asset(10000000));
+     share_type alice_expected_balance = 10000000;
+     share_type bob_expected_balance = 10000000;
+     BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
+     BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
+
+     // lay 46 at 1.94 odds (50:47) -- this is too small to be placed on the books and there's
+     // nothing for it to match, so it should be canceled
+     bet_id_type automatically_canceled_bet_id = place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(46, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
+     BOOST_CHECK_MESSAGE(!db.find(automatically_canceled_bet_id), "Bet should have been canceled, but the blockchain still knows about it");
+     fc::variants objects_from_bookie = bookie_api.get_objects({automatically_canceled_bet_id});
+     BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 1);
+     BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>() == automatically_canceled_bet_id, "Bookie Plugin didn't return a deleted bet it");
+
+     // lay 47 at 1.94 odds (50:47) -- this bet should go on the order books normally
+     bet_id_type first_bet_on_books = place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(47, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
+     BOOST_CHECK_MESSAGE(db.find(first_bet_on_books), "Bet should exist on the blockchain");
+     objects_from_bookie = bookie_api.get_objects({first_bet_on_books});
+     BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 1);
+     BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>() == first_bet_on_books, "Bookie Plugin didn't return a bet that is currently on the books");
+
+     // place a bet that exactly matches 'first_bet_on_books', should result in empty books (thus, no bet_objects from the blockchain)
+     bet_id_type matching_bet = place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(50, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
+     BOOST_CHECK_MESSAGE(!db.find(first_bet_on_books), "Bet should have been filled, but the blockchain still knows about it");
+     BOOST_CHECK_MESSAGE(!db.find(matching_bet), "Bet should have been filled, but the blockchain still knows about it");
+
+     objects_from_bookie = bookie_api.get_objects({first_bet_on_books, matching_bet});
+     BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 2);
+     BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>() == first_bet_on_books, "Bookie Plugin didn't return a bet that has been filled");
+     BOOST_CHECK_MESSAGE(objects_from_bookie[1]["id"].as<bet_id_type>() == matching_bet, "Bookie Plugin didn't return a bet that has been filled");
   }
   FC_LOG_AND_RETHROW()
 }

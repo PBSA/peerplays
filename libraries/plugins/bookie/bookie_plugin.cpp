@@ -23,16 +23,15 @@
  */
 
 #include <graphene/bookie/bookie_plugin.hpp>
+#include <graphene/bookie/bookie_objects.hpp>
 
 #include <graphene/app/impacted.hpp>
 
 #include <graphene/chain/account_evaluator.hpp>
 #include <graphene/chain/account_object.hpp>
-#include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/config.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/evaluator.hpp>
-#include <graphene/chain/event_object.hpp>
 #include <graphene/chain/operation_history_object.hpp>
 #include <graphene/chain/transaction_evaluation_state.hpp>
 
@@ -54,144 +53,6 @@ namespace graphene { namespace bookie {
 
 namespace detail
 {
-
-class persistent_event_object : public graphene::db::abstract_object<persistent_event_object>
-{
-   public:
-      static const uint8_t space_id = bookie_objects;
-      static const uint8_t type_id = persistent_event_object_type;
-
-      event_id_type event_object_id;
-
-      internationalized_string_type name;
-      
-      internationalized_string_type season;
-
-      optional<time_point_sec> start_time;
-
-      event_group_id_type event_group_id;
-
-      event_status status;
-      vector<string> scores;
-};
-typedef object_id<bookie_objects, persistent_event_object_type, persistent_event_object> persistent_event_id_type;
-
-struct by_event_id;
-typedef multi_index_container<
-   persistent_event_object,
-   indexed_by<
-      ordered_unique<tag<by_id>, member<object, object_id_type, &object::id> >,
-      ordered_unique<tag<by_event_id>, member<persistent_event_object, event_id_type, &persistent_event_object::event_object_id> > > > persistent_event_object_multi_index_type;
-
-typedef generic_index<persistent_event_object, persistent_event_object_multi_index_type> persistent_event_object_index;
-
-#if 0 // we no longer have competitors, just leaving this here as an example of how to do a secondary index
-class events_by_competitor_index : public secondary_index
-{
-   public:
-      virtual ~events_by_competitor_index() {}
-
-      virtual void object_inserted( const object& obj ) override;
-      virtual void object_removed( const object& obj ) override;
-      virtual void about_to_modify( const object& before ) override;
-      virtual void object_modified( const object& after  ) override;
-   protected:
-
-      map<competitor_id_type, set<persistent_event_id_type> > competitor_to_events;
-};
-
-void events_by_competitor_index::object_inserted( const object& obj ) 
-{
-   const persistent_event_object& event_obj = *boost::polymorphic_downcast<const persistent_event_object*>(&obj);
-   for (const competitor_id_type& competitor_id : event_obj.competitors)
-      competitor_to_events[competitor_id].insert(event_obj.id);
-   for (const competitor_id_type& competitor_id : event_obj.competitors)
-      competitor_to_events[competitor_id].insert(event_obj.id);
-}
-void events_by_competitor_index::object_removed( const object& obj ) 
-{
-   const persistent_event_object& event_obj = *boost::polymorphic_downcast<const persistent_event_object*>(&obj);
-   for (const competitor_id_type& competitor_id : event_obj.competitors)
-      competitor_to_events[competitor_id].erase(event_obj.id);
-}
-void events_by_competitor_index::about_to_modify( const object& before ) 
-{
-   object_removed(before);
-}
-void events_by_competitor_index::object_modified( const object& after ) 
-{
-   object_inserted(after);
-}
-#endif
-
-//////////// betting_market_group_object //////////////////
-class persistent_betting_market_group_object : public graphene::db::abstract_object<persistent_betting_market_group_object>
-{
-   public:
-      static const uint8_t space_id = bookie_objects;
-      static const uint8_t type_id = persistent_betting_market_group_object_type;
-
-      betting_market_group_object ephemeral_betting_market_group_object;
-
-      share_type total_matched_bets_amount;
-
-      betting_market_group_id_type get_betting_market_group_id() const { return ephemeral_betting_market_group_object.id; }
-};
-
-struct by_betting_market_group_id;
-typedef multi_index_container<
-   persistent_betting_market_group_object,
-   indexed_by<
-      ordered_unique<tag<by_id>, member<object, object_id_type, &object::id> >,
-      ordered_unique<tag<by_betting_market_group_id>, const_mem_fun<persistent_betting_market_group_object, betting_market_group_id_type, &persistent_betting_market_group_object::get_betting_market_group_id> > > > persistent_betting_market_group_multi_index_type;
-
-typedef generic_index<persistent_betting_market_group_object, persistent_betting_market_group_multi_index_type> persistent_betting_market_group_index;
-
-//////////// betting_market_object //////////////////
-class persistent_betting_market_object : public graphene::db::abstract_object<persistent_betting_market_object>
-{
-   public:
-      static const uint8_t space_id = bookie_objects;
-      static const uint8_t type_id = persistent_betting_market_object_type;
-
-      betting_market_object ephemeral_betting_market_object;
-
-      share_type total_matched_bets_amount;
-
-      betting_market_id_type get_betting_market_id() const { return ephemeral_betting_market_object.id; }
-};
-
-struct by_betting_market_id;
-typedef multi_index_container<
-   persistent_betting_market_object,
-   indexed_by<
-      ordered_unique<tag<by_id>, member<object, object_id_type, &object::id> >,
-      ordered_unique<tag<by_betting_market_id>, const_mem_fun<persistent_betting_market_object, betting_market_id_type, &persistent_betting_market_object::get_betting_market_id> > > > persistent_betting_market_multi_index_type;
-
-typedef generic_index<persistent_betting_market_object, persistent_betting_market_multi_index_type> persistent_betting_market_index;
-
-//////////// bet_object //////////////////
-class persistent_bet_object : public graphene::db::abstract_object<persistent_bet_object>
-{
-   public:
-      static const uint8_t space_id = bookie_objects;
-      static const uint8_t type_id = persistent_bet_object_type;
-
-      bet_object ephemeral_bet_object;
-
-      bet_id_type get_bet_id() const { return ephemeral_bet_object.id; }
-};
-
-struct by_bet_id;
-typedef multi_index_container<
-   persistent_bet_object,
-   indexed_by<
-      ordered_unique<tag<by_id>, member<object, object_id_type, &object::id> >,
-      ordered_unique<tag<by_bet_id>, const_mem_fun<persistent_bet_object, bet_id_type, &persistent_bet_object::get_bet_id> > > > persistent_bet_multi_index_type;
-
-
-typedef generic_index<persistent_bet_object, persistent_bet_multi_index_type> persistent_bet_index;
-
 /* As a plugin, we get notified of new/changed objects at the end of every block processed.
  * For most objects, that's fine, because we expect them to always be around until the end of
  * the block.  However, with bet objects, it's possible that the user places a bet and it fills
@@ -259,7 +120,7 @@ class bookie_plugin_impl
 
       void fill_localized_event_strings();
 
-      void get_events_containing_sub_string(std::vector<event_object>& events, const std::string& sub_string, const std::string& language);
+      std::vector<event_object> get_events_containing_sub_string(const std::string& sub_string, const std::string& language);
 
       graphene::chain::database& database()
       {
@@ -497,28 +358,30 @@ void bookie_plugin_impl::fill_localized_event_strings()
        }
 }
 
-void bookie_plugin_impl::get_events_containing_sub_string(std::vector<event_object>& events, const std::string& sub_string, const std::string& language)
+std::vector<event_object> bookie_plugin_impl::get_events_containing_sub_string(const std::string& sub_string, const std::string& language)
 {
-    graphene::chain::database& db = database();
-    if (localized_event_strings.find(language) != localized_event_strings.end())
-    {
-        std::string lower_case_sub_string = boost::algorithm::to_lower_copy(sub_string);
-        const event_string_set& language_set = localized_event_strings[language];
-        for (const event_string& pair : language_set)
-        {
-               std::string lower_case_string = boost::algorithm::to_lower_copy(pair.second);
-               if (lower_case_string.find(lower_case_sub_string) != std::string::npos)
-               events.push_back(pair.first(db));
-        }
-    }
+   graphene::chain::database& db = database();
+   std::vector<event_object> events;
+   if (localized_event_strings.find(language) != localized_event_strings.end())
+   {
+      std::string lower_case_sub_string = boost::algorithm::to_lower_copy(sub_string);
+      const event_string_set& language_set = localized_event_strings[language];
+      for (const event_string& pair : language_set)
+      {
+         std::string lower_case_string = boost::algorithm::to_lower_copy(pair.second);
+         if (lower_case_string.find(lower_case_sub_string) != std::string::npos)
+            events.push_back(pair.first(db));
+      }
+   }
+   return events;
 }
 
 asset bookie_plugin_impl::get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id)
 {
-    graphene::chain::database& db = database();
-    FC_ASSERT( db.find_object(group_id), "Invalid betting market group specified" );
-    const betting_market_group_object& betting_market_group =  group_id(db);
-    return asset(betting_market_group.total_matched_bets_amount, betting_market_group.asset_id);
+   graphene::chain::database& db = database();
+   FC_ASSERT( db.find_object(group_id), "Invalid betting market group specified" );
+   const betting_market_group_object& betting_market_group =  group_id(db);
+   return asset(betting_market_group.total_matched_bets_amount, betting_market_group.asset_id);
 }
 } // end namespace detail
 
@@ -579,15 +442,11 @@ asset bookie_plugin::get_total_matched_bet_amount_for_betting_market_group(betti
      ilog("bookie plugin: get_total_matched_bet_amount_for_betting_market_group($group_id)", ("group_d", group_id));
      return my->get_total_matched_bet_amount_for_betting_market_group(group_id);
 }
-void bookie_plugin::get_events_containing_sub_string(std::vector<event_object>& events, const std::string& sub_string, const std::string& language)
+std::vector<event_object> bookie_plugin::get_events_containing_sub_string(const std::string& sub_string, const std::string& language)
 {
-    ilog("bookie plugin: get_events_containing_sub_string($s, $l)", ("s", sub_string)("l", language));
-    my->get_events_containing_sub_string(events, sub_string, language);
+    ilog("bookie plugin: get_events_containing_sub_string(${sub_string}, ${language})", (sub_string)(language));
+    return my->get_events_containing_sub_string(sub_string, language);
 }
 
 } }
 
-FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_event_object, (graphene::db::object), (event_object_id)(name)(season)(start_time)(event_group_id)(status)(scores) )
-FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_betting_market_group_object, (graphene::db::object), (ephemeral_betting_market_group_object)(total_matched_bets_amount) )
-FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_betting_market_object, (graphene::db::object), (ephemeral_betting_market_object) )
-FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_bet_object, (graphene::db::object), (ephemeral_bet_object) )

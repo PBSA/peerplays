@@ -281,20 +281,7 @@ void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
       FC_ASSERT(op.backer_multiplier % allowed_increment == 0, "Bet odds must be a multiple of ${allowed_increment}", ("allowed_increment", allowed_increment));
    }
 
-   // is it possible to match this bet
-   FC_ASSERT(bet_object::get_exact_matching_amount(op.amount_to_bet.amount, op.backer_multiplier, op.back_or_lay) != 0,
-             "Bet cannot be matched");
-
-#if 0
-   bet_object simulated_bet;
-   simulated_bet.bettor_id = op.bettor_id;
-   simulated_bet.betting_market_id = op.betting_market_id;
-   simulated_bet.amount_to_bet = op.amount_to_bet;
-   simulated_bet.backer_multiplier = op.backer_multiplier;
-   simulated_bet.back_or_lay = op.back_or_lay;
-
-   share_type required_deposit = get_required_deposit_for_bet(simulated_bet);
-#endif
+   FC_ASSERT(op.amount_to_bet.amount > share_type(), "Cannot place a bet with zero amount");
 
    // do they have enough in their account to place the bet
    FC_ASSERT( d.get_balance( *fee_paying_account, *_asset ).amount  >= op.amount_to_bet.amount, "insufficient balance",
