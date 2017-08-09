@@ -47,13 +47,16 @@ enum spaces {
 enum bookie_object_type
 {
    persistent_event_object_type,
+   persistent_betting_market_group_object_type,
+   persistent_betting_market_object_type,
+   persistent_bet_object_type,
    BOOKIE_OBJECT_TYPE_COUNT ///< Sentry value which contains the number of different object types
 };
 
 
 namespace detail
 {
-    class bookie_plugin_impl;
+   class bookie_plugin_impl;
 }
 
 class bookie_plugin : public graphene::app::plugin
@@ -63,9 +66,8 @@ class bookie_plugin : public graphene::app::plugin
       virtual ~bookie_plugin();
 
       std::string plugin_name()const override;
-      virtual void plugin_set_program_options(
-         boost::program_options::options_description& cli,
-         boost::program_options::options_description& cfg) override;
+      virtual void plugin_set_program_options(boost::program_options::options_description& cli,
+                                              boost::program_options::options_description& cfg) override;
       virtual void plugin_initialize(const boost::program_options::variables_map& options) override;
       virtual void plugin_startup() override;
 

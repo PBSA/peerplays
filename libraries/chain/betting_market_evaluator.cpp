@@ -291,26 +291,14 @@ void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
    simulated_bet.betting_market_id = op.betting_market_id;
    simulated_bet.amount_to_bet = op.amount_to_bet;
    simulated_bet.backer_multiplier = op.backer_multiplier;
-   simulated_bet.amount_reserved_for_fees = op.amount_reserved_for_fees;
    simulated_bet.back_or_lay = op.back_or_lay;
 
    share_type required_deposit = get_required_deposit_for_bet(simulated_bet);
 #endif
 
-   // verify they reserved enough to cover the percentage fee
-   uint16_t percentage_fee = current_params.current_fees->get<bet_place_operation>().percentage_fee;
-   fc::uint128_t minimum_percentage_fee_calculation = op.amount_to_bet.amount.value;
-   minimum_percentage_fee_calculation *= percentage_fee;
-   minimum_percentage_fee_calculation += GRAPHENE_100_PERCENT - 1; // round up
-   minimum_percentage_fee_calculation /= GRAPHENE_100_PERCENT;
-   share_type minimum_percentage_fee = minimum_percentage_fee_calculation.to_uint64();
-   FC_ASSERT(op.amount_reserved_for_fees >= minimum_percentage_fee, "insufficient fees",
-             ("fee_provided", op.amount_reserved_for_fees)("fee_required", minimum_percentage_fee));
-
    // do they have enough in their account to place the bet
-   _stake_plus_fees = op.amount_to_bet.amount + op.amount_reserved_for_fees;
-   FC_ASSERT( d.get_balance( *fee_paying_account, *_asset ).amount  >= _stake_plus_fees, "insufficient balance",
-              ("balance", d.get_balance(*fee_paying_account, *_asset))("stake_plus_fees", _stake_plus_fees)  );
+   FC_ASSERT( d.get_balance( *fee_paying_account, *_asset ).amount  >= op.amount_to_bet.amount, "insufficient balance",
+              ("balance", d.get_balance(*fee_paying_account, *_asset))("amount_to_bet", op.amount_to_bet.amount)  );
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -324,15 +312,16 @@ object_id_type bet_place_evaluator::do_apply(const bet_place_operation& op)
          bet_obj.betting_market_id = op.betting_market_id;
          bet_obj.amount_to_bet = op.amount_to_bet;
          bet_obj.backer_multiplier = op.backer_multiplier;
-         bet_obj.amount_reserved_for_fees = op.amount_reserved_for_fees;
          bet_obj.back_or_lay = op.back_or_lay;
      });
 
-   d.adjust_balance(fee_paying_account->id, asset(-_stake_plus_fees, _betting_market_group->asset_id));
+   bet_id_type new_bet_id = new_bet.id; // save the bet id here, new_bet may be deleted during place_bet()
+
+   d.adjust_balance(fee_paying_account->id, -op.amount_to_bet);
 
    bool bet_matched = d.place_bet(new_bet);
 
-   return new_bet.id;
+   return new_bet_id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
 void_result bet_cancel_evaluator::do_evaluate(const bet_cancel_operation& op)

@@ -80,13 +80,15 @@ binned_order_book bookie_api_impl::get_binned_order_book(graphene::chain::bettin
         }
     };
 
+    // iterate through both sides of the order book (backs at increasing odds then lays at decreasing odds)
     for (auto bet_odds_iter = bet_odds_idx.lower_bound(std::make_tuple(betting_market_id));
          bet_odds_iter != bet_odds_idx.end() && betting_market_id == bet_odds_iter->betting_market_id;
          ++bet_odds_iter)
     {
         if (current_bin && 
-            (bet_odds_iter->back_or_lay == current_bin->back_or_lay ||
-             bet_odds_iter->backer_multiplier > current_bin->backer_multiplier))
+            (bet_odds_iter->back_or_lay == current_bin->back_or_lay /* we have switched from back to lay bets */ ||
+             (bet_odds_iter->back_or_lay == bet_type::back ? bet_odds_iter->backer_multiplier > current_bin->backer_multiplier :
+                                                             bet_odds_iter->backer_multiplier < current_bin->backer_multiplier)))
             flush_current_bin();
 
         if (!current_bin)
@@ -94,9 +96,21 @@ binned_order_book bookie_api_impl::get_binned_order_book(graphene::chain::bettin
             // if there is no current bin, create one appropriate for the bet we're processing
             current_bin = graphene::chain::bet_object();
 
-            current_bin->backer_multiplier = (bet_odds_iter->backer_multiplier + bin_size - 1) / bin_size * bin_size;
-            current_bin->backer_multiplier = std::min<graphene::chain::bet_multiplier_type>(current_bin->backer_multiplier, current_params.max_bet_multiplier);
-            current_bin->back_or_lay = bet_odds_iter->back_or_lay == bet_type::back ? bet_type::lay : bet_type::back;
+            // for back bets, we want to group all bets with odds from 3.0001 to 4 into the "4" bin
+            // for lay bets, we want to group all bets with odds from 3 to 3.9999 into the "3" bin
+            if (bet_odds_iter->back_or_lay == bet_type::back)
+            {
+               current_bin->backer_multiplier = (bet_odds_iter->backer_multiplier + bin_size - 1) / bin_size * bin_size;
+               current_bin->backer_multiplier = std::min<graphene::chain::bet_multiplier_type>(current_bin->backer_multiplier, current_params.max_bet_multiplier);
+               current_bin->back_or_lay = bet_type::lay;
+            }
+            else
+            {
+               current_bin->backer_multiplier = bet_odds_iter->backer_multiplier / bin_size * bin_size;
+               current_bin->backer_multiplier = std::max<graphene::chain::bet_multiplier_type>(current_bin->backer_multiplier, current_params.min_bet_multiplier);
+               current_bin->back_or_lay = bet_type::back;
+            }
+
             current_bin->amount_to_bet.amount = 0;
         }
 

@@ -1686,7 +1686,6 @@ class wallet_api
               bet_type back_or_lay,
               asset amount_to_bet,
               bet_multiplier_type backer_multiplier,
-              share_type amount_reserved_for_fees,
               bool broadcast = false);
 
       signed_transaction propose_resolve_betting_market_group(

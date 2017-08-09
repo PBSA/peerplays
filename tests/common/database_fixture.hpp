@@ -319,7 +319,7 @@ struct database_fixture {
                                                 /*fc::optional<internationalized_string_type> description,*/
                                                 fc::optional<internationalized_string_type> payout_condition);
 
-   void place_bet(account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, asset amount_to_bet, bet_multiplier_type backer_multiplier, share_type amount_reserved_for_fees);
+   void place_bet(account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, asset amount_to_bet, bet_multiplier_type backer_multiplier);
    void resolve_betting_market_group(betting_market_group_id_type betting_market_group_id, std::map<betting_market_id_type, betting_market_resolution_type> resolutions);
    void cancel_unmatched_bets(betting_market_group_id_type betting_market_group_id);
 
