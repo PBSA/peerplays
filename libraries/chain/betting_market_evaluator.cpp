@@ -154,7 +154,7 @@ void_result betting_market_group_update_evaluator::do_evaluate(const betting_mar
    if (op.freeze.valid())
    {
        const auto& _betting_market_group = &op.betting_market_group_id(db());
-       FC_ASSERT(_betting_market_group->frozen != *op.freeze, "Freeze operation would not change the state of the betting market group");
+       FC_ASSERT(_betting_market_group->frozen != *op.freeze, "freeze would not change the state of the betting market group");
    }
 
    return void_result();

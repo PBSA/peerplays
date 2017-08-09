@@ -5180,6 +5180,7 @@ signed_transaction wallet_api::propose_update_event(
         fc::optional<object_id_type> event_group_id,
         fc::optional<internationalized_string_type> name,
         fc::optional<internationalized_string_type> season,
+        fc::optional<bool> is_live_market,
         fc::optional<time_point_sec> start_time,
         bool broadcast /*= false*/)
 {
@@ -5192,6 +5193,7 @@ signed_transaction wallet_api::propose_update_event(
     event_update_op.new_start_time = start_time;
     event_update_op.new_name = name;
     event_update_op.new_season = season;
+    event_update_op.is_live_market = is_live_market;
 
     proposal_create_operation prop_op;
     prop_op.expiration_time = expiration_time;

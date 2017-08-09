@@ -74,7 +74,11 @@ object_id_type event_create_evaluator::do_apply(const event_create_operation& op
 void_result event_update_evaluator::do_evaluate(const event_update_operation& op)
 { try {
    FC_ASSERT(trx_state->_is_proposed_trx);
-   FC_ASSERT(op.new_event_group_id.valid() || op.new_name.valid() || op.new_season.valid() || op.new_start_time.valid(), "nothing to change");
+   FC_ASSERT(op.new_event_group_id.valid() ||
+             op.new_name.valid() ||
+             op.new_season.valid() ||
+             op.new_start_time.valid() ||
+             op.is_live_market.valid(), "nothing to change");
 
    if (op.new_event_group_id.valid())
    {
@@ -86,6 +90,12 @@ void_result event_update_evaluator::do_evaluate(const event_update_operation& op
                  resolved_event_group_id.type() == event_group_id_type::type_id,
                  "event_group_id must refer to a event_group_id_type");
        event_group_id = resolved_event_group_id;
+   }
+
+   if (op.is_live_market.valid())
+   {
+       const auto& _event_object = &op.event_id(db());
+       FC_ASSERT(_event_object->is_live_market != *op.is_live_market, "is_live_market would not change the state of the event");
    }
 
    return void_result();
@@ -108,6 +118,8 @@ void_result event_update_evaluator::do_apply(const event_update_operation& op)
                   eo.start_time = *op.new_start_time;
               if( op.new_event_group_id.valid() )
                   eo.event_group_id = event_group_id;
+              if( op.is_live_market.valid() )
+                  eo.is_live_market = *op.is_live_market;
            });
         return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }

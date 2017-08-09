@@ -69,6 +69,8 @@ struct event_update_operation : public base_operation
 
    optional<time_point_sec> new_start_time;
 
+   optional<bool> is_live_market;
+
    extensions_type   extensions;
 
    account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
@@ -130,7 +132,7 @@ FC_REFLECT( graphene::chain::event_create_operation,
 
 FC_REFLECT( graphene::chain::event_update_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::event_update_operation,
-            (fee)(event_id)(new_event_group_id)(new_name)(new_season)(new_start_time)(extensions) )
+            (fee)(event_id)(new_event_group_id)(new_name)(new_season)(new_start_time)(is_live_market)(extensions) )
 
 FC_REFLECT_ENUM( graphene::chain::event_status, (upcoming)(in_progress)(frozen)(completed)(canceled)(STATUS_COUNT) )
 FC_REFLECT( graphene::chain::event_update_status_operation::fee_parameters_type, (fee) )

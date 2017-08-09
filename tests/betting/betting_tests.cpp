@@ -619,16 +619,17 @@ BOOST_AUTO_TEST_CASE(event_update_test)
      fc::optional<internationalized_string_type> name = internationalized_string_type({{"en", "Washington Capitals vs. Chicago Blackhawks"}, {"zh_Hans", "華盛頓首都隊/芝加哥黑"}, {"ja", "ワシントン・キャピタルズ/シカゴ・ブラックホーク"}});
      fc::optional<internationalized_string_type> season = internationalized_string_type({{"en", "2017-18"}});
      fc::optional<object_id_type> empty_object_id;
+     fc::optional<bool> empty_bool;
 
-     update_event(capitals_vs_blackhawks.id, empty_object_id, name, empty);
-     update_event(capitals_vs_blackhawks.id, empty_object_id, empty, season);
-     update_event(capitals_vs_blackhawks.id, empty_object_id, name, season);
+     update_event(capitals_vs_blackhawks.id, empty_object_id, name, empty, empty_bool);
+     update_event(capitals_vs_blackhawks.id, empty_object_id, empty, season, empty_bool);
+     update_event(capitals_vs_blackhawks.id, empty_object_id, name, season, empty_bool);
 
      const sport_object& ice_on_hockey = create_sport({{"en", "Hockey on Ice"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}}); \
      const event_group_object& nhl2 = create_event_group({{"en", "NHL2"}, {"zh_Hans", "國家冰球聯盟"}, {"ja", "ナショナルホッケーリーグ"}}, ice_on_hockey.id); \
      fc::optional<object_id_type> event_group_id = nhl2.id;
 
-     update_event(capitals_vs_blackhawks.id, event_group_id , empty, empty);
+     update_event(capitals_vs_blackhawks.id, event_group_id , empty, empty, empty_bool);
 
      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
 
@@ -958,7 +959,7 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_final_test )
       update_event(cilic_vs_federer.id,
                    fc::optional<object_id_type>(),
                    internationalized_string_type({{"en", "R. Federer vs. M. Cilic"}}),
-                   fc::optional<internationalized_string_type>());
+                   fc::optional<internationalized_string_type>(), fc::optional<bool>());
 
       generate_blocks(13);
 

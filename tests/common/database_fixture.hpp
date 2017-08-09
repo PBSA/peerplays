@@ -300,7 +300,8 @@ struct database_fixture {
    void update_event(event_id_type event_id,
                                        fc::optional<object_id_type> event_group_id,
                                        fc::optional<internationalized_string_type> name,
-                                       fc::optional<internationalized_string_type> season);
+                                       fc::optional<internationalized_string_type> season,
+                                       fc::optional<bool> is_live_market);
    const betting_market_rules_object& create_betting_market_rules(internationalized_string_type name, internationalized_string_type description);
    void update_betting_market_rules(betting_market_rules_id_type rules_id,
                                      fc::optional<internationalized_string_type> name,

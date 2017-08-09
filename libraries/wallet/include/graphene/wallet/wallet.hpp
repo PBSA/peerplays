@@ -1625,6 +1625,7 @@ class wallet_api
               fc::optional<object_id_type> event_group_id,
               fc::optional<internationalized_string_type> name,
               fc::optional<internationalized_string_type> season,
+              fc::optional<bool> is_live_market,
               fc::optional<time_point_sec> start_time,
               bool broadcast = false);
 
