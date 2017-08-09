@@ -1395,7 +1395,7 @@ void database_fixture::update_betting_market(betting_market_id_type betting_mark
 } FC_CAPTURE_AND_RETHROW( (betting_market_id) (group_id) (payout_condition) ) }
 
 
- void database_fixture::place_bet(account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, asset amount_to_bet, bet_multiplier_type backer_multiplier)
+ bet_id_type database_fixture::place_bet(account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, asset amount_to_bet, bet_multiplier_type backer_multiplier)
 { try {
    bet_place_operation bet_place_op;
    bet_place_op.bettor_id = bettor_id;
@@ -1408,6 +1408,8 @@ void database_fixture::update_betting_market(betting_market_id_type betting_mark
    trx.validate();
    processed_transaction ptx = db.push_transaction(trx, ~0);
    trx.operations.clear();
+   BOOST_CHECK_MESSAGE(ptx.operation_results.size() == 1, "Place Bet Transaction should have had exactly one operation result");
+   return ptx.operation_results.front().get<object_id_type>().as<bet_id_type>();
 } FC_CAPTURE_AND_RETHROW( (bettor_id)(back_or_lay)(amount_to_bet) ) }
 
 void database_fixture::resolve_betting_market_group(betting_market_group_id_type betting_market_group_id,
