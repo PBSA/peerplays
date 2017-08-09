@@ -236,6 +236,10 @@ struct get_impacted_account_visitor
    {
       _impacted.insert( op.bettor_id );
    }
+   void operator()( const bet_adjusted_operation& op )
+   {
+      _impacted.insert( op.bettor_id );
+   }
    void operator()( const bet_matched_operation& op )
    {
       _impacted.insert( op.bettor_id );

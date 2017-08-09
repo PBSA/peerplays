@@ -5406,7 +5406,6 @@ signed_transaction wallet_api::place_bet(
         bet_type back_or_lay,
         asset amount_to_bet,
         bet_multiplier_type backer_multiplier,
-        share_type amount_reserved_for_fees,
         bool broadcast /*= false*/)
 {
     FC_ASSERT( !is_locked() );
@@ -5417,7 +5416,6 @@ signed_transaction wallet_api::place_bet(
     bet_place_op.betting_market_id = betting_market_id;
     bet_place_op.amount_to_bet = amount_to_bet;
     bet_place_op.backer_multiplier = backer_multiplier;
-    bet_place_op.amount_reserved_for_fees = amount_reserved_for_fees;
     bet_place_op.back_or_lay = back_or_lay;
 
     signed_transaction tx;

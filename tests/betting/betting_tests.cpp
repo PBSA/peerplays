@@ -135,12 +135,12 @@ BOOST_AUTO_TEST_CASE(simple_bet_win)
       transfer(account_id_type(), bob_id, asset(10000));
 
       // place bets at 10:1
-      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 11 * GRAPHENE_BETTING_ODDS_PRECISION, 2);
-      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000, asset_id_type()), 11 * GRAPHENE_BETTING_ODDS_PRECISION, 20);
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 11 * GRAPHENE_BETTING_ODDS_PRECISION);
+      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000, asset_id_type()), 11 * GRAPHENE_BETTING_ODDS_PRECISION);
 
       // reverse positions at 1:1
-      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(1100, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 22);
-      place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(1100, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 22);
+      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(1100, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+      place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(1100, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
    } FC_LOG_AND_RETHROW()
 }
@@ -159,11 +159,11 @@ BOOST_AUTO_TEST_CASE(binned_order_books)
       transfer(account_id_type(), bob_id, asset(10000));
 
       // place back bets at decimal odds of 1.55, 1.6, 1.65, 1.66, and 1.67
-      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 155 * GRAPHENE_BETTING_ODDS_PRECISION / 100, 2);
-      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 16 * GRAPHENE_BETTING_ODDS_PRECISION / 10, 2);
-      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 165 * GRAPHENE_BETTING_ODDS_PRECISION / 100, 2);
-      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 166 * GRAPHENE_BETTING_ODDS_PRECISION / 100, 2);
-      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 167 * GRAPHENE_BETTING_ODDS_PRECISION / 100, 2);
+      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 155 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
+      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 16 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
+      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 165 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
+      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 166 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
+      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 167 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
 
       const auto& bet_odds_idx = db.get_index_type<bet_object_index>().indices().get<by_odds>();
 
@@ -187,7 +187,7 @@ BOOST_AUTO_TEST_CASE(binned_order_books)
         // compute the matching lay order
         share_type lay_amount = bet_object::get_approximate_matching_amount(binned_order.amount_to_bet, binned_order.backer_multiplier, bet_type::back, false /* round down */);
         ilog("Alice is laying with ${lay_amount} at odds ${odds} to match the binned back amount ${back_amount}", ("lay_amount", lay_amount)("odds", binned_order.backer_multiplier)("back_amount", binned_order.amount_to_bet));
-        place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(lay_amount, asset_id_type()), binned_order.backer_multiplier, 2);
+        place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(lay_amount, asset_id_type()), binned_order.backer_multiplier);
       }
 
       bet_iter = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
@@ -201,11 +201,11 @@ BOOST_AUTO_TEST_CASE(binned_order_books)
       BOOST_CHECK(bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id)) == bet_odds_idx.end());
 
       // place lay bets at decimal odds of 1.55, 1.6, 1.65, 1.66, and 1.67
-      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 155 * GRAPHENE_BETTING_ODDS_PRECISION / 100, 2);
-      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 16 * GRAPHENE_BETTING_ODDS_PRECISION / 10, 2);
-      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 165 * GRAPHENE_BETTING_ODDS_PRECISION / 100, 2);
-      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 166 * GRAPHENE_BETTING_ODDS_PRECISION / 100, 2);
-      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 167 * GRAPHENE_BETTING_ODDS_PRECISION / 100, 2);
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 155 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 16 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 165 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 166 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 167 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
 
       binned_orders_point_one = bookie_api.get_binned_order_book(capitals_win_market.id, 1);
       idump((binned_orders_point_one));
@@ -219,7 +219,7 @@ BOOST_AUTO_TEST_CASE(binned_order_books)
         // compute the matching lay order
         share_type back_amount = bet_object::get_approximate_matching_amount(binned_order.amount_to_bet, binned_order.backer_multiplier, bet_type::lay, false /* round down */);
         ilog("Alice is backing with ${back_amount} at odds ${odds} to match the binned lay amount ${lay_amount}", ("back_amount", back_amount)("odds", binned_order.backer_multiplier)("lay_amount", binned_order.amount_to_bet));
-        place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(back_amount, asset_id_type()), binned_order.backer_multiplier, 2);
+        place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(back_amount, asset_id_type()), binned_order.backer_multiplier);
       }
 
       bet_iter = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
@@ -247,12 +247,12 @@ BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
       transfer(account_id_type(), bob_id, asset(10000000));
 
       // have bob lay a bet for 1M (+20k fees) at 1:1 odds                  
-      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
       // have alice back a matching bet at 1:1 odds (also costing 1.02M) 
-      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000);
 
       // caps win
       resolve_betting_market_group(moneyline_betting_markets.id,
@@ -263,8 +263,8 @@ BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
       uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
       uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
       BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000 - rake_value);
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 + 2000000 - rake_value);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000);
 
    } FC_LOG_AND_RETHROW()
 }
@@ -281,24 +281,65 @@ BOOST_AUTO_TEST_CASE( cancel_unmatched_in_betting_group_test )
       transfer(account_id_type(), bob_id, asset(10000000));
 
       // have bob lay a bet for 1M (+20k fees) at 1:1 odds
-      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
       // have alice back a matching bet at 1:1 odds (also costing 1.02M)
-      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
       // place unmatched
-      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(500, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 10);
-      place_bet(bob_id, blackhawks_win_market.id, bet_type::lay, asset(600, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 20);
+      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(500, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+      place_bet(bob_id, blackhawks_win_market.id, bet_type::lay, asset(600, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 - 500 - 10);
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000 - 600 - 20);
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 500);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 600);
 
       // cancel unmatched
       cancel_unmatched_bets(moneyline_betting_markets.id);
 
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000);
 
    } FC_LOG_AND_RETHROW()
 }
+
+BOOST_AUTO_TEST_CASE(inexact_odds)
+{
+  try
+  {
+     ACTORS( (alice)(bob) );
+     CREATE_ICE_HOCKEY_BETTING_MARKET();
+
+     transfer(account_id_type(), alice_id, asset(10000000));
+     share_type alice_expected_balance = 10000000;
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
+
+     // lay 47 at 1.94 odds (50:47) -- this is an exact amount, nothing surprising should happen here
+     place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(47, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
+     alice_expected_balance -= 47;
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
+
+     // lay 100 at 1.91 odds (100:91) -- this is an inexact match, we should get refunded 9 and leave a bet for 91 on the books
+     place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 191 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
+     alice_expected_balance -= 91;
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
+
+
+     transfer(account_id_type(), bob_id, asset(10000000));
+     share_type bob_expected_balance = 10000000;
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
+
+     // now have bob match it with a back of 300 at 1.91
+     // This should: 
+     //   match the full 47 @ 1.94 with 50
+     //   match the full 91 @ 1.91 with 100
+     //     leaving 150
+     //     back bets at 100:91 must be a multiple of 100, so refund 50
+     //   leaves a back bet of 100 @ 1.91 on the books
+     place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(300, asset_id_type()), 191 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
+     bob_expected_balance -= 250;
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
+  }
+  FC_LOG_AND_RETHROW()
+}
+
 
 BOOST_AUTO_TEST_CASE( chained_market_create_test )
 {
@@ -430,12 +471,12 @@ struct simple_bet_test_fixture : database_fixture {
       transfer(account_id_type(), bob_id, asset(10000));
 
       // place bets at 10:1
-      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 11 * GRAPHENE_BETTING_ODDS_PRECISION, 2);
-      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000, asset_id_type()), 11 * GRAPHENE_BETTING_ODDS_PRECISION, 20);
+      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 11 * GRAPHENE_BETTING_ODDS_PRECISION);
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000, asset_id_type()), 11 * GRAPHENE_BETTING_ODDS_PRECISION);
 
       // reverse positions at 1:1
-      place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(1100, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 22);
-      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(1100, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 22);
+      place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(1100, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(1100, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
       capitals_win_betting_market_id = capitals_win_market.id;
       blackhawks_win_betting_market_id = blackhawks_win_market.id;
@@ -459,13 +500,13 @@ BOOST_AUTO_TEST_CASE( win )
       uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
       uint32_t rake_value;
       //rake_value = (-100 + 1100 - 1100) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
-      // alice starts with 10000, pays 100 (bet) + 2 (fee), wins 1100, then pays 1100 (bet) + 22 (fee), wins 0
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000 - 100 - 2 + 1100 - 1100 - 22 + 0);
+      // alice starts with 10000, pays 100 (bet), wins 1100, then pays 1100 (bet), wins 0
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000 - 100 + 1100 - 1100 + 0);
 
       rake_value = (-1000 - 1100 + 2200) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
-      // bob starts with 10000, pays 1000 (bet) + 20 (fee), wins 0, then pays 1100 (bet) + 22 (fee), wins 2200
+      // bob starts with 10000, pays 1000 (bet), wins 0, then pays 1100 (bet), wins 2200
       BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000 - 1000 - 20 + 0 - 1100 - 22 + 2200 - rake_value);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000 - 1000 + 0 - 1100 + 2200 - rake_value);
    } FC_LOG_AND_RETHROW()
 }
 
@@ -482,13 +523,13 @@ BOOST_AUTO_TEST_CASE( not_win )
 
       uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
       uint32_t rake_value = (-100 - 1100 + 2200) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
-      // alice starts with 10000, pays 100 (bet) + 2 (fee), wins 0, then pays 1100 (bet) + 22 (fee), wins 2200
+      // alice starts with 10000, pays 100 (bet), wins 0, then pays 1100 (bet), wins 2200
       BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000 - 100 - 2 + 0 - 1100 - 22 + 2200 - rake_value);
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000 - 100 + 0 - 1100 + 2200 - rake_value);
 
       //rake_value = (-1000 + 1100 - 1100) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
-      // bob starts with 10000, pays 1000 (bet) + 20 (fee), wins 1100, then pays 1100 (bet) + 22 (fee), wins 0
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000 - 1000 - 20 + 1100 - 1100 - 22 + 0);
+      // bob starts with 10000, pays 1000 (bet), wins 1100, then pays 1100 (bet), wins 0
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000 - 1000 + 1100 - 1100 + 0);
    } FC_LOG_AND_RETHROW()
 }
 
@@ -523,21 +564,21 @@ struct simple_bet_test_fixture_2 : database_fixture {
       transfer(account_id_type(), bob_id, asset(10000));
 
       // alice backs 1000 at 1:1, matches
-      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 20);
-      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 20);
+      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
       // now alice lays at 2500 at 1:1.  This should require a deposit of 500, with the remaining 200 being funded from exposure
-      place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(2500, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 50);
+      place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(2500, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
       // match the bet bit by bit. bob matches 500 of alice's 2500 bet.  This effectively cancels half of bob's lay position
       // so he immediately gets 500 back.  It reduces alice's back position, but doesn't return any money to her (all 2000 of her exposure
       // was already "promised" to her lay bet, so the 500 she would have received is placed in her refundable_unmatched_bets)
-      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(500, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 10);
+      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(500, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
       // match another 500, which will fully cancel bob's lay position and return the other 500 he had locked up in his position.  
       // alice's back position is now canceled, 1500 remains of her unmatched lay bet, and the 500 from canceling her position has
       // been moved to her refundable_unmatched_bets
-      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(500, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 10);
+      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(500, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
       capitals_win_betting_market_id = capitals_win_market.id;
    }
@@ -554,9 +595,9 @@ BOOST_AUTO_TEST_CASE(sport_update_test)
      update_sport(ice_hockey.id, {{"en", "Hockey on Ice"}, {"zh_Hans", "冰"}, {"ja", "アイスホッケ"}});
 
      transfer(account_id_type(), alice_id, asset(10000000));
-     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
-     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000);
 
    } FC_LOG_AND_RETHROW()
 }
@@ -571,7 +612,7 @@ BOOST_AUTO_TEST_CASE(event_group_update_test)
      transfer(account_id_type(), alice_id, asset(10000000));
      transfer(account_id_type(), bob_id, asset(10000000));
 
-     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
      const sport_object& ice_on_hockey = create_sport({{"en", "Hockey on Ice"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}}); \
      fc::optional<object_id_type> sport_id = ice_on_hockey.id;
@@ -582,10 +623,10 @@ BOOST_AUTO_TEST_CASE(event_group_update_test)
      update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>());
      update_event_group(nhl.id, sport_id, name);
 
-     place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+     place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
-     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
-     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000);
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000);
 
      // caps win
      resolve_betting_market_group(moneyline_betting_markets.id,
@@ -596,8 +637,8 @@ BOOST_AUTO_TEST_CASE(event_group_update_test)
      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
      uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
      BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
-     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000 - rake_value);
-     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 + 2000000 - rake_value);
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000);
 
   } FC_LOG_AND_RETHROW()
 }
@@ -613,7 +654,7 @@ BOOST_AUTO_TEST_CASE(event_update_test)
      transfer(account_id_type(), alice_id, asset(10000000));
      transfer(account_id_type(), bob_id, asset(10000000));
 
-     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
      fc::optional<internationalized_string_type> empty;
      fc::optional<internationalized_string_type> name = internationalized_string_type({{"en", "Washington Capitals vs. Chicago Blackhawks"}, {"zh_Hans", "華盛頓首都隊/芝加哥黑"}, {"ja", "ワシントン・キャピタルズ/シカゴ・ブラックホーク"}});
@@ -630,10 +671,10 @@ BOOST_AUTO_TEST_CASE(event_update_test)
 
      update_event(capitals_vs_blackhawks.id, event_group_id , empty, empty);
 
-     place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+     place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
-     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
-     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000);
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000);
 
      // caps win
      resolve_betting_market_group(moneyline_betting_markets.id,
@@ -644,8 +685,8 @@ BOOST_AUTO_TEST_CASE(event_update_test)
      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
      uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
      BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
-     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000 - rake_value);
-     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 + 2000000 - rake_value);
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000);
 
    } FC_LOG_AND_RETHROW()
 }
@@ -666,9 +707,9 @@ BOOST_AUTO_TEST_CASE(betting_market_rules_update_test)
      update_betting_market_rules(betting_market_rules.id, name, desc);
 
      transfer(account_id_type(), alice_id, asset(10000000));
-     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
-     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000);
 
    } FC_LOG_AND_RETHROW()
 }
@@ -681,7 +722,7 @@ BOOST_AUTO_TEST_CASE(betting_market_group_update_test)
      CREATE_ICE_HOCKEY_BETTING_MARKET();
 
      transfer(account_id_type(), alice_id, asset(10000000));
-     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
      fc::optional<internationalized_string_type> dempty;
      fc::optional<object_id_type> empty_object_id;
@@ -701,10 +742,10 @@ BOOST_AUTO_TEST_CASE(betting_market_group_update_test)
      update_betting_market_group(moneyline_betting_markets.id, new_desc, new_event, new_rule, freeze);
 
      transfer(account_id_type(), bob_id, asset(10000000));
-     place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+     place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
-     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
-     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000);
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000);
 
      // caps win
      resolve_betting_market_group(moneyline_betting_markets.id,
@@ -715,8 +756,8 @@ BOOST_AUTO_TEST_CASE(betting_market_group_update_test)
      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
      uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
      BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
-     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000 - rake_value);
-     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 + 2000000 - rake_value);
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000);
 
    } FC_LOG_AND_RETHROW()
 }
@@ -729,7 +770,7 @@ BOOST_AUTO_TEST_CASE(betting_market_update_test)
      CREATE_ICE_HOCKEY_BETTING_MARKET();
 
      transfer(account_id_type(), alice_id, asset(10000000));
-     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
      const betting_market_group_object& new_moneyline_betting_markets = create_betting_market_group({{"en", "New Moneyline"}}, capitals_vs_blackhawks.id, betting_market_rules.id, asset_id_type()); \
      fc::optional<object_id_type> betting_market_group = new_moneyline_betting_markets.id;
@@ -743,10 +784,10 @@ BOOST_AUTO_TEST_CASE(betting_market_update_test)
      update_betting_market(blackhawks_win_market.id, betting_market_group, fc::optional<internationalized_string_type>());
 
      transfer(account_id_type(), bob_id, asset(10000000));
-     place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+     place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
-     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
-     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000);
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000);
 
      // caps win
      resolve_betting_market_group(new_moneyline_betting_markets.id,
@@ -757,8 +798,8 @@ BOOST_AUTO_TEST_CASE(betting_market_update_test)
      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
      uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
      BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
-     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000 - rake_value);
-     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 + 2000000 - rake_value);
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000);
 
    } FC_LOG_AND_RETHROW()
 }
@@ -779,9 +820,9 @@ BOOST_AUTO_TEST_SUITE(other_betting_tests)
    {                                                       \
        if (1)                                              \
        {                                                   \
-       edump(("###"));                                     \
+       elog("###");                                        \
        edump((e.to_detail_string()));                      \
-       edump(("###"));                                     \
+       elog("###");                                        \
        }                                                   \
        FC_ASSERT(e.to_detail_string().find(reason) !=      \
        std::string::npos, "expected error hasn't occured");\
@@ -802,7 +843,7 @@ BOOST_FIXTURE_TEST_CASE( another_event_group_update_test, database_fixture)
      transfer(account_id_type(), alice_id, asset(10000000));
      transfer(account_id_type(), bob_id, asset(10000000));
 
-     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+     place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
      fc::optional<internationalized_string_type> name = internationalized_string_type({{"en", "IBM"}, {"zh_Hans", "國家冰球聯"}, {"ja", "ナショナルホッケーリー"}});
 
@@ -831,10 +872,10 @@ BOOST_FIXTURE_TEST_CASE( another_event_group_update_test, database_fixture)
      //GRAPHENE_REQUIRE_THROW(try_update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>()), fc::exception);
      TRY_EXPECT_THROW(try_update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>()), fc::exception, "invalid sport specified");
 
-     place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+     place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
-     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
-     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000);
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000);
 
      // caps win
      resolve_betting_market_group(moneyline_betting_markets.id,
@@ -845,8 +886,8 @@ BOOST_FIXTURE_TEST_CASE( another_event_group_update_test, database_fixture)
      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
      uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
      BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
-     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 + 2000000 - rake_value);
-     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000 - 20000);
+     BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 + 2000000 - rake_value);
+     BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000);
 
    } FC_LOG_AND_RETHROW()
 }
@@ -894,17 +935,17 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_sf_test )
       BOOST_TEST_MESSAGE("cilic_wins_market " << fc::variant(cilic_wins_market.id).as<std::string>());
       BOOST_TEST_MESSAGE("querrey_wins_market " << fc::variant(querrey_wins_market.id).as<std::string>());
 
-      place_bet(alice_id, berdych_wins_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
-      place_bet(bob_id, berdych_wins_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+      place_bet(alice_id, berdych_wins_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+      place_bet(bob_id, berdych_wins_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()),   10000000 - 1000000 - 20000);
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()),   10000000 - 1000000);
 
-      place_bet(alice_id, cilic_wins_market.id, bet_type::back, asset(100000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 100000 / 50 /* chain defaults to 2% fees */);
-      place_bet(bob_id, cilic_wins_market.id, bet_type::lay, asset(100000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 100000 / 50 /* chain defaults to 2% fees */);
+      place_bet(alice_id, cilic_wins_market.id, bet_type::back, asset(100000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+      place_bet(bob_id, cilic_wins_market.id, bet_type::lay, asset(100000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 - 100000 - 2000);
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()),   10000000 - 1000000 - 20000 - 100000 - 2000);
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 100000);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()),   10000000 - 1000000 - 100000);
 
       // federer wins
       resolve_betting_market_group(moneyline_berdych_vs_federer.id,
@@ -914,8 +955,8 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_sf_test )
       uint32_t bob_rake_value =   (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
       BOOST_TEST_MESSAGE("Bob's rake value " +  std::to_string(bob_rake_value));
 
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 - 100000 - 2000);
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()),   10000000 - 1000000 - 20000 - 100000 - 2000 + 2000000 - bob_rake_value);
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 100000);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()),   10000000 - 1000000 - 100000 + 2000000 - bob_rake_value);
 
       // cilic wins
       resolve_betting_market_group(moneyline_cilic_vs_querrey.id,
@@ -925,8 +966,8 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_sf_test )
       uint32_t alice_rake_value = (-100000  +  200000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
       BOOST_TEST_MESSAGE("Alice rake value " +  std::to_string(alice_rake_value));
 
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000 - 100000 - 2000 + 200000  - alice_rake_value);
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()),   10000000 - 1000000 - 20000 - 100000 - 2000 + 2000000 - bob_rake_value);
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 100000 + 200000  - alice_rake_value);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()),   10000000 - 1000000 - 100000 + 2000000 - bob_rake_value);
 
    } FC_LOG_AND_RETHROW()
 }
@@ -948,8 +989,8 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_final_test )
       BOOST_TEST_MESSAGE("federer_wins_final_market " << fc::variant(federer_wins_final_market.id).as<std::string>());
       BOOST_TEST_MESSAGE("cilic_wins_final_market " << fc::variant(cilic_wins_final_market.id).as<std::string>());
 
-      place_bet(alice_id, cilic_wins_final_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
-      place_bet(bob_id, cilic_wins_final_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);
+      place_bet(alice_id, cilic_wins_final_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+      place_bet(bob_id, cilic_wins_final_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
       betting_market_group_id_type moneyline_cilic_vs_federer_id = moneyline_cilic_vs_federer.id;
       auto cilic_wins_final_market_id = cilic_wins_final_market.id;
@@ -965,8 +1006,8 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_final_test )
       const betting_market_group_object& betting_market_group = moneyline_cilic_vs_federer_id(db);
       BOOST_CHECK_EQUAL(betting_market_group.total_matched_bets_amount.value, 2000000);
 
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()),   10000000 - 1000000 - 20000);
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()),   10000000 - 1000000);
 
       // federer wins
       resolve_betting_market_group(moneyline_cilic_vs_federer_id,
@@ -976,8 +1017,8 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_final_test )
       uint32_t bob_rake_value =   (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
       BOOST_TEST_MESSAGE("Bob's rake value " +  std::to_string(bob_rake_value));
 
-      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 - 20000);
-      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()),   10000000 - 1000000 - 20000 + 2000000 - bob_rake_value);
+      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000);
+      BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()),   10000000 - 1000000 + 2000000 - bob_rake_value);
 
     } FC_LOG_AND_RETHROW()
  }

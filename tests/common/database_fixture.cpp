@@ -225,7 +225,6 @@ void database_fixture::verify_asset_supplies( const database& db )
    for (const bet_object& o : db.get_index_type<bet_object_index>().indices())
    {
       total_balances[o.amount_to_bet.asset_id] += o.amount_to_bet.amount;
-      total_balances[o.amount_to_bet.asset_id] += o.amount_reserved_for_fees;
    }
    for (const betting_market_position_object& o : db.get_index_type<betting_market_position_index>().indices())
    {
@@ -1394,14 +1393,13 @@ void database_fixture::update_betting_market(betting_market_id_type betting_mark
 } FC_CAPTURE_AND_RETHROW( (betting_market_id) (group_id) (payout_condition) ) }
 
 
- void database_fixture::place_bet(account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, asset amount_to_bet, bet_multiplier_type backer_multiplier, share_type amount_reserved_for_fees)
+ void database_fixture::place_bet(account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, asset amount_to_bet, bet_multiplier_type backer_multiplier)
 { try {
    bet_place_operation bet_place_op;
    bet_place_op.bettor_id = bettor_id;
    bet_place_op.betting_market_id = betting_market_id;
    bet_place_op.amount_to_bet = amount_to_bet;
    bet_place_op.backer_multiplier = backer_multiplier;
-   bet_place_op.amount_reserved_for_fees = amount_reserved_for_fees;
    bet_place_op.back_or_lay = back_or_lay;
    
    trx.operations.push_back(bet_place_op);
