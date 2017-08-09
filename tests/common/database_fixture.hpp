@@ -309,7 +309,8 @@ struct database_fixture {
    void update_betting_market_group(betting_market_group_id_type betting_market_group_id,
                                     fc::optional<internationalized_string_type> description,
                                     fc::optional<object_id_type> event_id,
-                                    fc::optional<object_id_type> rules_id);
+                                    fc::optional<object_id_type> rules_id,
+                                    fc::optional<bool> freeze);
 
    const betting_market_object& create_betting_market(betting_market_group_id_type group_id, internationalized_string_type payout_condition);
    void update_betting_market(betting_market_id_type betting_market_id,

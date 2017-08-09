@@ -693,11 +693,12 @@ BOOST_AUTO_TEST_CASE(betting_market_group_update_test)
 
      const betting_market_rules_object& new_betting_market_rules = create_betting_market_rules({{"en", "NHL Rules v2.0"}}, {{"en", "The winner will be the team with the most points at the end of the game. The team with fewer points will not be the winner."}});
      fc::optional<object_id_type> new_rule = new_betting_market_rules.id;
+     fc::optional<bool> freeze;
 
-     update_betting_market_group(moneyline_betting_markets.id, new_desc, empty_object_id, empty_object_id);
-     update_betting_market_group(moneyline_betting_markets.id, dempty, new_event, empty_object_id);
-     update_betting_market_group(moneyline_betting_markets.id, dempty, empty_object_id, new_rule);
-     update_betting_market_group(moneyline_betting_markets.id, new_desc, new_event, new_rule);
+     update_betting_market_group(moneyline_betting_markets.id, new_desc, empty_object_id, empty_object_id, freeze);
+     update_betting_market_group(moneyline_betting_markets.id, dempty, new_event, empty_object_id, freeze);
+     update_betting_market_group(moneyline_betting_markets.id, dempty, empty_object_id, new_rule, freeze);
+     update_betting_market_group(moneyline_betting_markets.id, new_desc, new_event, new_rule, freeze);
 
      transfer(account_id_type(), bob_id, asset(10000000));
      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION, 1000000 / 50 /* chain defaults to 2% fees */);

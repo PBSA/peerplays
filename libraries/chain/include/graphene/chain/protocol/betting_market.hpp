@@ -116,6 +116,8 @@ struct betting_market_group_update_operation : public base_operation
 
    optional<object_id_type> new_rules_id;
 
+   optional<bool> freeze;
+
    extensions_type   extensions;
 
    account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
@@ -215,20 +217,6 @@ struct betting_market_group_resolved_operation : public base_operation
    void            validate()const { FC_ASSERT(false, "virtual operation"); }
    /// This is a virtual operation; there is no fee
    share_type      calculate_fee(const fee_parameters_type& k)const { return 0; }
-};
-
-struct betting_market_group_freeze_operation : public base_operation
-{
-   struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
-   asset             fee;
-
-   betting_market_group_id_type betting_market_group_id;
-   bool freeze; // the new state of the betting market
-
-   extensions_type   extensions;
-
-   account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
-   void            validate()const;
 };
 
 struct betting_market_group_cancel_unmatched_bets_operation : public base_operation
@@ -381,7 +369,7 @@ FC_REFLECT( graphene::chain::betting_market_group_create_operation,
 
 FC_REFLECT( graphene::chain::betting_market_group_update_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_group_update_operation,
-            (fee)(betting_market_group_id)(new_description)(new_event_id)(new_rules_id)(extensions) )
+            (fee)(betting_market_group_id)(new_description)(new_event_id)(new_rules_id)(freeze)(extensions) )
 
 FC_REFLECT( graphene::chain::betting_market_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_create_operation, 
@@ -400,10 +388,6 @@ FC_REFLECT( graphene::chain::betting_market_group_resolve_operation,
 FC_REFLECT( graphene::chain::betting_market_group_resolved_operation::fee_parameters_type, )
 FC_REFLECT( graphene::chain::betting_market_group_resolved_operation,
             (bettor_id)(betting_market_group_id)(resolutions)(winnings)(fees_paid)(fee) )
-
-FC_REFLECT( graphene::chain::betting_market_group_freeze_operation::fee_parameters_type, (fee) )
-FC_REFLECT( graphene::chain::betting_market_group_freeze_operation,
-            (fee)(betting_market_group_id)(freeze)(extensions) )
 
 FC_REFLECT( graphene::chain::betting_market_group_cancel_unmatched_bets_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_group_cancel_unmatched_bets_operation,

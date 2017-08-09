@@ -1357,13 +1357,15 @@ const betting_market_group_object& database_fixture::create_betting_market_group
 void database_fixture::update_betting_market_group(betting_market_group_id_type betting_market_group_id,
                                                    fc::optional<internationalized_string_type> description,
                                                    fc::optional<object_id_type> event_id,
-                                                   fc::optional<object_id_type> rules_id)
+                                                   fc::optional<object_id_type> rules_id,
+                                                   fc::optional<bool> freeze)
 { try {
    betting_market_group_update_operation betting_market_group_update_op;
    betting_market_group_update_op.betting_market_group_id = betting_market_group_id;
    betting_market_group_update_op.new_description = description;
    betting_market_group_update_op.new_event_id = event_id;
    betting_market_group_update_op.new_rules_id = rules_id;
+   betting_market_group_update_op.freeze = freeze;
    process_operation_by_witnesses(betting_market_group_update_op);
 } FC_CAPTURE_AND_RETHROW( (betting_market_group_id)(description)(event_id)(rules_id)) }
 

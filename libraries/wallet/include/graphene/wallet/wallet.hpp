@@ -1659,6 +1659,7 @@ class wallet_api
               fc::optional<internationalized_string_type> description,
               fc::optional<object_id_type> event_id,
               fc::optional<object_id_type> rules_id,
+              fc::optional<bool> freeze,
               bool broadcast = false);
 
       signed_transaction propose_create_betting_market(

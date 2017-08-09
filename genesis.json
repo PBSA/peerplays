@@ -234,7 +234,9 @@
             "fee": 100000
           }
         ],[
-          55,{}
+          55,{
+            "fee": 100000
+          }
         ],[
           56,{
             "fee": 100000
@@ -244,17 +246,17 @@
             "fee": 100000
           }
         ],[
-          58,{}
-        ],[
-          59,{
+          58,{
             "fee": 100000
           }
+        ],[
+          59,{}
         ]
       ],
       "scale": 10000
     },
     "block_interval": 5,
-    "maintenance_interval": 6000,
+    "maintenance_interval": 600,
     "maintenance_skip_slots": 3,
     "committee_proposal_review_period": 900,
     "maximum_transaction_size": 2048,

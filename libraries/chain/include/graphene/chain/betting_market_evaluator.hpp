@@ -129,18 +129,6 @@ namespace graphene { namespace chain {
          const betting_market_group_object* _betting_market_group;
    };
 
-   class betting_market_group_freeze_evaluator : public evaluator<betting_market_group_freeze_evaluator>
-   {
-      public:
-         typedef betting_market_group_freeze_operation operation_type;
-
-         void_result do_evaluate( const betting_market_group_freeze_operation& o );
-         void_result do_apply( const betting_market_group_freeze_operation& o );
-      private:
-         const betting_market_group_object* _betting_market_group;
-   };
-
-
    class betting_market_group_cancel_unmatched_bets_evaluator : public evaluator<betting_market_group_cancel_unmatched_bets_evaluator>
    {
       public:

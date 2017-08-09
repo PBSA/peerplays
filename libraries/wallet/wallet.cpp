@@ -5308,6 +5308,7 @@ signed_transaction wallet_api::propose_update_betting_market_group(
         fc::optional<internationalized_string_type> description,
         fc::optional<object_id_type> event_id,
         fc::optional<object_id_type> rules_id,
+        fc::optional<bool> freeze,
         bool broadcast /*= false*/)
 {
     FC_ASSERT( !is_locked() );
@@ -5318,7 +5319,7 @@ signed_transaction wallet_api::propose_update_betting_market_group(
     betting_market_group_update_op.new_description = description;
     betting_market_group_update_op.new_event_id = event_id;
     betting_market_group_update_op.new_rules_id = rules_id;
-    //betting_market_group_create_op.asset_id = asset_id;
+    betting_market_group_update_op.freeze = freeze;
 
     proposal_create_operation prop_op;
     prop_op.expiration_time = expiration_time;

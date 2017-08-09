@@ -119,7 +119,7 @@ object_id_type betting_market_group_create_evaluator::do_apply(const betting_mar
 void_result betting_market_group_update_evaluator::do_evaluate(const betting_market_group_update_operation& op)
 { try {
    FC_ASSERT(trx_state->_is_proposed_trx);
-   FC_ASSERT(op.new_event_id.valid() || op.new_description || op.new_rules_id, "nothing to change");
+   FC_ASSERT(op.new_event_id.valid() || op.new_description.valid() || op.new_rules_id.valid() || op.freeze.valid(), "nothing to change");
 
    // the event_id in the operation can be a relative id.  If it is,
    // resolve it and verify that it is truly an event
@@ -151,6 +151,12 @@ void_result betting_market_group_update_evaluator::do_evaluate(const betting_mar
        FC_ASSERT( db().find_object(rules_id), "invalid rules specified" );
    }
 
+   if (op.freeze.valid())
+   {
+       const auto& _betting_market_group = &op.betting_market_group_id(db());
+       FC_ASSERT(_betting_market_group->frozen != *op.freeze, "Freeze operation would not change the state of the betting market group");
+   }
+
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -167,6 +173,8 @@ void_result betting_market_group_update_evaluator::do_apply(const betting_market
                   bmgo.event_id = event_id;
               if( op.new_rules_id.valid() )
                   bmgo.rules_id = rules_id;
+              if( op.freeze.valid() )
+                  bmgo.frozen = *op.freeze;
            });
         return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -353,23 +361,6 @@ void_result betting_market_group_resolve_evaluator::do_evaluate(const betting_ma
 void_result betting_market_group_resolve_evaluator::do_apply(const betting_market_group_resolve_operation& op)
 { try {
    db().resolve_betting_market_group(*_betting_market_group, op.resolutions);
-   return void_result();
-} FC_CAPTURE_AND_RETHROW( (op) ) }
-
-void_result betting_market_group_freeze_evaluator::do_evaluate(const betting_market_group_freeze_operation& op)
-{ try {
-   const database& d = db();
-   _betting_market_group = &op.betting_market_group_id(d);
-   FC_ASSERT(_betting_market_group->frozen != op.freeze, "Freeze operation would not change the state of the betting market group");
-   return void_result();
-} FC_CAPTURE_AND_RETHROW( (op) ) }
-
-void_result betting_market_group_freeze_evaluator::do_apply(const betting_market_group_freeze_operation& op)
-{ try {
-   db().modify(*_betting_market_group, [&]( betting_market_group_object& betting_market_group_obj ) {
-       betting_market_group_obj.frozen = op.freeze;
-   });
-
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 

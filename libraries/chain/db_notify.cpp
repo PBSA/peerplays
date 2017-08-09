@@ -205,7 +205,6 @@ struct get_impacted_account_visitor
    void operator()(const betting_market_update_operation&){}
    void operator()(const bet_place_operation&){}
    void operator()(const betting_market_group_resolve_operation&){}
-   void operator()(const betting_market_group_freeze_operation&){}
    void operator()(const betting_market_group_resolved_operation &){}
    void operator()(const betting_market_group_cancel_unmatched_bets_operation&){}
    void operator()(const bet_matched_operation &){}
