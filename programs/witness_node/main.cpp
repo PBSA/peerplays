@@ -30,6 +30,7 @@
 //#include <graphene/generate_genesis/generate_genesis_plugin.hpp>
 //#include <graphene/generate_uia_sharedrop_genesis/generate_uia_sharedrop_genesis.hpp>
 #include <graphene/bookie/bookie_plugin.hpp>
+#include <graphene/utilities/git_revision.hpp>
 
 #include <fc/exception/exception.hpp>
 #include <fc/thread/thread.hpp>
@@ -70,6 +71,7 @@ int main(int argc, char** argv) {
       bpo::options_description cfg_options("Graphene Witness Node");
       app_options.add_options()
             ("help,h", "Print this help message and exit.")
+            ("version", "Display the version info and exit");
             ("data-dir,d", bpo::value<boost::filesystem::path>()->default_value("witness_node_data_dir"), "Directory containing databases, configuration file, etc.")
             ;
 
@@ -100,6 +102,17 @@ int main(int argc, char** argv) {
       if( options.count("help") )
       {
          std::cout << app_options << "\n";
+         return 0;
+      }
+      if (options.count("version"))
+      {
+         std::string witness_version(graphene::utilities::git_revision_description);
+         const size_t pos = witness_version.find('/');
+         if( pos != std::string::npos && witness_version.size() > pos )
+            witness_version = witness_version.substr( pos + 1 );
+         std::cerr << "Version: " << witness_version << "\n";
+         std::cerr << "Git Revision: " << graphene::utilities::git_revision_sha << "\n";
+         std::cerr << "Built: " << __DATE__ " at " __TIME__ << "\n";
          return 0;
       }
 
