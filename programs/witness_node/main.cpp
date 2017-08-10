@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
       bpo::options_description cfg_options("Graphene Witness Node");
       app_options.add_options()
             ("help,h", "Print this help message and exit.")
-            ("version", "Display the version info and exit");
+            ("version", "Display the version info and exit")
             ("data-dir,d", bpo::value<boost::filesystem::path>()->default_value("witness_node_data_dir"), "Directory containing databases, configuration file, etc.")
             ;
 
