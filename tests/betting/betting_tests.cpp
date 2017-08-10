@@ -783,12 +783,12 @@ BOOST_AUTO_TEST_CASE(betting_market_group_update_test)
 
      const betting_market_rules_object& new_betting_market_rules = create_betting_market_rules({{"en", "NHL Rules v2.0"}}, {{"en", "The winner will be the team with the most points at the end of the game. The team with fewer points will not be the winner."}});
      fc::optional<object_id_type> new_rule = new_betting_market_rules.id;
-     fc::optional<bool> freeze;
+     fc::optional<bool> empty_bool;
 
-     update_betting_market_group(moneyline_betting_markets.id, new_desc, empty_object_id, empty_object_id, freeze);
-     update_betting_market_group(moneyline_betting_markets.id, dempty, new_event, empty_object_id, freeze);
-     update_betting_market_group(moneyline_betting_markets.id, dempty, empty_object_id, new_rule, freeze);
-     update_betting_market_group(moneyline_betting_markets.id, new_desc, new_event, new_rule, freeze);
+     update_betting_market_group(moneyline_betting_markets.id, new_desc, empty_object_id, empty_object_id, empty_bool, empty_bool);
+     update_betting_market_group(moneyline_betting_markets.id, dempty, new_event, empty_object_id, empty_bool, empty_bool);
+     update_betting_market_group(moneyline_betting_markets.id, dempty, empty_object_id, new_rule, empty_bool, empty_bool);
+     update_betting_market_group(moneyline_betting_markets.id, new_desc, new_event, new_rule, empty_bool, empty_bool);
 
      transfer(account_id_type(), bob_id, asset(10000000));
      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
@@ -1038,10 +1038,18 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_final_test )
       BOOST_TEST_MESSAGE("federer_wins_final_market " << fc::variant(federer_wins_final_market.id).as<std::string>());
       BOOST_TEST_MESSAGE("cilic_wins_final_market " << fc::variant(cilic_wins_final_market.id).as<std::string>());
 
+      betting_market_group_id_type moneyline_cilic_vs_federer_id = moneyline_cilic_vs_federer.id;
+      fc::optional<internationalized_string_type> empty_str;
+      fc::optional<object_id_type> empty_obj;
+      fc::optional<bool> empty_bool;
+      fc::optional<bool> true_bool = true;
+      update_betting_market_group(moneyline_cilic_vs_federer_id, empty_str,
+                                  empty_obj, empty_obj,
+                                  empty_bool, true_bool);
+
       place_bet(alice_id, cilic_wins_final_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
       place_bet(bob_id, cilic_wins_final_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
-      betting_market_group_id_type moneyline_cilic_vs_federer_id = moneyline_cilic_vs_federer.id;
       auto cilic_wins_final_market_id = cilic_wins_final_market.id;
       auto federer_wins_final_market_id = federer_wins_final_market.id;
 

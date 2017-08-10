@@ -73,7 +73,8 @@ namespace graphene { namespace chain {
       bet_multiplier_type     min_bet_multiplier                  = GRAPHENE_DEFAULT_MIN_BET_MULTIPLIER;
       bet_multiplier_type     max_bet_multiplier                  = GRAPHENE_DEFAULT_MAX_BET_MULTIPLIER;
       flat_map<bet_multiplier_type, bet_multiplier_type> permitted_betting_odds_increments = GRAPHENE_DEFAULT_PERMITTED_BETTING_ODDS_INCREMENTS;
-      //uint8_t                 witness_schedule_algorithm          = GRAPHENE_WITNESS_SHUFFLED_ALGORITHM; ///< 0 shuffled, 1 scheduled
+      uint16_t                live_betting_delay_time             = GRAPHENE_DEFAULT_LIVE_BETTING_DELAY_TIME; ///< delayed bets
+       //uint8_t                 witness_schedule_algorithm          = GRAPHENE_WITNESS_SHUFFLED_ALGORITHM; ///< 0 shuffled, 1 scheduled
       uint8_t                 witness_schedule_algorithm          = GRAPHENE_WITNESS_SCHEDULED_ALGORITHM; ///< 0 shuffled, 1 scheduled
       /* rps tournament parameters constraints */
       uint32_t                min_round_delay                     = TOURNAMENT_MIN_ROUND_DELAY; ///< miniaml delay between games
@@ -131,6 +132,7 @@ FC_REFLECT( graphene::chain::chain_parameters,
             (betting_rake_fee_percentage)
             (permitted_betting_odds_increments)
             (witness_schedule_algorithm)
+            (live_betting_delay_time)
             (min_round_delay)
             (max_round_delay)
             (min_time_per_commit_move)

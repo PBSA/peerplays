@@ -112,6 +112,7 @@ object_id_type betting_market_group_create_evaluator::do_apply(const betting_mar
          betting_market_group_obj.description = op.description;
          betting_market_group_obj.asset_id = op.asset_id;
          betting_market_group_obj.frozen = false;
+         betting_market_group_obj.delay_bets = false;
      });
    return new_betting_market_group.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -119,7 +120,11 @@ object_id_type betting_market_group_create_evaluator::do_apply(const betting_mar
 void_result betting_market_group_update_evaluator::do_evaluate(const betting_market_group_update_operation& op)
 { try {
    FC_ASSERT(trx_state->_is_proposed_trx);
-   FC_ASSERT(op.new_event_id.valid() || op.new_description.valid() || op.new_rules_id.valid() || op.freeze.valid(), "nothing to change");
+   FC_ASSERT(op.new_event_id.valid() ||
+             op.new_description.valid() ||
+             op.new_rules_id.valid() ||
+             op.freeze.valid() ||
+             op.delay_bets.valid(), "nothing to change");
 
    // the event_id in the operation can be a relative id.  If it is,
    // resolve it and verify that it is truly an event
@@ -157,6 +162,11 @@ void_result betting_market_group_update_evaluator::do_evaluate(const betting_mar
        FC_ASSERT(_betting_market_group->frozen != *op.freeze, "freeze would not change the state of the betting market group");
    }
 
+   if (op.delay_bets.valid())
+   {
+       const auto& _betting_market_group = &op.betting_market_group_id(db());
+       FC_ASSERT(_betting_market_group->delay_bets != *op.delay_bets, "delay_bets would not change the state of the betting market group");
+   }
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -175,6 +185,8 @@ void_result betting_market_group_update_evaluator::do_apply(const betting_market
                   bmgo.rules_id = rules_id;
               if( op.freeze.valid() )
                   bmgo.frozen = *op.freeze;
+              if( op.delay_bets.valid() )
+                  bmgo.delay_bets = *op.delay_bets;
            });
         return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -306,7 +318,8 @@ object_id_type bet_place_evaluator::do_apply(const bet_place_operation& op)
 
    d.adjust_balance(fee_paying_account->id, -op.amount_to_bet);
 
-   bool bet_matched = d.place_bet(new_bet);
+   //bool bet_matched =
+   d.place_bet(new_bet);
 
    return new_bet_id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }

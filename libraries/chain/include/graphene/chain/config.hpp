@@ -211,6 +211,7 @@
                                                              {  1000000,  50000},  /* <=  100:  5.00 */ \
                                                              { 10000000, 100000} } /* <= 1000: 10.00 */ 
 #define GRAPHENE_DEFAULT_BETTING_PERCENT_FEE (2 * GRAPHENE_1_PERCENT)
+#define GRAPHENE_DEFAULT_LIVE_BETTING_DELAY_TIME            10
 #define TOURNAMENT_MIN_ROUND_DELAY                          0
 #define TOURNAMENT_MAX_ROUND_DELAY                          600
 #define TOURNAMENT_MIN_TIME_PER_COMMIT_MOVE                 0

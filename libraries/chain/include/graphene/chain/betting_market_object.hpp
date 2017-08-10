@@ -65,6 +65,8 @@ class betting_market_group_object : public graphene::db::abstract_object< bettin
       share_type total_matched_bets_amount;
 
       bool frozen;
+
+      bool delay_bets;
 };
 
 class betting_market_object : public graphene::db::abstract_object< betting_market_object >
@@ -447,7 +449,7 @@ typedef generic_index<betting_market_position_object, betting_market_position_mu
 } } // graphene::chain
 
 FC_REFLECT_DERIVED( graphene::chain::betting_market_rules_object, (graphene::db::object), (name)(description) )
-FC_REFLECT_DERIVED( graphene::chain::betting_market_group_object, (graphene::db::object), (description)(event_id)(rules_id)(asset_id)(frozen)(total_matched_bets_amount) )
+FC_REFLECT_DERIVED( graphene::chain::betting_market_group_object, (graphene::db::object), (description)(event_id)(rules_id)(asset_id)(frozen)(delay_bets)(total_matched_bets_amount) )
 FC_REFLECT_DERIVED( graphene::chain::betting_market_object, (graphene::db::object), (group_id)(description)(payout_condition) )
 FC_REFLECT_DERIVED( graphene::chain::bet_object, (graphene::db::object), (bettor_id)(betting_market_id)(amount_to_bet)(backer_multiplier)(back_or_lay) )
 
