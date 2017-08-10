@@ -152,7 +152,7 @@ bookie_plugin_impl::~bookie_plugin_impl()
 void bookie_plugin_impl::on_objects_changed(const vector<object_id_type>& changed_object_ids)
 {
    graphene::chain::database& db = database();
-   auto& event_id_index = db.get_index_type<persistent_event_object_index>().indices().get<by_event_id>();
+   auto& event_id_index = db.get_index_type<persistent_event_index>().indices().get<by_event_id>();
    auto& betting_market_group_id_index = db.get_index_type<persistent_betting_market_group_index>().indices().get<by_betting_market_group_id>();
    auto& betting_market_id_index = db.get_index_type<persistent_betting_market_index>().indices().get<by_betting_market_id>();
 
@@ -183,25 +183,14 @@ void bookie_plugin_impl::on_objects_changed(const vector<object_id_type>& change
          {
             ilog("Modifying persistent event object ${id}", ("id", changed_event_id));
             db.modify(*old_event_obj, [&](persistent_event_object& saved_event_obj) {
-               saved_event_obj.name = new_event_obj->name;
-               saved_event_obj.season = new_event_obj->season;
-               saved_event_obj.start_time = new_event_obj->start_time;;
-               saved_event_obj.event_group_id = new_event_obj->event_group_id;
-               saved_event_obj.status = new_event_obj->status;
-               saved_event_obj.scores = new_event_obj->scores;
+               saved_event_obj.ephemeral_event_object = *new_event_obj;
             });
          }
          else if (new_event_obj)
          {
             ilog("Creating new persistent event object ${id}", ("id", changed_event_id));
             db.create<persistent_event_object>([&](persistent_event_object& saved_event_obj) {
-               saved_event_obj.event_object_id = new_event_obj->id;
-               saved_event_obj.name = new_event_obj->name;
-               saved_event_obj.season = new_event_obj->season;
-               saved_event_obj.start_time = new_event_obj->start_time;;
-               saved_event_obj.event_group_id = new_event_obj->event_group_id;
-               saved_event_obj.status = new_event_obj->status;
-               saved_event_obj.scores = new_event_obj->scores;
+               saved_event_obj.ephemeral_event_object = *new_event_obj;
             });
          }
       }
@@ -414,7 +403,7 @@ void bookie_plugin::plugin_initialize(const boost::program_options::variables_ma
     database().applied_block.connect( [&]( const signed_block& b){ my->on_block_applied(b); } );
     database().changed_objects.connect([&](const vector<object_id_type>& changed_object_ids, const fc::flat_set<graphene::chain::account_id_type>& impacted_accounts){ my->on_objects_changed(changed_object_ids); });
     //auto event_index =
-    database().add_index<primary_index<detail::persistent_event_object_index> >();
+    database().add_index<primary_index<detail::persistent_event_index> >();
     database().add_index<primary_index<detail::persistent_betting_market_group_index> >();
     database().add_index<primary_index<detail::persistent_betting_market_index> >();
     database().add_index<primary_index<detail::persistent_bet_index> >();

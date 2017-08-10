@@ -132,14 +132,47 @@ fc::variants bookie_api_impl::get_objects(const vector<object_id_type>& ids) con
 
    std::transform(ids.begin(), ids.end(), std::back_inserter(result),
                   [this, &db](object_id_type id) -> fc::variant {
-      if (id.type() == bet_id_type::type_id)
+      switch (id.type())
       {
-         auto& persistent_bets_by_bet_id = db->get_index_type<detail::persistent_bet_index>().indices().get<by_bet_id>();
-         auto iter = persistent_bets_by_bet_id.find(id.as<bet_id_type>());
-         if (iter != persistent_bets_by_bet_id.end())
-            return iter->ephemeral_bet_object.to_variant();
+      case event_id_type::type_id:
+         {
+            auto& persistent_events_by_event_id = db->get_index_type<detail::persistent_event_index>().indices().get<by_event_id>();
+            auto iter = persistent_events_by_event_id.find(id.as<event_id_type>());
+            if (iter != persistent_events_by_event_id.end())
+               return iter->ephemeral_event_object.to_variant();
+            else
+               return {};
+         }
+      case bet_id_type::type_id:
+         {
+            auto& persistent_bets_by_bet_id = db->get_index_type<detail::persistent_bet_index>().indices().get<by_bet_id>();
+            auto iter = persistent_bets_by_bet_id.find(id.as<bet_id_type>());
+            if (iter != persistent_bets_by_bet_id.end())
+               return iter->ephemeral_bet_object.to_variant();
+            else
+               return {};
+         }
+      case betting_market_object::type_id:
+         { 
+            auto& persistent_betting_markets_by_betting_market_id = db->get_index_type<detail::persistent_betting_market_index>().indices().get<by_betting_market_id>();
+            auto iter = persistent_betting_markets_by_betting_market_id.find(id.as<betting_market_id_type>());
+            if (iter != persistent_betting_markets_by_betting_market_id.end())
+               return iter->ephemeral_betting_market_object.to_variant();
+            else
+               return {};
+         }
+      case betting_market_group_object::type_id:
+         { 
+            auto& persistent_betting_market_groups_by_betting_market_group_id = db->get_index_type<detail::persistent_betting_market_group_index>().indices().get<by_betting_market_group_id>();
+            auto iter = persistent_betting_market_groups_by_betting_market_group_id.find(id.as<betting_market_group_id_type>());
+            if (iter != persistent_betting_market_groups_by_betting_market_group_id.end())
+               return iter->ephemeral_betting_market_group_object.to_variant();
+            else
+               return {};
+         }
+      default:
+         return {};
       }
-      return {};
    });
 
    return result;

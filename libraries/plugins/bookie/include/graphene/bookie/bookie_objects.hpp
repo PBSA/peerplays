@@ -47,19 +47,11 @@ class persistent_event_object : public graphene::db::abstract_object<persistent_
       static const uint8_t space_id = bookie_objects;
       static const uint8_t type_id = persistent_event_object_type;
 
-      event_id_type event_object_id;
+      event_object ephemeral_event_object;
 
-      internationalized_string_type name;
-      
-      internationalized_string_type season;
-
-      optional<time_point_sec> start_time;
-
-      event_group_id_type event_group_id;
-
-      event_status status;
-      vector<string> scores;
+      event_id_type get_event_id() const { return ephemeral_event_object.id; }
 };
+
 typedef object_id<bookie_objects, persistent_event_object_type, persistent_event_object> persistent_event_id_type;
 
 struct by_event_id;
@@ -67,9 +59,8 @@ typedef multi_index_container<
    persistent_event_object,
    indexed_by<
       ordered_unique<tag<by_id>, member<object, object_id_type, &object::id> >,
-      ordered_unique<tag<by_event_id>, member<persistent_event_object, event_id_type, &persistent_event_object::event_object_id> > > > persistent_event_object_multi_index_type;
-
-typedef generic_index<persistent_event_object, persistent_event_object_multi_index_type> persistent_event_object_index;
+      ordered_unique<tag<by_event_id>, const_mem_fun<persistent_event_object, event_id_type, &persistent_event_object::get_event_id> > > > persistent_event_multi_index_type;
+typedef generic_index<persistent_event_object, persistent_event_multi_index_type> persistent_event_index;
 
 #if 0 // we no longer have competitors, just leaving this here as an example of how to do a secondary index
 class events_by_competitor_index : public secondary_index
@@ -180,7 +171,7 @@ typedef generic_index<persistent_bet_object, persistent_bet_multi_index_type> pe
 
 } } } //graphene::bookie::detail
 
-FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_event_object, (graphene::db::object), (event_object_id)(name)(season)(start_time)(event_group_id)(status)(scores) )
+FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_event_object, (graphene::db::object), (ephemeral_event_object) )
 FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_betting_market_group_object, (graphene::db::object), (ephemeral_betting_market_group_object)(total_matched_bets_amount) )
 FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_betting_market_object, (graphene::db::object), (ephemeral_betting_market_object) )
 FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_bet_object, (graphene::db::object), (ephemeral_bet_object) )
