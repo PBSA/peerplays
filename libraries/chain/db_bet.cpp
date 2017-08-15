@@ -26,6 +26,8 @@ void database::cancel_bet( const bet_object& bet, bool create_virtual_op )
 void database::cancel_all_unmatched_bets_on_betting_market(const betting_market_object& betting_market)
 {
    const auto& bet_odds_idx = get_index_type<bet_object_index>().indices().get<by_odds>();
+
+   // first, cancel all bets on the active books
    auto book_itr = bet_odds_idx.lower_bound(std::make_tuple(betting_market.id));
    auto book_end = bet_odds_idx.upper_bound(std::make_tuple(betting_market.id));
    while (book_itr != book_end)
@@ -33,6 +35,18 @@ void database::cancel_all_unmatched_bets_on_betting_market(const betting_market_
       auto old_book_itr = book_itr;
       ++book_itr;
       cancel_bet(*old_book_itr, true);
+   }
+
+   // then, cancel any delayed bets on that market.  We don't have an index for
+   // that, so walk through all delayed bets
+   book_itr = bet_odds_idx.begin();
+   while (book_itr != bet_odds_idx.end() &&
+          book_itr->end_of_delay)
+   {
+      auto old_book_itr = book_itr;
+      ++book_itr;
+      if (old_book_itr->betting_market_id == betting_market.id)
+         cancel_bet(*old_book_itr, true);
    }
 }
 

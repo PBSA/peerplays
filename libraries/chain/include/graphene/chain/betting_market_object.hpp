@@ -98,6 +98,8 @@ class bet_object : public graphene::db::abstract_object< bet_object >
 
       bet_type back_or_lay;
 
+      fc::optional<fc::time_point_sec> end_of_delay;
+
       static share_type get_approximate_matching_amount(share_type bet_amount, bet_multiplier_type backer_multiplier, bet_type back_or_lay, bool round_up = false);
 
       // returns the amount of a bet that completely matches this bet
@@ -161,78 +163,121 @@ typedef generic_index<betting_market_object, betting_market_object_multi_index_t
 struct compare_bet_by_odds {
    bool operator()(const bet_object& lhs, const bet_object& rhs) const
    {
-      return compare(lhs.betting_market_id, lhs.back_or_lay, lhs.backer_multiplier, lhs.id,
-                     rhs.betting_market_id, rhs.back_or_lay, rhs.backer_multiplier, rhs.id);
+      return compare(lhs.end_of_delay, lhs.betting_market_id, lhs.back_or_lay, lhs.backer_multiplier, lhs.id,
+                     rhs.end_of_delay, rhs.betting_market_id, rhs.back_or_lay, rhs.backer_multiplier, rhs.id);
    }
 
    template<typename T0>
    bool operator() (const std::tuple<T0>& lhs, const bet_object& rhs) const
    {
-      return compare(std::get<0>(lhs), rhs.betting_market_id);
+      return compare(fc::optional<time_point_sec>(), std::get<0>(lhs), rhs.end_of_delay, rhs.betting_market_id);
    }
 
    template<typename T0>
    bool operator() (const bet_object& lhs, const std::tuple<T0>& rhs) const
    {
-      return compare(lhs.betting_market_id, std::get<0>(rhs));
+      return compare(lhs.end_of_delay, lhs.betting_market_id, fc::optional<time_point_sec>(), std::get<0>(rhs));
    }
 
    template<typename T0, typename T1>
    bool operator() (const std::tuple<T0, T1>& lhs, const bet_object& rhs) const
    {
-      return compare(std::get<0>(lhs), std::get<1>(lhs), rhs.betting_market_id, rhs.back_or_lay);
+      return compare(fc::optional<fc::time_point_sec>(), std::get<0>(lhs), std::get<1>(lhs), rhs.end_of_delay, rhs.betting_market_id, rhs.back_or_lay);
    }
 
    template<typename T0, typename T1>
    bool operator() (const bet_object& lhs, const std::tuple<T0, T1>& rhs) const
    {
-      return compare(lhs.betting_market_id, lhs.back_or_lay, std::get<0>(rhs), std::get<1>(rhs));
+      return compare(lhs.end_of_delay, lhs.betting_market_id, lhs.back_or_lay, fc::optional<time_point_sec>(), std::get<0>(rhs), std::get<1>(rhs));
    }
 
    template<typename T0, typename T1, typename T2>
    bool operator() (const std::tuple<T0, T1, T2>& lhs, const bet_object& rhs) const
    {
-      return compare(std::get<0>(lhs), std::get<1>(lhs), std::get<2>(lhs),
-                     rhs.betting_market_id, rhs.back_or_lay, rhs.backer_multiplier);
+      return compare(fc::optional<time_point_sec>(), std::get<0>(lhs), std::get<1>(lhs), std::get<2>(lhs),
+                     rhs.end_of_delay, rhs.betting_market_id, rhs.back_or_lay, rhs.backer_multiplier);
    }
 
    template<typename T0, typename T1, typename T2>
    bool operator() (const bet_object& lhs, const std::tuple<T0, T1, T2>& rhs) const
    {
-      return compare(lhs.betting_market_id, lhs.back_or_lay, lhs.backer_multiplier,
-                     std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs));
+      return compare(lhs.end_of_delay, lhs.betting_market_id, lhs.back_or_lay, lhs.backer_multiplier,
+                     fc::optional<time_point_sec>(), std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs));
    }
    template<typename T0, typename T1, typename T2, typename T3>
    bool operator() (const std::tuple<T0, T1, T2, T3>& lhs, const bet_object& rhs) const
    {
-      return compare(std::get<0>(lhs), std::get<1>(lhs), std::get<2>(lhs), std::get<3>(lhs),
-                     rhs.betting_market_id, rhs.back_or_lay, rhs.backer_multiplier, rhs.id);
+      return compare(fc::optional<time_point_sec>(), std::get<0>(lhs), std::get<1>(lhs), std::get<2>(lhs), std::get<3>(lhs),
+                     rhs.end_of_delay, rhs.betting_market_id, rhs.back_or_lay, rhs.backer_multiplier, rhs.id);
    }
 
    template<typename T0, typename T1, typename T2, typename T3>
    bool operator() (const bet_object& lhs, const std::tuple<T0, T1, T2, T3>& rhs) const
    {
-      return compare(lhs.betting_market_id, lhs.back_or_lay, lhs.backer_multiplier, lhs.id,
-                     std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs), std::get<3>(rhs));
+      return compare(lhs.end_of_delay, lhs.betting_market_id, lhs.back_or_lay, lhs.backer_multiplier, lhs.id,
+                     fc::optional<time_point_sec>(), std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs), std::get<3>(rhs));
    }
-   bool compare(const betting_market_id_type& lhs_betting_market_id, const betting_market_id_type& rhs_betting_market_id) const
+   bool compare(const fc::optional<fc::time_point_sec>& lhs_end_of_delay, 
+                const betting_market_id_type& lhs_betting_market_id, 
+                const fc::optional<fc::time_point_sec>& rhs_end_of_delay, 
+                const betting_market_id_type& rhs_betting_market_id) const
    {
+      // if either bet is delayed, sort the delayed bet to the
+      // front.  If both are delayed, the delay expiring soonest
+      // comes first.
+      if (lhs_end_of_delay || rhs_end_of_delay)
+      {
+         if (!rhs_end_of_delay)
+            return true;
+         if (!lhs_end_of_delay)
+            return false;
+         return *lhs_end_of_delay < *rhs_end_of_delay;
+      }
+
       return lhs_betting_market_id < rhs_betting_market_id;
    }
-   bool compare(const betting_market_id_type& lhs_betting_market_id, bet_type lhs_bet_type, 
+   bool compare(const fc::optional<fc::time_point_sec>& lhs_end_of_delay,
+                const betting_market_id_type& lhs_betting_market_id, bet_type lhs_bet_type, 
+                const fc::optional<fc::time_point_sec>& rhs_end_of_delay, 
                 const betting_market_id_type& rhs_betting_market_id, bet_type rhs_bet_type) const
    {
+      // if either bet is delayed, sort the delayed bet to the
+      // front.  If both are delayed, the delay expiring soonest
+      // comes first.
+      if (lhs_end_of_delay || rhs_end_of_delay)
+      {
+         if (!rhs_end_of_delay)
+            return true;
+         if (!lhs_end_of_delay)
+            return false;
+         return *lhs_end_of_delay < *rhs_end_of_delay;
+      }
+
       if (lhs_betting_market_id < rhs_betting_market_id)
          return true;
       if (lhs_betting_market_id > rhs_betting_market_id)
          return false;
       return lhs_bet_type < rhs_bet_type;
    }
-   bool compare(const betting_market_id_type& lhs_betting_market_id, bet_type lhs_bet_type, 
+   bool compare(const fc::optional<fc::time_point_sec>& lhs_end_of_delay, 
+                const betting_market_id_type& lhs_betting_market_id, bet_type lhs_bet_type, 
                 bet_multiplier_type lhs_backer_multiplier,
+                const fc::optional<fc::time_point_sec>& rhs_end_of_delay, 
                 const betting_market_id_type& rhs_betting_market_id, bet_type rhs_bet_type,
                 bet_multiplier_type rhs_backer_multiplier) const
    {
+      // if either bet is delayed, sort the delayed bet to the
+      // front.  If both are delayed, the delay expiring soonest
+      // comes first.
+      if (lhs_end_of_delay || rhs_end_of_delay)
+      {
+         if (!rhs_end_of_delay)
+            return true;
+         if (!lhs_end_of_delay)
+            return false;
+         return *lhs_end_of_delay < *rhs_end_of_delay;
+      }
+
       if (lhs_betting_market_id < rhs_betting_market_id)
          return true;
       if (lhs_betting_market_id > rhs_betting_market_id)
@@ -246,11 +291,33 @@ struct compare_bet_by_odds {
       else
         return lhs_backer_multiplier > rhs_backer_multiplier;
    }
-   bool compare(const betting_market_id_type& lhs_betting_market_id, bet_type lhs_bet_type, 
+   bool compare(const fc::optional<fc::time_point_sec>& lhs_end_of_delay, 
+                const betting_market_id_type& lhs_betting_market_id, bet_type lhs_bet_type, 
                 bet_multiplier_type lhs_backer_multiplier, const bet_id_type& lhs_bet_id,
+                const fc::optional<fc::time_point_sec>& rhs_end_of_delay, 
                 const betting_market_id_type& rhs_betting_market_id, bet_type rhs_bet_type,
                 bet_multiplier_type rhs_backer_multiplier, const bet_id_type& rhs_bet_id) const
    {
+     
+      // if either bet is delayed, sort the delayed bet to the
+      // front.  If both are delayed, the delay expiring soonest
+      // comes first.
+      if (lhs_end_of_delay || rhs_end_of_delay)
+      {
+         if (!rhs_end_of_delay)
+            return true;
+         if (!lhs_end_of_delay)
+            return false;
+         if (*lhs_end_of_delay < *rhs_end_of_delay)
+            return true;
+         if (*lhs_end_of_delay > *rhs_end_of_delay)
+            return false;
+         // if both bets have the same delay, prefer the one
+         // that was placed first (lowest id)
+         return lhs_bet_id < rhs_bet_id;
+      }
+
+      // if neither bet was delayed
       if (lhs_betting_market_id < rhs_betting_market_id)
          return true;
       if (lhs_betting_market_id > rhs_betting_market_id)
@@ -451,6 +518,6 @@ typedef generic_index<betting_market_position_object, betting_market_position_mu
 FC_REFLECT_DERIVED( graphene::chain::betting_market_rules_object, (graphene::db::object), (name)(description) )
 FC_REFLECT_DERIVED( graphene::chain::betting_market_group_object, (graphene::db::object), (description)(event_id)(rules_id)(asset_id)(frozen)(delay_bets)(total_matched_bets_amount) )
 FC_REFLECT_DERIVED( graphene::chain::betting_market_object, (graphene::db::object), (group_id)(description)(payout_condition) )
-FC_REFLECT_DERIVED( graphene::chain::bet_object, (graphene::db::object), (bettor_id)(betting_market_id)(amount_to_bet)(backer_multiplier)(back_or_lay) )
+FC_REFLECT_DERIVED( graphene::chain::bet_object, (graphene::db::object), (bettor_id)(betting_market_id)(amount_to_bet)(backer_multiplier)(back_or_lay)(end_of_delay) )
 
 FC_REFLECT_DERIVED( graphene::chain::betting_market_position_object, (graphene::db::object), (bettor_id)(betting_market_id)(pay_if_payout_condition)(pay_if_not_payout_condition)(pay_if_canceled)(pay_if_not_canceled)(fees_collected) )

@@ -45,6 +45,8 @@ namespace graphene { namespace chain {
 
          void_result do_evaluate( const betting_market_rules_update_operation& o );
          void_result do_apply( const betting_market_rules_update_operation& o );
+      private:
+         const betting_market_rules_object* _rules;
    };
 
    class betting_market_group_create_evaluator : public evaluator<betting_market_group_create_evaluator>
@@ -52,11 +54,11 @@ namespace graphene { namespace chain {
       public:
          typedef betting_market_group_create_operation operation_type;
 
-         void_result do_evaluate( const betting_market_group_create_operation& o );
-         object_id_type do_apply( const betting_market_group_create_operation& o );
+         void_result do_evaluate(const betting_market_group_create_operation& o);
+         object_id_type do_apply(const betting_market_group_create_operation& o);
       private:
-         event_id_type event_id;
-         betting_market_rules_id_type rules_id;
+         event_id_type _event_id;
+         betting_market_rules_id_type _rules_id;
    };
 
    class betting_market_group_update_evaluator : public evaluator<betting_market_group_update_evaluator>
@@ -64,11 +66,11 @@ namespace graphene { namespace chain {
       public:
          typedef betting_market_group_update_operation operation_type;
 
-         void_result do_evaluate( const betting_market_group_update_operation& o );
-         void_result do_apply( const betting_market_group_update_operation& o );
+         void_result do_evaluate(const betting_market_group_update_operation& o);
+         void_result do_apply(const betting_market_group_update_operation& o);
       private:
-         event_id_type event_id;
-         betting_market_rules_id_type rules_id;
+         betting_market_rules_id_type _rules_id;
+         const betting_market_group_object* _betting_market_group;
    };
 
    class betting_market_create_evaluator : public evaluator<betting_market_create_evaluator>
@@ -79,7 +81,7 @@ namespace graphene { namespace chain {
          void_result do_evaluate( const betting_market_create_operation& o );
          object_id_type do_apply( const betting_market_create_operation& o );
       private:
-         betting_market_group_id_type group_id;
+         betting_market_group_id_type _group_id;
    };
 
    class betting_market_update_evaluator : public evaluator<betting_market_update_evaluator>
@@ -90,7 +92,8 @@ namespace graphene { namespace chain {
          void_result do_evaluate( const betting_market_update_operation& o );
          void_result do_apply( const betting_market_update_operation& o );
       private:
-         betting_market_group_id_type group_id;
+         const betting_market_object* _betting_market;
+         betting_market_group_id_type _group_id;
    };
 
    class bet_place_evaluator : public evaluator<bet_place_evaluator>
@@ -103,6 +106,7 @@ namespace graphene { namespace chain {
       private:
          const betting_market_group_object* _betting_market_group;
          const betting_market_object* _betting_market;
+         const chain_parameters* _current_params;
          const asset_object* _asset;
          share_type _stake_plus_fees;
    };

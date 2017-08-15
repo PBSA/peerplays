@@ -388,6 +388,92 @@ BOOST_AUTO_TEST_CASE(persistent_objects_test)
   FC_LOG_AND_RETHROW()
 }
 
+BOOST_AUTO_TEST_CASE(delayed_bets_test) // test live betting
+{
+  try
+  {
+     const auto& bet_odds_idx = db.get_index_type<bet_object_index>().indices().get<by_odds>();
+
+     ACTORS( (alice)(bob) );
+
+     {
+       // we're generating blocks, and the hacky way we keep references to the objects generated
+       // in this macro doesn't work, so do this in an anonymous scope to prevent us from using
+       // the variables it declares outside later in the function
+
+       CREATE_ICE_HOCKEY_BETTING_MARKET();
+     }
+
+     generate_blocks(1);
+
+     BOOST_REQUIRE_EQUAL(db.get_index_type<betting_market_group_object_index>().indices().get<by_id>().size(), 1);
+     const betting_market_group_object& caps_vs_blackhawks_moneyline_betting_market = *db.get_index_type<betting_market_group_object_index>().indices().get<by_id>().begin();
+     BOOST_REQUIRE_EQUAL(db.get_index_type<betting_market_object_index>().indices().get<by_id>().size(), 2);
+     const betting_market_object& capitals_win_market = *db.get_index_type<betting_market_object_index>().indices().get<by_id>().begin();
+
+
+
+     update_betting_market_group(caps_vs_blackhawks_moneyline_betting_market.id, 
+                                 fc::optional<internationalized_string_type>(),
+                                 fc::optional<object_id_type>(),
+                                 fc::optional<bool>(),
+                                 true);
+     generate_blocks(1);
+
+     transfer(account_id_type(), alice_id, asset(10000000));
+     transfer(account_id_type(), bob_id, asset(10000000));
+     share_type alice_expected_balance = 10000000;
+     share_type bob_expected_balance = 10000000;
+     BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
+     BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
+
+     generate_blocks(1);
+
+     BOOST_TEST_MESSAGE("Testing basic delayed bet mechanics");
+     // alice backs 100 at odds 2
+     BOOST_TEST_MESSAGE("Alice places a back bet of 100 at odds 2.0");
+     bet_id_type delayed_back_bet = place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+     generate_blocks(1);
+
+     // verify the bet hasn't been placed in the active book
+     auto first_bet_in_market = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
+     BOOST_CHECK(first_bet_in_market == bet_odds_idx.end());
+
+     // after 3 blocks, the delay should have expired and it will be promoted to the active book
+     generate_blocks(2);
+     first_bet_in_market = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
+     auto last_bet_in_market = bet_odds_idx.upper_bound(std::make_tuple(capitals_win_market.id));
+     BOOST_CHECK(first_bet_in_market != bet_odds_idx.end());
+     BOOST_CHECK(std::distance(first_bet_in_market, last_bet_in_market) == 1);
+
+     // bob lays 100 at odds 2 to match alice's bet currently on the books
+     BOOST_TEST_MESSAGE("Bob places a lay bet of 100 at odds 2.0");
+     bet_id_type delayed_lay_bet = place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+     generate_blocks(1);
+
+     // bob's bet will still be delayed, so the active order book will only contain alice's bet
+     first_bet_in_market = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
+     last_bet_in_market = bet_odds_idx.upper_bound(std::make_tuple(capitals_win_market.id));
+     BOOST_CHECK(std::distance(first_bet_in_market, last_bet_in_market) == 1);
+
+     // once bob's bet's delay has expired, the two bets will annihilate each other, leaving
+     // an empty order book
+     generate_blocks(2);
+     BOOST_CHECK(bet_odds_idx.empty());
+
+     // now test that when we cancel all bets on a market, delayed bets get canceled too
+     BOOST_TEST_MESSAGE("Alice places a back bet of 100 at odds 2.0");
+     delayed_back_bet = place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+     generate_blocks(1);
+     first_bet_in_market = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
+     BOOST_CHECK(!bet_odds_idx.empty());
+     BOOST_CHECK(first_bet_in_market == bet_odds_idx.end());
+     BOOST_TEST_MESSAGE("Cancel all bets");
+     cancel_unmatched_bets(caps_vs_blackhawks_moneyline_betting_market.id);
+     BOOST_CHECK(bet_odds_idx.empty());
+  }
+  FC_LOG_AND_RETHROW()
+}
 
 BOOST_AUTO_TEST_CASE( chained_market_create_test )
 {
@@ -785,10 +871,10 @@ BOOST_AUTO_TEST_CASE(betting_market_group_update_test)
      fc::optional<object_id_type> new_rule = new_betting_market_rules.id;
      fc::optional<bool> empty_bool;
 
-     update_betting_market_group(moneyline_betting_markets.id, new_desc, empty_object_id, empty_object_id, empty_bool, empty_bool);
-     update_betting_market_group(moneyline_betting_markets.id, dempty, new_event, empty_object_id, empty_bool, empty_bool);
-     update_betting_market_group(moneyline_betting_markets.id, dempty, empty_object_id, new_rule, empty_bool, empty_bool);
-     update_betting_market_group(moneyline_betting_markets.id, new_desc, new_event, new_rule, empty_bool, empty_bool);
+     update_betting_market_group(moneyline_betting_markets.id, new_desc, empty_object_id, empty_bool, empty_bool);
+     update_betting_market_group(moneyline_betting_markets.id, dempty, empty_object_id, empty_bool, empty_bool);
+     update_betting_market_group(moneyline_betting_markets.id, dempty, new_rule, empty_bool, empty_bool);
+     update_betting_market_group(moneyline_betting_markets.id, new_desc, new_rule, empty_bool, empty_bool);
 
      transfer(account_id_type(), bob_id, asset(10000000));
      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
@@ -1044,7 +1130,7 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_final_test )
       fc::optional<bool> empty_bool;
       fc::optional<bool> true_bool = true;
       update_betting_market_group(moneyline_cilic_vs_federer_id, empty_str,
-                                  empty_obj, empty_obj,
+                                  empty_obj,
                                   empty_bool, true_bool);
 
       place_bet(alice_id, cilic_wins_final_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);

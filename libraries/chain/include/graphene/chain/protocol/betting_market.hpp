@@ -112,8 +112,6 @@ struct betting_market_group_update_operation : public base_operation
 
    optional<internationalized_string_type> new_description;
 
-   optional<object_id_type> new_event_id;
-
    optional<object_id_type> new_rules_id;
 
    optional<bool> freeze;
@@ -388,7 +386,7 @@ FC_REFLECT( graphene::chain::betting_market_group_create_operation,
 
 FC_REFLECT( graphene::chain::betting_market_group_update_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_group_update_operation,
-            (fee)(betting_market_group_id)(new_description)(new_event_id)(new_rules_id)(freeze)(delay_bets)(extensions) )
+            (fee)(betting_market_group_id)(new_description)(new_rules_id)(freeze)(delay_bets)(extensions) )
 
 FC_REFLECT( graphene::chain::betting_market_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_create_operation, 

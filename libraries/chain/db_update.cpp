@@ -188,6 +188,53 @@ void database::clear_expired_transactions()
       transaction_idx.remove(*dedupe_index.begin());
 } FC_CAPTURE_AND_RETHROW() }
 
+void database::place_delayed_bets()
+{ try {
+   // If any bets have been placed during live betting where bets are delayed for a few seconds, see if there are
+   // any bets whose delays have expired.
+
+   // Delayed bets are sorted to the beginning of the order book, so if there are any bets that need placing, 
+   // they're right at the front of the book
+   const auto& bet_odds_idx = get_index_type<bet_object_index>().indices().get<by_odds>();
+   auto iter = bet_odds_idx.begin();
+
+   // we use an awkward looping mechanism here because there's a case where we are processing the
+   // last delayed bet before the "real" order book starts and `iter` was pointing at the first 
+   // real order.  The place_bet() call can cause the that real order to be deleted, so we need
+   // to decide whether this is the last delayed bet before `place_bet` is called.
+   bool last = iter == bet_odds_idx.end() || 
+               !iter->end_of_delay ||
+               *iter->end_of_delay > head_block_time();
+   while (!last)
+   {
+      const bet_object& bet_to_place = *iter;
+      ++iter;
+
+      last = iter == bet_odds_idx.end() || 
+             !iter->end_of_delay ||
+             *iter->end_of_delay > head_block_time();
+
+      // it's possible that the betting market was active when the bet was placed,
+      // but has been frozen before the delay expired.  If that's the case here,
+      // don't try to match the bet.
+      // Since this check happens every block, this could impact performance if a
+      // market with many delayed bets is frozen for a long time.
+      // Our current understanding is that the witnesses will typically cancel all unmatched
+      // bets on frozen markets to avoid this.
+      const betting_market_object& betting_market = bet_to_place.betting_market_id(*this);
+      const betting_market_group_object& betting_market_group = betting_market.group_id(*this);
+      if (!betting_market_group.frozen)
+      {
+         modify(bet_to_place, [](bet_object& bet_obj) {
+            // clear the end_of_delay,  which will re-sort the bet into its place in the book
+            bet_obj.end_of_delay.reset();
+         });
+
+         place_bet(bet_to_place);
+      }
+   }
+} FC_CAPTURE_AND_RETHROW() }
+
 void database::clear_expired_proposals()
 {
    const auto& proposal_expiration_index = get_index_type<proposal_index>().indices().get<by_expiration>();

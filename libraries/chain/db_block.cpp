@@ -540,6 +540,7 @@ void database::_apply_block( const signed_block& next_block )
       perform_chain_maintenance(next_block, global_props);
 
    create_block_summary(next_block);
+   place_delayed_bets(); // must happen after update_global_dynamic_data() updates the time
    clear_expired_transactions();
    clear_expired_proposals();
    clear_expired_orders();

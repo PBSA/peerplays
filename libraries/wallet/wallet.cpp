@@ -5308,7 +5308,6 @@ signed_transaction wallet_api::propose_update_betting_market_group(
         fc::time_point_sec expiration_time,
         betting_market_group_id_type betting_market_group_id,
         fc::optional<internationalized_string_type> description,
-        fc::optional<object_id_type> event_id,
         fc::optional<object_id_type> rules_id,
         fc::optional<bool> freeze,
         bool broadcast /*= false*/)
@@ -5319,7 +5318,6 @@ signed_transaction wallet_api::propose_update_betting_market_group(
     betting_market_group_update_operation betting_market_group_update_op;
     betting_market_group_update_op.betting_market_group_id = betting_market_group_id;
     betting_market_group_update_op.new_description = description;
-    betting_market_group_update_op.new_event_id = event_id;
     betting_market_group_update_op.new_rules_id = rules_id;
     betting_market_group_update_op.freeze = freeze;
 

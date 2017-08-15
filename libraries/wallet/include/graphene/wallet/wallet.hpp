@@ -1658,7 +1658,6 @@ class wallet_api
               fc::time_point_sec expiration_time,
               betting_market_group_id_type betting_market_group_id,
               fc::optional<internationalized_string_type> description,
-              fc::optional<object_id_type> event_id,
               fc::optional<object_id_type> rules_id,
               fc::optional<bool> freeze,
               bool broadcast = false);
