@@ -5400,22 +5400,25 @@ signed_transaction wallet_api::propose_update_betting_market(
     return my->sign_transaction(tx, broadcast);
 }
 
-signed_transaction wallet_api::place_bet(
-        const string& betting_account,
-        betting_market_id_type betting_market_id,
-        bet_type back_or_lay,
-        asset amount_to_bet,
-        bet_multiplier_type backer_multiplier,
-        bool broadcast /*= false*/)
+signed_transaction wallet_api::place_bet(string betting_account,
+                                         betting_market_id_type betting_market_id,
+                                         bet_type back_or_lay,
+                                         string amount,
+                                         string asset_symbol,
+                                         double backer_multiplier,
+                                         bool broadcast /*= false*/)
 {
     FC_ASSERT( !is_locked() );
+    fc::optional<asset_object> asset_obj = get_asset(asset_symbol);
+    FC_ASSERT(asset_obj, "Could not find asset matching ${asset}", ("asset", asset_symbol));
+
     const chain_parameters& current_params = get_global_properties().parameters;
 
     bet_place_operation bet_place_op;
     bet_place_op.bettor_id = get_account(betting_account).id;
     bet_place_op.betting_market_id = betting_market_id;
-    bet_place_op.amount_to_bet = amount_to_bet;
-    bet_place_op.backer_multiplier = backer_multiplier;
+    bet_place_op.amount_to_bet = asset_obj->amount_from_string(amount);
+    bet_place_op.backer_multiplier = (bet_multiplier_type)(backer_multiplier * GRAPHENE_BETTING_ODDS_PRECISION);
     bet_place_op.back_or_lay = back_or_lay;
 
     signed_transaction tx;

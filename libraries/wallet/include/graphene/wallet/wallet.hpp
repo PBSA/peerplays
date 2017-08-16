@@ -1679,13 +1679,13 @@ class wallet_api
               fc::optional<internationalized_string_type> payout_condition,
               bool broadcast = false);
 
-      signed_transaction place_bet(
-              const string& betting_account,
-              betting_market_id_type betting_market_id,
-              bet_type back_or_lay,
-              asset amount_to_bet,
-              bet_multiplier_type backer_multiplier,
-              bool broadcast = false);
+      signed_transaction place_bet(string betting_account,
+                                   betting_market_id_type betting_market_id,
+                                   bet_type back_or_lay,
+                                   string amount,
+                                   string asset_symbol,
+                                   double backer_multiplier,
+                                   bool broadcast /*= false*/);
 
       signed_transaction propose_resolve_betting_market_group(
               const string& proposing_account,
