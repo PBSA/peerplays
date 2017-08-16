@@ -1,0 +1,160 @@
+
+
+### PRE...
+
+see betting-nhl
+
+
+### SPORT
+
+propose_create_sport  nathan  "2017-08-16-T08:20:01"  [["en","Tennis"], ["pl","Tenis"]]  1
+
+// proposal
+#get_object 1.10.10
+
+approve_proposal  nathan 1.10.10 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+
+#get_object 1.16.2
+
+
+
+
+### EVENT GROUOP
+
+propose_create_event_group  nathan  "2017-08-16-T08:25:01"  [ ["en", "Wimbledon"] ] "1.16.2"  1
+
+approve_proposal  nathan 1.10.12 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+
+// proposal
+#get_object 1.10.11
+
+
+//get_object 1.17.1
+
+propose_update_event_group  nathan  "2017-08-16-T09:20:01" "1.17.2" "1.16.2"  [ ["en", "US Open"] ]  1
+approve_proposal  nathan 1.10.12 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+
+approve_proposal  nathan 1.10.13 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+
+
+//get_object 1.17.2
+
+
+### EVENT 
+
+propose_create_event  nathan  "2017-08-16-T16:15:01"  [["en", "R. Federer/T. Berdych"]]  [["en","2017"]]  "2017-09-16-T07:47:01"  "1.17.1" 1
+propose_create_event  nathan  "2017-08-16-T16:15:01"  [["en", "M. Cilic/S. Querrye"]]  [["en","2017"]]  "2017-09-16-T07:47:01"  "1.17.1" 1
+
+approve_proposal  nathan 1.10.14 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+approve_proposal  nathan 1.10.15 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+
+//get_object 1.18.1
+//get_object 1.18.2
+
+
+# RULES
+
+propose_create_betting_market_rules nathan  "2017-08-16-T16:20:01" [["en","Tennis Rules v1.0"]] [["en", "The winner is the player who wins the last ball in the match.."]]   1
+
+approve_proposal  nathan 1.10.16 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+0.14
+//get_object 1.19.?
+
+
+### BETTING_MARKET GROUP
+
+propose_create_betting_market_group nathan  "2017-08-16-T16:25:01" [["en", "Moneyline 1st sf men"]] "1.18.1" "1.19.1" "1.3.0" 1
+propose_create_betting_market_group nathan  "2017-08-16-T16:25:01" [["en", "Moneyline 2nd sf men"]] "1.18.2" "1.19.1" "1.3.0" 1
+
+approve_proposal  nathan 1.10.17 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+approve_proposal  nathan 1.10.18 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+
+//get_object 1.20.0 
+
+
+
+
+
+### FINAL
+
+propose_create_event  nathan  "2017-08-16-T16:30:01"  [["en", "R. Federer/M. Cilic"]]  [["en","2017"]]  "2017-09-16-T07:47:01"  "1.17.1" 1
+approve_proposal  nathan 1.10.19 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+
+
+propose_create_betting_market_group nathan  "2017-08-16-T16:35:01" [["en", "Moneyline final men"]] "1.18.3" "1.19.1" "1.3.0" 1
+approve_proposal  nathan 1.10.20 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+
+
+
+
+
+
+
+
+### BETTING_MARKET
+
+propose_create_betting_market nathan  "2017-08-16-T17:05:01" "1.20.1" [["en", "T. Berdych defeats R. Federer"}]] []  1
+propose_create_betting_market nathan  "2017-08-16-T17:05:02" "1.20.1" [["en","R. Federer defeats T. Berdych"]]  [] 1
+
+approve_proposal  nathan 1.10.21 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+approve_proposal  nathan 1.10.22 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+
+//get_object 1.21.2 
+//get_object 1.21.3 
+
+//list_betting_markets 1.20.1
+
+
+
+propose_create_betting_market nathan  "2017-08-16-T17:10:01" "1.20.2" [["en", "M. Cilic defeats S. Querrey"]] []  1
+propose_create_betting_market nathan  "2017-08-16-T17:10:02" "1.20.2" [["en","S. Querrey defeats M. Cilic"]]  [] 1
+
+approve_proposal  nathan 1.10.23 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+approve_proposal  nathan 1.10.24 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+
+//get_object 1.21.4 
+//get_object 1.21.5 
+
+//list_betting_markets 1.20.2
+
+
+
+
+propose_create_betting_market nathan  "2017-08-16-T17:15:01" "1.20.3" [["en", "R. Federer defeats M. Cilic"]] []  1
+propose_create_betting_market nathan  "2017-08-16-T17:15:02" "1.20.3" [["en","M. Cilic defeats R. Federer"]]  [] 1
+
+approve_proposal  nathan 1.10.25 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+approve_proposal  nathan 1.10.26 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+
+//get_object 1.21.6 
+//get_object 1.21.7 
+
+//
+
+
+
+
+
+
+
+
+
+
+
+
+
+# PLACE_BET
+
+place_bet  bob "1.21.2" 1  { "amount" : 100 }  20000  20000 true
+place_bet  alice "1.21.2" 0  { "amount" : 100 }  20000  20000 true
+
+
+
+# RESOLVE
+
+propose_resolve_betting_market_group nathan  "2017-08-16-T17:50:01" "1.20.2" [ [ "1.21.4" , 0]  [ "1.21.5" , 1] ]  1
+
+approve_proposal  nathan 1.10.27 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+
+
+

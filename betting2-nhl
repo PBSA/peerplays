@@ -84,7 +84,7 @@ approve_proposal  nathan 1.10.1 { "active_approvals_to_add" :  [ "init0", "init1
 propose_create_event_group  nathan  "2017-05-16-T08:45:01"  [ ["en", "NHL"], ["zh_Hans", "國家冰球聯盟"], ["ja", "ナショナルホッケーリーグ"]  ] "1.16.0"  1
 approve_proposal  nathan 1.10.2 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
 
-//get_object 1.18.0
+//get_object 1.17.0
 
 
 ### EVENT 
@@ -97,7 +97,7 @@ propose_create_event  nathan  "2017-08-07-T11:25:01"  [["en", "Washington Capita
 
 approve_proposal  nathan 1.10.3 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
 
-//get_object 1.19.0
+//get_object 1.18.0
 
 
 # RULES
@@ -140,7 +140,7 @@ place_bet  alice "1.21.0" 0  { "amount" : 100 }  20000  20000 true
 
 # RESOLVE
 
-propose_resolve_betting_market nathan  "2017-05-20-T09:15:01" "1.21.0" 0  1
+propose_resolve_betting_market_group nathan  "2017-08-16-T17:50:01" "1.20.0" [ [ "1.21.0" , 0]  [ "1.21.1" , 1] ]  1
 
 approve_proposal  nathan 1.10.9 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
 
