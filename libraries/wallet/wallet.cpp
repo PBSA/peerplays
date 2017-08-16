@@ -137,6 +137,10 @@ public:
    std::string operator()(const asset_create_operation& op)const;
    std::string operator()(const asset_dividend_distribution_operation& op)const;
    std::string operator()(const tournament_payout_operation& op)const;
+   std::string operator()(const bet_place_operation& op)const;
+   std::string operator()(const bet_matched_operation& op)const;
+   std::string operator()(const bet_canceled_operation& op)const;
+   std::string operator()(const bet_adjusted_operation& op)const;
 };
 
 template<class T>
@@ -3324,6 +3328,46 @@ std::string operation_printer::operator()(const tournament_payout_operation& op)
         << (op.type == payout_type::buyin_refund ? "buyin refund" : (op.type == payout_type::rake_fee ? "rake fee" : "prize award"))
         << ".";
     return "";
+}
+
+std::string operation_printer::operator()(const bet_place_operation& op)const
+{
+   auto fee_asset = wallet.get_asset(op.fee.asset_id);
+   auto asset = wallet.get_asset(op.amount_to_bet.asset_id);
+   auto bettor = wallet.get_account(op.bettor_id);
+
+   out << bettor.name << " placed a " << fc::json::to_string(op.back_or_lay) << " bet for " 
+       << asset.amount_to_pretty_string(op.amount_to_bet) << " at odds " << ((double)op.backer_multiplier /  GRAPHENE_BETTING_ODDS_PRECISION)
+       << " on market " << fc::json::to_string(op.betting_market_id)
+       << " fee: " << fee_asset.amount_to_pretty_string(op.fee);
+   return "";
+}
+
+std::string operation_printer::operator()(const bet_matched_operation& op)const
+{
+   auto asset = wallet.get_asset(op.amount_bet.asset_id);
+   auto bettor = wallet.get_account(op.bettor_id);
+
+   out << "  " << bettor.name << "'s bet " << fc::json::to_string(op.bet_id) << " matched " << asset.amount_to_pretty_string(op.amount_bet) << " at odds " << ((double)op.backer_multiplier /  GRAPHENE_BETTING_ODDS_PRECISION);
+   return "";
+}
+
+std::string operation_printer::operator()(const bet_canceled_operation& op)const
+{
+   auto asset = wallet.get_asset(op.stake_returned.asset_id);
+   auto bettor = wallet.get_account(op.bettor_id);
+
+   out << "  " << bettor.name << "'s bet " << fc::json::to_string(op.bet_id) << " was canceled, " << asset.amount_to_pretty_string(op.stake_returned) << " returned";
+   return "";
+}
+
+std::string operation_printer::operator()(const bet_adjusted_operation& op)const
+{
+   auto asset = wallet.get_asset(op.stake_returned.asset_id);
+   auto bettor = wallet.get_account(op.bettor_id);
+
+   out << "  " << bettor.name << "'s bet " << fc::json::to_string(op.bet_id) << " was adjusted, " << asset.amount_to_pretty_string(op.stake_returned) << " returned";
+   return "";
 }
 
 std::string operation_result_printer::operator()(const void_result& x) const

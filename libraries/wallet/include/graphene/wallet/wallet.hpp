@@ -1573,6 +1573,13 @@ class wallet_api
 
       asset get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id);
       std::vector<event_object> get_events_containing_sub_string(const std::string& sub_string, const std::string& language);
+
+      /** Get an order book for a betting market, with orders aggregated into bins with similar
+       * odds
+       *
+       * @param betting_market_id the betting market
+       * @param precision the number of digits of precision for binning
+       */
       binned_order_book get_binned_order_book(graphene::chain::betting_market_id_type betting_market_id, int32_t precision);
 
       vector<sport_object> list_sports() const;
@@ -1679,13 +1686,22 @@ class wallet_api
               fc::optional<internationalized_string_type> payout_condition,
               bool broadcast = false);
 
-      signed_transaction place_bet(string betting_account,
+      /** Place a bet  
+       * @param bettor the account placing the bet
+       * @param betting_market_id the market on which to bet
+       * @param back_or_lay back or lay
+       * @param amount the amount to bet
+       * @param asset_symbol the asset to bet with (must be the same as required by the betting market group)
+       * @param backer_multiplier the odds (use 2.0 for a 1:1 bet)
+       * @param broadcast true to broadcast the transaction
+       */
+      signed_transaction place_bet(string bettor,
                                    betting_market_id_type betting_market_id,
                                    bet_type back_or_lay,
                                    string amount,
                                    string asset_symbol,
                                    double backer_multiplier,
-                                   bool broadcast /*= false*/);
+                                   bool broadcast = false);
 
       signed_transaction propose_resolve_betting_market_group(
               const string& proposing_account,
