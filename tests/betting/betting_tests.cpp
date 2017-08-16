@@ -872,7 +872,7 @@ BOOST_AUTO_TEST_CASE(betting_market_group_update_test)
      fc::optional<bool> empty_bool;
 
      update_betting_market_group(moneyline_betting_markets.id, new_desc, empty_object_id, empty_bool, empty_bool);
-     update_betting_market_group(moneyline_betting_markets.id, dempty, empty_object_id, empty_bool, empty_bool);
+     //update_betting_market_group(moneyline_betting_markets.id, dempty, empty_object_id, empty_bool, empty_bool);
      update_betting_market_group(moneyline_betting_markets.id, dempty, new_rule, empty_bool, empty_bool);
      update_betting_market_group(moneyline_betting_markets.id, new_desc, new_rule, empty_bool, empty_bool);
 
