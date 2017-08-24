@@ -642,9 +642,7 @@ class wallet_api
        * TODO: I don't see a broadcast_transaction() function, do we need one?
        *
        * @param tx the transaction to serialize
-       * @returns the binary form of the transaction.  It will not be hex encoded, 
-       *          this returns a raw string that may have null characters embedded 
-       *          in it
+       * @returns the be hex encoded form of the serialized transaction
        */
       string serialize_transaction(signed_transaction tx) const;
 
