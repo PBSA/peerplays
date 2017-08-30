@@ -258,7 +258,8 @@ share_type adjust_betting_position(database& db, account_id_type bettor_id, bett
 // called twice when a bet is matched, once for the taker, once for the maker
 bool bet_was_matched(database& db, const bet_object& bet, 
                      share_type amount_bet, share_type amount_matched, 
-                     bet_multiplier_type actual_multiplier)
+                     bet_multiplier_type actual_multiplier,
+                     bool refund_unmatched_portion)
 {
    // record their bet, modifying their position, and return any winnings
    share_type guaranteed_winnings_returned = adjust_betting_position(db, bet.bettor_id, bet.betting_market_id, 
@@ -286,7 +287,14 @@ bool bet_was_matched(database& db, const bet_object& bet,
       db.modify(bet, [&](bet_object& bet_obj) {
          bet_obj.amount_to_bet -= asset_amount_bet;
       });
-      return false;
+
+      if (refund_unmatched_portion)
+      {
+         db.cancel_bet(bet);
+         return true;
+      }
+      else
+         return false;
    }
 }
 
@@ -351,8 +359,13 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
 
    //idump((taker_amount_to_match)(maker_amount_to_match));
 
-   result |= bet_was_matched(db, taker_bet, taker_amount_to_match, maker_amount_to_match, maker_bet.backer_multiplier);
-   result |= bet_was_matched(db, maker_bet, maker_amount_to_match, taker_amount_to_match, maker_bet.backer_multiplier) << 1;
+   // maker bets will always be an exact multiple of maker_odds_ratio, so they will either completely match or remain on the books
+   bool maker_bet_will_completely_match = maker_amount_to_match == maker_bet.amount_to_bet.amount;
+
+   // if the maker bet stays on the books, we need to make sure the taker bet is removed from the books (either it fills completely,
+   // or any un-filled amount is canceled)
+   result |= bet_was_matched(db, taker_bet, taker_amount_to_match, maker_amount_to_match, maker_bet.backer_multiplier, !maker_bet_will_completely_match);
+   result |= bet_was_matched(db, maker_bet, maker_amount_to_match, taker_amount_to_match, maker_bet.backer_multiplier, false) << 1;
 
    assert(result != 0);
    return result;
