@@ -40,6 +40,7 @@
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/sport_object.hpp>
 #include <graphene/chain/event_group_object.hpp>
+#include <graphene/chain/event_object.hpp>
 #include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/global_betting_statistics_object.hpp>
 
@@ -362,6 +363,11 @@ class database_api
       vector<event_group_object> list_event_groups(sport_id_type sport_id) const;
 
       /**
+       * @brief Return a list of all events in an event group
+       */
+      vector<event_object> list_events_in_group(event_group_id_type event_group_id) const;
+
+      /**
        * @brief Return a list of all betting market groups for an event
        */
       vector<betting_market_group_object> list_betting_market_groups(event_id_type) const;
@@ -370,6 +376,11 @@ class database_api
        * @brief Return a list of all betting markets for a betting market group
        */
       vector<betting_market_object> list_betting_markets(betting_market_group_id_type) const;
+
+      /**
+       * @brief Return a list of all unmatched bets for a given account (includes bets on all markets)
+       */
+      vector<bet_object> get_unmatched_bets_for_bettor(betting_market_id_type, account_id_type) const;
 
       /////////////////////
       // Markets / feeds //
@@ -690,12 +701,14 @@ FC_API(graphene::app::database_api,
    (list_assets)
    (lookup_asset_symbols)
 
-    // Peerplays
-    (list_sports)
-    (get_global_betting_statistics)
-    (list_event_groups)
-    (list_betting_market_groups)
-    (list_betting_markets)
+   // Peerplays
+   (list_sports)
+   (get_global_betting_statistics)
+   (list_event_groups)
+   (list_events_in_group)
+   (list_betting_market_groups)
+   (list_betting_markets)
+   (get_unmatched_bets_for_bettor)
 
    // Markets / feeds
    (get_order_book)

@@ -107,8 +107,10 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       // Peerplays
       vector<sport_object>                list_sports() const; 
       vector<event_group_object>          list_event_groups(sport_id_type sport_id) const;
+      vector<event_object>                list_events_in_group(event_group_id_type event_group_id) const;
       vector<betting_market_group_object> list_betting_market_groups(event_id_type) const;
       vector<betting_market_object>       list_betting_markets(betting_market_group_id_type) const;
+      vector<bet_object> get_unmatched_bets_for_bettor(betting_market_id_type, account_id_type) const;
 
       // Markets / feeds
       vector<limit_order_object>         get_limit_orders(asset_id_type a, asset_id_type b, uint32_t limit)const;
@@ -1025,7 +1027,7 @@ vector<sport_object> database_api_impl::list_sports() const
 
 vector<event_group_object> database_api::list_event_groups(sport_id_type sport_id) const
 {
-  return my->list_event_groups(sport_id);
+   return my->list_event_groups(sport_id);
 }
 
 vector<event_group_object> database_api_impl::list_event_groups(sport_id_type sport_id) const
@@ -1034,9 +1036,20 @@ vector<event_group_object> database_api_impl::list_event_groups(sport_id_type sp
    return boost::copy_range<vector<event_group_object> >(event_group_idx.equal_range(sport_id));
 }
 
+vector<event_object> database_api::list_events_in_group(event_group_id_type event_group_id) const
+{
+   return my->list_events_in_group(event_group_id);
+}
+
+vector<event_object> database_api_impl::list_events_in_group(event_group_id_type event_group_id) const
+{
+   const auto& event_idx = _db.get_index_type<event_object_index>().indices().get<by_event_group_id>();
+   return boost::copy_range<vector<event_object> >(event_idx.equal_range(event_group_id));
+}
+
 vector<betting_market_group_object> database_api::list_betting_market_groups(event_id_type event_id) const
 {
- return my->list_betting_market_groups(event_id);
+    return my->list_betting_market_groups(event_id);
 }
 
 vector<betting_market_group_object> database_api_impl::list_betting_market_groups(event_id_type event_id) const
@@ -1047,13 +1060,24 @@ vector<betting_market_group_object> database_api_impl::list_betting_market_group
 
 vector<betting_market_object> database_api::list_betting_markets(betting_market_group_id_type betting_market_group_id) const
 {
-return my->list_betting_markets(betting_market_group_id);
+   return my->list_betting_markets(betting_market_group_id);
 }
 
 vector<betting_market_object> database_api_impl::list_betting_markets(betting_market_group_id_type betting_market_group_id) const
 {
    const auto& betting_market_idx = _db.get_index_type<betting_market_object_index>().indices().get<by_betting_market_group_id>();
    return boost::copy_range<vector<betting_market_object> >(betting_market_idx.equal_range(betting_market_group_id));
+}
+
+vector<bet_object> database_api::get_unmatched_bets_for_bettor(betting_market_id_type betting_market_id, account_id_type bettor_id) const
+{
+   return my->get_unmatched_bets_for_bettor(betting_market_id, bettor_id);
+}
+
+vector<bet_object> database_api_impl::get_unmatched_bets_for_bettor(betting_market_id_type betting_market_id, account_id_type bettor_id) const
+{
+   const auto& bet_idx = _db.get_index_type<bet_object_index>().indices().get<by_bettor_and_odds>();
+   return boost::copy_range<vector<bet_object> >(bet_idx.equal_range(std::make_tuple(betting_market_id, bettor_id)));
 }
 
 //////////////////////////////////////////////////////////////////////
