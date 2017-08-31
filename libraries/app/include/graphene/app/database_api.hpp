@@ -378,9 +378,14 @@ class database_api
       vector<betting_market_object> list_betting_markets(betting_market_group_id_type) const;
 
       /**
-       * @brief Return a list of all unmatched bets for a given account (includes bets on all markets)
+       * @brief Return a list of all unmatched bets for a given account on a specific betting market
        */
       vector<bet_object> get_unmatched_bets_for_bettor(betting_market_id_type, account_id_type) const;
+
+      /**
+       * @brief Return a list of all unmatched bets for a given account (includes bets on all markets)
+       */
+      vector<bet_object> get_all_unmatched_bets_for_bettor(account_id_type) const;
 
       /////////////////////
       // Markets / feeds //
@@ -709,6 +714,7 @@ FC_API(graphene::app::database_api,
    (list_betting_market_groups)
    (list_betting_markets)
    (get_unmatched_bets_for_bettor)
+   (get_all_unmatched_bets_for_bettor)
 
    // Markets / feeds
    (get_order_book)

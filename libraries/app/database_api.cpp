@@ -111,6 +111,7 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       vector<betting_market_group_object> list_betting_market_groups(event_id_type) const;
       vector<betting_market_object>       list_betting_markets(betting_market_group_id_type) const;
       vector<bet_object> get_unmatched_bets_for_bettor(betting_market_id_type, account_id_type) const;
+      vector<bet_object> get_all_unmatched_bets_for_bettor(account_id_type) const;
 
       // Markets / feeds
       vector<limit_order_object>         get_limit_orders(asset_id_type a, asset_id_type b, uint32_t limit)const;
@@ -1077,7 +1078,18 @@ vector<bet_object> database_api::get_unmatched_bets_for_bettor(betting_market_id
 vector<bet_object> database_api_impl::get_unmatched_bets_for_bettor(betting_market_id_type betting_market_id, account_id_type bettor_id) const
 {
    const auto& bet_idx = _db.get_index_type<bet_object_index>().indices().get<by_bettor_and_odds>();
-   return boost::copy_range<vector<bet_object> >(bet_idx.equal_range(std::make_tuple(betting_market_id, bettor_id)));
+   return boost::copy_range<vector<bet_object> >(bet_idx.equal_range(std::make_tuple(bettor_id, betting_market_id)));
+}
+
+vector<bet_object> database_api::get_all_unmatched_bets_for_bettor(account_id_type bettor_id) const
+{
+   return my->get_all_unmatched_bets_for_bettor(bettor_id);
+}
+
+vector<bet_object> database_api_impl::get_all_unmatched_bets_for_bettor(account_id_type bettor_id) const
+{
+   const auto& bet_idx = _db.get_index_type<bet_object_index>().indices().get<by_bettor_and_odds>();
+   return boost::copy_range<vector<bet_object> >(bet_idx.equal_range(std::make_tuple(bettor_id)));
 }
 
 //////////////////////////////////////////////////////////////////////
