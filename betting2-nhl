@@ -16,7 +16,8 @@ import_key init10 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3
 
 #upgrade_account nathan 1
 import_balance nathan [5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3] 1
-import_key nathan "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3"
+
+
 
 transfer nathan init0 125 PPY "" true
 transfer nathan init1 125 PPY "" true
@@ -32,6 +33,8 @@ transfer nathan init1 125 PPY "" true
 
 transfer nathan 1.2.0 1250 PPY "" true
 transfer nathan 1.2.1 1250 PPY "" true
+
+transfer nathan 1.2.5 1250 PPY "" true
 
 vote_for_witness nathan  init0 1 1
 vote_for_witness nathan  init1 1 1
@@ -102,29 +105,30 @@ approve_proposal  nathan 1.10.3 { "active_approvals_to_add" :  [ "init0", "init1
 
 # RULES
 
-propose_create_betting_market_rules nathan  "2017-08-08-T07:25:01" [["en","NHL Rules v1.0"]] [["en", "The winner will be the team with the most points at the end of the game.  The team with fewer points will not be the winner."]]   1
+propose_create_betting_market_rules nathan  "2017-08-31-T10:35:01" [["en","NHL Rules v1.0"]] [["en", "The winner will be the team with the most points at the end of the game.  The team with fewer points will not be the winner."]]   1
 
-approve_proposal  nathan 1.10.5 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+approve_proposal  nathan 1.10.8 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
 
 //get_object 1.19.0
 
 
 ### BETTING_MARKET GROUP
 
-propose_create_betting_market_group nathan  "2017-08-08-T07:55:01" [["en", "Moneyline"]] "1.18.0" "1.19.0" "1.3.0" 1
+propose_create_betting_market_group nathan  "2017-08-31-T10:39:01" [["en", "Moneyline"]] "1.18.0" "1.19.0" "1.3.0" 1
+propose_create_betting_market_group nathan  "2017-08-25-T11:10:01" [["en", "Moneyline NHL"]] "1.18.1" "1.19.1" "1.3.0" 1
 
-approve_proposal  nathan 1.10.6 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+approve_proposal  nathan 1.10.9 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
 
 //get_object 1.20.0 
 
 
 ### BETTING_MARKET
 
-propose_create_betting_market nathan  "2017-08-08-T08:35:01" "1.20.0" [["en","Washington Capitals win"]] []  1
-propose_create_betting_market nathan  "2017-08-08-T08:25:02" "1.20.0" [["en","Chicago Blackhawks win"]]  [] 1
+propose_create_betting_market nathan  "2017-08-31-T10:42:01" "1.20.0" [["en","Washington Capitals win"]] []  1
+propose_create_betting_market nathan  "2017-08-31-T10:42:01" "1.20.0" [["en","Chicago Blackhawks win"]]  [] 1
 
-approve_proposal  nathan 1.10.7 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
-approve_proposal  nathan 1.10.8 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+approve_proposal  nathan 1.10.10 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+approve_proposal  nathan 1.10.11 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
 
 //get_object 1.21.0 
 //get_object 1.21.1 
@@ -138,7 +142,7 @@ approve_proposal  nathan 1.10.8 { "active_approvals_to_add" :  [ "init0", "init1
 //place_bet  alice "1.21.0" 0  { "amount" : 100 }  20000  20000 true
 
 place_bet  alice  "1.21.0"  1  "123" "PPY"  200 true
-place_bet  bob  "1.21.0"  0  "123" "PPY"  200 true
+place_bet  bob  "1.21.1"  0  "123" "PPY"  200 true
 
 
 

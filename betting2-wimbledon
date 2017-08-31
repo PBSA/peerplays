@@ -1,5 +1,16 @@
 
 
+
+http://api.coindesk.com/charts/data?data=close&startdate=2017-01-01&enddate=2017-08-28&exchanges=bpi,bitstamp,coinbase,itbit,okcoin&dev=1&index=USD
+
+
+
+select date, b.coin_type as bought_coin_type, bought_quantity, s.coin_type as sold_coin_type, sold_quantity from external_trades as t 
+               where processed = false 
+               left join coin_types as b ON t.bought_coin_type_id = b.coin_type_id 
+               left join coin_types as s ON t.sold_coin_type_id = s.coin_type_id
+
+
 ### PRE...
 
 see betting-nhl

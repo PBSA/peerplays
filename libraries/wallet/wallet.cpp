@@ -5067,6 +5067,14 @@ global_betting_statistics_object wallet_api::get_global_betting_statistics() con
     return my->_remote_db->get_global_betting_statistics();
 }
 
+vector<event_object>                wallet_api::list_events_in_group(event_group_id_type event_group_id) const
+{
+    return my->_remote_db->list_events_in_group(event_group_id);
+}
+vector<bet_object> wallet_api::get_unmatched_bets_for_bettor(betting_market_id_type betting_market_id, account_id_type account_id) const
+{
+    return my->_remote_db->get_unmatched_bets_for_bettor(betting_market_id, account_id);
+}
 
 signed_transaction wallet_api::propose_create_sport(
         const string& proposing_account,
