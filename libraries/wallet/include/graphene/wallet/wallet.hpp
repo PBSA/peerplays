@@ -1704,6 +1704,10 @@ class wallet_api
                                    double backer_multiplier,
                                    bool broadcast = false);
 
+      signed_transaction cancel_bet(string betting_account,
+                                                bet_id_type bet_id,
+                                                bool broadcast = false);
+
       signed_transaction propose_resolve_betting_market_group(
               const string& proposing_account,
               fc::time_point_sec expiration_time,
@@ -2001,6 +2005,7 @@ FC_API( graphene::wallet::wallet_api,
         (propose_update_betting_market_group)
         (propose_update_betting_market)
         (place_bet)
+        (cancel_bet)
         (propose_resolve_betting_market_group)
         (tournament_create)
         (tournament_join)

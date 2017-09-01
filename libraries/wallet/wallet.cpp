@@ -5481,6 +5481,26 @@ signed_transaction wallet_api::place_bet(string betting_account,
     return my->sign_transaction(tx, broadcast);
 }
 
+signed_transaction wallet_api::cancel_bet(string betting_account,
+                                          bet_id_type bet_id,
+                                          bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    bet_cancel_operation bet_cancel_op;
+    bet_cancel_op.bettor_id = get_account(betting_account).id;
+    bet_cancel_op.bet_to_cancel = bet_id;
+
+    signed_transaction tx;
+    tx.operations.push_back(bet_cancel_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
 signed_transaction wallet_api::propose_resolve_betting_market_group(
         const string& proposing_account,
         fc::time_point_sec expiration_time,

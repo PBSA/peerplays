@@ -227,6 +227,7 @@ void database::initialize_evaluators()
    register_evaluator<betting_market_create_evaluator>();
    register_evaluator<betting_market_update_evaluator>();
    register_evaluator<bet_place_evaluator>();
+   register_evaluator<bet_cancel_evaluator>();
    register_evaluator<betting_market_group_resolve_evaluator>();
    register_evaluator<betting_market_group_cancel_unmatched_bets_evaluator>();
    register_evaluator<tournament_create_evaluator>();
