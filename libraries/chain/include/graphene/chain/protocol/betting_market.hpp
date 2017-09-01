@@ -299,7 +299,11 @@ struct bet_matched_operation : public base_operation
 
 struct bet_cancel_operation : public base_operation
 {
-   struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
+   struct fee_parameters_type
+   {
+       uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION;
+       //uint64_t fee = 0;
+   };
    asset             fee;
 
    /// the bettor who is cancelling the bet
@@ -419,7 +423,7 @@ FC_REFLECT( graphene::chain::bet_matched_operation::fee_parameters_type, )
 FC_REFLECT( graphene::chain::bet_matched_operation, (bettor_id)(bet_id)(amount_bet)(backer_multiplier)(guaranteed_winnings_returned) )
 
 FC_REFLECT( graphene::chain::bet_cancel_operation::fee_parameters_type, (fee) )
-FC_REFLECT( graphene::chain::bet_cancel_operation, (bettor_id) (bet_to_cancel) (extensions) )
+FC_REFLECT( graphene::chain::bet_cancel_operation, (fee) (bettor_id) (bet_to_cancel) (extensions) )
 
 FC_REFLECT( graphene::chain::bet_canceled_operation::fee_parameters_type, )
 FC_REFLECT( graphene::chain::bet_canceled_operation, (bettor_id)(bet_id)(stake_returned) )

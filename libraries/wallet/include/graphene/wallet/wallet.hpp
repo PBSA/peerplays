@@ -1587,7 +1587,7 @@ class wallet_api
       global_betting_statistics_object get_global_betting_statistics() const;
       vector<event_object> list_events_in_group(event_group_id_type event_group_id) const;
       vector<bet_object> get_unmatched_bets_for_bettor(betting_market_id_type betting_market_id, account_id_type account_id) const;
-
+      vector<bet_object> get_all_unmatched_bets_for_bettor(account_id_type account_id) const;
 
       signed_transaction propose_create_sport(
               const string& proposing_account,
@@ -1991,6 +1991,7 @@ FC_API( graphene::wallet::wallet_api,
         (list_betting_markets)
         (list_events_in_group)
         (get_unmatched_bets_for_bettor)
+        (get_all_unmatched_bets_for_bettor)
         (get_global_betting_statistics)
         (propose_create_sport)
         (propose_create_event_group)

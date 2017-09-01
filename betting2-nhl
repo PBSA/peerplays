@@ -142,7 +142,11 @@ approve_proposal  nathan 1.10.11 { "active_approvals_to_add" :  [ "init0", "init
 //place_bet  alice "1.21.0" 0  { "amount" : 100 }  20000  20000 true
 
 place_bet  alice  "1.21.0"  1  "123" "PPY"  200 true
-place_bet  bob  "1.21.1"  0  "123" "PPY"  200 true
+//place_bet  bob  "1.21.0"  0  "123" "PPY"  200 true
+
+
+place_bet  carol  "1.21.1"  0  "123" "PPY"  200 true
+cancel_bet carol 1.22.2 1
 
 
 
