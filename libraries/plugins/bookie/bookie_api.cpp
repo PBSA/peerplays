@@ -31,7 +31,7 @@ class bookie_api_impl
       asset get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id);
       std::vector<event_object> get_events_containing_sub_string(const std::string& sub_string, const std::string& language);
       fc::variants get_objects(const vector<object_id_type>& ids) const;
-
+      std::vector<matched_bet_object> get_matched_bets_for_bettor(account_id_type bettor_id) const;
       graphene::app::application& app;
 };
 
@@ -178,6 +178,32 @@ fc::variants bookie_api_impl::get_objects(const vector<object_id_type>& ids) con
    return result;
 }
 
+std::vector<matched_bet_object> bookie_api_impl::get_matched_bets_for_bettor(account_id_type bettor_id) const
+{
+   std::vector<matched_bet_object> result;
+   std::shared_ptr<graphene::chain::database> db = app.chain_database();
+   auto& persistent_bets_by_bettor_id = db->get_index_type<detail::persistent_bet_index>().indices().get<by_bettor_id>();
+   auto iter = persistent_bets_by_bettor_id.lower_bound(std::make_tuple(bettor_id, true));
+   while (iter != persistent_bets_by_bettor_id.end() && 
+          iter->get_bettor_id() == bettor_id &&
+          iter->is_matched())
+   {
+      matched_bet_object match;
+      match.id = iter->ephemeral_bet_object.id;
+      match.bettor_id = iter->ephemeral_bet_object.bettor_id;
+      match.betting_market_id = iter->ephemeral_bet_object.betting_market_id;
+      match.amount_to_bet = iter->ephemeral_bet_object.amount_to_bet;
+      match.back_or_lay = iter->ephemeral_bet_object.back_or_lay;
+      match.end_of_delay = iter->ephemeral_bet_object.end_of_delay;
+      match.amount_matched = iter->amount_matched;
+      result.emplace_back(std::move(match));
+
+      ++iter;
+   }
+   return result;
+}
+
+
 std::shared_ptr<graphene::bookie::bookie_plugin> bookie_api_impl::get_plugin()
 {
    return app.get_plugin<graphene::bookie::bookie_plugin>("bookie");
@@ -218,6 +244,11 @@ std::vector<event_object> bookie_api::get_events_containing_sub_string(const std
 fc::variants bookie_api::get_objects(const vector<object_id_type>& ids) const
 {
    return my->get_objects(ids);
+}
+
+std::vector<matched_bet_object> bookie_api::get_matched_bets_for_bettor(account_id_type bettor_id) const
+{
+   return my->get_matched_bets_for_bettor(bettor_id);
 }
 
 } } // graphene::bookie

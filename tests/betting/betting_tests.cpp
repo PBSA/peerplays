@@ -379,11 +379,19 @@ BOOST_AUTO_TEST_CASE(persistent_objects_test)
      bet_id_type matching_bet = place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(50, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
      BOOST_CHECK_MESSAGE(!db.find(first_bet_on_books), "Bet should have been filled, but the blockchain still knows about it");
      BOOST_CHECK_MESSAGE(!db.find(matching_bet), "Bet should have been filled, but the blockchain still knows about it");
+     generate_blocks(1); // the bookie plugin doesn't detect matches until a block is generated
 
      objects_from_bookie = bookie_api.get_objects({first_bet_on_books, matching_bet});
      BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 2);
      BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>() == first_bet_on_books, "Bookie Plugin didn't return a bet that has been filled");
      BOOST_CHECK_MESSAGE(objects_from_bookie[1]["id"].as<bet_id_type>() == matching_bet, "Bookie Plugin didn't return a bet that has been filled");
+
+     std::vector<graphene::bookie::matched_bet_object> alice_matched_bets = bookie_api.get_matched_bets_for_bettor(alice_id);
+     BOOST_REQUIRE_EQUAL(alice_matched_bets.size(), 1);
+     BOOST_CHECK(alice_matched_bets[0].amount_matched == 47);
+     std::vector<graphene::bookie::matched_bet_object> bob_matched_bets = bookie_api.get_matched_bets_for_bettor(bob_id);
+     BOOST_REQUIRE_EQUAL(bob_matched_bets.size(), 1);
+     BOOST_CHECK(bob_matched_bets[0].amount_matched == 50);
   }
   FC_LOG_AND_RETHROW()
 }

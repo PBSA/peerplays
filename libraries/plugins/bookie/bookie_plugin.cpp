@@ -283,7 +283,7 @@ void bookie_plugin_impl::on_block_applied( const signed_block& )
       if( op.op.which() == operation::tag<bet_matched_operation>::value )
       {
            const bet_matched_operation& bet_matched_op = op.op.get<bet_matched_operation>();
-           idump((bet_matched_op));
+           //idump((bet_matched_op));
            const asset& amount_bet = bet_matched_op.amount_bet;
            // object may no longer exist
            //const bet_object& bet = bet_matched_op.bet_id(db);
@@ -292,7 +292,11 @@ void bookie_plugin_impl::on_block_applied( const signed_block& )
            assert(bet_iter != persistent_bets_by_bet_id.end());
            if (bet_iter != persistent_bets_by_bet_id.end())
            {
+              db.modify(*bet_iter, [&]( persistent_bet_object& obj ) {
+                 obj.amount_matched += amount_bet.amount;
+              });
               const bet_object& bet_obj = bet_iter->ephemeral_bet_object;
+
               const betting_market_object& betting_market = bet_obj.betting_market_id(db); // TODO: this needs to look at the persistent version
               const betting_market_group_object& betting_market_group = betting_market.group_id(db); // TODO: as does this
               db.modify( betting_market_group, [&]( betting_market_group_object& obj ){

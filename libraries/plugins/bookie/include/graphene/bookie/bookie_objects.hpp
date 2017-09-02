@@ -156,15 +156,27 @@ class persistent_bet_object : public graphene::db::abstract_object<persistent_be
 
       bet_object ephemeral_bet_object;
 
+      // total amount of the bet that matched
+      share_type amount_matched;
+
       bet_id_type get_bet_id() const { return ephemeral_bet_object.id; }
+      account_id_type get_bettor_id() const { return ephemeral_bet_object.bettor_id; }
+      bool is_matched() const { return amount_matched != share_type(); }
 };
 
 struct by_bet_id;
+struct by_bettor_id;
 typedef multi_index_container<
    persistent_bet_object,
    indexed_by<
       ordered_unique<tag<by_id>, member<object, object_id_type, &object::id> >,
-      ordered_unique<tag<by_bet_id>, const_mem_fun<persistent_bet_object, bet_id_type, &persistent_bet_object::get_bet_id> > > > persistent_bet_multi_index_type;
+      ordered_unique<tag<by_bet_id>, const_mem_fun<persistent_bet_object, bet_id_type, &persistent_bet_object::get_bet_id> >,
+      ordered_unique<tag<by_bettor_id>, 
+            composite_key<
+               persistent_bet_object,
+               const_mem_fun<persistent_bet_object, account_id_type, &persistent_bet_object::get_bettor_id>,
+               const_mem_fun<persistent_bet_object, bool, &persistent_bet_object::is_matched>,
+               const_mem_fun<persistent_bet_object, bet_id_type, &persistent_bet_object::get_bet_id> > > > > persistent_bet_multi_index_type;
 
 
 typedef generic_index<persistent_bet_object, persistent_bet_multi_index_type> persistent_bet_index;
@@ -174,5 +186,5 @@ typedef generic_index<persistent_bet_object, persistent_bet_multi_index_type> pe
 FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_event_object, (graphene::db::object), (ephemeral_event_object) )
 FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_betting_market_group_object, (graphene::db::object), (ephemeral_betting_market_group_object)(total_matched_bets_amount) )
 FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_betting_market_object, (graphene::db::object), (ephemeral_betting_market_object) )
-FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_bet_object, (graphene::db::object), (ephemeral_bet_object) )
+FC_REFLECT_DERIVED( graphene::bookie::detail::persistent_bet_object, (graphene::db::object), (ephemeral_bet_object)(amount_matched) )
 

@@ -32,6 +32,26 @@ struct binned_order_book {
    std::vector<order_bin> aggregated_lay_bets;
 };
 
+struct matched_bet_object {
+   // all fields from bet_object
+   bet_id_type id;
+
+   account_id_type bettor_id;
+   
+   betting_market_id_type betting_market_id;
+
+   asset amount_to_bet; // this is the original amount, not the amount remaining
+
+   bet_multiplier_type backer_multiplier;
+
+   bet_type back_or_lay;
+
+   fc::optional<fc::time_point_sec> end_of_delay;
+
+   // plus fields from this plugin
+   share_type amount_matched;
+};
+
 class bookie_api
 {
    public:
@@ -46,6 +66,7 @@ class bookie_api
       asset get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id);
       std::vector<event_object> get_events_containing_sub_string(const std::string& sub_string, const std::string& language);
       fc::variants get_objects(const vector<object_id_type>& ids)const;
+      std::vector<matched_bet_object> get_matched_bets_for_bettor(account_id_type bettor_id) const;
 
       std::shared_ptr<detail::bookie_api_impl> my;
 };
@@ -54,6 +75,7 @@ class bookie_api
 
 FC_REFLECT(graphene::bookie::order_bin, (amount_to_bet)(backer_multiplier))
 FC_REFLECT(graphene::bookie::binned_order_book, (aggregated_back_bets)(aggregated_lay_bets))
+FC_REFLECT(graphene::bookie::matched_bet_object, (id)(bettor_id)(betting_market_id)(amount_to_bet)(backer_multiplier)(back_or_lay)(end_of_delay)(amount_matched))
 
 FC_API(graphene::bookie::bookie_api,
        (get_binned_order_book)
