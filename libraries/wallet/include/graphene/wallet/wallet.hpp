@@ -1580,6 +1580,8 @@ class wallet_api
        */
       binned_order_book get_binned_order_book(graphene::chain::betting_market_id_type betting_market_id, int32_t precision);
 
+      std::vector<matched_bet_object> get_matched_bets_for_bettor(account_id_type bettor_id) const;
+
       vector<sport_object> list_sports() const;
       vector<event_group_object> list_event_groups(sport_id_type sport_id) const;
       vector<betting_market_group_object> list_betting_market_groups(event_id_type event_id) const;
@@ -2020,4 +2022,5 @@ FC_API( graphene::wallet::wallet_api,
         (get_total_matched_bet_amount_for_betting_market_group)
         (get_events_containing_sub_string)
         (get_binned_order_book)
+        (get_matched_bets_for_bettor)
       )

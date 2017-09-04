@@ -82,5 +82,6 @@ FC_API(graphene::bookie::bookie_api,
        (get_total_matched_bet_amount_for_betting_market_group)
        (get_events_containing_sub_string)
        (get_objects)
+       (get_matched_bets_for_bettor)
      )
 
