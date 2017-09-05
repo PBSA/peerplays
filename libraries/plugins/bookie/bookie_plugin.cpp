@@ -111,6 +111,9 @@ class bookie_plugin_impl
        */
       void on_objects_changed(const vector<object_id_type>& changed_object_ids);
 
+      void on_objects_new(const vector<object_id_type>& new_object_ids);
+      void on_objects_removed(const vector<object_id_type>& removed_object_ids);
+
       /** this method is called as a callback after a block is applied
        * and will process/index all operations that were applied in the block.
        */
@@ -149,8 +152,54 @@ bookie_plugin_impl::~bookie_plugin_impl()
 {
 }
 
+void bookie_plugin_impl::on_objects_new(const vector<object_id_type>& new_object_ids)
+{
+   //idump((new_object_ids));
+   graphene::chain::database& db = database();
+   auto& event_id_index = db.get_index_type<persistent_event_index>().indices().get<by_event_id>();
+   auto& betting_market_group_id_index = db.get_index_type<persistent_betting_market_group_index>().indices().get<by_betting_market_group_id>();
+   auto& betting_market_id_index = db.get_index_type<persistent_betting_market_index>().indices().get<by_betting_market_id>();
+
+   for (const object_id_type& new_object_id : new_object_ids)
+   {
+      if (new_object_id.space() == event_id_type::space_id && 
+          new_object_id.type() == event_id_type::type_id)
+      {
+         event_id_type new_event_id = new_object_id;
+         ilog("Creating new persistent event object ${id}", ("id", new_event_id));
+         db.create<persistent_event_object>([&](persistent_event_object& saved_event_obj) {
+            saved_event_obj.ephemeral_event_object = new_event_id(db);
+         });
+      }
+      else if (new_object_id.space() == betting_market_group_object::space_id && 
+               new_object_id.type() == betting_market_group_object::type_id)
+      {
+         betting_market_group_id_type new_betting_market_group_id = new_object_id;
+         ilog("Creating new persistent betting_market_group object ${id}", ("id", new_betting_market_group_id));
+         db.create<persistent_betting_market_group_object>([&](persistent_betting_market_group_object& saved_betting_market_group_obj) {
+            saved_betting_market_group_obj.ephemeral_betting_market_group_object = new_betting_market_group_id(db);
+         });
+      }
+      else if (new_object_id.space() == betting_market_object::space_id && 
+               new_object_id.type() == betting_market_object::type_id)
+      {
+         betting_market_id_type new_betting_market_id = new_object_id;
+         ilog("Creating new persistent betting_market object ${id}", ("id", new_betting_market_id));
+         db.create<persistent_betting_market_object>([&](persistent_betting_market_object& saved_betting_market_obj) {
+            saved_betting_market_obj.ephemeral_betting_market_object = new_betting_market_id(db);
+         });
+      }
+   }
+}
+
+void bookie_plugin_impl::on_objects_removed(const vector<object_id_type>& removed_object_ids)
+{
+   //idump((removed_object_ids));
+}
+
 void bookie_plugin_impl::on_objects_changed(const vector<object_id_type>& changed_object_ids)
 {
+   //idump((changed_object_ids));
    graphene::chain::database& db = database();
    auto& event_id_index = db.get_index_type<persistent_event_index>().indices().get<by_event_id>();
    auto& betting_market_group_id_index = db.get_index_type<persistent_betting_market_group_index>().indices().get<by_betting_market_group_id>();
@@ -162,109 +211,63 @@ void bookie_plugin_impl::on_objects_changed(const vector<object_id_type>& change
           changed_object_id.type() == event_id_type::type_id)
       {
          event_id_type changed_event_id = changed_object_id;
-         const event_object* new_event_obj = nullptr;
-         try
-         {
-            new_event_obj = &changed_event_id(db);
-         }
-         catch (fc::exception& e)
-         {
-         }
-         // new_event_obj should point to the now-changed event_object, or null if it was removed from the database
-
          const persistent_event_object* old_event_obj = nullptr;
 
          auto persistent_event_iter = event_id_index.find(changed_event_id);
          if (persistent_event_iter != event_id_index.end())
             old_event_obj = &*persistent_event_iter;
-         
-         // and old_event_obj is a pointer to our saved copy, or nullptr if it is a new object
-         if (old_event_obj && new_event_obj)
+
+         if (old_event_obj)
          {
             ilog("Modifying persistent event object ${id}", ("id", changed_event_id));
             db.modify(*old_event_obj, [&](persistent_event_object& saved_event_obj) {
-               saved_event_obj.ephemeral_event_object = *new_event_obj;
+               saved_event_obj.ephemeral_event_object = changed_event_id(db);
             });
          }
-         else if (new_event_obj)
-         {
-            ilog("Creating new persistent event object ${id}", ("id", changed_event_id));
-            db.create<persistent_event_object>([&](persistent_event_object& saved_event_obj) {
-               saved_event_obj.ephemeral_event_object = *new_event_obj;
-            });
-         }
+         else
+            elog("Received change notification on event ${event_id} that we didn't know about", ("event_id", changed_event_id));
       }
       else if (changed_object_id.space() == betting_market_group_object::space_id && 
                changed_object_id.type() == betting_market_group_object::type_id)
       {
          betting_market_group_id_type changed_betting_market_group_id = changed_object_id;
-         const betting_market_group_object* new_betting_market_group_obj = nullptr;
-         try
-         {
-            new_betting_market_group_obj = &changed_betting_market_group_id(db);
-         }
-         catch (fc::exception& e)
-         {
-         }
-         // new_betting_market_group_obj should point to the now-changed event_object, or null if it was removed from the database
-
          const persistent_betting_market_group_object* old_betting_market_group_obj = nullptr;
 
          auto persistent_betting_market_group_iter = betting_market_group_id_index.find(changed_betting_market_group_id);
          if (persistent_betting_market_group_iter != betting_market_group_id_index.end())
             old_betting_market_group_obj = &*persistent_betting_market_group_iter;
          
-         // and old_betting_market_group_obj is a pointer to our saved copy, or nullptr if it is a new object
-         if (old_betting_market_group_obj && new_betting_market_group_obj)
+         if (old_betting_market_group_obj)
          {
             ilog("Modifying persistent betting_market_group object ${id}", ("id", changed_betting_market_group_id));
             db.modify(*old_betting_market_group_obj, [&](persistent_betting_market_group_object& saved_betting_market_group_obj) {
-               saved_betting_market_group_obj.ephemeral_betting_market_group_object = *new_betting_market_group_obj;
+               saved_betting_market_group_obj.ephemeral_betting_market_group_object = changed_betting_market_group_id(db);
             });
          }
-         else if (new_betting_market_group_obj)
-         {
-            ilog("Creating new persistent betting_market_group object ${id}", ("id", changed_betting_market_group_id));
-            db.create<persistent_betting_market_group_object>([&](persistent_betting_market_group_object& saved_betting_market_group_obj) {
-               saved_betting_market_group_obj.ephemeral_betting_market_group_object = *new_betting_market_group_obj;
-            });
-         }
+         else
+            elog("Received change notification on betting market group ${betting_market_group_id} that we didn't know about", 
+                 ("betting_market_group_id", changed_betting_market_group_id));
       }
       else if (changed_object_id.space() == betting_market_object::space_id && 
                changed_object_id.type() == betting_market_object::type_id)
       {
          betting_market_id_type changed_betting_market_id = changed_object_id;
-         const betting_market_object* new_betting_market_obj = nullptr;
-         try
-         {
-            new_betting_market_obj = &changed_betting_market_id(db);
-         }
-         catch (fc::exception& e)
-         {
-         }
-         // new_betting_market_obj should point to the now-changed event_object, or null if it was removed from the database
-
          const persistent_betting_market_object* old_betting_market_obj = nullptr;
 
          auto persistent_betting_market_iter = betting_market_id_index.find(changed_betting_market_id);
          if (persistent_betting_market_iter != betting_market_id_index.end())
             old_betting_market_obj = &*persistent_betting_market_iter;
          
-         // and old_betting_market_obj is a pointer to our saved copy, or nullptr if it is a new object
-         if (old_betting_market_obj && new_betting_market_obj)
+         if (old_betting_market_obj)
          {
             ilog("Modifying persistent betting_market object ${id}", ("id", changed_betting_market_id));
             db.modify(*old_betting_market_obj, [&](persistent_betting_market_object& saved_betting_market_obj) {
-               saved_betting_market_obj.ephemeral_betting_market_object = *new_betting_market_obj;
+               saved_betting_market_obj.ephemeral_betting_market_object = changed_betting_market_id(db);
             });
          }
-         else if (new_betting_market_obj)
-         {
-            ilog("Creating new persistent betting_market object ${id}", ("id", changed_betting_market_id));
-            db.create<persistent_betting_market_object>([&](persistent_betting_market_object& saved_betting_market_obj) {
-               saved_betting_market_obj.ephemeral_betting_market_object = *new_betting_market_obj;
-            });
-         }
+         else
+            elog("Received change notification on betting market ${betting_market_id} that we didn't know about", 
+                 ("betting_market_id", changed_betting_market_id));
       }
    }
 }
@@ -276,61 +279,58 @@ void bookie_plugin_impl::on_block_applied( const signed_block& )
    for( const optional<operation_history_object>& o_op : hist )
    {
       if( !o_op.valid() )
-      {
          continue;
-      }
+
       const operation_history_object& op = *o_op;
       if( op.op.which() == operation::tag<bet_matched_operation>::value )
       {
-           const bet_matched_operation& bet_matched_op = op.op.get<bet_matched_operation>();
-           //idump((bet_matched_op));
-           const asset& amount_bet = bet_matched_op.amount_bet;
-           // object may no longer exist
-           //const bet_object& bet = bet_matched_op.bet_id(db);
-           auto& persistent_bets_by_bet_id = db.get_index_type<persistent_bet_index>().indices().get<by_bet_id>();
-           auto bet_iter = persistent_bets_by_bet_id.find(bet_matched_op.bet_id);
-           assert(bet_iter != persistent_bets_by_bet_id.end());
-           if (bet_iter != persistent_bets_by_bet_id.end())
-           {
-              db.modify(*bet_iter, [&]( persistent_bet_object& obj ) {
-                 obj.amount_matched += amount_bet.amount;
-              });
-              const bet_object& bet_obj = bet_iter->ephemeral_bet_object;
+         const bet_matched_operation& bet_matched_op = op.op.get<bet_matched_operation>();
+         //idump((bet_matched_op));
+         const asset& amount_bet = bet_matched_op.amount_bet;
+         // object may no longer exist
+         //const bet_object& bet = bet_matched_op.bet_id(db);
+         auto& persistent_bets_by_bet_id = db.get_index_type<persistent_bet_index>().indices().get<by_bet_id>();
+         auto bet_iter = persistent_bets_by_bet_id.find(bet_matched_op.bet_id);
+         assert(bet_iter != persistent_bets_by_bet_id.end());
+         if (bet_iter != persistent_bets_by_bet_id.end())
+         {
+            db.modify(*bet_iter, [&]( persistent_bet_object& obj ) {
+               obj.amount_matched += amount_bet.amount;
+            });
+            const bet_object& bet_obj = bet_iter->ephemeral_bet_object;
 
-              const betting_market_object& betting_market = bet_obj.betting_market_id(db); // TODO: this needs to look at the persistent version
-              const betting_market_group_object& betting_market_group = betting_market.group_id(db); // TODO: as does this
-              db.modify( betting_market_group, [&]( betting_market_group_object& obj ){
-                  obj.total_matched_bets_amount += amount_bet.amount;
-              });
-           }
+            const betting_market_object& betting_market = bet_obj.betting_market_id(db); // TODO: this needs to look at the persistent version
+            const betting_market_group_object& betting_market_group = betting_market.group_id(db); // TODO: as does this
+            db.modify( betting_market_group, [&]( betting_market_group_object& obj ){
+               obj.total_matched_bets_amount += amount_bet.amount;
+            });
+         }
       }
       else if( op.op.which() == operation::tag<event_create_operation>::value )
       {
-          FC_ASSERT(op.result.which() == operation_result::tag<object_id_type>::value);
-          //object_id_type object_id = op.result.get<object_id_type>();
-          event_id_type object_id = op.result.get<object_id_type>();
-          FC_ASSERT( db.find_object(object_id), "invalid event specified" );
-          const event_create_operation& event_create_op = op.op.get<event_create_operation>();
-          for(const std::pair<std::string, std::string>& pair : event_create_op.name)
-          {
-              localized_event_strings[pair.first].insert(event_string(object_id, pair.second));
-          }
+         FC_ASSERT(op.result.which() == operation_result::tag<object_id_type>::value);
+         //object_id_type object_id = op.result.get<object_id_type>();
+         event_id_type object_id = op.result.get<object_id_type>();
+         FC_ASSERT( db.find_object(object_id), "invalid event specified" );
+         const event_create_operation& event_create_op = op.op.get<event_create_operation>();
+         for(const std::pair<std::string, std::string>& pair : event_create_op.name)
+            localized_event_strings[pair.first].insert(event_string(object_id, pair.second));
       }
       else if( op.op.which() == operation::tag<event_update_operation>::value )
       {
-          const event_update_operation& event_create_op = op.op.get<event_update_operation>();
-          if (!event_create_op.new_name.valid())
-              continue;
-          event_id_type event_id = event_create_op.event_id;
-          for(const std::pair<std::string, std::string>& pair : *event_create_op.new_name)
-          {
-              // try insert
-              std::pair<event_string_set::iterator, bool> result =
-                       localized_event_strings[pair.first].insert(event_string(event_id, pair.second));
-              if (!result.second)
-                   //  update string only
-                   result.first->second = pair.second;
-          }
+         const event_update_operation& event_create_op = op.op.get<event_update_operation>();
+         if (!event_create_op.new_name.valid())
+            continue;
+         event_id_type event_id = event_create_op.event_id;
+         for(const std::pair<std::string, std::string>& pair : *event_create_op.new_name)
+         {
+            // try insert
+            std::pair<event_string_set::iterator, bool> result =
+               localized_event_strings[pair.first].insert(event_string(event_id, pair.second));
+            if (!result.second)
+               //  update string only
+               result.first->second = pair.second;
+         }
       }
    }
 }
@@ -406,6 +406,10 @@ void bookie_plugin::plugin_initialize(const boost::program_options::variables_ma
     ilog("bookie plugin: plugin_startup() begin");
     database().applied_block.connect( [&]( const signed_block& b){ my->on_block_applied(b); } );
     database().changed_objects.connect([&](const vector<object_id_type>& changed_object_ids, const fc::flat_set<graphene::chain::account_id_type>& impacted_accounts){ my->on_objects_changed(changed_object_ids); });
+    database().new_objects.connect([this](const vector<object_id_type>& ids, const flat_set<account_id_type>& impacted_accounts) { my->on_objects_new(ids); });
+    database().removed_objects.connect([this](const vector<object_id_type>& ids, const vector<const object*>& objs, const flat_set<account_id_type>& impacted_accounts) { my->on_objects_removed(ids); });
+
+
     //auto event_index =
     database().add_index<primary_index<detail::persistent_event_index> >();
     database().add_index<primary_index<detail::persistent_betting_market_group_index> >();

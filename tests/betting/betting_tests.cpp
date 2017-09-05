@@ -350,7 +350,13 @@ BOOST_AUTO_TEST_CASE(persistent_objects_test)
   try
   {
      ACTORS( (alice)(bob) );
-     CREATE_ICE_HOCKEY_BETTING_MARKET();
+     {
+       // we're generating blocks, and the hacky way we keep references to the objects generated
+       // in this macro doesn't work, so do this in an anonymous scope to prevent us from using
+       // the variables it declares outside later in the function
+
+       CREATE_ICE_HOCKEY_BETTING_MARKET();
+     }
      graphene::bookie::bookie_api bookie_api(app);
 
      transfer(account_id_type(), alice_id, asset(10000000));
@@ -360,23 +366,32 @@ BOOST_AUTO_TEST_CASE(persistent_objects_test)
      BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
      BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
 
+     BOOST_REQUIRE_EQUAL(db.get_index_type<betting_market_group_object_index>().indices().get<by_id>().size(), 1);
+     const betting_market_group_object& caps_vs_blackhawks_moneyline_betting_market = *db.get_index_type<betting_market_group_object_index>().indices().get<by_id>().begin();
+     betting_market_group_id_type caps_vs_blackhawks_moneyline_betting_market_id = caps_vs_blackhawks_moneyline_betting_market.id;
+     BOOST_REQUIRE_EQUAL(db.get_index_type<betting_market_object_index>().indices().get<by_id>().size(), 2);
+     const betting_market_object& capitals_win_market = *db.get_index_type<betting_market_object_index>().indices().get<by_id>().begin();
+     betting_market_id_type capitals_win_market_id = capitals_win_market.id;
+     const betting_market_object& blackhawks_win_market = *std::next(db.get_index_type<betting_market_object_index>().indices().get<by_id>().begin());
+     betting_market_id_type blackhawks_win_market_id = blackhawks_win_market.id;
+
      // lay 46 at 1.94 odds (50:47) -- this is too small to be placed on the books and there's
      // nothing for it to match, so it should be canceled
-     bet_id_type automatically_canceled_bet_id = place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(46, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
+     bet_id_type automatically_canceled_bet_id = place_bet(alice_id, capitals_win_market_id, bet_type::lay, asset(46, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
      BOOST_CHECK_MESSAGE(!db.find(automatically_canceled_bet_id), "Bet should have been canceled, but the blockchain still knows about it");
      fc::variants objects_from_bookie = bookie_api.get_objects({automatically_canceled_bet_id});
      BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 1);
      BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>() == automatically_canceled_bet_id, "Bookie Plugin didn't return a deleted bet it");
 
      // lay 47 at 1.94 odds (50:47) -- this bet should go on the order books normally
-     bet_id_type first_bet_on_books = place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(47, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
+     bet_id_type first_bet_on_books = place_bet(alice_id, capitals_win_market_id, bet_type::lay, asset(47, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
      BOOST_CHECK_MESSAGE(db.find(first_bet_on_books), "Bet should exist on the blockchain");
      objects_from_bookie = bookie_api.get_objects({first_bet_on_books});
      BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 1);
      BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>() == first_bet_on_books, "Bookie Plugin didn't return a bet that is currently on the books");
 
      // place a bet that exactly matches 'first_bet_on_books', should result in empty books (thus, no bet_objects from the blockchain)
-     bet_id_type matching_bet = place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(50, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
+     bet_id_type matching_bet = place_bet(bob_id, capitals_win_market_id, bet_type::back, asset(50, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
      BOOST_CHECK_MESSAGE(!db.find(first_bet_on_books), "Bet should have been filled, but the blockchain still knows about it");
      BOOST_CHECK_MESSAGE(!db.find(matching_bet), "Bet should have been filled, but the blockchain still knows about it");
      generate_blocks(1); // the bookie plugin doesn't detect matches until a block is generated
@@ -386,12 +401,29 @@ BOOST_AUTO_TEST_CASE(persistent_objects_test)
      BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>() == first_bet_on_books, "Bookie Plugin didn't return a bet that has been filled");
      BOOST_CHECK_MESSAGE(objects_from_bookie[1]["id"].as<bet_id_type>() == matching_bet, "Bookie Plugin didn't return a bet that has been filled");
 
+     resolve_betting_market_group(caps_vs_blackhawks_moneyline_betting_market_id,
+                                  {{capitals_win_market_id, betting_market_resolution_type::cancel},
+                                   {blackhawks_win_market_id, betting_market_resolution_type::cancel}});
+     generate_blocks(1);
+
+     // test get_matched_bets_for_bettor
      std::vector<graphene::bookie::matched_bet_object> alice_matched_bets = bookie_api.get_matched_bets_for_bettor(alice_id);
      BOOST_REQUIRE_EQUAL(alice_matched_bets.size(), 1);
      BOOST_CHECK(alice_matched_bets[0].amount_matched == 47);
      std::vector<graphene::bookie::matched_bet_object> bob_matched_bets = bookie_api.get_matched_bets_for_bettor(bob_id);
      BOOST_REQUIRE_EQUAL(bob_matched_bets.size(), 1);
      BOOST_CHECK(bob_matched_bets[0].amount_matched == 50);
+
+     // test getting markets
+     //  test that we cannot get them from the database directly
+     BOOST_CHECK_THROW(capitals_win_market_id(db), fc::exception);
+     BOOST_CHECK_THROW(blackhawks_win_market_id(db), fc::exception);
+
+     objects_from_bookie = bookie_api.get_objects({capitals_win_market_id, blackhawks_win_market_id});
+     BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 2);
+     idump((objects_from_bookie));
+     BOOST_CHECK(!objects_from_bookie[0].is_null());
+     BOOST_CHECK(!objects_from_bookie[1].is_null());
   }
   FC_LOG_AND_RETHROW()
 }
@@ -657,8 +689,8 @@ BOOST_AUTO_TEST_CASE( not_win )
    try
    {
       resolve_betting_market_group(moneyline_betting_markets_id,
-                                  {{capitals_win_betting_market_id, betting_market_resolution_type::not_win},
-                                   {blackhawks_win_betting_market_id, betting_market_resolution_type::cancel}});
+                                   {{capitals_win_betting_market_id, betting_market_resolution_type::not_win},
+                                    {blackhawks_win_betting_market_id, betting_market_resolution_type::cancel}});
 
       GET_ACTOR(alice);
       GET_ACTOR(bob);
@@ -680,8 +712,8 @@ BOOST_AUTO_TEST_CASE( cancel )
    try
    {
       resolve_betting_market_group(moneyline_betting_markets_id,
-                                  {{capitals_win_betting_market_id, betting_market_resolution_type::cancel},
-                                   {blackhawks_win_betting_market_id, betting_market_resolution_type::cancel}});
+                                   {{capitals_win_betting_market_id, betting_market_resolution_type::cancel},
+                                    {blackhawks_win_betting_market_id, betting_market_resolution_type::cancel}});
 
       GET_ACTOR(alice);
       GET_ACTOR(bob);
