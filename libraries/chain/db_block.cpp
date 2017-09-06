@@ -479,6 +479,10 @@ const vector<optional< operation_history_object > >& database::get_applied_opera
    return _applied_ops;
 }
 
+vector<optional< operation_history_object > >& database::get_applied_operations()
+{
+   return _applied_ops;
+}
 //////////////////// private methods ////////////////////
 
 void database::apply_block( const signed_block& next_block, uint32_t skip )

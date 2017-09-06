@@ -171,7 +171,14 @@ namespace graphene { namespace chain {
           */
          uint32_t  push_applied_operation( const operation& op );
          void      set_applied_operation_result( uint32_t op_id, const operation_result& r );
+
+         // most plugins should use the const version of get_applied_operations
          const vector<optional< operation_history_object > >& get_applied_operations()const;
+
+         // the account_history plugin uses the non-const version.  When it decides to track an 
+         // operation and assigns an operation_id to it, it will store that id into the operation
+         // history object so other plugins that evaluate later can reference it.
+         vector<optional< operation_history_object > >& get_applied_operations();
 
          string to_pretty_string( const asset& a )const;
 

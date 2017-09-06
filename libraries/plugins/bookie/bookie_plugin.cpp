@@ -272,6 +272,20 @@ void bookie_plugin_impl::on_objects_changed(const vector<object_id_type>& change
    }
 }
 
+bool is_operation_history_object_stored(operation_history_id_type id)
+{
+   if (id == operation_history_id_type())
+   {
+      elog("Warning: the operation history object for an operation the bookie plugin needs to track "
+           "has id of ${id}, which means the account history plugin isn't storing this operation, or that "
+           "it is running after the bookie plugin. Make sure the account history plugin is tracking operations for "
+           "all accounts,, and that it is loaded before the bookie plugin", ("id", id));
+      return false;
+   }
+   else
+      return true;
+}
+
 void bookie_plugin_impl::on_block_applied( const signed_block& )
 {
    graphene::chain::database& db = database();
@@ -296,6 +310,8 @@ void bookie_plugin_impl::on_block_applied( const signed_block& )
          {
             db.modify(*bet_iter, [&]( persistent_bet_object& obj ) {
                obj.amount_matched += amount_bet.amount;
+               if (is_operation_history_object_stored(op.id))
+                  obj.associated_operations.emplace_back(op.id);
             });
             const bet_object& bet_obj = bet_iter->ephemeral_bet_object;
 
@@ -332,6 +348,39 @@ void bookie_plugin_impl::on_block_applied( const signed_block& )
                result.first->second = pair.second;
          }
       }
+      else if ( op.op.which() == operation::tag<bet_canceled_operation>::value )
+      {
+         const bet_canceled_operation& bet_canceled_op = op.op.get<bet_canceled_operation>();
+         auto& persistent_bets_by_bet_id = db.get_index_type<persistent_bet_index>().indices().get<by_bet_id>();
+         auto bet_iter = persistent_bets_by_bet_id.find(bet_canceled_op.bet_id);
+         assert(bet_iter != persistent_bets_by_bet_id.end());
+         if (bet_iter != persistent_bets_by_bet_id.end())
+         {
+            ilog("Adding bet_canceled_operation ${canceled_id} to bet ${bet_id}'s associated operations", 
+                 ("canceled_id", op.id)("bet_id", bet_canceled_op.bet_id));
+            if (is_operation_history_object_stored(op.id))
+               db.modify(*bet_iter, [&]( persistent_bet_object& obj ) {
+                  obj.associated_operations.emplace_back(op.id);
+               });
+         }
+      }
+      else if ( op.op.which() == operation::tag<bet_adjusted_operation>::value )
+      {
+         const bet_adjusted_operation& bet_adjusted_op = op.op.get<bet_adjusted_operation>();
+         auto& persistent_bets_by_bet_id = db.get_index_type<persistent_bet_index>().indices().get<by_bet_id>();
+         auto bet_iter = persistent_bets_by_bet_id.find(bet_adjusted_op.bet_id);
+         assert(bet_iter != persistent_bets_by_bet_id.end());
+         if (bet_iter != persistent_bets_by_bet_id.end())
+         {
+            ilog("Adding bet_adjusted_operation ${adjusted_id} to bet ${bet_id}'s associated operations", 
+                 ("adjusted_id", op.id)("bet_id", bet_adjusted_op.bet_id));
+            if (is_operation_history_object_stored(op.id))
+               db.modify(*bet_iter, [&]( persistent_bet_object& obj ) {
+                  obj.associated_operations.emplace_back(op.id);
+               });
+         }
+      }
+
    }
 }
 

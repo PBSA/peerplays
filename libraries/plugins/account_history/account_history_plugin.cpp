@@ -75,23 +75,24 @@ class account_history_plugin_impl
 
 account_history_plugin_impl::~account_history_plugin_impl()
 {
-   return;
 }
 
 void account_history_plugin_impl::update_account_histories( const signed_block& b )
 {
    graphene::chain::database& db = database();
-   const vector<optional< operation_history_object > >& hist = db.get_applied_operations();
-   for( const optional< operation_history_object >& o_op : hist )
+   vector<optional< operation_history_object > >& hist = db.get_applied_operations();
+   for( optional< operation_history_object >& o_op : hist )
    {
       optional<operation_history_object> oho;
 
       auto create_oho = [&]() {
-         return optional<operation_history_object>( db.create<operation_history_object>( [&]( operation_history_object& h )
+         operation_history_object result = db.create<operation_history_object>( [&]( operation_history_object& h )
          {
             if( o_op.valid() )
                h = *o_op;
-         } ) );
+         } );
+         o_op->id = result.id;
+         return optional<operation_history_object>(result);
       };
 
       if( !o_op.valid() || ( _max_ops_per_account == 0 && _partial_operations ) )

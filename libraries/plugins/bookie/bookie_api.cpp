@@ -32,6 +32,7 @@ class bookie_api_impl
       std::vector<event_object> get_events_containing_sub_string(const std::string& sub_string, const std::string& language);
       fc::variants get_objects(const vector<object_id_type>& ids) const;
       std::vector<matched_bet_object> get_matched_bets_for_bettor(account_id_type bettor_id) const;
+      std::vector<matched_bet_object> get_all_matched_bets_for_bettor(account_id_type bettor_id, bet_id_type start, unsigned limit) const;
       graphene::app::application& app;
 };
 
@@ -196,6 +197,7 @@ std::vector<matched_bet_object> bookie_api_impl::get_matched_bets_for_bettor(acc
       match.back_or_lay = iter->ephemeral_bet_object.back_or_lay;
       match.end_of_delay = iter->ephemeral_bet_object.end_of_delay;
       match.amount_matched = iter->amount_matched;
+      match.associated_operations = iter->associated_operations;
       result.emplace_back(std::move(match));
 
       ++iter;
@@ -203,6 +205,37 @@ std::vector<matched_bet_object> bookie_api_impl::get_matched_bets_for_bettor(acc
    return result;
 }
 
+std::vector<matched_bet_object> bookie_api_impl::get_all_matched_bets_for_bettor(account_id_type bettor_id, bet_id_type start, unsigned limit) const
+{
+   FC_ASSERT(limit <= 1000, "You may request at most 1000 matched bets at a time");
+
+   std::vector<matched_bet_object> result;
+   std::shared_ptr<graphene::chain::database> db = app.chain_database();
+   auto& persistent_bets_by_bettor_id = db->get_index_type<detail::persistent_bet_index>().indices().get<by_bettor_id>();
+   persistent_bet_multi_index_type::index<by_bettor_id>::type::iterator iter;
+   if (start == bet_id_type())
+      iter = persistent_bets_by_bettor_id.lower_bound(std::make_tuple(bettor_id, true));
+   else
+      iter = persistent_bets_by_bettor_id.lower_bound(std::make_tuple(bettor_id, true, start));
+   while (iter != persistent_bets_by_bettor_id.end() && 
+          iter->get_bettor_id() == bettor_id &&
+          iter->is_matched() &&
+          result.size() < limit)
+   {
+      matched_bet_object match;
+      match.id = iter->ephemeral_bet_object.id;
+      match.bettor_id = iter->ephemeral_bet_object.bettor_id;
+      match.betting_market_id = iter->ephemeral_bet_object.betting_market_id;
+      match.amount_to_bet = iter->ephemeral_bet_object.amount_to_bet;
+      match.back_or_lay = iter->ephemeral_bet_object.back_or_lay;
+      match.end_of_delay = iter->ephemeral_bet_object.end_of_delay;
+      match.amount_matched = iter->amount_matched;
+      result.emplace_back(std::move(match));
+
+      ++iter;
+   }
+   return result;
+}
 
 std::shared_ptr<graphene::bookie::bookie_plugin> bookie_api_impl::get_plugin()
 {
@@ -249,6 +282,13 @@ fc::variants bookie_api::get_objects(const vector<object_id_type>& ids) const
 std::vector<matched_bet_object> bookie_api::get_matched_bets_for_bettor(account_id_type bettor_id) const
 {
    return my->get_matched_bets_for_bettor(bettor_id);
+}
+
+std::vector<matched_bet_object> bookie_api::get_all_matched_bets_for_bettor(account_id_type bettor_id, 
+                                                                            bet_id_type start /* = bet_id_type() */, 
+                                                                            unsigned limit /* = 1000 */) const
+{
+   return my->get_all_matched_bets_for_bettor(bettor_id, start, limit);
 }
 
 } } // graphene::bookie

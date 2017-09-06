@@ -50,6 +50,8 @@ struct matched_bet_object {
 
    // plus fields from this plugin
    share_type amount_matched;
+
+   std::vector<operation_history_id_type> associated_operations;
 };
 
 class bookie_api
@@ -67,7 +69,7 @@ class bookie_api
       std::vector<event_object> get_events_containing_sub_string(const std::string& sub_string, const std::string& language);
       fc::variants get_objects(const vector<object_id_type>& ids)const;
       std::vector<matched_bet_object> get_matched_bets_for_bettor(account_id_type bettor_id) const;
-
+      std::vector<matched_bet_object> get_all_matched_bets_for_bettor(account_id_type bettor_id, bet_id_type start = bet_id_type(), unsigned limit = 1000) const;
       std::shared_ptr<detail::bookie_api_impl> my;
 };
 
@@ -75,7 +77,7 @@ class bookie_api
 
 FC_REFLECT(graphene::bookie::order_bin, (amount_to_bet)(backer_multiplier))
 FC_REFLECT(graphene::bookie::binned_order_book, (aggregated_back_bets)(aggregated_lay_bets))
-FC_REFLECT(graphene::bookie::matched_bet_object, (id)(bettor_id)(betting_market_id)(amount_to_bet)(backer_multiplier)(back_or_lay)(end_of_delay)(amount_matched))
+FC_REFLECT(graphene::bookie::matched_bet_object, (id)(bettor_id)(betting_market_id)(amount_to_bet)(backer_multiplier)(back_or_lay)(end_of_delay)(amount_matched)(associated_operations))
 
 FC_API(graphene::bookie::bookie_api,
        (get_binned_order_book)
@@ -83,5 +85,5 @@ FC_API(graphene::bookie::bookie_api,
        (get_events_containing_sub_string)
        (get_objects)
        (get_matched_bets_for_bettor)
-     )
+       (get_all_matched_bets_for_bettor))
 
