@@ -453,6 +453,7 @@ void bookie_plugin::plugin_set_program_options(boost::program_options::options_d
 void bookie_plugin::plugin_initialize(const boost::program_options::variables_map& options)
 {
     ilog("bookie plugin: plugin_startup() begin");
+    database().force_slow_replays();
     database().applied_block.connect( [&]( const signed_block& b){ my->on_block_applied(b); } );
     database().changed_objects.connect([&](const vector<object_id_type>& changed_object_ids, const fc::flat_set<graphene::chain::account_id_type>& impacted_accounts){ my->on_objects_changed(changed_object_ids); });
     database().new_objects.connect([this](const vector<object_id_type>& ids, const flat_set<account_id_type>& impacted_accounts) { my->on_objects_new(ids); });

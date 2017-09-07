@@ -180,6 +180,9 @@ namespace graphene { namespace chain {
          // history object so other plugins that evaluate later can reference it.
          vector<optional< operation_history_object > >& get_applied_operations();
 
+         // the bookie plugin depends on change notifications that are skipped during normal replays
+         void force_slow_replays();
+
          string to_pretty_string( const asset& a )const;
 
          /**
@@ -534,6 +537,7 @@ namespace graphene { namespace chain {
 
          node_property_object              _node_property_object;
          fc::hash_ctr_rng<secret_hash_type, 20> _random_number_generator;
+         bool                              _slow_replays = false;
    };
 
    namespace detail
