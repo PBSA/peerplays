@@ -64,7 +64,10 @@ void database::reindex(fc::path data_dir, const genesis_state_type& initial_allo
    const auto last_block_num = last_block->block_num();
 
    ilog( "Replaying blocks..." );
-   _undo_db.disable();
+   // Right now, we leave undo_db enabled when replaying because the bookie plugin
+   // depends on new/changed/removed object notifications, and those are only fired
+   // when the undo_db is enabled
+   //_undo_db.disable();
    for( uint32_t i = 1; i <= last_block_num; ++i )
    {
       if( i % 10000 == 0 ) std::cerr << "   " << double(i*100)/last_block_num << "%   "<<i << " of " <<last_block_num<<"   \n";
@@ -95,7 +98,7 @@ void database::reindex(fc::path data_dir, const genesis_state_type& initial_allo
                           skip_witness_schedule_check |
                           skip_authority_check);
    }
-   _undo_db.enable();
+   //_undo_db.enable();
    auto end = fc::time_point::now();
    ilog( "Done reindexing, elapsed time: ${t} sec", ("t",double((end-start).count())/1000000.0 ) );
 } FC_CAPTURE_AND_RETHROW( (data_dir) ) }
