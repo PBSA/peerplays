@@ -5732,6 +5732,11 @@ std::vector<matched_bet_object> wallet_api::get_matched_bets_for_bettor(account_
     return( my->_remote_bookie->get_matched_bets_for_bettor(bettor_id) );
 }
 
+std::vector<matched_bet_object> wallet_api::get_all_matched_bets_for_bettor(account_id_type bettor_id, bet_id_type start, unsigned limit) const
+{
+    return( my->_remote_bookie->get_all_matched_bets_for_bettor(bettor_id, start, limit) );
+}
+
 // default ctor necessary for FC_REFLECT
 signed_block_with_info::signed_block_with_info( const signed_block& block )
    : signed_block( block )
