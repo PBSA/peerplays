@@ -43,10 +43,11 @@ object_id_type witness_create_evaluator::do_apply( const witness_create_operatio
       vote_id = get_next_vote_id(p, vote_id_type::witness);
    });
 
-   const auto& new_witness_object = db().create<witness_object>( [&]( witness_object& obj ){
+   const auto& new_witness_object = db().create<witness_object>( [&]( witness_object& obj ) {
          obj.witness_account  = op.witness_account;
-         obj.signing_key      = op.block_signing_key;
-         obj.next_secret_hash = op.initial_secret;
+         obj.signing_key      = op.block_signing_key;   
+         obj.previous_secret  = op.initial_secret;
+         obj.next_secret_hash = secret_hash_type::hash( op.initial_secret );
          obj.vote_id          = vote_id;
          obj.url              = op.url;
    });

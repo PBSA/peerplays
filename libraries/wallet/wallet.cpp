@@ -1762,10 +1762,11 @@ public:
       witness_create_op.witness_account = witness_account.id;
       witness_create_op.block_signing_key = witness_public_key;
       witness_create_op.url = url;
-      secret_hash_type::encoder enc;
-      fc::raw::pack(enc, witness_private_key);
-      fc::raw::pack(enc, secret_hash_type());
-      witness_create_op.initial_secret = secret_hash_type::hash(enc.result());
+
+      // secret_hash_type::encoder enc;
+      // fc::raw::pack(enc, witness_private_key);
+      // fc::raw::pack(enc, secret_hash_type());
+      witness_create_op.initial_secret = secret_hash_type::hash(owner_account);
 
 
       if (_remote_db->get_witness_by_account(witness_create_op.witness_account))

@@ -253,7 +253,8 @@ namespace graphene { namespace chain {
          const dynamic_global_property_object&  get_dynamic_global_properties()const;
          const node_property_object&            get_node_properties()const;
          const fee_schedule&                    current_fee_schedule()const;
-
+         const std::unordered_set<uint8_t>      get_winner_numbers(asset_id_type for_asset, uint8_t count_members, uint32_t count_winners)const;
+         std::vector<uint32_t>                  get_seeds(asset_id_type for_asset, uint32_t count_winners)const;
          uint64_t                               get_random_bits( uint64_t bound );
 
          time_point_sec   head_block_time()const;
