@@ -958,6 +958,13 @@ class wallet_api
                                       fc::optional<bitasset_options> bitasset_opts,
                                       bool broadcast = false);
 
+      signed_transaction create_lottery(string issuer,
+                                        string symbol,
+                                        uint8_t precision,
+                                        asset_options common,
+                                        fc::optional<bitasset_options> bitasset_opts,
+                                        bool broadcast = false);
+
       /** Issue new shares of an asset.
        *
        * @param to_account the name or id of the account to receive the new shares
@@ -1706,6 +1713,7 @@ FC_API( graphene::wallet::wallet_api,
         (transfer2)
         (get_transaction_id)
         (create_asset)
+        (create_lottery)
         (update_asset)
         (update_bitasset)
         (update_dividend_asset)

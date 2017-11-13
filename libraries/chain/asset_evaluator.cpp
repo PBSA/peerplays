@@ -162,6 +162,11 @@ object_id_type asset_create_evaluator::do_apply( const asset_create_operation& o
          a.symbol = op.symbol;
          a.precision = op.precision;
          a.options = op.common_options;
+         if( op.extension.which() == asset_extension::tag<lottery_asset_options>::value ) {
+            a.precision = 0;
+            a.lottery_options = op.extension.get<lottery_asset_options>();
+            a.lottery_options->balance = asset( 0, a.lottery_options->ticket_price.asset_id );
+         }
          if( a.options.core_exchange_rate.base.asset_id.instance.value == 0 )
             a.options.core_exchange_rate.quote.asset_id = next_asset_id;
          else

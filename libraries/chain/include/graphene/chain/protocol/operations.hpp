@@ -26,6 +26,7 @@
 #include <graphene/chain/protocol/account.hpp>
 #include <graphene/chain/protocol/assert.hpp>
 #include <graphene/chain/protocol/asset_ops.hpp>
+#include <graphene/chain/protocol/lottery_ops.hpp>
 #include <graphene/chain/protocol/balance.hpp>
 #include <graphene/chain/protocol/custom.hpp>
 #include <graphene/chain/protocol/committee_member.hpp>
@@ -99,7 +100,8 @@ namespace graphene { namespace chain {
             asset_update_dividend_operation,
             asset_dividend_distribution_operation, // VIRTUAL
             tournament_payout_operation, // VIRTUAL
-            tournament_leave_operation
+            tournament_leave_operation,
+            ticket_purchase_operation
          > operation;
 
    /// @} // operations group

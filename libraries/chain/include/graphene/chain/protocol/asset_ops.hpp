@@ -29,6 +29,30 @@ namespace graphene { namespace chain {
 
    bool is_valid_symbol( const string& symbol );
 
+   struct benefactor {
+      account_id_type id;
+      double share;
+      benefactor() = default;
+      benefactor ( const benefactor & ) = default;	
+      benefactor( account_id_type _id, double _share ) : id( _id ), share( _share ) {}
+   };
+
+   struct lottery_asset_options {
+      std::vector<benefactor> benefactors;
+
+      // specifying winning tickets as shares that will be issued
+      std::vector<double>     winning_tickets;
+      asset                   ticket_price;
+      asset                   balance;
+      time_point_sec          end_date;
+      bool                    ending_on_soldout;
+      bool                    is_active;
+
+      void validate()const;
+   };
+
+   typedef static_variant< void_t, lottery_asset_options > asset_extension;
+
    /**
     * @brief The asset_options struct contains options available on all assets in the network
     *
@@ -69,7 +93,7 @@ namespace graphene { namespace chain {
       flat_set<asset_id_type>   whitelist_markets;
       /** defines the assets that this asset may not be traded against in the market, must not overlap whitelist */
       flat_set<asset_id_type>   blacklist_markets;
-
+      
       /**
        * data that describes the meaning/purpose of this asset, fee will be charged proportional to
        * size of description.
@@ -169,6 +193,7 @@ namespace graphene { namespace chain {
          uint64_t symbol3        = 500000 * GRAPHENE_BLOCKCHAIN_PRECISION;
          uint64_t symbol4        = 300000 * GRAPHENE_BLOCKCHAIN_PRECISION;
          uint64_t long_symbol    = 5000   * GRAPHENE_BLOCKCHAIN_PRECISION;
+         uint64_t lottery_asset  = 5000   * GRAPHENE_BLOCKCHAIN_PRECISION;
          uint32_t price_per_kbyte = 10; /// only required for large memos.
       };
 
@@ -191,7 +216,8 @@ namespace graphene { namespace chain {
       optional<bitasset_options> bitasset_opts;
       /// For BitAssets, set this to true if the asset implements a @ref prediction_market; false otherwise
       bool is_prediction_market = false;
-      extensions_type extensions;
+      // containing lottery_asset_options now
+      asset_extension extension;
 
       account_id_type fee_payer()const { return issuer; }
       void            validate()const;
@@ -398,7 +424,7 @@ namespace graphene { namespace chain {
     * BitAssets have some options which are not relevant to other asset types. This operation is used to update those
     * options an an existing BitAsset.
     *
-    * @pre @ref issuer MUST be an existing account and MUST match asset_object::issuer on @ref asset_to_update
+    * @pre @ref issuer MUST be an existing aaccount and MUST match asset_object::issuer on @ref asset_to_update
     * @pre @ref asset_to_update MUST be a BitAsset, i.e. @ref asset_object::is_market_issued() returns true
     * @pre @ref fee MUST be nonnegative, and @ref issuer MUST have a sufficient balance to pay it
     * @pre @ref new_options SHALL be internally consistent, as verified by @ref validate()
@@ -610,6 +636,10 @@ FC_REFLECT( graphene::chain::bitasset_options,
             (extensions)
           )
 
+FC_REFLECT( graphene::chain::benefactor, (id)(share) )
+
+FC_REFLECT( graphene::chain::lottery_asset_options, (benefactors)(winning_tickets)(ticket_price)(balance)(end_date)(ending_on_soldout)(is_active) )
+
 
 FC_REFLECT( graphene::chain::asset_create_operation::fee_parameters_type, (symbol3)(symbol4)(long_symbol)(price_per_kbyte) )
 FC_REFLECT( graphene::chain::asset_global_settle_operation::fee_parameters_type, (fee) )
@@ -633,7 +663,7 @@ FC_REFLECT( graphene::chain::asset_create_operation,
             (common_options)
             (bitasset_opts)
             (is_prediction_market)
-            (extensions)
+            (extension)
           )
 FC_REFLECT( graphene::chain::asset_update_operation,
             (fee)

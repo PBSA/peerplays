@@ -159,6 +159,7 @@ void database_fixture::verify_asset_supplies( const database& db )
    const auto& balance_index = db.get_index_type<account_balance_index>().indices();
    const auto& settle_index = db.get_index_type<force_settlement_index>().indices();
    const auto& tournaments_index = db.get_index_type<tournament_index>().indices();
+   const auto& asst_index = db.get_index_type<asset_index>().indices();
 
    map<asset_id_type,share_type> total_balances;
    map<asset_id_type,share_type> total_debts;
@@ -168,6 +169,10 @@ void database_fixture::verify_asset_supplies( const database& db )
    for( const tournament_object& t : tournaments_index )
       if (t.get_state() != tournament_state::concluded && t.get_state() != tournament_state::registration_period_expired)
         total_balances[t.options.buy_in.asset_id] += t.prize_pool;
+
+   for( const asset_object& ai : asst_index)
+      if (ai.is_lottery()) 
+         total_balances[ ai.lottery_options->balance.asset_id ] += ai.lottery_options->balance.amount;
 
    for( const account_balance_object& b : balance_index )
       total_balances[b.asset_type] += b.balance;
@@ -208,7 +213,7 @@ void database_fixture::verify_asset_supplies( const database& db )
       total_balances[ vbo.balance.asset_id ] += vbo.balance.amount;
    for( const fba_accumulator_object& fba : db.get_index_type< simple_index< fba_accumulator_object > >() )
       total_balances[ asset_id_type() ] += fba.accumulated_fba_fees;
-
+   
    total_balances[asset_id_type()] += db.get_dynamic_global_properties().witness_budget;
 
    for( const auto& item : total_debts )
@@ -666,10 +671,10 @@ const witness_object& database_fixture::create_witness( const account_object& ow
    op.witness_account = owner.id;
    op.block_signing_key = signing_private_key.get_public_key();
    
-  //  secret_hash_type::encoder enc;
-  //  fc::raw::pack(enc, signing_private_key);
-  //  fc::raw::pack(enc, owner.name);
-   op.initial_secret = secret_hash_type::hash(owner.name);
+   secret_hash_type::encoder enc;
+   fc::raw::pack(enc, signing_private_key);
+   fc::raw::pack(enc, owner.name);
+   op.initial_secret = secret_hash_type::hash(enc.result());
 
    trx.operations.push_back(op);
    trx.validate();

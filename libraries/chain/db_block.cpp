@@ -396,20 +396,20 @@ signed_block database::_generate_block(
    pending_block.transaction_merkle_root = pending_block.calculate_merkle_root();
    pending_block.witness = witness_id;
    
-   // Genesis witnesses start with a default initial secret        
-   if( secret_hash_type::hash( witness_obj.previous_secret ) == witness_obj.next_secret_hash ) {    
-      pending_block.previous_secret = witness_obj.previous_secret;      
+   // Genesis witnesses start with a default initial secret
+   if( witness_obj.next_secret_hash == secret_hash_type::hash( secret_hash_type() ) ) {
+         pending_block.previous_secret = secret_hash_type();
    } else {
-      secret_hash_type::encoder last_enc;        
-      fc::raw::pack( last_enc, block_signing_private_key );      
-      fc::raw::pack( last_enc, witness_obj.previous_secret );        
-      pending_block.previous_secret = last_enc.result();        
-   }      
+         secret_hash_type::encoder last_enc;
+         fc::raw::pack( last_enc, block_signing_private_key );
+         fc::raw::pack( last_enc, witness_obj.previous_secret );
+         pending_block.previous_secret = last_enc.result();
+   }
       
-   secret_hash_type::encoder next_enc;        
-   fc::raw::pack( next_enc, block_signing_private_key );      
-   fc::raw::pack( next_enc, pending_block.previous_secret );     
-   pending_block.next_secret_hash = secret_hash_type::hash(next_enc.result());       
+   secret_hash_type::encoder next_enc;
+   fc::raw::pack( next_enc, block_signing_private_key );
+   fc::raw::pack( next_enc, pending_block.previous_secret );
+   pending_block.next_secret_hash = secret_hash_type::hash(next_enc.result());
 
    if( !(skip & skip_witness_signature) )
       pending_block.sign( block_signing_private_key );
@@ -421,7 +421,7 @@ signed_block database::_generate_block(
    }
 
    push_block( pending_block, skip );
-   idump(( get_winner_numbers(asset_id_type(3), 253, 64) ));
+
    return pending_block;
 } FC_CAPTURE_AND_RETHROW( (witness_id) ) }
 
@@ -687,8 +687,9 @@ const witness_object& database::validate_block_header( uint32_t skip, const sign
    FC_ASSERT( head_block_time() < next_block.timestamp, "", ("head_block_time",head_block_time())("next",next_block.timestamp)("blocknum",next_block.block_num()) );
    const witness_object& witness = next_block.witness(*this);
 //DLN: TODO: Temporarily commented out to test shuffle vs RNG scheduling algorithm for witnesses, this was causing shuffle agorithm to fail during create_witness test. This should be re-enabled for RNG, and maybe for shuffle too, don't really know for sure.
-   FC_ASSERT( secret_hash_type::hash( next_block.previous_secret ) == witness.next_secret_hash, "",        
-             ("previous_secret", next_block.previous_secret)("next_secret_hash", witness.next_secret_hash));
+   if( next_block.timestamp > HARDFORK_SWEEPS_TIME )
+      FC_ASSERT( secret_hash_type::hash( next_block.previous_secret ) == witness.next_secret_hash, "",
+               ( "previous_secret", next_block.previous_secret )( "next_secret_hash", witness.next_secret_hash ) );
 
    if( !(skip&skip_witness_signature) ) 
       FC_ASSERT( next_block.validate_signee( witness.signing_key ) );

@@ -1437,6 +1437,40 @@ public:
       return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (issuer)(symbol)(precision)(common)(bitasset_opts)(broadcast) ) }
 
+
+   signed_transaction create_lottery(string issuer,
+      string symbol,
+      uint8_t precision,
+      asset_options common,
+      fc::optional<bitasset_options> bitasset_opts,
+      bool broadcast = false)
+   { try {
+      account_object issuer_account = get_account( issuer );
+      FC_ASSERT(!find_asset(symbol).valid(), "Asset with that symbol already exists!");
+
+      asset_create_operation create_op;
+      create_op.issuer = issuer_account.id;
+      create_op.symbol = symbol;
+      create_op.precision = precision;
+      create_op.common_options = common;
+      create_op.bitasset_opts = bitasset_opts;
+
+      lottery_asset_options lottery_options;
+      lottery_options.benefactors.push_back( benefactor( issuer_account.id, 0.5 ) );
+      lottery_options.end_date = _remote_db->get_dynamic_global_properties().time + fc::minutes(120);
+      lottery_options.ticket_price = asset(100);
+      lottery_options.winning_tickets.push_back(0.5);
+
+      create_op.extension = lottery_options;
+
+      signed_transaction tx;
+      tx.operations.push_back( create_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (issuer)(symbol)(precision)(common)(bitasset_opts)(broadcast) ) }
+
    signed_transaction update_asset(string symbol,
                                    optional<string> new_issuer,
                                    asset_options new_options,
@@ -1763,10 +1797,10 @@ public:
       witness_create_op.block_signing_key = witness_public_key;
       witness_create_op.url = url;
 
-      // secret_hash_type::encoder enc;
-      // fc::raw::pack(enc, witness_private_key);
-      // fc::raw::pack(enc, secret_hash_type());
-      witness_create_op.initial_secret = secret_hash_type::hash(owner_account);
+      secret_hash_type::encoder enc;
+      fc::raw::pack(enc, witness_private_key);
+      fc::raw::pack(enc, secret_hash_type());
+      witness_create_op.initial_secret = secret_hash_type::hash(enc.result());
 
 
       if (_remote_db->get_witness_by_account(witness_create_op.witness_account))
@@ -3740,6 +3774,18 @@ signed_transaction wallet_api::create_asset(string issuer,
 {
    return my->create_asset(issuer, symbol, precision, common, bitasset_opts, broadcast);
 }
+
+signed_transaction wallet_api::create_lottery(string issuer,
+   string symbol,
+   uint8_t precision,
+   asset_options common,
+   fc::optional<bitasset_options> bitasset_opts,
+   bool broadcast)
+
+{
+return my->create_lottery(issuer, symbol, precision, common, bitasset_opts, broadcast);
+}
+
 
 signed_transaction wallet_api::update_asset(string symbol,
                                             optional<string> new_issuer,

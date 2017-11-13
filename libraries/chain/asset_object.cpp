@@ -89,6 +89,12 @@ void graphene::chain::asset_bitasset_data_object::update_median_feeds(time_point
 }
 
 
+time_point_sec asset_object::get_lottery_expiration() const 
+{
+   if( lottery_options )
+      return lottery_options->end_date;
+   return time_point_sec();
+}
 
 asset asset_object::amount_from_string(string amount_string) const
 { try {

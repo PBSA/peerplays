@@ -77,16 +77,19 @@ share_type asset_issue_operation::calculate_fee(const fee_parameters_type& k)con
 share_type asset_create_operation::calculate_fee(const asset_create_operation::fee_parameters_type& param)const
 {
    auto core_fee_required = param.long_symbol; 
-
-   switch(symbol.size()) {
-      case 3: core_fee_required = param.symbol3;
-          break;
-      case 4: core_fee_required = param.symbol4;
-          break;
-      default:
-          break;
+   
+   if( extension.which() == asset_extension::tag<lottery_asset_options>::value ) {
+      core_fee_required = param.lottery_asset;
+   } else {
+      switch(symbol.size()) {
+         case 3: core_fee_required = param.symbol3;
+            break;
+         case 4: core_fee_required = param.symbol4;
+            break;
+         default:
+            break;
+      }
    }
-
    // common_options contains several lists and a string. Charge fees for its size
    core_fee_required += calculate_data_fee( fc::raw::pack_size(*this), param.price_per_kbyte );
 

@@ -87,6 +87,8 @@ namespace graphene { namespace chain {
 
          /// @return true if this is a market-issued asset; false otherwise.
          bool is_market_issued()const { return bitasset_data_id.valid(); }
+         /// @return true if this is lottery asset; false otherwise.
+         bool is_lottery()const { return lottery_options.valid(); }
          /// @return true if users may request force-settlement of this market-issued asset; false otherwise
          bool can_force_settle()const { return !(options.flags & disable_force_settle); }
          /// @return true if the issuer of this market-issued asset may globally settle the asset; false otherwise
@@ -124,7 +126,9 @@ namespace graphene { namespace chain {
 
          asset_options options;
 
-
+         // Extra data associated with lottery options. This field is non-null if is_lottery() returns true
+         optional<lottery_asset_options> lottery_options;
+         time_point_sec get_lottery_expiration() const;
          /// Current supply, fee pool, and collected fees are stored in a separate object as they change frequently.
          asset_dynamic_data_id_type  dynamic_asset_data_id;
          /// Extra data associated with BitAssets. This field is non-null if and only if is_market_issued() returns true
@@ -237,13 +241,30 @@ namespace graphene { namespace chain {
    > asset_bitasset_data_object_multi_index_type;
    typedef flat_index<asset_bitasset_data_object> asset_bitasset_data_index;
 
+   // used to sort active_lotteries index
+   struct lottery_asset_comparer
+   {
+      bool operator()(const asset_object& lhs, const asset_object& rhs) const
+      {
+         if ( !lhs.is_lottery() ) return false;
+         if ( !lhs.lottery_options->is_active && !rhs.is_lottery()) return true; // not active lotteries first
+         if ( !lhs.lottery_options->is_active ) return false;
+         return lhs.get_lottery_expiration() > rhs.get_lottery_expiration();
+      }
+   };
+
    struct by_symbol;
    struct by_type;
+   struct active_lotteries;
    typedef multi_index_container<
       asset_object,
       indexed_by<
          ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
          ordered_unique< tag<by_symbol>, member<asset_object, string, &asset_object::symbol> >,
+         ordered_non_unique< tag<active_lotteries>,
+            identity< asset_object >,
+            lottery_asset_comparer
+         >,
          ordered_unique< tag<by_type>,
             composite_key< asset_object,
                 const_mem_fun<asset_object, bool, &asset_object::is_market_issued>,
@@ -368,6 +389,7 @@ FC_REFLECT_DERIVED( graphene::chain::asset_object, (graphene::db::object),
                     (precision)
                     (issuer)
                     (options)
+                    (lottery_options)
                     (dynamic_asset_data_id)
                     (bitasset_data_id)
                     (buyback_account)
