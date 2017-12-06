@@ -182,6 +182,9 @@ void database::initialize_evaluators()
    register_evaluator<game_move_evaluator>();
    register_evaluator<tournament_leave_evaluator>();
    register_evaluator<ticket_purchase_evaluator>();
+   register_evaluator<lottery_reward_evaluator>();
+   register_evaluator<lottery_end_evaluator>();
+   register_evaluator<sweeps_vesting_claim_evaluator>();
 }
 
 void database::initialize_indexes()
@@ -236,6 +239,10 @@ void database::initialize_indexes()
    add_index< primary_index< simple_index< fba_accumulator_object       > > >();
    add_index< primary_index<pending_dividend_payout_balance_for_holder_object_index > >();
    add_index< primary_index<total_distributed_dividend_balance_object_index > >();
+   
+   add_index< primary_index<lottery_balance_index                         > >();
+   add_index< primary_index<sweeps_vesting_balance_index                  > >();
+
 }
 
 void database::init_genesis(const genesis_state_type& genesis_state)

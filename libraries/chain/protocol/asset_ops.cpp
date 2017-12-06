@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include <graphene/chain/protocol/asset_ops.hpp>
+#include <graphene/chain/database.hpp>
 
 namespace graphene { namespace chain {
 
@@ -245,6 +246,20 @@ void asset_options::validate()const
 void asset_claim_fees_operation::validate()const {
    FC_ASSERT( fee.amount >= 0 );
    FC_ASSERT( amount_to_claim.amount > 0 );
+}
+
+
+void lottery_asset_options::validate() const
+{
+   FC_ASSERT( winning_tickets.size() <= 64 );
+   uint16_t total = 0;
+   for( auto benefactor : benefactors ) {
+      total += benefactor.share;
+   }
+   for( auto share : winning_tickets ) {
+      total += share;
+   }
+   FC_ASSERT( total == GRAPHENE_100_PERCENT, "distribution amount not equals GRAPHENE_100_PERCENT" );
 }
 
 } } // namespace graphene::chain

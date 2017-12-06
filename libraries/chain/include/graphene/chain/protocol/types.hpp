@@ -162,7 +162,9 @@ namespace graphene { namespace chain {
       impl_fba_accumulator_object_type,
       impl_asset_dividend_data_type,
       impl_pending_dividend_payout_balance_for_holder_object_type,
-      impl_distributed_dividend_balance_data_type
+      impl_distributed_dividend_balance_data_type,
+      impl_lottery_balance_object_type,
+      impl_sweeps_vesting_balance_object_type
    };
 
    //typedef fc::unsigned_int            object_id_type;
@@ -190,7 +192,7 @@ namespace graphene { namespace chain {
    typedef object_id< protocol_ids, account_object_type,            account_object>               account_id_type;
    typedef object_id< protocol_ids, asset_object_type,              asset_object>                 asset_id_type;
    typedef object_id< protocol_ids, force_settlement_object_type,   force_settlement_object>      force_settlement_id_type;
-   typedef object_id< protocol_ids, committee_member_object_type,           committee_member_object>              committee_member_id_type;
+   typedef object_id< protocol_ids, committee_member_object_type,   committee_member_object>      committee_member_id_type;
    typedef object_id< protocol_ids, witness_object_type,            witness_object>               witness_id_type;
    typedef object_id< protocol_ids, limit_order_object_type,        limit_order_object>           limit_order_id_type;
    typedef object_id< protocol_ids, call_order_object_type,         call_order_object>            call_order_id_type;
@@ -225,28 +227,34 @@ namespace graphene { namespace chain {
    class tournament_details_object;
    class asset_dividend_data_object;
    class pending_dividend_payout_balance_for_holder_object;
+   class lottery_balance_object;
+   class sweeps_vesting_balance_object;
 
-   typedef object_id< implementation_ids, impl_global_property_object_type,  global_property_object>                    global_property_id_type;
-   typedef object_id< implementation_ids, impl_dynamic_global_property_object_type,  dynamic_global_property_object>    dynamic_global_property_id_type;
-   typedef object_id< implementation_ids, impl_asset_dynamic_data_type,      asset_dynamic_data_object>                 asset_dynamic_data_id_type;
-   typedef object_id< implementation_ids, impl_asset_bitasset_data_type,     asset_bitasset_data_object>                asset_bitasset_data_id_type;
-   typedef object_id< implementation_ids, impl_asset_dividend_data_type,     asset_dividend_data_object>                asset_dividend_data_id_type;
-   typedef object_id< implementation_ids, impl_pending_dividend_payout_balance_for_holder_object_type,     pending_dividend_payout_balance_for_holder_object>                pending_dividend_payout_balance_for_holder_object_type;
-   typedef object_id< implementation_ids, impl_account_balance_object_type,  account_balance_object>                    account_balance_id_type;
-   typedef object_id< implementation_ids, impl_account_statistics_object_type,account_statistics_object>                account_statistics_id_type;
-   typedef object_id< implementation_ids, impl_transaction_object_type,      transaction_object>                        transaction_obj_id_type;
-   typedef object_id< implementation_ids, impl_block_summary_object_type,    block_summary_object>                      block_summary_id_type;
+   typedef object_id< implementation_ids, impl_global_property_object_type,            global_property_object>          global_property_id_type;
+   typedef object_id< implementation_ids, impl_dynamic_global_property_object_type,    dynamic_global_property_object>  dynamic_global_property_id_type;
+   typedef object_id< implementation_ids, impl_asset_dynamic_data_type,                asset_dynamic_data_object>       asset_dynamic_data_id_type;
+   typedef object_id< implementation_ids, impl_asset_bitasset_data_type,               asset_bitasset_data_object>      asset_bitasset_data_id_type;
+   typedef object_id< implementation_ids, impl_asset_dividend_data_type,               asset_dividend_data_object>      asset_dividend_data_id_type;
+   typedef object_id< implementation_ids,
+                      impl_pending_dividend_payout_balance_for_holder_object_type,
+                      pending_dividend_payout_balance_for_holder_object>                                                pending_dividend_payout_balance_for_holder_object_type;
+   typedef object_id< implementation_ids, impl_account_balance_object_type,            account_balance_object>          account_balance_id_type;
+   typedef object_id< implementation_ids, impl_account_statistics_object_type,         account_statistics_object>       account_statistics_id_type;
+   typedef object_id< implementation_ids, impl_transaction_object_type,                transaction_object>              transaction_obj_id_type;
+   typedef object_id< implementation_ids, impl_block_summary_object_type,              block_summary_object>            block_summary_id_type;
 
    typedef object_id< implementation_ids,
                       impl_account_transaction_history_object_type,
-                      account_transaction_history_object>       account_transaction_history_id_type;
-   typedef object_id< implementation_ids, impl_chain_property_object_type,   chain_property_object>                     chain_property_id_type;
-   typedef object_id< implementation_ids, impl_witness_schedule_object_type, witness_schedule_object>                   witness_schedule_id_type;
-   typedef object_id< implementation_ids, impl_budget_record_object_type, budget_record_object >                        budget_record_id_type;
-   typedef object_id< implementation_ids, impl_blinded_balance_object_type, blinded_balance_object >                    blinded_balance_id_type;
-   typedef object_id< implementation_ids, impl_special_authority_object_type, special_authority_object >                special_authority_id_type;
-   typedef object_id< implementation_ids, impl_buyback_object_type, buyback_object >                                    buyback_id_type;
-   typedef object_id< implementation_ids, impl_fba_accumulator_object_type, fba_accumulator_object >                    fba_accumulator_id_type;
+                      account_transaction_history_object>                                                               account_transaction_history_id_type;
+   typedef object_id< implementation_ids, impl_chain_property_object_type,             chain_property_object>           chain_property_id_type;
+   typedef object_id< implementation_ids, impl_witness_schedule_object_type,           witness_schedule_object>         witness_schedule_id_type;
+   typedef object_id< implementation_ids, impl_budget_record_object_type,              budget_record_object >           budget_record_id_type;
+   typedef object_id< implementation_ids, impl_blinded_balance_object_type,            blinded_balance_object >         blinded_balance_id_type;
+   typedef object_id< implementation_ids, impl_special_authority_object_type,          special_authority_object >       special_authority_id_type;
+   typedef object_id< implementation_ids, impl_buyback_object_type,                    buyback_object >                 buyback_id_type;
+   typedef object_id< implementation_ids, impl_fba_accumulator_object_type,            fba_accumulator_object >         fba_accumulator_id_type;
+   typedef object_id< implementation_ids, impl_lottery_balance_object_type,            lottery_balance_object >         lottery_balance_id_type;
+   typedef object_id< implementation_ids, impl_sweeps_vesting_balance_object_type,     sweeps_vesting_balance_object>   sweeps_vesting_balance_id_type;
 
    typedef fc::array<char, GRAPHENE_MAX_ASSET_SYMBOL_LENGTH>    symbol_type;
    typedef fc::ripemd160                                        block_id_type;
@@ -388,6 +396,8 @@ FC_REFLECT_ENUM( graphene::chain::impl_object_type,
                  (impl_asset_dividend_data_type)
                  (impl_pending_dividend_payout_balance_for_holder_object_type)
                  (impl_distributed_dividend_balance_data_type)
+                 (impl_lottery_balance_object_type)
+                 (impl_sweeps_vesting_balance_object_type)
                )
 
 FC_REFLECT_TYPENAME( graphene::chain::share_type )

@@ -237,6 +237,17 @@ struct get_impacted_account_visitor
    {
       _impacted.insert( op.buyer );
    }
+   void operator()( const lottery_reward_operation& op ) {
+      _impacted.insert( op.winner );
+   }
+   void operator()( const lottery_end_operation& op ) {
+      for( auto participant : op.participants ) {
+         _impacted.insert(participant.first); 
+      }
+   }
+   void operator()( const sweeps_vesting_claim_operation& op ) { 
+      _impacted.insert( op.account );
+   }
 };
 
 void operation_get_impacted_accounts( const operation& op, flat_set<account_id_type>& result )

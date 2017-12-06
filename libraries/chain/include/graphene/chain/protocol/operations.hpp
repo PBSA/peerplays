@@ -101,7 +101,10 @@ namespace graphene { namespace chain {
             asset_dividend_distribution_operation, // VIRTUAL
             tournament_payout_operation, // VIRTUAL
             tournament_leave_operation,
-            ticket_purchase_operation
+            ticket_purchase_operation,
+            lottery_reward_operation,
+            lottery_end_operation,
+            sweeps_vesting_claim_operation
          > operation;
 
    /// @} // operations group

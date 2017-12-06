@@ -243,6 +243,9 @@ namespace graphene { namespace chain {
          vector<witness_id_type> get_near_witness_schedule()const;
          void update_witness_schedule();
          void update_witness_schedule(const signed_block& next_block);
+      
+         void check_lottery_end_by_participants( asset_id_type asset_id );
+         void check_ending_lotteries();
 
          //////////////////// db_getter.cpp ////////////////////
 
@@ -253,8 +256,8 @@ namespace graphene { namespace chain {
          const dynamic_global_property_object&  get_dynamic_global_properties()const;
          const node_property_object&            get_node_properties()const;
          const fee_schedule&                    current_fee_schedule()const;
-         const std::unordered_set<uint8_t>      get_winner_numbers(asset_id_type for_asset, uint8_t count_members, uint32_t count_winners)const;
-         std::vector<uint32_t>                  get_seeds(asset_id_type for_asset, uint32_t count_winners)const;
+         const std::vector<uint32_t>            get_winner_numbers( asset_id_type for_asset, uint32_t count_members, uint8_t count_winners ) const;
+         std::vector<uint32_t>                  get_seeds( asset_id_type for_asset, uint8_t count_winners )const;
          uint64_t                               get_random_bits( uint64_t bound );
 
          time_point_sec   head_block_time()const;
@@ -293,13 +296,26 @@ namespace graphene { namespace chain {
          asset get_balance(account_id_type owner, asset_id_type asset_id)const;
          /// This is an overloaded method.
          asset get_balance(const account_object& owner, const asset_object& asset_obj)const;
-
+         /**
+          * @brief Get balance connected with lottery asset; if assset isnt lottery - return asset(0, 0)
+          */
+         asset get_balance(asset_id_type lottery_id)const;
          /**
           * @brief Adjust a particular account's balance in a given asset by a delta
           * @param account ID of account whose balance should be adjusted
           * @param delta Asset ID and amount to adjust balance by
           */
          void adjust_balance(account_id_type account, asset delta);
+         /**
+          * @brief Adjust a lottery's balance in a given asset by a delta
+          * @param asset ID(should be lottery) balance should be adjusted
+          * @param delta Asset ID and amount to adjust balance by
+          */
+         void adjust_balance(asset_id_type lottery_id, asset delta);
+         /**
+          * @brief Adjust a particular account's sweeps vesting balance in a given asset by a delta
+          */
+         void adjust_sweeps_vesting_balance(account_id_type account, int64_t delta);
 
          /**
           * @brief Helper to make lazy deposit to CDD VBO.
@@ -423,7 +439,7 @@ namespace graphene { namespace chain {
       private:
          void                  _apply_block( const signed_block& next_block );
          processed_transaction _apply_transaction( const signed_transaction& trx );
-
+      
          ///Steps involved in applying a new block
          ///@{
 
@@ -456,7 +472,7 @@ namespace graphene { namespace chain {
          void update_active_witnesses();
          void update_active_committee_members();
          void update_worker_votes();
-
+      
          template<class... Types>
          void perform_account_maintenance(std::tuple<Types...> helpers);
          ///@}

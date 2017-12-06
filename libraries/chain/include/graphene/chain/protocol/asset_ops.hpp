@@ -26,32 +26,34 @@
 #include <graphene/chain/protocol/memo.hpp>
 
 namespace graphene { namespace chain { 
+   class database;
 
    bool is_valid_symbol( const string& symbol );
 
-   struct benefactor {
+   struct benefactor   {
       account_id_type id;
-      double share;
+      uint16_t share; // percent * GRAPHENE_1_PERCENT
       benefactor() = default;
-      benefactor ( const benefactor & ) = default;	
-      benefactor( account_id_type _id, double _share ) : id( _id ), share( _share ) {}
+      benefactor( const benefactor & ) = default;
+      benefactor( account_id_type _id, uint16_t _share ) : id( _id ), share( _share ) {}
    };
 
-   struct lottery_asset_options {
+   struct lottery_asset_options
+   {
       std::vector<benefactor> benefactors;
-
+      asset_id_type           owner;
       // specifying winning tickets as shares that will be issued
-      std::vector<double>     winning_tickets;
+      std::vector<uint16_t>   winning_tickets;
       asset                   ticket_price;
-      asset                   balance;
       time_point_sec          end_date;
       bool                    ending_on_soldout;
       bool                    is_active;
-
+      
       void validate()const;
    };
 
    typedef static_variant< void_t, lottery_asset_options > asset_extension;
+   
 
    /**
     * @brief The asset_options struct contains options available on all assets in the network
@@ -596,9 +598,27 @@ namespace graphene { namespace chain {
       account_id_type fee_payer()const { return issuer; }
       void            validate()const;
    };
-
+   
+   struct sweeps_vesting_claim_operation : public base_operation
+   {
+      struct fee_parameters_type {
+         uint64_t fee = 20 * GRAPHENE_BLOCKCHAIN_PRECISION;
+      };
+      
+      asset           fee;
+      account_id_type account;
+      asset           amount_to_claim;
+      extensions_type extensions;
+      
+      
+      account_id_type fee_payer()const { return account; }
+      void            validate()const {};
+   };
 
 } } // graphene::chain
+
+FC_REFLECT( graphene::chain::sweeps_vesting_claim_operation, (fee)(account)(amount_to_claim)(extensions) )
+FC_REFLECT( graphene::chain::sweeps_vesting_claim_operation::fee_parameters_type, (fee) )
 
 FC_REFLECT( graphene::chain::asset_claim_fees_operation, (fee)(issuer)(amount_to_claim)(extensions) )
 FC_REFLECT( graphene::chain::asset_claim_fees_operation::fee_parameters_type, (fee) )
@@ -638,7 +658,7 @@ FC_REFLECT( graphene::chain::bitasset_options,
 
 FC_REFLECT( graphene::chain::benefactor, (id)(share) )
 
-FC_REFLECT( graphene::chain::lottery_asset_options, (benefactors)(winning_tickets)(ticket_price)(balance)(end_date)(ending_on_soldout)(is_active) )
+FC_REFLECT( graphene::chain::lottery_asset_options, (benefactors)(winning_tickets)(ticket_price)(end_date)(ending_on_soldout)(is_active) )
 
 
 FC_REFLECT( graphene::chain::asset_create_operation::fee_parameters_type, (symbol3)(symbol4)(long_symbol)(price_per_kbyte) )

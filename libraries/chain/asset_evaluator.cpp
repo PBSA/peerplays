@@ -24,6 +24,7 @@
 #include <graphene/chain/asset_evaluator.hpp>
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/account_object.hpp>
+#include <graphene/chain/balance_object.hpp>
 #include <graphene/chain/market_object.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/exceptions.hpp>
@@ -75,6 +76,7 @@ void_result asset_create_evaluator::do_evaluate( const asset_create_operation& o
    {
       auto dotpos = op.symbol.rfind( '.' );
       if( dotpos != std::string::npos )
+      
       {
          auto prefix = op.symbol.substr( 0, dotpos );
          auto asset_symbol_itr = asset_indx.find( prefix );
@@ -117,7 +119,11 @@ void_result asset_create_evaluator::do_evaluate( const asset_create_operation& o
       FC_ASSERT( op.bitasset_opts );
       FC_ASSERT( op.precision == op.bitasset_opts->short_backing_asset(d).precision );
    }
-
+   
+   if( op.extension.which() == asset_extension::tag<lottery_asset_options>::value ) {
+      FC_ASSERT( op.common_options.max_supply >= 5 );
+      op.extension.get<lottery_asset_options>().validate();
+   }
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -164,8 +170,11 @@ object_id_type asset_create_evaluator::do_apply( const asset_create_operation& o
          a.options = op.common_options;
          if( op.extension.which() == asset_extension::tag<lottery_asset_options>::value ) {
             a.precision = 0;
-            a.lottery_options = op.extension.get<lottery_asset_options>();
-            a.lottery_options->balance = asset( 0, a.lottery_options->ticket_price.asset_id );
+            a.lottery_options = op.extension.get<lottery_asset_options>();            //a.lottery_options->balance = asset( 0, a.lottery_options->ticket_price.asset_id );
+            a.lottery_options->owner = a.id;
+            db().create<lottery_balance_object>([&](lottery_balance_object& lbo) {
+               lbo.lottery_id = a.id;
+            });
          }
          if( a.options.core_exchange_rate.base.asset_id.instance.value == 0 )
             a.options.core_exchange_rate.quote.asset_id = next_asset_id;
@@ -187,6 +196,7 @@ void_result asset_issue_evaluator::do_evaluate( const asset_issue_operation& o )
    const asset_object& a = o.asset_to_issue.asset_id(d);
    FC_ASSERT( o.issuer == a.issuer );
    FC_ASSERT( !a.is_market_issued(), "Cannot manually issue a market-issued asset." );
+   FC_ASSERT( !a.is_lottery(), "Cannot manually issue a lottery asset." );
 
    to_account = &o.issue_to_account(d);
    FC_ASSERT( is_authorized_asset( d, *to_account, a ) );
