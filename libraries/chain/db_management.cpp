@@ -126,8 +126,6 @@ void database::open(
       if( last_block.valid() )
       {
          _fork_db.start_block( *last_block );
-         idump((last_block->id())(last_block->block_num()));
-         idump((head_block_id())(head_block_num()));
          if( last_block->id() != head_block_id() )
          {
               FC_ASSERT( head_block_num() == 0, "last block ID does not match current chain state",
@@ -188,22 +186,28 @@ void database::close(bool rewind)
 
 void database::check_ending_lotteries()
 {
-   const auto& lotteries_idx = get_index_type<asset_index>().indices().get<active_lotteries>();
-   for( auto checking_asset: lotteries_idx )
-   {
-      if( !checking_asset.is_lottery() ) break;
-      if( !checking_asset.lottery_options->is_active ) break;
-      if( checking_asset.lottery_options->end_date >= head_block_time() ) break;
-      checking_asset.end_lottery(*this);
-   }
+   try {
+      const auto& lotteries_idx = get_index_type<asset_index>().indices().get<active_lotteries>();
+      for( auto checking_asset: lotteries_idx )
+      {
+         FC_ASSERT( checking_asset.is_lottery() );
+         FC_ASSERT( checking_asset.lottery_options->is_active );
+         FC_ASSERT( checking_asset.lottery_options->end_date < head_block_time() );
+         checking_asset.end_lottery(*this);
+      }
+   } catch( ... ) {}
 }
 
 void database::check_lottery_end_by_participants( asset_id_type asset_id )
 {
-   asset_object asset_to_check = asset_id( *this );
-   if( !asset_to_check.is_lottery() ) return;
-   if( !asset_to_check.lottery_options->ending_on_soldout ) return;
-   
+   try {
+      asset_object asset_to_check = asset_id( *this );
+      auto asset_dyn_props = asset_to_check.dynamic_data( *this );
+      FC_ASSERT( asset_dyn_props.current_supply == asset_to_check.options.max_supply );
+      FC_ASSERT( asset_to_check.is_lottery() );
+      FC_ASSERT( asset_to_check.lottery_options->ending_on_soldout );
+      asset_to_check.end_lottery( *this );
+   } catch( ... ) {}
 }
 
 } }

@@ -95,7 +95,7 @@ namespace graphene { namespace chain {
       flat_set<asset_id_type>   whitelist_markets;
       /** defines the assets that this asset may not be traded against in the market, must not overlap whitelist */
       flat_set<asset_id_type>   blacklist_markets;
-      
+
       /**
        * data that describes the meaning/purpose of this asset, fee will be charged proportional to
        * size of description.

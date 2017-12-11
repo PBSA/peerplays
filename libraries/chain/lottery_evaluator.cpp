@@ -43,7 +43,8 @@ void_result ticket_purchase_evaluator::do_evaluate( const ticket_purchase_operat
 
    asset_dynamic_data = &lottery->dynamic_asset_data_id(db());
    FC_ASSERT( asset_dynamic_data->current_supply < lottery->options.max_supply );
-
+   FC_ASSERT( (asset_dynamic_data->current_supply.value + op.tickets_to_buy) <= lottery->options.max_supply );
+   
    auto lottery_options = *lottery->lottery_options;
    FC_ASSERT( lottery_options.is_active );
    FC_ASSERT( lottery_options.ticket_price.asset_id == op.amount.asset_id );

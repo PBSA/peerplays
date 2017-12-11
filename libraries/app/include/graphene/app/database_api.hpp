@@ -319,7 +319,23 @@ class database_api
        * This function has semantics identical to @ref get_objects
        */
       vector<optional<asset_object>> lookup_asset_symbols(const vector<string>& symbols_or_ids)const;
-
+   
+      ////////////////////
+      // Lottery Assets //
+      ////////////////////
+      /**
+       * @brief Get a list of lottery assets
+       * @return The lottery assets between start and stop ids
+       */
+      vector<asset_object> get_lotteries( asset_id_type stop  = asset_id_type(),
+                                          unsigned limit = 100,
+                                          asset_id_type start = asset_id_type() )const;
+      /**
+       * @brief Get balance of lottery assets
+       */
+      asset get_lottery_balance( asset_id_type lottery_id ) const;
+   
+   
       /////////////////////
       // Markets / feeds //
       /////////////////////
@@ -636,7 +652,11 @@ FC_API(graphene::app::database_api,
    (get_assets)
    (list_assets)
    (lookup_asset_symbols)
-
+   
+   // Lottery assets
+   (get_lotteries)
+   (get_lottery_balance)
+   
    // Markets / feeds
    (get_order_book)
    (get_limit_orders)

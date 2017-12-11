@@ -1440,9 +1440,8 @@ public:
 
    signed_transaction create_lottery(string issuer,
       string symbol,
-      uint8_t precision,
       asset_options common,
-      fc::optional<bitasset_options> bitasset_opts,
+      lottery_asset_options lottery_opts,
       bool broadcast = false)
    { try {
       account_object issuer_account = get_account( issuer );
@@ -1451,17 +1450,10 @@ public:
       asset_create_operation create_op;
       create_op.issuer = issuer_account.id;
       create_op.symbol = symbol;
-      create_op.precision = precision;
+      create_op.precision = 0;
       create_op.common_options = common;
-      create_op.bitasset_opts = bitasset_opts;
 
-      lottery_asset_options lottery_options;
-      lottery_options.benefactors.push_back( benefactor( issuer_account.id, 0.5 ) );
-      lottery_options.end_date = _remote_db->get_dynamic_global_properties().time + fc::minutes(120);
-      lottery_options.ticket_price = asset(100);
-      lottery_options.winning_tickets.push_back(0.5);
-
-      create_op.extension = lottery_options;
+      create_op.extension = lottery_opts;
 
       signed_transaction tx;
       tx.operations.push_back( create_op );
@@ -1469,8 +1461,28 @@ public:
       tx.validate();
 
       return sign_transaction( tx, broadcast );
-   } FC_CAPTURE_AND_RETHROW( (issuer)(symbol)(precision)(common)(bitasset_opts)(broadcast) ) }
+   } FC_CAPTURE_AND_RETHROW( (issuer)(symbol)(common)(broadcast) ) }
+   
+   signed_transaction buy_ticket( asset_id_type lottery, account_id_type buyer, uint64_t tickets_to_buy )
+   { try {
+      auto asset_obj = get_asset( lottery );
+      FC_ASSERT( asset_obj.is_lottery() );
 
+      ticket_purchase_operation top;
+      top.lottery = lottery;
+      top.buyer = buyer;
+      top.tickets_to_buy = tickets_to_buy;
+      top.amount = asset( asset_obj.lottery_options->ticket_price.amount * tickets_to_buy, asset_obj.lottery_options->ticket_price.asset_id );
+      
+      signed_transaction tx;
+      tx.operations.push_back( top );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
+      tx.validate();
+
+      return sign_transaction( tx, true );
+   } FC_CAPTURE_AND_RETHROW( (lottery)(tickets_to_buy) ) }
+   
+   
    signed_transaction update_asset(string symbol,
                                    optional<string> new_issuer,
                                    asset_options new_options,
@@ -3392,6 +3404,18 @@ vector<asset_object> wallet_api::list_assets(const string& lowerbound, uint32_t 
    return my->_remote_db->list_assets( lowerbound, limit );
 }
 
+vector<asset_object> wallet_api::get_lotteries( asset_id_type stop,
+                                                unsigned limit,
+                                                asset_id_type start )const
+{
+   return my->_remote_db->get_lotteries( stop, limit, start );
+}
+
+asset wallet_api::get_lottery_balance( asset_id_type lottery_id )const 
+{
+   return my->_remote_db->get_lottery_balance( lottery_id );
+}
+
 vector<operation_detail> wallet_api::get_account_history(string name, int limit)const
 {
    vector<operation_detail> result;
@@ -3776,16 +3800,20 @@ signed_transaction wallet_api::create_asset(string issuer,
 }
 
 signed_transaction wallet_api::create_lottery(string issuer,
-   string symbol,
-   uint8_t precision,
-   asset_options common,
-   fc::optional<bitasset_options> bitasset_opts,
-   bool broadcast)
+      string symbol,
+      asset_options common,
+      lottery_asset_options lottery_opts,
+      bool broadcast)
 
 {
-return my->create_lottery(issuer, symbol, precision, common, bitasset_opts, broadcast);
+   return my->create_lottery(issuer, symbol, common, lottery_opts, broadcast);
 }
 
+
+signed_transaction wallet_api::buy_ticket( asset_id_type lottery, account_id_type buyer, uint64_t tickets_to_buy )
+{
+   return my->buy_ticket(lottery, buyer, tickets_to_buy);
+}
 
 signed_transaction wallet_api::update_asset(string symbol,
                                             optional<string> new_issuer,

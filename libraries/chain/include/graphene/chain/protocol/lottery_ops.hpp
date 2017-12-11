@@ -52,6 +52,9 @@ namespace graphene { namespace chain {
       share_type      calculate_fee( const fee_parameters_type& k )const;
    };
 
+   /**
+    * @ingroup operations
+    */
    struct lottery_reward_operation : public base_operation
    {
       struct fee_parameters_type { 
@@ -77,6 +80,9 @@ namespace graphene { namespace chain {
       share_type      calculate_fee( const fee_parameters_type& k )const { return k.fee; };
    };
 
+   /**
+    * @ingroup operations
+    */
    struct lottery_end_operation : public base_operation
    {
       struct fee_parameters_type {
@@ -86,9 +92,7 @@ namespace graphene { namespace chain {
       asset                   fee;
       // from what lottery is ticket
       asset_id_type           lottery;
-      
-//      std::vector<account_id_type>   participants;
-   
+
       map<account_id_type, vector< uint16_t> > participants;
       
       extensions_type               extensions;

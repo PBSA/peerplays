@@ -147,7 +147,7 @@ namespace graphene { namespace chain {
          optional<asset_dividend_data_id_type> dividend_data_id;
 
          asset_id_type get_id()const { return id; }
-
+      
          void validate()const
          {
             // UIAs may not be prediction markets, have force settlement, or global settlements
@@ -254,7 +254,7 @@ namespace graphene { namespace chain {
       bool operator()(const asset_object& lhs, const asset_object& rhs) const
       {
          if ( !lhs.is_lottery() ) return false;
-         if ( !lhs.lottery_options->is_active && !rhs.is_lottery()) return true; // not active lotteries first
+         if ( !lhs.lottery_options->is_active && !rhs.is_lottery()) return true; // not active lotteries first, just assets then
          if ( !lhs.lottery_options->is_active ) return false;
          return lhs.get_lottery_expiration() > rhs.get_lottery_expiration();
       }
@@ -263,6 +263,7 @@ namespace graphene { namespace chain {
    struct by_symbol;
    struct by_type;
    struct active_lotteries;
+   struct by_lottery;
    typedef multi_index_container<
       asset_object,
       indexed_by<
@@ -271,6 +272,17 @@ namespace graphene { namespace chain {
          ordered_non_unique< tag<active_lotteries>,
             identity< asset_object >,
             lottery_asset_comparer
+         >,
+         ordered_unique< tag<by_lottery>,
+            composite_key<
+               asset_object,
+               const_mem_fun<asset_object, bool, &asset_object::is_lottery>,
+               member<object, object_id_type, &object::id>
+            >,
+            composite_key_compare<
+               std::greater< bool >,
+               std::greater< object_id_type >
+            >
          >,
          ordered_unique< tag<by_type>,
             composite_key< asset_object,

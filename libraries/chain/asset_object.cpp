@@ -262,11 +262,10 @@ void asset_object::distribute_sweeps_holders_part( database& db )
 
 void asset_object::end_lottery( database& db )
 {
-   idump(( "end_lottery" ));
    transaction_evaluation_state eval(&db);
    
    FC_ASSERT( is_lottery() );
-   FC_ASSERT( lottery_options->is_active && ( lottery_options->end_date <= db.head_block_time() ) );
+   FC_ASSERT( lottery_options->is_active && ( lottery_options->end_date <= db.head_block_time() || lottery_options->ending_on_soldout ) );
 
    auto participants = distribute_winners_part( db );
    if( participants.size() > 0) {
