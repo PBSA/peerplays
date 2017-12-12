@@ -30,7 +30,7 @@
 #include <graphene/chain/hardfork.hpp>
 #include <graphene/chain/is_authorized_asset.hpp>
 
-#include <functional>
+#include <functional> 
 
 #include <boost/algorithm/string/case_conv.hpp>
 

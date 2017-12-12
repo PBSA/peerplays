@@ -35,8 +35,12 @@ namespace fc {
 */
 
 namespace graphene { namespace chain {
-
-   typedef static_variant<>  parameter_extension; 
+   struct sweeps_parameters_extension {
+      uint16_t                sweeps_distribution_percentage      = SWEEPS_DEFAULT_DISTRIBUTION_PERCENTAGE;
+      asset_id_type           sweeps_distribution_asset           = SWEEPS_DEFAULT_DISTRIBUTION_ASSET;
+      account_id_type         sweeps_vesting_accumulator_account  = SWEEPS_ACCUMULATOR_ACCOUNT;
+   };
+   typedef static_variant<void_t,sweeps_parameters_extension>  parameter_extension; 
    struct chain_parameters
    {
       /** using a smart ref breaks the circular dependency created between operations and the fee schedule */
@@ -85,18 +89,18 @@ namespace graphene { namespace chain {
       uint32_t                maximum_tournament_start_time_in_future = TOURNAMENT_MAX_START_TIME_IN_FUTURE;
       uint32_t                maximum_tournament_start_delay      = TOURNAMENT_MAX_START_DELAY;
       uint16_t                maximum_tournament_number_of_wins   = TOURNAMENT_MAX_NUMBER_OF_WINS;
-      // 
-      uint16_t                sweeps_distribution_percentage      = SWEEPS_DEFAULT_DISTRIBUTION_PERCENTAGE;
-      asset_id_type           sweeps_distribution_asset           = SWEEPS_DEFAULT_DISTRIBUTION_ASSET;
       
-
-      extensions_type         extensions;
+      parameter_extension         extensions = sweeps_parameters_extension();
 
       /** defined in fee_schedule.cpp */
       void validate()const;
    };
 
 } }  // graphene::chain
+
+FC_REFLECT( graphene::chain::sweeps_parameters_extension, 
+            (sweeps_distribution_percentage)
+            (sweeps_distribution_asset) )
 
 FC_REFLECT( graphene::chain::chain_parameters,
             (current_fees)
@@ -141,7 +145,5 @@ FC_REFLECT( graphene::chain::chain_parameters,
             (maximum_tournament_start_time_in_future)
             (maximum_tournament_start_delay)
             (maximum_tournament_number_of_wins)
-            (sweeps_distribution_percentage)
-            (sweeps_distribution_asset)
             (extensions)
           )

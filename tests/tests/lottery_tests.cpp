@@ -66,7 +66,7 @@ BOOST_AUTO_TEST_CASE( create_lottery_asset_test )
       lottery_options.is_active = test_asset_id.instance.value % 2;
       lottery_options.ending_on_soldout = true;
 
-      creator.extension = lottery_options;
+      creator.extensions = lottery_options;
 
       trx.operations.push_back(std::move(creator));
       PUSH_TX( db, trx, ~0 );

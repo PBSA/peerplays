@@ -1453,7 +1453,7 @@ public:
       create_op.precision = 0;
       create_op.common_options = common;
 
-      create_op.extension = lottery_opts;
+      create_op.extensions = lottery_opts;
 
       signed_transaction tx;
       tx.operations.push_back( create_op );

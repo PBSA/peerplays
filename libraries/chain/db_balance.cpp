@@ -121,7 +121,7 @@ void database::adjust_sweeps_vesting_balance(account_id_type account, int64_t de
    if( delta == 0 )
       return;
    
-   asset_id_type asset_id = get_global_properties().parameters.sweeps_distribution_asset;
+   asset_id_type asset_id = get_global_properties().parameters.extensions.get<sweeps_parameters_extension>().sweeps_distribution_asset;
    
    auto& index = get_index_type<sweeps_vesting_balance_index>().indices().get<by_owner>();
    auto itr = index.find(account);
@@ -139,8 +139,9 @@ void database::adjust_sweeps_vesting_balance(account_id_type account, int64_t de
    } else {
       if( delta < 0 )
          FC_ASSERT( itr->get_balance() >= -delta, "Insufficient Balance: ${a}'s balance of ${b} is less than required ${r}", ("a",account)("b",itr->get_balance())("r",-delta));
-      modify(*itr, [&delta,&asset_id](sweeps_vesting_balance_object& b) {
+      modify(*itr, [&delta,&asset_id,this](sweeps_vesting_balance_object& b) {
          b.adjust_balance( asset( delta, asset_id ) );
+         b.last_claim_date = head_block_time();
       });
    }
 }

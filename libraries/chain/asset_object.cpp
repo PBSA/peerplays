@@ -223,14 +223,14 @@ map< account_id_type, vector< uint16_t > > asset_object::distribute_winners_part
       for( auto t = tickets.begin(); t != tickets.begin() + holders.size(); ++t )
          *t += percents_to_distribute / holders.size();
    }
-   
+   auto sweeps_distribution_percentage = db.get_global_properties().parameters.extensions.get<sweeps_parameters_extension>().sweeps_distribution_percentage;
    for( int c = 0; c < winner_numbers.size(); ++c ) {
       auto winner_num = winner_numbers[c];
       lottery_reward_operation reward_op;
       reward_op.lottery = get_id();
       reward_op.winner = holders[winner_num];
       reward_op.win_percentage = tickets[c];
-      reward_op.amount = asset( jackpot * tickets[c] * ( 1. - db.get_global_properties().parameters.sweeps_distribution_percentage / (double)GRAPHENE_100_PERCENT ) / GRAPHENE_100_PERCENT , db.get_balance(id).asset_id );
+      reward_op.amount = asset( jackpot * tickets[c] * ( 1. - sweeps_distribution_percentage / (double)GRAPHENE_100_PERCENT ) / GRAPHENE_100_PERCENT , db.get_balance(id).asset_id );
       db.apply_operation(eval, reward_op);
       
       structurized_participants[ holders[ winner_num ] ].push_back( tickets[c] );
@@ -244,9 +244,9 @@ void asset_object::distribute_sweeps_holders_part( database& db )
    
    auto& asset_bal_idx = db.get_index_type< account_balance_index >().indices().get< by_asset_balance >();
    
-   auto global_params = db.get_global_properties().parameters;
-   uint64_t distribution_asset_supply = global_params.sweeps_distribution_asset( db ).dynamic_data( db ).current_supply.value;
-   const auto range = asset_bal_idx.equal_range( boost::make_tuple( global_params.sweeps_distribution_asset ) );
+   auto sweeps_params = db.get_global_properties().parameters.extensions.get<sweeps_parameters_extension>();
+   uint64_t distribution_asset_supply = sweeps_params.sweeps_distribution_asset( db ).dynamic_data( db ).current_supply.value;
+   const auto range = asset_bal_idx.equal_range( boost::make_tuple( sweeps_params.sweeps_distribution_asset ) );
    
    uint64_t holders_sum = 0;
    for( const account_balance_object& holder_balance : boost::make_iterator_range( range.first, range.second ) )
@@ -256,7 +256,7 @@ void asset_object::distribute_sweeps_holders_part( database& db )
       holders_sum += holder_part;
    }
    uint64_t balance_rest = db.get_balance( get_id() ).amount.value * SWEEPS_VESTING_BALANCE_MULTIPLIER - holders_sum;
-   db.adjust_sweeps_vesting_balance( SWEEPS_ACCUMULATOR_ACCOUNT, balance_rest );
+   db.adjust_sweeps_vesting_balance( sweeps_params.sweeps_vesting_accumulator_account, balance_rest );
    db.adjust_balance( get_id(), -db.get_balance( get_id() ) );
 }
 

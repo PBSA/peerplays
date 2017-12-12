@@ -79,7 +79,7 @@ share_type asset_create_operation::calculate_fee(const asset_create_operation::f
 {
    auto core_fee_required = param.long_symbol; 
    
-   if( extension.which() == asset_extension::tag<lottery_asset_options>::value ) {
+   if( extensions.which() == asset_extension::tag<lottery_asset_options>::value ) {
       core_fee_required = param.lottery_asset;
    } else {
       switch(symbol.size()) {

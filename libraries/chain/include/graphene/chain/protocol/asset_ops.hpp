@@ -219,7 +219,7 @@ namespace graphene { namespace chain {
       /// For BitAssets, set this to true if the asset implements a @ref prediction_market; false otherwise
       bool is_prediction_market = false;
       // containing lottery_asset_options now
-      asset_extension extension;
+      asset_extension extensions;
 
       account_id_type fee_payer()const { return issuer; }
       void            validate()const;
@@ -683,7 +683,7 @@ FC_REFLECT( graphene::chain::asset_create_operation,
             (common_options)
             (bitasset_opts)
             (is_prediction_market)
-            (extension)
+            (extensions)
           )
 FC_REFLECT( graphene::chain::asset_update_operation,
             (fee)

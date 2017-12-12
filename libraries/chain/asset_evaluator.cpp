@@ -120,9 +120,9 @@ void_result asset_create_evaluator::do_evaluate( const asset_create_operation& o
       FC_ASSERT( op.precision == op.bitasset_opts->short_backing_asset(d).precision );
    }
    
-   if( op.extension.which() == asset_extension::tag<lottery_asset_options>::value ) {
+   if( op.extensions.which() == asset_extension::tag<lottery_asset_options>::value ) {
       FC_ASSERT( op.common_options.max_supply >= 5 );
-      op.extension.get<lottery_asset_options>().validate();
+      op.extensions.get<lottery_asset_options>().validate();
    }
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -168,9 +168,9 @@ object_id_type asset_create_evaluator::do_apply( const asset_create_operation& o
          a.symbol = op.symbol;
          a.precision = op.precision;
          a.options = op.common_options;
-         if( op.extension.which() == asset_extension::tag<lottery_asset_options>::value ) {
+         if( op.extensions.which() == asset_extension::tag<lottery_asset_options>::value ) {
             a.precision = 0;
-            a.lottery_options = op.extension.get<lottery_asset_options>();            //a.lottery_options->balance = asset( 0, a.lottery_options->ticket_price.asset_id );
+            a.lottery_options = op.extensions.get<lottery_asset_options>();            //a.lottery_options->balance = asset( 0, a.lottery_options->ticket_price.asset_id );
             a.lottery_options->owner = a.id;
             db().create<lottery_balance_object>([&](lottery_balance_object& lbo) {
                lbo.lottery_id = a.id;

@@ -104,7 +104,8 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
                                           unsigned limit = 100,
                                           asset_id_type start = asset_id_type() )const;
       asset get_lottery_balance( asset_id_type lottery_id )const;
-
+      sweeps_vesting_balance_object get_sweeps_vesting_balance_object( account_id_type account )const;
+      asset get_sweeps_vesting_balance_available_for_claim( account_id_type account )const;
    
       // Markets / feeds
       vector<limit_order_object>         get_limit_orders(asset_id_type a, asset_id_type b, uint32_t limit)const;
@@ -916,6 +917,7 @@ vector<asset_object> database_api_impl::get_lotteries(asset_id_type stop,
                                                       asset_id_type start )const
 {
    vector<asset_object> result;
+   if( limit > 100 ) limit = 100;
    const auto& assets = _db.get_index_type<asset_index>().indices().get<by_lottery>();
 
    const auto range = assets.equal_range( boost::make_tuple( true ) );
@@ -942,6 +944,31 @@ asset database_api_impl::get_lottery_balance( asset_id_type lottery_id )const
    return _db.get_balance( lottery_id );
 }
 
+sweeps_vesting_balance_object database_api::get_sweeps_vesting_balance_object( account_id_type account )const
+{
+   return my->get_sweeps_vesting_balance_object( account );
+}
+
+sweeps_vesting_balance_object database_api_impl::get_sweeps_vesting_balance_object( account_id_type account )const
+{
+   const auto& vesting_idx = _db.get_index_type<sweeps_vesting_balance_index>().indices().get<by_owner>();
+   auto account_balance = vesting_idx.find(account);
+   FC_ASSERT( account_balance != vesting_idx.end(), "NO SWEEPS VESTING BALANCE" );
+   return *account_balance;
+}
+
+asset database_api::get_sweeps_vesting_balance_available_for_claim( account_id_type account )const
+{
+   return my->get_sweeps_vesting_balance_available_for_claim( account );
+}
+
+asset database_api_impl::get_sweeps_vesting_balance_available_for_claim( account_id_type account )const
+{
+   const auto& vesting_idx = _db.get_index_type<sweeps_vesting_balance_index>().indices().get<by_owner>();
+   auto account_balance = vesting_idx.find(account);
+   FC_ASSERT( account_balance != vesting_idx.end(), "NO SWEEPS VESTING BALANCE" );
+   return account_balance->available_for_claim();
+}
 
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
