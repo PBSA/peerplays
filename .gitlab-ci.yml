@@ -1,9 +1,19 @@
 stages:
+  - pull
   - build
   - test
 
 before_script:
   - cd /var/www/Projects/595.peerplays/blockchain
+
+pulljob:
+  stage: build
+  script:
+    - git pull origin master
+  only:
+    - master
+  tags: 
+    - pp-dev
 
 buildjob:
   stage: build
