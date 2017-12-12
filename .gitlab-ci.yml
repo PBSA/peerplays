@@ -1,0 +1,26 @@
+stages:
+  - build
+  - test
+
+before_script:
+  - cd /var/www/Projects/595.peerplays/blockchain
+
+buildjob:
+  stage: build
+  script:
+    - cmake .
+    - make 
+  only:
+    - master
+  tags: 
+    - pp-dev
+
+testjob:
+  stage: test
+  script:
+    - ./tests/chain_test
+    - ./tests/tournament_test
+  only:
+    - master
+  tags: 
+    - pp-dev
