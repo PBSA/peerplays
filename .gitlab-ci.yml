@@ -7,7 +7,7 @@ before_script:
   - cd /var/www/Projects/595.peerplays/blockchain
 
 pulljob:
-  stage: build
+  stage: pull
   script:
     - git pull origin master
   only:
