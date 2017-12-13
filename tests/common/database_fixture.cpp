@@ -462,7 +462,7 @@ const asset_object& database_fixture::create_bitasset(
    if( issuer == GRAPHENE_WITNESS_ACCOUNT )
       flags |= witness_fed_asset;
    creator.common_options.issuer_permissions = flags;
-   creator.common_options.flags = flags & ~global_settle;
+   creator.common_options.flags = flags & ~global_settle & ~witness_fed_asset;
    creator.common_options.core_exchange_rate = price({asset(1,asset_id_type(1)),asset(1)});
    creator.bitasset_opts = bitasset_options();
    trx.operations.push_back(std::move(creator));
