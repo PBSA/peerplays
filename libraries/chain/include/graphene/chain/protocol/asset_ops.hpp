@@ -658,7 +658,7 @@ FC_REFLECT( graphene::chain::bitasset_options,
 
 FC_REFLECT( graphene::chain::benefactor, (id)(share) )
 
-FC_REFLECT( graphene::chain::lottery_asset_options, (benefactors)(winning_tickets)(ticket_price)(end_date)(ending_on_soldout)(is_active) )
+FC_REFLECT( graphene::chain::lottery_asset_options, (benefactors)(owner)(winning_tickets)(ticket_price)(end_date)(ending_on_soldout)(is_active) )
 
 
 FC_REFLECT( graphene::chain::asset_create_operation::fee_parameters_type, (symbol3)(symbol4)(long_symbol)(price_per_kbyte) )
