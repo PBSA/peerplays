@@ -118,6 +118,8 @@ namespace graphene { namespace chain {
          string amount_to_pretty_string(const asset &amount)const
          { FC_ASSERT(amount.asset_id == id); return amount_to_pretty_string(amount.amount); }
          
+         uint32_t get_issuer_num()const
+         { return issuer.instance.value; } 
          /// Ticker symbol for this asset, i.e. "USD"
          string symbol;
          /// Maximum number of digits after the decimal point (must be <= 12)
@@ -277,10 +279,12 @@ namespace graphene { namespace chain {
             composite_key<
                asset_object,
                const_mem_fun<asset_object, bool, &asset_object::is_lottery>,
+               const_mem_fun<asset_object, uint32_t, &asset_object::get_issuer_num>,
                member<object, object_id_type, &object::id>
             >,
             composite_key_compare<
                std::greater< bool >,
+               std::greater< uint32_t >,
                std::greater< object_id_type >
             >
          >,

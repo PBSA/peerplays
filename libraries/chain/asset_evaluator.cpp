@@ -122,7 +122,9 @@ void_result asset_create_evaluator::do_evaluate( const asset_create_operation& o
    
    if( op.extensions.which() == asset_extension::tag<lottery_asset_options>::value ) {
       FC_ASSERT( op.common_options.max_supply >= 5 );
-      op.extensions.get<lottery_asset_options>().validate();
+      auto lottery_options = op.extensions.get<lottery_asset_options>();
+      lottery_options.validate();
+      FC_ASSERT( lottery_options.end_date > d.head_block_time() );
    }
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }

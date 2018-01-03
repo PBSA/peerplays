@@ -252,6 +252,7 @@ void asset_claim_fees_operation::validate()const {
 void lottery_asset_options::validate() const
 {
    FC_ASSERT( winning_tickets.size() <= 64 );
+   FC_ASSERT( ticket_price.amount >= 1 );
    uint16_t total = 0;
    for( auto benefactor : benefactors ) {
       total += benefactor.share;

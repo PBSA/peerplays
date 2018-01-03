@@ -332,6 +332,10 @@ class wallet_api
       vector<asset_object>              get_lotteries( asset_id_type stop = asset_id_type(),
                                                        unsigned limit = 100,
                                                        asset_id_type start = asset_id_type() )const;
+      vector<asset_object>              get_account_lotteries( account_id_type issuer,
+                                                               asset_id_type stop = asset_id_type(),
+                                                               unsigned limit = 100,
+                                                               asset_id_type start = asset_id_type() )const;
 
       asset get_lottery_balance( asset_id_type lottery_id ) const;
       /** Returns the most recent operations on the named account.
@@ -1730,6 +1734,7 @@ FC_API( graphene::wallet::wallet_api,
         (get_asset)
         (get_bitasset_data)
         (get_lotteries)
+        (get_account_lotteries)
         (get_lottery_balance)
         (fund_asset_fee_pool)
         (reserve_asset)

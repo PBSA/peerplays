@@ -1809,10 +1809,10 @@ public:
       witness_create_op.block_signing_key = witness_public_key;
       witness_create_op.url = url;
 
-      secret_hash_type::encoder enc;
-      fc::raw::pack(enc, witness_private_key);
-      fc::raw::pack(enc, secret_hash_type());
-      witness_create_op.initial_secret = secret_hash_type::hash(enc.result());
+      // secret_hash_type::encoder enc;
+      // fc::raw::pack(enc, witness_private_key);
+      // fc::raw::pack(enc, secret_hash_type());
+      witness_create_op.initial_secret = secret_hash_type();
 
 
       if (_remote_db->get_witness_by_account(witness_create_op.witness_account))
@@ -3409,6 +3409,14 @@ vector<asset_object> wallet_api::get_lotteries( asset_id_type stop,
                                                 asset_id_type start )const
 {
    return my->_remote_db->get_lotteries( stop, limit, start );
+}
+
+vector<asset_object> wallet_api::get_account_lotteries(  account_id_type issuer,
+                                                         asset_id_type stop,
+                                                         unsigned limit,
+                                                         asset_id_type start )const
+{
+   return my->_remote_db->get_account_lotteries( issuer, stop, limit, start );
 }
 
 asset wallet_api::get_lottery_balance( asset_id_type lottery_id )const 
