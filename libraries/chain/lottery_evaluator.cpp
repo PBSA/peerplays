@@ -99,6 +99,7 @@ void_result lottery_end_evaluator::do_evaluate( const lottery_end_operation& op 
 void_result lottery_end_evaluator::do_apply( const lottery_end_operation& op )
 { try {
    db().modify( *asset_dynamic_data, [&]( asset_dynamic_data_object& data ) {
+      data.sweeps_tickets_sold = data.current_supply;
       data.current_supply = 0;
    });
    for( auto account_info : op.participants )

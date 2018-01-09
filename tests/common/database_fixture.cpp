@@ -679,8 +679,8 @@ const witness_object& database_fixture::create_witness( const account_object& ow
    
    secret_hash_type::encoder enc;
    fc::raw::pack(enc, signing_private_key);
-   fc::raw::pack(enc, owner.name);
-   op.initial_secret = secret_hash_type::hash(enc.result());
+   fc::raw::pack(enc, secret_hash_type());
+   op.initial_secret = enc.result();
 
    trx.operations.push_back(op);
    trx.validate();

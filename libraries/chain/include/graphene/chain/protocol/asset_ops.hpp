@@ -48,7 +48,7 @@ namespace graphene { namespace chain {
       time_point_sec          end_date;
       bool                    ending_on_soldout;
       bool                    is_active;
-      
+
       void validate()const;
    };
 
