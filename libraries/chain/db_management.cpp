@@ -187,12 +187,13 @@ void database::close(bool rewind)
 void database::check_ending_lotteries()
 {
    try {
-      const auto& lotteries_idx = get_index_type<asset_index>().indices().get<active_lotteries>();
+      const auto& lotteries_idx = get_index_type<asset_index>().indices().get<active_lotteries>();      
       for( auto checking_asset: lotteries_idx )
       {
          FC_ASSERT( checking_asset.is_lottery() );
          FC_ASSERT( checking_asset.lottery_options->is_active );
-         FC_ASSERT( checking_asset.lottery_options->end_date < head_block_time() );
+         FC_ASSERT( checking_asset.lottery_options->end_date != time_point_sec() );
+         if( checking_asset.lottery_options->end_date > head_block_time() ) continue;
          checking_asset.end_lottery(*this);
       }
    } catch( ... ) {}

@@ -950,7 +950,7 @@ vector<asset_object> database_api_impl::get_account_lotteries( account_id_type i
 {
    vector<asset_object> result;
    if( limit > 100 ) limit = 100;
-   const auto& assets = _db.get_index_type<asset_index>().indices().get<by_lottery>();
+   const auto& assets = _db.get_index_type<asset_index>().indices().get<by_lottery_owner>();
 
    const auto range = assets.equal_range( boost::make_tuple( true, issuer.instance.value ) );
    for( const auto& a : boost::make_iterator_range( range.first, range.second ) )
