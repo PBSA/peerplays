@@ -5238,7 +5238,7 @@ signed_transaction wallet_api::propose_update_event(
         fc::optional<object_id_type> event_group_id,
         fc::optional<internationalized_string_type> name,
         fc::optional<internationalized_string_type> season,
-        fc::optional<bool> is_live_market,
+        fc::optional<event_status> status,
         fc::optional<time_point_sec> start_time,
         bool broadcast /*= false*/)
 {
@@ -5251,7 +5251,7 @@ signed_transaction wallet_api::propose_update_event(
     event_update_op.new_start_time = start_time;
     event_update_op.new_name = name;
     event_update_op.new_season = season;
-    event_update_op.is_live_market = is_live_market;
+    event_update_op.new_status = status;
 
     proposal_create_operation prop_op;
     prop_op.expiration_time = expiration_time;
@@ -5367,7 +5367,7 @@ signed_transaction wallet_api::propose_update_betting_market_group(
         betting_market_group_id_type betting_market_group_id,
         fc::optional<internationalized_string_type> description,
         fc::optional<object_id_type> rules_id,
-        fc::optional<bool> freeze,
+        fc::optional<betting_market_group_status> status,
         bool broadcast /*= false*/)
 {
     FC_ASSERT( !is_locked() );
@@ -5377,7 +5377,7 @@ signed_transaction wallet_api::propose_update_betting_market_group(
     betting_market_group_update_op.betting_market_group_id = betting_market_group_id;
     betting_market_group_update_op.new_description = description;
     betting_market_group_update_op.new_rules_id = rules_id;
-    betting_market_group_update_op.freeze = freeze;
+    betting_market_group_update_op.status = status;
 
     proposal_create_operation prop_op;
     prop_op.expiration_time = expiration_time;

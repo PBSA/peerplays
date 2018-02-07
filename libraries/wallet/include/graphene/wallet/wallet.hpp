@@ -1637,7 +1637,7 @@ class wallet_api
               fc::optional<object_id_type> event_group_id,
               fc::optional<internationalized_string_type> name,
               fc::optional<internationalized_string_type> season,
-              fc::optional<bool> is_live_market,
+              fc::optional<event_status> status,
               fc::optional<time_point_sec> start_time,
               bool broadcast = false);
 
@@ -1671,7 +1671,7 @@ class wallet_api
               betting_market_group_id_type betting_market_group_id,
               fc::optional<internationalized_string_type> description,
               fc::optional<object_id_type> rules_id,
-              fc::optional<bool> freeze,
+              fc::optional<betting_market_group_status> status,
               bool broadcast = false);
 
       signed_transaction propose_create_betting_market(

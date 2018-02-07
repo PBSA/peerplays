@@ -54,6 +54,26 @@ struct event_create_operation : public base_operation
    void            validate()const;
 };
 
+/**
+ * The status of an event.  This is used to display in the UI, and setting
+ * the event's status to certain values will propagate down to the 
+ * betting market groups in the event:
+ * - when set to `in_progress`, all betting market groups are set to `in_play`
+ * - when set to `completed`, all betting market groups are set to `closed`
+ * - when set to `frozen`, all betting market groups are set to `frozen`
+ * - when set to `canceled`, all betting market groups are set to `canceled`
+ */
+enum class event_status
+{
+   upcoming,    /// Event has not started yet, betting is allowed
+   in_progress, /// Event is in progress, if "in-play" betting is enabled, bets will be delayed
+   frozen,      /// Betting is temporarily disabled
+   finished,    /// Event has finished, no more betting allowed
+   canceled,    /// Event has been canceled, all betting markets have been canceled
+   settled,     /// All betting markets have been paid out
+   STATUS_COUNT
+};
+
 struct event_update_operation : public base_operation
 {
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
@@ -69,26 +89,12 @@ struct event_update_operation : public base_operation
 
    optional<time_point_sec> new_start_time;
 
-   optional<bool> is_live_market;
+   optional<event_status> new_status;
 
    extensions_type   extensions;
 
    account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
    void            validate()const;
-};
-
-/**
- * The status of an event; this is only used for display, the blockchain does
- * not care about the event's status
- */
-enum class event_status
-{
-   upcoming,
-   in_progress,
-   frozen,
-   completed,
-   canceled,
-   STATUS_COUNT
 };
 
 /**
@@ -132,9 +138,9 @@ FC_REFLECT( graphene::chain::event_create_operation,
 
 FC_REFLECT( graphene::chain::event_update_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::event_update_operation,
-            (fee)(event_id)(new_event_group_id)(new_name)(new_season)(new_start_time)(is_live_market)(extensions) )
+            (fee)(event_id)(new_event_group_id)(new_name)(new_season)(new_start_time)(new_status)(extensions) )
 
-FC_REFLECT_ENUM( graphene::chain::event_status, (upcoming)(in_progress)(frozen)(completed)(canceled)(STATUS_COUNT) )
+FC_REFLECT_ENUM( graphene::chain::event_status, (upcoming)(in_progress)(frozen)(finished)(canceled)(settled)(STATUS_COUNT) )
 FC_REFLECT( graphene::chain::event_update_status_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::event_update_status_operation, 
             (fee)(event_id)(status)(scores)(extensions) )

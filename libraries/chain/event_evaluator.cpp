@@ -58,7 +58,6 @@ object_id_type event_create_evaluator::do_apply(const event_create_operation& op
    const event_object& new_event =
       d.create<event_object>( [&]( event_object& event_obj ) {
          event_obj.name = op.name;
-         event_obj.status = event_status::upcoming;
          event_obj.season = op.season;
          event_obj.start_time = op.start_time;
          event_obj.event_group_id = event_group_id;
@@ -74,28 +73,19 @@ object_id_type event_create_evaluator::do_apply(const event_create_operation& op
 void_result event_update_evaluator::do_evaluate(const event_update_operation& op)
 { try {
    FC_ASSERT(trx_state->_is_proposed_trx);
-   FC_ASSERT(op.new_event_group_id.valid() ||
-             op.new_name.valid() ||
-             op.new_season.valid() ||
-             op.new_start_time.valid() ||
-             op.is_live_market.valid(), "nothing to change");
+   FC_ASSERT(op.new_event_group_id || op.new_name || op.new_season ||
+             op.new_start_time || op.new_status, "nothing to change");
 
-   if (op.new_event_group_id.valid())
+   if (op.new_event_group_id)
    {
-       object_id_type resolved_event_group_id = *op.new_event_group_id;
-       if (is_relative(*op.new_event_group_id))
-          resolved_event_group_id = get_relative_id(*op.new_event_group_id);
+      object_id_type resolved_event_group_id = *op.new_event_group_id;
+      if (is_relative(*op.new_event_group_id))
+         resolved_event_group_id = get_relative_id(*op.new_event_group_id);
 
-       FC_ASSERT(resolved_event_group_id.space() == event_group_id_type::space_id &&
-                 resolved_event_group_id.type() == event_group_id_type::type_id,
-                 "event_group_id must refer to a event_group_id_type");
-       event_group_id = resolved_event_group_id;
-   }
-
-   if (op.is_live_market.valid())
-   {
-       const auto& _event_object = &op.event_id(db());
-       FC_ASSERT(_event_object->is_live_market != *op.is_live_market, "is_live_market would not change the state of the event");
+      FC_ASSERT(resolved_event_group_id.space() == event_group_id_type::space_id &&
+                resolved_event_group_id.type() == event_group_id_type::type_id,
+                "event_group_id must refer to a event_group_id_type");
+      event_group_id = resolved_event_group_id;
    }
 
    return void_result();
@@ -103,25 +93,21 @@ void_result event_update_evaluator::do_evaluate(const event_update_operation& op
 
 void_result event_update_evaluator::do_apply(const event_update_operation& op)
 { try {
-        database& _db = db();
-        _db.modify(
-           _db.get(op.event_id),
-           [&]( event_object& eo )
-           {
-              if (eo.status > event_status::STATUS_COUNT)
-                  eo.status = event_status::upcoming;
-              if( op.new_name.valid() )
-                  eo.name = *op.new_name;
-              if( op.new_season.valid() )
-                  eo.season = *op.new_season;
-              if( op.new_start_time.valid() )
-                  eo.start_time = *op.new_start_time;
-              if( op.new_event_group_id.valid() )
-                  eo.event_group_id = event_group_id;
-              if( op.is_live_market.valid() )
-                  eo.is_live_market = *op.is_live_market;
-           });
-        return void_result();
+   database& _db = db();
+   _db.modify(_db.get(op.event_id),
+              [&](event_object& eo) {
+                 if( op.new_name )
+                    eo.name = *op.new_name;
+                 if( op.new_season )
+                    eo.season = *op.new_season;
+                 if( op.new_start_time )
+                    eo.start_time = *op.new_start_time;
+                 if( op.new_event_group_id )
+                    eo.event_group_id = event_group_id;
+                 if( op.new_status )
+                    eo.dispatch_new_status(_db, *op.new_status);
+              });
+   return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
 void_result event_update_status_evaluator::do_evaluate(const event_update_status_operation& op)
@@ -138,14 +124,13 @@ void_result event_update_status_evaluator::do_evaluate(const event_update_status
 void_result event_update_status_evaluator::do_apply(const event_update_status_operation& op)
 { try {
    database& d = db();
-   //if event is canceled, first cancel all associated betting markets
-   if (op.status == event_status::canceled)
-      d.cancel_all_betting_markets_for_event(*_event_to_update);
-   //update event
-   d.modify( *_event_to_update, [&]( event_object& event_obj) {
+
+   d.modify( *_event_to_update, [&](event_object& event_obj) {
+      if (_event_to_update->get_status() != op.status)
+         event_obj.dispatch_new_status(d, op.status);
       event_obj.scores = op.scores;
-      event_obj.status = op.status;
    });
+
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 

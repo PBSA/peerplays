@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#define DEFAULT_LOGGER "betting"
 #include <fc/smart_ref_impl.hpp>
 
 #include <graphene/chain/betting_market_evaluator.hpp>
@@ -109,8 +110,8 @@ object_id_type betting_market_group_create_evaluator::do_apply(const betting_mar
          betting_market_group_obj.rules_id = _rules_id;
          betting_market_group_obj.description = op.description;
          betting_market_group_obj.asset_id = op.asset_id;
-         betting_market_group_obj.frozen = false;
-         betting_market_group_obj.delay_bets = false;
+         betting_market_group_obj.never_in_play = op.never_in_play;
+         betting_market_group_obj.delay_before_settling = op.delay_before_settling;
       });
    return new_betting_market_group.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -121,12 +122,9 @@ void_result betting_market_group_update_evaluator::do_evaluate(const betting_mar
    FC_ASSERT(trx_state->_is_proposed_trx);
    _betting_market_group = &op.betting_market_group_id(d);
 
-   FC_ASSERT(op.new_description.valid() ||
-             op.new_rules_id.valid() ||
-             op.freeze.valid() ||
-             op.delay_bets.valid(), "nothing to change");
+   FC_ASSERT(op.new_description || op.new_rules_id || op.status, "nothing to change");
 
-   if (op.new_rules_id.valid())
+   if (op.new_rules_id)
    {
       // the rules_id in the operation can be a relative id.  If it is,
       // resolve it and verify that it is truly rules
@@ -141,11 +139,9 @@ void_result betting_market_group_update_evaluator::do_evaluate(const betting_mar
       FC_ASSERT(d.find_object(_rules_id), "invalid rules specified");
    }
 
-   if (op.freeze.valid())
-      FC_ASSERT(_betting_market_group->frozen != *op.freeze, "freeze would not change the state of the betting market group");
+   if (op.status)
+      FC_ASSERT(_betting_market_group->get_status() != *op.status, "status would not change the state of the betting market group");
 
-   if (op.delay_bets.valid())
-      FC_ASSERT(_betting_market_group->delay_bets != *op.delay_bets, "delay_bets would not change the state of the betting market group");
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -153,39 +149,40 @@ void_result betting_market_group_update_evaluator::do_apply(const betting_market
 { try {
    database& d = db();
    d.modify(*_betting_market_group, [&](betting_market_group_object& betting_market_group) {
-      if (op.new_description.valid())
+      if (op.new_description)
          betting_market_group.description = *op.new_description;
-      if (op.new_rules_id.valid())
+      if (op.new_rules_id)
          betting_market_group.rules_id = _rules_id;
-      if (op.freeze.valid())
-         betting_market_group.frozen = *op.freeze;
-      if (op.delay_bets.valid())
+
+      bool bets_were_delayed = betting_market_group.bets_are_delayed();
+      if (op.status)
+        betting_market_group.dispatch_new_status(d, *op.status);
+        
+      bool bets_are_delayed = betting_market_group.bets_are_delayed();
+
+      // if we have transitioned from in-play to not-in-play-but-still-accepting-bets,
+      // place all delayed bets now
+      if (betting_market_group.bets_are_allowed() && 
+          bets_were_delayed && !bets_are_delayed)
       {
-         assert(_betting_market_group->delay_bets != *op.delay_bets); // we checked this in evaluate
-         betting_market_group.delay_bets = *op.delay_bets;
-         if (!*op.delay_bets)
+         const auto& bet_odds_idx = d.get_index_type<bet_object_index>().indices().get<by_odds>();
+         auto bet_iter = bet_odds_idx.begin();
+         bool last = bet_iter == bet_odds_idx.end() || !bet_iter->end_of_delay;
+         while (!last)
          {
-            // we have switched from delayed to not-delayed.  if there are any delayed bets,
-            // push them through now.
-            const auto& bet_odds_idx = d.get_index_type<bet_object_index>().indices().get<by_odds>();
-            auto bet_iter = bet_odds_idx.begin();
-            bool last = bet_iter == bet_odds_idx.end() || !bet_iter->end_of_delay;
-            while (!last)
+            const bet_object& delayed_bet = *bet_iter;
+            ++bet_iter;
+            last = bet_iter == bet_odds_idx.end() || !bet_iter->end_of_delay;
+
+            const betting_market_object& betting_market = delayed_bet.betting_market_id(d);
+            if (betting_market.group_id == op.betting_market_group_id)
             {
-               const bet_object& delayed_bet = *bet_iter;
-               ++bet_iter;
-               last = bet_iter == bet_odds_idx.end() || !bet_iter->end_of_delay;
+               d.modify(delayed_bet, [](bet_object& bet_obj) {
+                  // clear the end_of_delay,  which will re-sort the bet into its place in the book
+                  bet_obj.end_of_delay.reset();
+               });
 
-               const betting_market_object& betting_market = delayed_bet.betting_market_id(d);
-               if (betting_market.group_id == op.betting_market_group_id && !_betting_market_group->frozen)
-               {
-                  d.modify(delayed_bet, [](bet_object& bet_obj) {
-                     // clear the end_of_delay,  which will re-sort the bet into its place in the book
-                     bet_obj.end_of_delay.reset();
-                  });
-
-                  d.place_bet(delayed_bet);
-               }
+               d.place_bet(delayed_bet);
             }
          }
       }
@@ -271,7 +268,9 @@ void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
    FC_ASSERT( op.amount_to_bet.asset_id == _betting_market_group->asset_id,
               "Asset type bet does not match the market's asset type" );
 
-   FC_ASSERT( !_betting_market_group->frozen, "Unable to place bets while the market is frozen" );
+   ddump((_betting_market_group->get_status()));
+   FC_ASSERT( _betting_market_group->get_status() != betting_market_group_status::frozen, 
+              "Unable to place bets while the market is frozen" );
 
    _asset = &_betting_market_group->asset_id(d);
    FC_ASSERT( is_authorized_asset( d, *fee_paying_account, *_asset ) );
@@ -312,15 +311,19 @@ object_id_type bet_place_evaluator::do_apply(const bet_place_operation& op)
          bet_obj.amount_to_bet = op.amount_to_bet;
          bet_obj.backer_multiplier = op.backer_multiplier;
          bet_obj.back_or_lay = op.back_or_lay;
-         if (_betting_market_group->delay_bets)
-            bet_obj.end_of_delay = d.head_block_time() + _current_params->live_betting_delay_time;
+         if (_betting_market_group->bets_are_delayed()) {
+            // the bet will be included in the block at time `head_block_time() + block_interval`, so make the delay relative 
+            // to the time it's included in a block
+            bet_obj.end_of_delay = d.head_block_time() + _current_params->block_interval + _current_params->live_betting_delay_time;
+         }
       });
 
    bet_id_type new_bet_id = new_bet.id; // save the bet id here, new_bet may be deleted during place_bet()
 
    d.adjust_balance(fee_paying_account->id, -op.amount_to_bet);
 
-   if (!_betting_market_group->delay_bets || _current_params->live_betting_delay_time <= 0)
+   ddump((_betting_market_group->bets_are_delayed())(_current_params->live_betting_delay_time));
+   if (!_betting_market_group->bets_are_delayed() || _current_params->live_betting_delay_time <= 0)
       d.place_bet(new_bet);
 
    return new_bet_id;

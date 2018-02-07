@@ -30,6 +30,8 @@
 
 #include <graphene/chain/operation_history_object.hpp>
 
+#include <boost/parameter.hpp>
+
 #include <iostream>
 
 using namespace graphene::db;
@@ -143,6 +145,18 @@ extern uint32_t GRAPHENE_TESTING_GENESIS_TIMESTAMP;
 #define ACTORS(names) BOOST_PP_SEQ_FOR_EACH(ACTORS_IMPL, ~, names)
 
 namespace graphene { namespace chain {
+
+   namespace keywords {
+      BOOST_PARAMETER_NAME(event_id)
+      BOOST_PARAMETER_NAME(event_group_id)
+      BOOST_PARAMETER_NAME(name)
+      BOOST_PARAMETER_NAME(season)
+      BOOST_PARAMETER_NAME(status)
+      BOOST_PARAMETER_NAME(force)
+      BOOST_PARAMETER_NAME(betting_market_group_id)
+      BOOST_PARAMETER_NAME(description)
+      BOOST_PARAMETER_NAME(rules_id)
+   }
 
 struct database_fixture {
    // the reason we use an app is to exercise the indexes of built-in
@@ -285,6 +299,7 @@ struct database_fixture {
                                                asset_id_type dividend_payout_asset_type) const;
    vector< operation_history_object > get_operation_history( account_id_type account_id )const;
    void  process_operation_by_witnesses(operation op);
+   void  force_operation_by_witnesses(operation op);
    void  set_is_proposed_trx(operation op);
    const sport_object& create_sport(internationalized_string_type name);
    void  update_sport(sport_id_type sport_id, internationalized_string_type name);
@@ -297,21 +312,47 @@ struct database_fixture {
                                 fc::optional<internationalized_string_type> name,
                                 bool dont_set_is_proposed_trx = false);
    const event_object& create_event(internationalized_string_type name, internationalized_string_type season, event_group_id_type event_group_id);
-   void update_event(event_id_type event_id,
-                                       fc::optional<object_id_type> event_group_id,
-                                       fc::optional<internationalized_string_type> name,
-                                       fc::optional<internationalized_string_type> season,
-                                       fc::optional<bool> is_live_market);
+   void update_event_impl(event_id_type event_id,
+                          fc::optional<object_id_type> event_group_id,
+                          fc::optional<internationalized_string_type> name,
+                          fc::optional<internationalized_string_type> season,
+                          fc::optional<event_status> status,
+                          bool force);
+   BOOST_PARAMETER_MEMBER_FUNCTION((void), update_event, keywords::tag, 
+                                   (required (event_id, (event_id_type)))
+                                   (optional (event_group_id, (fc::optional<object_id_type>), fc::optional<object_id_type>())
+                                             (name, (fc::optional<internationalized_string_type>), fc::optional<internationalized_string_type>())
+                                             (season, (fc::optional<internationalized_string_type>), fc::optional<internationalized_string_type>())
+                                             (status, (fc::optional<event_status>), fc::optional<event_status>())
+                                             (force, (bool), false)))
+   {
+      update_event_impl(event_id, event_group_id, name, season, status, force);
+   }
+
    const betting_market_rules_object& create_betting_market_rules(internationalized_string_type name, internationalized_string_type description);
    void update_betting_market_rules(betting_market_rules_id_type rules_id,
                                      fc::optional<internationalized_string_type> name,
                                      fc::optional<internationalized_string_type> description);
-   const betting_market_group_object& create_betting_market_group(internationalized_string_type description, event_id_type event_id, betting_market_rules_id_type rules_id, asset_id_type asset_id);
-   void update_betting_market_group(betting_market_group_id_type betting_market_group_id,
-                                    fc::optional<internationalized_string_type> description,
-                                    fc::optional<object_id_type> rules_id,
-                                    fc::optional<bool> freeze,
-                                    fc::optional<bool> delay_bets);
+   const betting_market_group_object& create_betting_market_group(internationalized_string_type description, 
+                                                                  event_id_type event_id, 
+                                                                  betting_market_rules_id_type rules_id, 
+                                                                  asset_id_type asset_id,
+                                                                  bool never_in_play,
+                                                                  uint32_t delay_before_settling);
+   void update_betting_market_group_impl(betting_market_group_id_type betting_market_group_id,
+                                         fc::optional<internationalized_string_type> description,
+                                         fc::optional<object_id_type> rules_id,
+                                         fc::optional<betting_market_group_status> status,
+                                         bool force);
+   BOOST_PARAMETER_MEMBER_FUNCTION((void), update_betting_market_group, keywords::tag, 
+                                   (required (betting_market_group_id, (betting_market_group_id_type)))
+                                   (optional (description, (fc::optional<internationalized_string_type>), fc::optional<internationalized_string_type>())
+                                             (rules_id, (fc::optional<object_id_type>), fc::optional<object_id_type>())
+                                             (status, (fc::optional<betting_market_group_status>), fc::optional<betting_market_group_status>())
+                                             (force, (bool), false)))
+   {
+      update_betting_market_group_impl(betting_market_group_id, description, rules_id, status, force);
+   }
 
    const betting_market_object& create_betting_market(betting_market_group_id_type group_id, internationalized_string_type payout_condition);
    void update_betting_market(betting_market_id_type betting_market_id,

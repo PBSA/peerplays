@@ -69,6 +69,35 @@ struct betting_market_rules_update_operation : public base_operation
    void            validate()const;
 };
 
+enum class betting_market_status
+{
+  unresolved, /// no grading  has been published for this betting market
+  frozen, /// bets are suspended, no bets allowed
+  graded, /// grading of win or not_win has been published
+  canceled, /// the betting market is canceled, no further bets are allowed
+  settled, /// the betting market has been paid out
+  BETTING_MARKET_STATUS_COUNT
+};
+
+
+/**
+ * The status of a betting market group.  This controls the behavior of the betting
+ * markets in the group.
+ */
+enum class betting_market_group_status
+{
+   upcoming, /// betting markets are accepting bets, will never go "in_play"
+   in_play, /// betting markets are delaying bets
+   closed, /// betting markets are no longer accepting bets
+   graded, /// witnesses have published win/not win for the betting markets 
+   re_grading, /// initial win/not win grading has been challenged
+   settled, /// paid out
+   frozen, /// betting markets are not accepting bets
+   canceled, /// canceled
+   BETTING_MARKET_GROUP_STATUS_COUNT
+};
+
+
 struct betting_market_group_create_operation : public base_operation
 {
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
@@ -97,6 +126,20 @@ struct betting_market_group_create_operation : public base_operation
     */
    asset_id_type asset_id;
 
+   /**
+    * If true, this market will never go "in-play"
+    */
+   bool never_in_play;
+
+   /**
+    * After a grading has been published, the blockchain will wait this many
+    * seconds before settling (paying the winners).
+    * If the published grading is flagged (challenged) during this period, 
+    * settling will be delayed indefinitely until the betting market
+    * group is re-graded (not implemented)
+    */
+   uint32_t delay_before_settling;
+
    extensions_type   extensions;
 
    account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
@@ -114,9 +157,7 @@ struct betting_market_group_update_operation : public base_operation
 
    optional<object_id_type> new_rules_id;
 
-   optional<bool> freeze;
-
-   optional<bool> delay_bets;
+   optional<betting_market_group_status> status;
 
    extensions_type   extensions;
 
@@ -384,13 +425,33 @@ FC_REFLECT( graphene::chain::betting_market_rules_update_operation::fee_paramete
 FC_REFLECT( graphene::chain::betting_market_rules_update_operation,
             (fee)(new_name)(new_description)(extensions)(betting_market_rules_id) )
 
+FC_REFLECT_ENUM( graphene::chain::betting_market_status,
+                 (unresolved)
+                 (frozen)
+                 (graded)
+                 (canceled)
+                 (settled)
+                 (BETTING_MARKET_STATUS_COUNT) )
+FC_REFLECT_ENUM( graphene::chain::betting_market_group_status, 
+                 (upcoming)
+                 (in_play)
+                 (closed)
+                 (graded)
+                 (re_grading)
+                 (settled)
+                 (frozen)
+                 (canceled)
+                 (BETTING_MARKET_GROUP_STATUS_COUNT) )
+
 FC_REFLECT( graphene::chain::betting_market_group_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_group_create_operation, 
-            (fee)(description)(event_id)(rules_id)(asset_id)(extensions) )
+            (fee)(description)(event_id)(rules_id)(asset_id)
+            (never_in_play)(delay_before_settling)
+            (extensions) )
 
 FC_REFLECT( graphene::chain::betting_market_group_update_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_group_update_operation,
-            (fee)(betting_market_group_id)(new_description)(new_rules_id)(freeze)(delay_bets)(extensions) )
+            (fee)(betting_market_group_id)(new_description)(new_rules_id)(status)(extensions) )
 
 FC_REFLECT( graphene::chain::betting_market_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_create_operation, 

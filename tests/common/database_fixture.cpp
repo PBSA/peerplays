@@ -1150,6 +1150,19 @@ void database_fixture::process_operation_by_witnesses(operation op)
    }
 }
 
+void database_fixture::force_operation_by_witnesses(operation op)
+{
+   const chain_parameters& params = db.get_global_properties().parameters;
+   signed_transaction trx;
+   trx.operations = {op};
+   for( auto& op : trx.operations )
+       db.current_fee_schedule().set_fee(op);
+   trx.validate();
+   trx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
+   sign(trx, init_account_priv_key);
+   PUSH_TX(db, trx);
+}
+
 void database_fixture::set_is_proposed_trx(operation op)
 {
     const flat_set<witness_id_type>& active_witnesses = db.get_global_properties().active_witnesses;
@@ -1306,20 +1319,25 @@ const event_object& database_fixture::create_event(internationalized_string_type
    return *event_index.rbegin();
 } FC_CAPTURE_AND_RETHROW( (event_group_id) ) }
 
-void database_fixture::update_event(event_id_type event_id,
-                                    fc::optional<object_id_type> event_group_id,
-                                    fc::optional<internationalized_string_type> name,
-                                    fc::optional<internationalized_string_type> season,
-                                    fc::optional<bool> is_live_market)
+void database_fixture::update_event_impl(event_id_type event_id,
+                                         fc::optional<object_id_type> event_group_id,
+                                         fc::optional<internationalized_string_type> name,
+                                         fc::optional<internationalized_string_type> season,
+                                         fc::optional<event_status> status, 
+                                         bool force)
 { try {
    event_update_operation event_update_op;
    event_update_op.event_id = event_id;
    event_update_op.new_event_group_id = event_group_id;
    event_update_op.new_name = name;
    event_update_op.new_season = season;
-   event_update_op.is_live_market = is_live_market;
-   process_operation_by_witnesses(event_update_op);
-} FC_CAPTURE_AND_RETHROW( (name)(season) ) }
+   event_update_op.new_status = status;
+
+   if (force)
+     force_operation_by_witnesses(event_update_op);
+   else
+     process_operation_by_witnesses(event_update_op);
+} FC_CAPTURE_AND_RETHROW( (event_id) ) }
 
 const betting_market_rules_object& database_fixture::create_betting_market_rules(internationalized_string_type name, internationalized_string_type description)
 { try {
@@ -1342,33 +1360,44 @@ void database_fixture::update_betting_market_rules(betting_market_rules_id_type 
    process_operation_by_witnesses(betting_market_rules_update_op);
 } FC_CAPTURE_AND_RETHROW( (name)(description) ) }
 
-const betting_market_group_object& database_fixture::create_betting_market_group(internationalized_string_type description, event_id_type event_id, betting_market_rules_id_type rules_id, asset_id_type asset_id)
+const betting_market_group_object& database_fixture::create_betting_market_group(internationalized_string_type description, 
+                                                                                 event_id_type event_id, 
+                                                                                 betting_market_rules_id_type rules_id, 
+                                                                                 asset_id_type asset_id,
+                                                                                 bool never_in_play,
+                                                                                 uint32_t delay_before_settling)
 { try {
    betting_market_group_create_operation betting_market_group_create_op;
    betting_market_group_create_op.description = description;
    betting_market_group_create_op.event_id = event_id;
    betting_market_group_create_op.rules_id = rules_id;
    betting_market_group_create_op.asset_id = asset_id;
+   betting_market_group_create_op.never_in_play = never_in_play;
+   betting_market_group_create_op.delay_before_settling = delay_before_settling;
+
    process_operation_by_witnesses(betting_market_group_create_op);
    const auto& betting_market_group_index = db.get_index_type<betting_market_group_object_index>().indices().get<by_id>();
    return *betting_market_group_index.rbegin();
 } FC_CAPTURE_AND_RETHROW( (event_id) ) }
 
 
-void database_fixture::update_betting_market_group(betting_market_group_id_type betting_market_group_id,
-                                                   fc::optional<internationalized_string_type> description,
-                                                   fc::optional<object_id_type> rules_id,
-                                                   fc::optional<bool> freeze,
-                                                   fc::optional<bool> delay_bets)
+void database_fixture::update_betting_market_group_impl(betting_market_group_id_type betting_market_group_id,
+                                                        fc::optional<internationalized_string_type> description,
+                                                        fc::optional<object_id_type> rules_id,
+                                                        fc::optional<betting_market_group_status> status,
+                                                        bool force)
 { try {
    betting_market_group_update_operation betting_market_group_update_op;
    betting_market_group_update_op.betting_market_group_id = betting_market_group_id;
    betting_market_group_update_op.new_description = description;
    betting_market_group_update_op.new_rules_id = rules_id;
-   betting_market_group_update_op.freeze = freeze;
-   betting_market_group_update_op.delay_bets = delay_bets;
-   process_operation_by_witnesses(betting_market_group_update_op);
-} FC_CAPTURE_AND_RETHROW( (betting_market_group_id)(description)(rules_id)(freeze)(delay_bets)) }
+   betting_market_group_update_op.status = status;
+
+   if (force)
+     force_operation_by_witnesses(betting_market_group_update_op);
+   else
+     process_operation_by_witnesses(betting_market_group_update_op);
+} FC_CAPTURE_AND_RETHROW( (betting_market_group_id)(description)(rules_id)(status)) }
 
 
 const betting_market_object& database_fixture::create_betting_market(betting_market_group_id_type group_id, internationalized_string_type payout_condition)
@@ -1411,6 +1440,7 @@ void database_fixture::update_betting_market(betting_market_id_type betting_mark
    BOOST_CHECK_MESSAGE(ptx.operation_results.size() == 1, "Place Bet Transaction should have had exactly one operation result");
    return ptx.operation_results.front().get<object_id_type>().as<bet_id_type>();
 } FC_CAPTURE_AND_RETHROW( (bettor_id)(back_or_lay)(amount_to_bet) ) }
+
 
 void database_fixture::resolve_betting_market_group(betting_market_group_id_type betting_market_group_id,
                                                     std::map<betting_market_id_type, betting_market_resolution_type> resolutions)

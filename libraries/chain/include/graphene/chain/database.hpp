@@ -391,12 +391,11 @@ namespace graphene { namespace chain {
          void cancel_bet(const bet_object& bet, bool create_virtual_op = true);
          void cancel_all_unmatched_bets_on_betting_market(const betting_market_object& betting_market);
          void cancel_all_unmatched_bets_on_betting_market_group(const betting_market_group_object& betting_market_group);
-         void cancel_all_betting_markets_for_event(const event_object&);
          void validate_betting_market_group_resolutions(const betting_market_group_object& betting_market_group,
                                                         const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions);
          void resolve_betting_market_group(const betting_market_group_object& betting_market_group,
-                                           const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions,
-                                           bool  do_not_remove = false);
+                                           const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions);
+         void settle_betting_market_group(const betting_market_group_object& betting_market_group);
          /**
           * @brief Process a new bet
           * @param new_bet_object The new bet to process
@@ -481,6 +480,7 @@ namespace graphene { namespace chain {
          void update_maintenance_flag( bool new_maintenance_flag );
          void update_withdraw_permissions();
          void update_tournaments();
+         void update_betting_markets(fc::time_point_sec current_block_time);
          bool check_for_blackswan( const asset_object& mia, bool enable_black_swan = true );
 
          ///Steps performed only at maintenance intervals

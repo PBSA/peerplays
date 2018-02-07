@@ -1,3 +1,4 @@
+#define DEFAULT_LOGGER "betting"
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/asset_object.hpp>
@@ -5,6 +6,8 @@
 #include <graphene/chain/event_object.hpp>
 
 #include <boost/range/iterator_range.hpp>
+#include <boost/range/combine.hpp>
+#include <boost/tuple/tuple.hpp>
 
 namespace graphene { namespace chain {
 
@@ -50,30 +53,36 @@ void database::cancel_all_unmatched_bets_on_betting_market(const betting_market_
    }
 }
 
-void database::cancel_all_betting_markets_for_event(const event_object& event_obj)
-{
-   auto& betting_market_group_index = get_index_type<betting_market_group_object_index>().indices().get<by_event_id>();
-   auto& betting_market_index = get_index_type<betting_market_object_index>().indices().get<by_betting_market_group_id>();
-
-   //for each betting market group of event
-   for (const betting_market_group_object& betting_market_group : 
-        boost::make_iterator_range(betting_market_group_index.equal_range(event_obj.id)))
-      resolve_betting_market_group(betting_market_group, {});
-}
-
 void database::validate_betting_market_group_resolutions(const betting_market_group_object& betting_market_group,
                                                          const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions)
 {
-    auto& betting_market_index = get_index_type<betting_market_object_index>().indices().get<by_betting_market_group_id>();
-    auto betting_market_itr = betting_market_index.lower_bound(betting_market_group.id);
-    while (betting_market_itr != betting_market_index.end() &&  betting_market_itr->group_id == betting_market_group.id)
-    {
-       const betting_market_object& betting_market = *betting_market_itr;
-       // every betting market in the group tied with resolution
-       //idump((betting_market.id)(resolutions));
-       assert(resolutions.count(betting_market.id));
-       ++betting_market_itr;
-    }
+   auto& betting_market_index = get_index_type<betting_market_object_index>().indices().get<by_betting_market_group_id>();
+   auto betting_markets_in_group = boost::make_iterator_range(betting_market_index.equal_range(betting_market_group.id));
+
+   // we must have one resolution for each betting market
+   FC_ASSERT(resolutions.size() == boost::size(betting_markets_in_group), 
+             "You must publish resolutions for all ${size} markets in the group, you published ${published}", ("size", boost::size(betting_markets_in_group))("published", resolutions.size()));
+
+   // both are sorted by id, we can walk through both and verify that they match 
+   unsigned number_of_wins = 0;
+   unsigned number_of_cancels = 0;
+   for (const auto& zipped : boost::combine(resolutions, betting_markets_in_group))
+   {
+      const auto& resolution = boost::get<0>(zipped);
+      const auto& betting_market = boost::get<1>(zipped);
+      FC_ASSERT(resolution.first == betting_market.id, "Missing resolution for betting market ${id}", ("id", betting_market.id));
+      if (resolution.second == betting_market_resolution_type::cancel)
+         ++number_of_cancels;
+      else if (resolution.second == betting_market_resolution_type::win)
+         ++number_of_wins;
+      else 
+         FC_ASSERT(resolution.second == betting_market_resolution_type::not_win);
+   }
+
+   if (number_of_cancels != 0)
+      FC_ASSERT(number_of_cancels == resolutions.size(), "You must cancel all betting markets or none of the betting markets in the group");
+   else
+      FC_ASSERT(number_of_wins == 1, "There must be exactly one winning market");
 }
 
 void database::cancel_all_unmatched_bets_on_betting_market_group(const betting_market_group_object& betting_market_group)
@@ -90,11 +99,40 @@ void database::cancel_all_unmatched_bets_on_betting_market_group(const betting_m
 }
 
 void database::resolve_betting_market_group(const betting_market_group_object& betting_market_group,
-                                            const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions,
-                                            bool  do_not_remove)
+                                            const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions)
 {
-   bool cancel = resolutions.size() == 0;
+   auto& betting_market_index = get_index_type<betting_market_object_index>().indices().get<by_betting_market_group_id>();
+   auto betting_markets_in_group = boost::make_iterator_range(betting_market_index.equal_range(betting_market_group.id));
 
+   bool group_was_canceled = resolutions.begin()->second == betting_market_resolution_type::cancel;
+
+   if (group_was_canceled)
+      modify(betting_market_group, [group_was_canceled,this](betting_market_group_object& betting_market_group_obj) {
+         betting_market_group_obj.on_canceled_event(*this, false); // this cancels the betting markets
+      });
+   else {
+      // TODO: this should be pushed into the bmg's on_graded_event
+
+      // both are sorted by id, we can walk through both and verify that they match 
+      for (const auto& zipped : boost::combine(resolutions, betting_markets_in_group))
+      {
+         const auto& resolution = boost::get<0>(zipped);
+         const auto& betting_market = boost::get<1>(zipped);
+
+         modify(betting_market, [this,&resolution](betting_market_object& betting_market_obj) {
+            betting_market_obj.on_graded_event(*this, resolution.second);
+         });
+      }
+
+      modify(betting_market_group, [group_was_canceled,this](betting_market_group_object& betting_market_group_obj) {
+         betting_market_group_obj.on_graded_event(*this);
+      });
+   }
+}
+
+void database::settle_betting_market_group(const betting_market_group_object& betting_market_group)
+{
+   ilog("Settling betting market group ${id}", ("id", betting_market_group.id));
    // we pay the rake fee to the dividend distribution account for the core asset, go ahead
    // and look up that account now
    fc::optional<account_id_type> rake_account_id;
@@ -104,6 +142,10 @@ void database::resolve_betting_market_group(const betting_market_group_object& b
       const asset_dividend_data_object& core_asset_dividend_data_obj = (*core_asset_obj.dividend_data_id)(*this);
       rake_account_id = core_asset_dividend_data_obj.dividend_distribution_account;
    }
+
+   // collect the resolutions of all markets in the BMG: they were previously published and
+   // stored in the individual betting markets
+   std::map<betting_market_id_type, betting_market_resolution_type> resolutions_by_market_id;
 
    // collecting bettors and their positions
    std::map<account_id_type, std::vector<const betting_market_position_object*> > bettor_positions_map;
@@ -116,11 +158,13 @@ void database::resolve_betting_market_group(const betting_market_group_object& b
    while (betting_market_itr != betting_market_index.end() &&  betting_market_itr->group_id == betting_market_group.id)
    {
       const betting_market_object& betting_market = *betting_market_itr;
+      FC_ASSERT(betting_market_itr->resolution, "Unexpected error settling betting market ${market_id}: no published resolution",
+                ("market_id", betting_market_itr->id));
+      resolutions_by_market_id.emplace(betting_market.id, *betting_market_itr->resolution);
+
       ++betting_market_itr;
       cancel_all_unmatched_bets_on_betting_market(betting_market);
 
-      // [ROL] why tuple
-      //auto position_itr = position_index.lower_bound(std::make_tuple(betting_market.id));
       auto position_itr = position_index.lower_bound(betting_market.id);
 
       while (position_itr != position_index.end() && position_itr->betting_market_id == betting_market.id)
@@ -144,14 +188,24 @@ void database::resolve_betting_market_group(const betting_market_group_object& b
       for (const betting_market_position_object* position : bettor_positions)
       {
          betting_market_resolution_type resolution;
-         if (cancel)
-            resolution = betting_market_resolution_type::cancel;
-         else
+         try
          {
-            // checked in evaluator, should never happen, see above
-            assert(resolutions.count(position->betting_market_id));
-            resolution = resolutions.at(position->betting_market_id);
+            resolution = resolutions_by_market_id.at(position->betting_market_id);
          }
+         catch (std::out_of_range&)
+         {
+            FC_THROW_EXCEPTION(fc::key_not_found_exception, "Unexpected betting market ID, shouldn't happen");
+         }
+
+         ///if (cancel)
+         ///   resolution = betting_market_resolution_type::cancel;
+         ///else
+         ///{
+         ///   // checked in evaluator, should never happen, see above
+         ///   assert(resolutions.count(position->betting_market_id));
+         ///   resolution = resolutions.at(position->betting_market_id);
+         ///}
+
 
          switch (resolution)
          {
@@ -194,29 +248,41 @@ void database::resolve_betting_market_group(const betting_market_group_object& b
 
       push_applied_operation(betting_market_group_resolved_operation(bettor_id,
                              betting_market_group.id,
-                             resolutions,
+                             resolutions_by_market_id,
                              payout_amounts,
                              rake_amount));
    }
 
-   betting_market_itr = betting_market_index.lower_bound(betting_market_group.id);
-   while (betting_market_itr != betting_market_index.end() &&  betting_market_itr->group_id == betting_market_group.id)
-   {
-      const betting_market_object& betting_market = *betting_market_itr;
-      ++betting_market_itr;
-      if (!do_not_remove)
-        remove(betting_market);
-   }
-   if (!do_not_remove)
-       remove(betting_market_group);
-}
+   // At this point, the betting market group will either be in the "graded" or "canceled" state,
+   // if it was graded, mark it as settled.  if it's canceled, let it remain canceled.
 
-#if 0
-void database::get_required_deposit_for_bet(const betting_market_object& betting_market, 
-                                            betting_market_resolution_type resolution)
-{
+   bool was_canceled = betting_market_group.get_status() == betting_market_group_status::canceled;
+
+   if (!was_canceled)
+      modify(betting_market_group, [&](betting_market_group_object& group) {
+         group.on_settled_event(*this);
+      });
+
+   betting_market_itr = betting_market_index.lower_bound(betting_market_group.id);
+   while (betting_market_itr != betting_market_index.end() &&  betting_market_itr->group_id == betting_market_group.id) {
+      const betting_market_object& betting_market = *betting_market_itr;
+
+      ++betting_market_itr;
+      dlog("removing betting market ${id}", ("id", betting_market.id));
+      remove(betting_market);
+   }
+
+   const event_object& event = betting_market_group.event_id(*this);
+
+   dlog("removing betting market group ${id}", ("id", betting_market_group.id));
+   remove(betting_market_group);
+
+   if (event.get_status() == event_status::canceled ||
+       event.get_status() == event_status::settled) {
+      dlog("removing event ${id}", ("id", event.id));
+      remove(event);
+   }
 }
-#endif
 
 share_type adjust_betting_position(database& db, account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, share_type bet_amount, share_type matched_amount)
 { try {

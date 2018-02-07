@@ -102,10 +102,11 @@ add_library( graphene_chain
              event_group_evaluator.cpp
              protocol/event.cpp
              event_evaluator.cpp
+             event_object.cpp
              protocol/betting_market.cpp
              betting_market_evaluator.cpp
              betting_market_object.cpp
-             db_bet.cpp
+             betting_market_group_object.cpp
 
              ${HEADERS}
              ${PROTOCOL_HEADERS}

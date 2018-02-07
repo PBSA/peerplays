@@ -551,6 +551,7 @@ void database::_apply_block( const signed_block& next_block )
    update_expired_feeds();
    update_withdraw_permissions();
    update_tournaments();
+   update_betting_markets(next_block.timestamp);
 
    // n.b., update_maintenance_flag() happens this late
    // because get_slot_time() / get_slot_at_time() is needed above
@@ -568,7 +569,6 @@ void database::_apply_block( const signed_block& next_block )
    _applied_ops.clear();
 
    notify_changed_objects();
-
 } FC_CAPTURE_AND_RETHROW( (next_block.block_num()) )  }
 
 

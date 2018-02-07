@@ -1,5 +1,5 @@
 {
-  "initial_timestamp": "2017-07-18T18:33:30",
+  "initial_timestamp": "2018-02-01T00:00:00",
   "max_core_supply": "1000000000000000",
   "initial_parameters": {
     "current_fees": {
@@ -243,7 +243,7 @@
           }
         ],[
           57,{
-            "fee": 100000
+            "fee": 1
           }
         ],[
           58,{
@@ -261,7 +261,7 @@
           62,{}
         ],[
           63,{
-            "fee": 100000
+            "fee": 0
           }
         ],[
           64,{}
@@ -295,7 +295,7 @@
       ],
       "scale": 10000
     },
-    "block_interval": 5,
+    "block_interval": 3,
     "maintenance_interval": 600,
     "maintenance_skip_slots": 3,
     "committee_proposal_review_period": 900,
