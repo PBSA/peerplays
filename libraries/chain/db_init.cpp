@@ -220,6 +220,7 @@ void database::initialize_evaluators()
    register_evaluator<event_group_update_evaluator>();
    register_evaluator<event_create_evaluator>();
    register_evaluator<event_update_evaluator>();
+   register_evaluator<event_update_status_evaluator>();
    register_evaluator<betting_market_rules_create_evaluator>();
    register_evaluator<betting_market_rules_update_evaluator>();
    register_evaluator<betting_market_group_create_evaluator>();
