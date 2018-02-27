@@ -38,8 +38,15 @@
 #include <graphene/chain/market_object.hpp>
 #include <graphene/chain/operation_history_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
+#include <graphene/chain/sport_object.hpp>
+#include <graphene/chain/event_group_object.hpp>
+#include <graphene/chain/event_object.hpp>
+#include <graphene/chain/betting_market_object.hpp>
+#include <graphene/chain/global_betting_statistics_object.hpp>
+
 #include <graphene/chain/worker_object.hpp>
 #include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/tournament_object.hpp>
 
 #include <graphene/market_history/market_history_plugin.hpp>
 
@@ -64,40 +71,47 @@ using namespace std;
 
 class database_api_impl;
 
+struct order
+{
+   double                     price;
+   double                     quote;
+   double                     base;
+};
+
 struct order_book
 {
-  string                        base;
-  string                        quote;
-  vector< pair<double,double> > bids;
-  vector< pair<double,double> > asks;
+  string                      base;
+  string                      quote;
+  vector< order >             bids;
+  vector< order >             asks;
 };
 
 struct market_ticker
 {
-   string                       base;
-   string                       quote;
-   double                       latest;
-   double                       lowest_ask;
-   double                       highest_bid;
-   double                       percent_change;
-   double                       base_volume;
-   double                       quote_volume;
+   string                     base;
+   string                     quote;
+   double                     latest;
+   double                     lowest_ask;
+   double                     highest_bid;
+   double                     percent_change;
+   double                     base_volume;
+   double                     quote_volume;
 };
 
 struct market_volume
 {
-   string                       base;
-   string                       quote;
-   double                       base_volume;
-   double                       quote_volume;
+   string                     base;
+   string                     quote;
+   double                     base_volume;
+   double                     quote_volume;
 };
 
 struct market_trade
 {
-   fc::time_point_sec           date;
-   double                       price;
-   double                       amount;
-   double                       value;
+   fc::time_point_sec         date;
+   double                     price;
+   double                     amount;
+   double                     value;
 };
 
 /**
@@ -116,7 +130,7 @@ class database_api
       /////////////
       // Objects //
       /////////////
-         
+
       /**
        * @brief Get the objects corresponding to the provided IDs
        * @param ids IDs of the objects to retrieve
@@ -150,6 +164,14 @@ class database_api
        * @return header of the referenced block, or null if no matching block was found
        */
       optional<block_header> get_block_header(uint32_t block_num)const;
+
+      /**
+      * @brief Retrieve multiple block header by block numbers
+      * @param block_num vector containing heights of the block whose header should be returned
+      * @return array of headers of the referenced blocks, or null if no matching block was found
+      */
+      map<uint32_t, optional<block_header>> get_block_header_batch(const vector<uint32_t> block_nums)const;
+
 
       /**
        * @brief Retrieve a full, signed block
@@ -202,8 +224,17 @@ class database_api
       //////////
       // Keys //
       //////////
-         
+
       vector<vector<account_id_type>> get_key_references( vector<public_key_type> key )const;
+
+     /**
+      * Determine whether a textual representation of a public key
+      * (in Base-58 format) is *currently* linked
+      * to any *registered* (i.e. non-stealth) account on the blockchain
+      * @param public_key Public key
+      * @return Whether a public key is known
+      */
+     bool is_public_key_registered(string public_key) const;
 
       //////////////
       // Accounts //
@@ -311,6 +342,50 @@ class database_api
        * This function has semantics identical to @ref get_objects
        */
       vector<optional<asset_object>> lookup_asset_symbols(const vector<string>& symbols_or_ids)const;
+
+      /////////////////////
+      // Peerplays       //
+      /////////////////////
+
+      /**
+       * @brief Get global betting statistics
+       */
+      global_betting_statistics_object get_global_betting_statistics() const;
+
+      /**
+       * @brief Get a list of all sports
+       */
+      vector<sport_object> list_sports() const;
+
+      /**
+       * @brief Return a list of all event groups for a sport (e.g. all soccer leagues in soccer)
+       */
+      vector<event_group_object> list_event_groups(sport_id_type sport_id) const;
+
+      /**
+       * @brief Return a list of all events in an event group
+       */
+      vector<event_object> list_events_in_group(event_group_id_type event_group_id) const;
+
+      /**
+       * @brief Return a list of all betting market groups for an event
+       */
+      vector<betting_market_group_object> list_betting_market_groups(event_id_type) const;
+
+      /**
+       * @brief Return a list of all betting markets for a betting market group
+       */
+      vector<betting_market_object> list_betting_markets(betting_market_group_id_type) const;
+
+      /**
+       * @brief Return a list of all unmatched bets for a given account on a specific betting market
+       */
+      vector<bet_object> get_unmatched_bets_for_bettor(betting_market_id_type, account_id_type) const;
+
+      /**
+       * @brief Return a list of all unmatched bets for a given account (includes bets on all markets)
+       */
+      vector<bet_object> get_all_unmatched_bets_for_bettor(account_id_type) const;
 
       /////////////////////
       // Markets / feeds //
@@ -465,9 +540,9 @@ class database_api
        */
       map<string, committee_member_id_type> lookup_committee_member_accounts(const string& lower_bound_name, uint32_t limit)const;
 
-      
-      /// WORKERS 
-      
+
+      /// WORKERS
+
       /**
        * Return the worker objects associated with this account.
        */
@@ -515,7 +590,7 @@ class database_api
       bool           verify_authority( const signed_transaction& trx )const;
 
       /**
-       * @return true if the signers have enough authority to authorize an account 
+       * @return true if the signers have enough authority to authorize an account
        */
       bool           verify_account_authority( const string& name_or_id, const flat_set<public_key_type>& signers )const;
 
@@ -548,11 +623,35 @@ class database_api
        */
       vector<blinded_balance_object> get_blinded_balances( const flat_set<commitment_type>& commitments )const;
 
+      /////////////////
+      // Tournaments //
+      /////////////////
+      /**
+       * @return the list of tournaments in the given state
+       */
+      vector<tournament_object> get_tournaments_in_state(tournament_state state, uint32_t limit) const;
+
+      vector<tournament_object> get_tournaments(tournament_id_type stop  = tournament_id_type(),
+                                                unsigned limit = 100,
+                                                tournament_id_type start = tournament_id_type());
+
+      vector<tournament_object> get_tournaments_by_state(tournament_id_type stop  = tournament_id_type(),
+                                                         unsigned limit = 100,
+                                                         tournament_id_type start = tournament_id_type(),
+                                                         tournament_state state = tournament_state::accepting_registrations);
+
+      /**
+       * @return the list of tournaments that a given account is registered to play in
+       */
+      vector<tournament_id_type> get_registered_tournaments(account_id_type account_filter, uint32_t limit) const;
+
    private:
       std::shared_ptr< database_api_impl > my;
 };
 
 } }
+
+FC_REFLECT( graphene::app::order, (price)(quote)(base) );
 FC_REFLECT( graphene::app::order_book, (base)(quote)(bids)(asks) );
 FC_REFLECT( graphene::app::market_ticker, (base)(quote)(latest)(lowest_ask)(highest_bid)(percent_change)(base_volume)(quote_volume) );
 FC_REFLECT( graphene::app::market_volume, (base)(quote)(base_volume)(quote_volume) );
@@ -570,6 +669,7 @@ FC_API(graphene::app::database_api,
 
    // Blocks and transactions
    (get_block_header)
+   (get_block_header_batch)
    (get_block)
    (get_transaction)
    (get_recent_transaction_by_id)
@@ -583,6 +683,7 @@ FC_API(graphene::app::database_api,
 
    // Keys
    (get_key_references)
+   (is_public_key_registered)
 
    // Accounts
    (get_accounts)
@@ -604,6 +705,16 @@ FC_API(graphene::app::database_api,
    (get_assets)
    (list_assets)
    (lookup_asset_symbols)
+
+   // Peerplays
+   (list_sports)
+   (get_global_betting_statistics)
+   (list_event_groups)
+   (list_events_in_group)
+   (list_betting_market_groups)
+   (list_betting_markets)
+   (get_unmatched_bets_for_bettor)
+   (get_all_unmatched_bets_for_bettor)
 
    // Markets / feeds
    (get_order_book)
@@ -648,4 +759,10 @@ FC_API(graphene::app::database_api,
 
    // Blinded balances
    (get_blinded_balances)
+
+   // Tournaments
+   (get_tournaments_in_state)
+   (get_tournaments_by_state)
+   (get_tournaments )
+   (get_registered_tournaments)
 )

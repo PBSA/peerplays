@@ -90,6 +90,12 @@ struct get_impacted_account_visitor
    }
 
    void operator()( const asset_update_bitasset_operation& op ) {}
+   void operator()( const asset_update_dividend_operation& op ) {}
+   void operator()( const asset_dividend_distribution_operation& op ) 
+   {
+      _impacted.insert( op.account_id );
+   }
+
    void operator()( const asset_update_feed_producers_operation& op ) {}
 
    void operator()( const asset_issue_operation& op )
@@ -203,6 +209,72 @@ struct get_impacted_account_visitor
       _impacted.insert( op.account_id );
    }
 
+   void operator()( const sport_create_operation& op ) {}
+   void operator()( const sport_update_operation& op ) {}
+   void operator()( const event_group_create_operation& op ) {}
+   void operator()( const event_group_update_operation& op ) {}
+   void operator()( const event_create_operation& op ) {}
+   void operator()( const event_update_operation& op ) {}
+   void operator()( const event_update_status_operation& op ) {}
+   void operator()( const betting_market_rules_create_operation& op ) {}
+   void operator()( const betting_market_rules_update_operation& op ) {}
+   void operator()( const betting_market_group_create_operation& op ) {}
+   void operator()( const betting_market_group_update_operation& op ) {}
+   void operator()( const betting_market_create_operation& op ) {}
+   void operator()( const betting_market_update_operation& op ) {}
+   void operator()( const betting_market_group_resolve_operation& op ) {}
+   void operator()( const betting_market_group_cancel_unmatched_bets_operation& op ) {}
+
+   void operator()( const bet_place_operation& op )
+   {
+      _impacted.insert( op.bettor_id );
+   }
+   void operator()( const bet_cancel_operation& op )
+   {
+      _impacted.insert( op.bettor_id );
+   }
+   void operator()( const bet_canceled_operation& op )
+   {
+      _impacted.insert( op.bettor_id );
+   }
+   void operator()( const bet_adjusted_operation& op )
+   {
+      _impacted.insert( op.bettor_id );
+   }
+   void operator()( const bet_matched_operation& op )
+   {
+      _impacted.insert( op.bettor_id );
+   }
+   void operator()( const betting_market_group_resolved_operation& op )
+   {
+      _impacted.insert( op.bettor_id );
+   }
+
+   void operator()( const tournament_create_operation& op )
+   {
+      _impacted.insert( op.creator );
+      _impacted.insert( op.options.whitelist.begin(), op.options.whitelist.end() );
+   }
+   void operator()( const tournament_join_operation& op )
+   {
+      _impacted.insert( op.payer_account_id );
+      _impacted.insert( op.player_account_id );
+   }
+   void operator()( const tournament_leave_operation& op )
+   {
+      //if account canceling registration is not the player, it must be the payer
+      if (op.canceling_account_id != op.player_account_id)
+        _impacted.erase( op.canceling_account_id );
+      _impacted.erase( op.player_account_id );
+   }
+   void operator()( const game_move_operation& op )
+   {
+      _impacted.insert( op.player_account_id );
+   }
+   void operator()( const tournament_payout_operation& op )
+   {
+      _impacted.insert( op.payout_account_id );
+   }
 };
 
 void operation_get_impacted_accounts( const operation& op, flat_set<account_id_type>& result )

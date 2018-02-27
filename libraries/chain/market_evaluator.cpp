@@ -35,6 +35,7 @@
 #include <graphene/chain/protocol/market.hpp>
 
 #include <fc/uint128.hpp>
+#include <fc/smart_ref_impl.hpp>
 
 namespace graphene { namespace chain {
 void_result limit_order_create_evaluator::do_evaluate(const limit_order_create_operation& op)
@@ -51,6 +52,11 @@ void_result limit_order_create_evaluator::do_evaluate(const limit_order_create_o
       FC_ASSERT( _sell_asset->options.whitelist_markets.find(_receive_asset->id) != _sell_asset->options.whitelist_markets.end() );
    if( _sell_asset->options.blacklist_markets.size() )
       FC_ASSERT( _sell_asset->options.blacklist_markets.find(_receive_asset->id) == _sell_asset->options.blacklist_markets.end() );
+
+   // $$$ I. DEX Task The Peerplays DEX should only allow UIA and sidechain assets to be paired (traded) with the core token (PPY)
+   FC_ASSERT(_receive_asset->id == asset_id_type() || _sell_asset->id == asset_id_type(),
+              "No asset in the trade is CORE.");
+
 
    FC_ASSERT( is_authorized_asset( d, *_seller, *_sell_asset ) );
    FC_ASSERT( is_authorized_asset( d, *_seller, *_receive_asset ) );

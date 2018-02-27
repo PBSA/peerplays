@@ -27,11 +27,15 @@
 
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/global_property_object.hpp>
+#include <graphene/chain/hardfork.hpp>
 #include <graphene/chain/market_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/transaction_object.hpp>
 #include <graphene/chain/withdraw_permission_object.hpp>
 #include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/tournament_object.hpp>
+#include <graphene/chain/game_object.hpp>
+#include <graphene/chain/betting_market_object.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
@@ -41,32 +45,51 @@ namespace graphene { namespace chain {
 
 void database::update_global_dynamic_data( const signed_block& b )
 {
-   const dynamic_global_property_object& _dgp =
-      dynamic_global_property_id_type(0)(*this);
+   const dynamic_global_property_object& _dgp = dynamic_global_property_id_type(0)(*this);
+   const global_property_object& gpo = get_global_properties();
 
    uint32_t missed_blocks = get_slot_at_time( b.timestamp );
+
+//#define DIRTY_TRICK // problem with missed_blocks can occur when "maintenance_interval" set to few minutes
+#ifdef DIRTY_TRICK
+   if (missed_blocks != 0) {
+#else
    assert( missed_blocks != 0 );
-   missed_blocks--;
-   for( uint32_t i = 0; i < missed_blocks; ++i ) {
-      const auto& witness_missed = get_scheduled_witness( i+1 )(*this);
-      if(  witness_missed.id != b.witness ) {
-         /*
-         const auto& witness_account = witness_missed.witness_account(*this);
-         if( (fc::time_point::now() - b.timestamp) < fc::seconds(30) )
-            wlog( "Witness ${name} missed block ${n} around ${t}", ("name",witness_account.name)("n",b.block_num())("t",b.timestamp) );
-            */
+#endif
+// bad if-condition, this code needs to execute for both shuffled and rng algorithms
+//     if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SHUFFLED_ALGORITHM)
+//     {
+       missed_blocks--;
+       for( uint32_t i = 0; i < missed_blocks; ++i ) {
+          const auto& witness_missed = get_scheduled_witness( i+1 )(*this);
+          if(  witness_missed.id != b.witness ) {
+             /*
+             const auto& witness_account = witness_missed.witness_account(*this);
+             if( (fc::time_point::now() - b.timestamp) < fc::seconds(30) )
+                wlog( "Witness ${name} missed block ${n} around ${t}", ("name",witness_account.name)("n",b.block_num())("t",b.timestamp) );
+                */
 
-         modify( witness_missed, [&]( witness_object& w ) {
-           w.total_missed++;
-         });
-      } 
+             modify( witness_missed, [&]( witness_object& w ) {
+               w.total_missed++;
+             });
+          }
+       }
+//   }
+#ifdef DIRTY_TRICK
    }
-
+#endif
    // dynamic global properties updating
    modify( _dgp, [&]( dynamic_global_property_object& dgp ){
+      secret_hash_type::encoder enc;       
+      fc::raw::pack( enc, dgp.random );       
+      fc::raw::pack( enc, b.previous_secret );        
+      dgp.random = enc.result();
+
+      _random_number_generator = fc::hash_ctr_rng<secret_hash_type, 20>(dgp.random.data());
+
       if( BOOST_UNLIKELY( b.block_num() == 1 ) )
          dgp.recently_missed_count = 0;
-         else if( _checkpoints.size() && _checkpoints.rbegin()->first >= b.block_num() )
+      else if( _checkpoints.size() && _checkpoints.rbegin()->first >= b.block_num() )
          dgp.recently_missed_count = 0;
       else if( missed_blocks )
          dgp.recently_missed_count += GRAPHENE_RECENTLY_MISSED_COUNT_INCREMENT*missed_blocks;
@@ -117,6 +140,8 @@ void database::update_signing_witness(const witness_object& signing_witness, con
    {
       _wit.last_aslot = new_block_aslot;
       _wit.last_confirmed_block_num = new_block.block_num();
+      _wit.previous_secret = new_block.previous_secret;
+      _wit.next_secret_hash = new_block.next_secret_hash;
    } );
 }
 
@@ -154,15 +179,60 @@ void database::update_last_irreversible_block()
       } );
    }
 }
-
 void database::clear_expired_transactions()
 { try {
    //Look for expired transactions in the deduplication list, and remove them.
    //Transactions must have expired by at least two forking windows in order to be removed.
    auto& transaction_idx = static_cast<transaction_index&>(get_mutable_index(implementation_ids, impl_transaction_object_type));
    const auto& dedupe_index = transaction_idx.indices().get<by_expiration>();
-   while( (!dedupe_index.empty()) && (head_block_time() > dedupe_index.rbegin()->trx.expiration) )
-      transaction_idx.remove(*dedupe_index.rbegin());
+   while( (!dedupe_index.empty()) && (head_block_time() > dedupe_index.begin()->trx.expiration) )
+      transaction_idx.remove(*dedupe_index.begin());
+} FC_CAPTURE_AND_RETHROW() }
+
+void database::place_delayed_bets()
+{ try {
+   // If any bets have been placed during live betting where bets are delayed for a few seconds, see if there are
+   // any bets whose delays have expired.
+
+   // Delayed bets are sorted to the beginning of the order book, so if there are any bets that need placing, 
+   // they're right at the front of the book
+   const auto& bet_odds_idx = get_index_type<bet_object_index>().indices().get<by_odds>();
+   auto iter = bet_odds_idx.begin();
+
+   // we use an awkward looping mechanism here because there's a case where we are processing the
+   // last delayed bet before the "real" order book starts and `iter` was pointing at the first 
+   // real order.  The place_bet() call can cause the that real order to be deleted, so we need
+   // to decide whether this is the last delayed bet before `place_bet` is called.
+   bool last = iter == bet_odds_idx.end() || 
+               !iter->end_of_delay ||
+               *iter->end_of_delay > head_block_time();
+   while (!last)
+   {
+      const bet_object& bet_to_place = *iter;
+      ++iter;
+
+      last = iter == bet_odds_idx.end() || 
+             !iter->end_of_delay ||
+             *iter->end_of_delay > head_block_time();
+
+      // it's possible that the betting market was active when the bet was placed,
+      // but has been frozen before the delay expired.  If that's the case here,
+      // don't try to match the bet.
+      // Since this check happens every block, this could impact performance if a
+      // market with many delayed bets is frozen for a long time.
+      // Our current understanding is that the witnesses will typically cancel all unmatched
+      // bets on frozen markets to avoid this.
+      const betting_market_object& betting_market = bet_to_place.betting_market_id(*this);
+      if (betting_market.get_status() == betting_market_status::unresolved)
+      {
+         modify(bet_to_place, [](bet_object& bet_obj) {
+            // clear the end_of_delay,  which will re-sort the bet into its place in the book
+            bet_obj.end_of_delay.reset();
+         });
+
+         place_bet(bet_to_place);
+      }
+   }
 } FC_CAPTURE_AND_RETHROW() }
 
 void database::clear_expired_proposals()
@@ -434,7 +504,12 @@ void database::update_expired_feeds()
       assert( a.is_market_issued() );
 
       const asset_bitasset_data_object& b = a.bitasset_data(*this);
-      if( b.feed_is_expired(head_block_time()) )
+      bool feed_is_expired;
+      if( head_block_time() < HARDFORK_615_TIME )
+         feed_is_expired = b.feed_is_expired_before_hardfork_615( head_block_time() );
+      else
+         feed_is_expired = b.feed_is_expired( head_block_time() );
+      if( feed_is_expired )
       {
          modify(b, [this](asset_bitasset_data_object& a) {
             a.update_median_feeds(head_block_time());
@@ -466,6 +541,142 @@ void database::update_withdraw_permissions()
    auto& permit_index = get_index_type<withdraw_permission_index>().indices().get<by_expiration>();
    while( !permit_index.empty() && permit_index.begin()->expiration <= head_block_time() )
       remove(*permit_index.begin());
+}
+
+uint64_t database::get_random_bits( uint64_t bound )
+{
+   return _random_number_generator(bound);
+}
+
+void process_finished_games(database& db)
+{
+   //auto& games_index = db.get_index_type<game_index>().indices().get<by_id>();
+}
+
+void process_finished_matches(database& db)
+{
+}
+
+void process_in_progress_tournaments(database& db)
+{
+   auto& start_time_index = db.get_index_type<tournament_index>().indices().get<by_start_time>();
+   auto start_iter = start_time_index.lower_bound(boost::make_tuple(tournament_state::in_progress));
+   while (start_iter != start_time_index.end() &&
+          start_iter->get_state() == tournament_state::in_progress)
+   {
+      auto next_iter = std::next(start_iter);
+      start_iter->check_for_new_matches_to_start(db);
+      start_iter = next_iter;
+   }
+}
+
+void cancel_expired_tournaments(database& db)
+{
+   // First, cancel any tournaments that didn't get enough players
+   auto& registration_deadline_index = db.get_index_type<tournament_index>().indices().get<by_registration_deadline>();
+   // this index is sorted on state and deadline, so the tournaments awaiting registrations with the earliest
+   // deadlines will be at the beginning
+   while (!registration_deadline_index.empty() &&
+          registration_deadline_index.begin()->get_state() == tournament_state::accepting_registrations &&
+          registration_deadline_index.begin()->options.registration_deadline <= db.head_block_time())
+   {
+      const tournament_object& tournament_obj = *registration_deadline_index.begin();
+      fc_ilog(fc::logger::get("tournament"),
+              "Canceling tournament ${id} because its deadline expired",
+              ("id", tournament_obj.id));
+      // cancel this tournament
+      db.modify(tournament_obj, [&](tournament_object& t) {
+         t.on_registration_deadline_passed(db);
+      });
+   }
+}
+
+void start_fully_registered_tournaments(database& db)
+{
+   // Next, start any tournaments that have enough players and whose start time just arrived
+   auto& start_time_index = db.get_index_type<tournament_index>().indices().get<by_start_time>();
+   while (1)
+   {
+      // find the first tournament waiting to start; if its start time has arrived, start it
+      auto start_iter = start_time_index.lower_bound(boost::make_tuple(tournament_state::awaiting_start));
+      if (start_iter != start_time_index.end() &&
+          start_iter->get_state() == tournament_state::awaiting_start && 
+          *start_iter->start_time <= db.head_block_time())
+      {
+         db.modify(*start_iter, [&](tournament_object& t) {
+            t.on_start_time_arrived(db);
+         });
+      }
+      else
+         break;
+   }
+}
+
+void initiate_next_round_of_matches(database& db)
+{
+}
+
+void initiate_next_games(database& db)
+{
+   // Next, trigger timeouts on any games which have been waiting too long for commit or
+   // reveal moves
+   auto& next_timeout_index = db.get_index_type<game_index>().indices().get<by_next_timeout>();
+   while (1)
+   {
+      // empty time_points are sorted to the beginning, so upper_bound takes us to the first 
+      // non-empty time_point
+      auto start_iter = next_timeout_index.upper_bound(boost::make_tuple(optional<time_point_sec>()));
+      if (start_iter != next_timeout_index.end() &&
+          *start_iter->next_timeout <= db.head_block_time())
+      {
+         db.modify(*start_iter, [&](game_object& game) {
+            game.on_timeout(db);
+         });
+      }
+      else
+         break;
+   }
+}
+
+void database::update_tournaments()
+{
+   // Process as follows:
+   // - Process games
+   // - Process matches
+   // - Process tournaments
+   // - Process matches
+   // - Process games
+   process_finished_games(*this);
+   process_finished_matches(*this);
+   cancel_expired_tournaments(*this);
+   start_fully_registered_tournaments(*this);
+   process_in_progress_tournaments(*this);
+   initiate_next_round_of_matches(*this);
+   initiate_next_games(*this);
+}
+
+void process_settled_betting_markets(database& db, fc::time_point_sec current_block_time)
+{
+   // after a betting market is graded, it goes through a delay period in which it
+   // can be flagged for re-grading.  If it isn't flagged during this interval, 
+   // it is automatically settled (paid).  Process these now.
+   const auto& betting_market_group_index = db.get_index_type<betting_market_group_object_index>().indices().get<by_settling_time>();
+
+   // this index will be sorted with all bmgs with no settling time set first, followed by 
+   // ones with the settling time set by increasing time.  Start at the first bmg with a time set
+   auto betting_market_group_iter = betting_market_group_index.upper_bound(fc::optional<fc::time_point_sec>());
+   while (betting_market_group_iter != betting_market_group_index.end() && 
+          *betting_market_group_iter->settling_time <= current_block_time)
+   {
+      auto next_iter = std::next(betting_market_group_iter);
+      db.settle_betting_market_group(*betting_market_group_iter);
+      betting_market_group_iter = next_iter;
+   }
+}
+
+void database::update_betting_markets(fc::time_point_sec current_block_time)
+{
+   process_settled_betting_markets(*this, current_block_time);
 }
 
 } }

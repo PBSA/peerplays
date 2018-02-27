@@ -132,6 +132,9 @@ namespace graphene { namespace chain {
 
          optional<account_id_type> buyback_account;
 
+         /// Extra data associated with dividend-paying assets.
+         optional<asset_dividend_data_id_type> dividend_data_id;
+
          asset_id_type get_id()const { return id; }
 
          void validate()const
@@ -147,6 +150,10 @@ namespace graphene { namespace chain {
          template<class DB>
          const asset_bitasset_data_object& bitasset_data(const DB& db)const
          { assert(bitasset_data_id); return db.get(*bitasset_data_id); }
+
+         template<class DB>
+         const asset_dividend_data_object& dividend_data(const DB& db)const
+         { assert(dividend_data_id); return db.get(*dividend_data_id); }
 
          template<class DB>
          const asset_dynamic_data_object& dynamic_data(const DB& db)const
@@ -211,8 +218,10 @@ namespace graphene { namespace chain {
 
          time_point_sec feed_expiration_time()const
          { return current_feed_publication_time + options.feed_lifetime_sec; }
-         bool feed_is_expired(time_point_sec current_time)const
+         bool feed_is_expired_before_hardfork_615(time_point_sec current_time)const
          { return feed_expiration_time() >= current_time; }
+         bool feed_is_expired(time_point_sec current_time)const
+         { return feed_expiration_time() <= current_time; }
          void update_median_feeds(time_point_sec current_time);
    };
 
@@ -226,15 +235,18 @@ namespace graphene { namespace chain {
          >
       >
    > asset_bitasset_data_object_multi_index_type;
-   typedef flat_index<asset_bitasset_data_object> asset_bitasset_data_index;
+   //typedef flat_index<asset_bitasset_data_object> asset_bitasset_data_index;
+   typedef generic_index<asset_bitasset_data_object, asset_bitasset_data_object_multi_index_type> asset_bitasset_data_index;
 
    struct by_symbol;
    struct by_type;
+   struct by_issuer;
    typedef multi_index_container<
       asset_object,
       indexed_by<
          ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
          ordered_unique< tag<by_symbol>, member<asset_object, string, &asset_object::symbol> >,
+         ordered_non_unique< tag<by_issuer>, member<asset_object, account_id_type, &asset_object::issuer > >,
          ordered_unique< tag<by_type>,
             composite_key< asset_object,
                 const_mem_fun<asset_object, bool, &asset_object::is_market_issued>,
@@ -244,6 +256,84 @@ namespace graphene { namespace chain {
       >
    > asset_object_multi_index_type;
    typedef generic_index<asset_object, asset_object_multi_index_type> asset_index;
+
+   /**
+    *  @brief contains properties that only apply to dividend-paying assets
+    *
+    *  @ingroup object
+    *  @ingroup implementation
+    */
+   class asset_dividend_data_object : public abstract_object<asset_dividend_data_object>
+   {
+      public:
+         static const uint8_t space_id = implementation_ids;
+         static const uint8_t type_id  = impl_asset_dividend_data_type;
+
+         /// The tunable options for Dividend-paying assets are stored in this field.
+         dividend_asset_options options;
+
+         /// The time payouts on this asset were scheduled to be processed last
+         /// This field is reset any time the dividend_asset_options are updated
+         fc::optional<time_point_sec> last_scheduled_payout_time;
+
+         /// The time payouts on this asset were last processed 
+         /// (this should be the maintenance interval at or after last_scheduled_payout_time)
+         /// This can be displayed for the user
+         fc::optional<time_point_sec> last_payout_time;
+
+         /// The time pending payouts on this asset were last computed, used for
+         /// correctly computing the next pending payout time.
+         /// This field is reset any time the dividend_asset_options are updated
+         fc::optional<time_point_sec> last_scheduled_distribution_time;
+
+         /// The time pending payouts on this asset were last computed.
+         /// (this should be the maintenance interval at or after last_scheduled_distribution_time)
+         /// This can be displayed for the user
+         fc::optional<time_point_sec> last_distribution_time;
+
+         /// The account which collects pending payouts
+         account_id_type dividend_distribution_account;
+   };
+   typedef multi_index_container<
+      asset_dividend_data_object,
+      indexed_by<
+         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >
+      >
+   > asset_dividend_data_object_multi_index_type;
+   typedef generic_index<asset_dividend_data_object, asset_dividend_data_object_multi_index_type> asset_dividend_data_object_index;
+
+
+   // This tracks the balances in a dividend distribution account at the last time 
+   // pending dividend payouts were calculated (last maintenance interval).
+   // At each maintenance interval, we will compare the current balance to the
+   // balance stored here to see how much was deposited during that interval.
+   class total_distributed_dividend_balance_object : public abstract_object<total_distributed_dividend_balance_object>
+   {
+      public:
+         static const uint8_t space_id = implementation_ids;
+         static const uint8_t type_id  = impl_distributed_dividend_balance_data_type;
+
+         asset_id_type dividend_holder_asset_type;
+         asset_id_type dividend_payout_asset_type;
+         share_type    balance_at_last_maintenance_interval;
+   };
+   struct by_dividend_payout_asset{};
+   typedef multi_index_container<
+      total_distributed_dividend_balance_object,
+      indexed_by<
+         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
+         ordered_unique< tag<by_dividend_payout_asset>,
+            composite_key<
+               total_distributed_dividend_balance_object,
+               member<total_distributed_dividend_balance_object, asset_id_type, &total_distributed_dividend_balance_object::dividend_holder_asset_type>,
+               member<total_distributed_dividend_balance_object, asset_id_type, &total_distributed_dividend_balance_object::dividend_payout_asset_type>
+            >
+         >
+      >
+   > total_distributed_dividend_balance_object_multi_index_type;
+   typedef generic_index<total_distributed_dividend_balance_object, total_distributed_dividend_balance_object_multi_index_type> total_distributed_dividend_balance_object_index;
+   
+
 
 } } // graphene::chain
 
@@ -260,6 +350,21 @@ FC_REFLECT_DERIVED( graphene::chain::asset_bitasset_data_object, (graphene::db::
                     (settlement_price)
                     (settlement_fund)
                   )
+   
+FC_REFLECT_DERIVED( graphene::chain::asset_dividend_data_object, (graphene::db::object),
+                    (options)
+                    (last_scheduled_payout_time)                      
+                    (last_payout_time )
+                    (last_scheduled_distribution_time)
+                    (last_distribution_time)
+                    (dividend_distribution_account)
+                  )
+
+FC_REFLECT_DERIVED( graphene::chain::total_distributed_dividend_balance_object, (graphene::db::object),
+                    (dividend_holder_asset_type)
+                    (dividend_payout_asset_type)
+                    (balance_at_last_maintenance_interval)
+                  )
 
 FC_REFLECT_DERIVED( graphene::chain::asset_object, (graphene::db::object),
                     (symbol)
@@ -269,4 +374,5 @@ FC_REFLECT_DERIVED( graphene::chain::asset_object, (graphene::db::object),
                     (dynamic_asset_data_id)
                     (bitasset_data_id)
                     (buyback_account)
+                    (dividend_data_id)
                   )

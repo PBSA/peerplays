@@ -29,6 +29,7 @@
 using namespace graphene::app;
 using namespace graphene::chain;
 using namespace graphene::utilities;
+using namespace graphene::bookie;
 using namespace std;
 
 namespace fc
@@ -191,6 +192,8 @@ struct wallet_data
    key_label_index_type                                              labeled_keys;
    blind_receipt_index_type                                          blind_receipts;
 
+   std::map<rock_paper_scissors_throw_commit, rock_paper_scissors_throw_reveal> committed_game_moves;
+
    string                    ws_server = "ws://localhost:8090";
    string                    ws_user;
    string                    ws_password;
@@ -257,6 +260,26 @@ struct vesting_balance_object_with_info : public vesting_balance_object
 namespace detail {
 class wallet_api_impl;
 }
+
+/***
+ * A utility class for performing various state-less actions that are related to wallets
+ */
+class utility {
+   public:
+      /**
+       * Derive any number of *possible* owner keys from a given brain key.
+       *
+       * NOTE: These keys may or may not match with the owner keys of any account.
+       * This function is merely intended to assist with account or key recovery.
+       *
+       * @see suggest_brain_key()
+       *
+       * @param brain_key    Brain key
+       * @param number_of_desired_keys  Number of desired keys
+       * @return A list of keys that are deterministically derived from the brainkey
+       */
+      static vector<brain_key_info> derive_owner_keys_from_brain_key(string brain_key, int number_of_desired_keys = 1);
+};
 
 struct operation_detail {
    string                   memo;
@@ -330,16 +353,25 @@ class wallet_api
        *
        * This returns a list of operation history objects, which describe activity on the account.
        *
-       * @note this API doesn't give a way to retrieve more than the most recent 100 transactions,
-       *       you can interface directly with the blockchain to get more history
        * @param name the name or id of the account
-       * @param limit the number of entries to return (starting from the most recent) (max 100)
+       * @param limit the number of entries to return (starting from the most recent)
        * @returns a list of \c operation_history_objects
        */
       vector<operation_detail>  get_account_history(string name, int limit)const;
 
+      /** Returns the relative operations on the named account from start number.
+       *
+       * @param name the name or id of the account
+       * @param stop Sequence number of earliest operation.
+       * @param limit the number of entries to return
+       * @param start  the sequence number where to start looping back throw the history
+       * @returns a list of \c operation_history_objects
+       */
+      vector<operation_detail>  get_relative_account_history(string name, uint32_t stop, int limit, uint32_t start)const;
 
-      vector<bucket_object>             get_market_history(string symbol, string symbol2, uint32_t bucket)const;
+      vector<account_balance_object> list_core_accounts()const;
+
+      vector<bucket_object>             get_market_history(string symbol, string symbol2, uint32_t bucket, fc::time_point_sec start, fc::time_point_sec end)const;
       vector<limit_order_object>        get_limit_orders(string a, string b, uint32_t limit)const;
       vector<call_order_object>         get_call_orders(string a, uint32_t limit)const;
       vector<force_settlement_object>   get_settle_orders(string a, uint32_t limit)const;
@@ -578,14 +610,39 @@ class wallet_api
        */
       brain_key_info suggest_brain_key()const;
 
+     /**
+      * Derive any number of *possible* owner keys from a given brain key.
+      *
+      * NOTE: These keys may or may not match with the owner keys of any account.
+      * This function is merely intended to assist with account or key recovery.
+      *
+      * @see suggest_brain_key()
+      *
+      * @param brain_key    Brain key
+      * @param numberOfDesiredKeys  Number of desired keys
+      * @return A list of keys that are deterministically derived from the brainkey
+      */
+     vector<brain_key_info> derive_owner_keys_from_brain_key(string brain_key, int number_of_desired_keys = 1) const;
+
+     /**
+      * Determine whether a textual representation of a public key
+      * (in Base-58 format) is *currently* linked
+      * to any *registered* (i.e. non-stealth) account on the blockchain
+      * @param public_key Public key
+      * @return Whether a public key is known
+      */
+     bool is_public_key_registered(string public_key) const;
+      /**
+       *  @param role - active | owner | memo
+       */
+      pair<public_key_type,string>  get_private_key_from_password( string account, string role, string password )const;
+
       /** Converts a signed_transaction in JSON form to its binary representation.
        *
        * TODO: I don't see a broadcast_transaction() function, do we need one?
        *
        * @param tx the transaction to serialize
-       * @returns the binary form of the transaction.  It will not be hex encoded, 
-       *          this returns a raw string that may have null characters embedded 
-       *          in it
+       * @returns the be hex encoded form of the serialized transaction
        */
       string serialize_transaction(signed_transaction tx) const;
 
@@ -851,6 +908,51 @@ class wallet_api
                                     uint32_t timeout_sec = 0,
                                     bool     fill_or_kill = false,
                                     bool     broadcast = false);
+                                    
+      /** Place a limit order attempting to sell one asset for another.
+       * 
+       * This API call abstracts away some of the details of the sell_asset call to be more
+       * user friendly. All orders placed with sell never timeout and will not be killed if they
+       * cannot be filled immediately. If you wish for one of these parameters to be different, 
+       * then sell_asset should be used instead.
+       *
+       * @param seller_account the account providing the asset being sold, and which will
+       *                       receive the processed of the sale.
+       * @param base The name or id of the asset to sell.
+       * @param quote The name or id of the asset to recieve.
+       * @param rate The rate in base:quote at which you want to sell.
+       * @param amount The amount of base you want to sell.
+       * @param broadcast true to broadcast the transaction on the network.
+       * @returns The signed transaction selling the funds.                 
+       */
+      signed_transaction sell( string seller_account,
+                               string base,
+                               string quote,
+                               double rate,
+                               double amount,
+                               bool broadcast );
+                               
+      /** Place a limit order attempting to buy one asset with another.
+       *
+       * This API call abstracts away some of the details of the sell_asset call to be more
+       * user friendly. All orders placed with buy never timeout and will not be killed if they
+       * cannot be filled immediately. If you wish for one of these parameters to be different,
+       * then sell_asset should be used instead.
+       *
+       * @param buyer_account The account buying the asset for another asset.
+       * @param base The name or id of the asset to buy.
+       * @param quote The name or id of the assest being offered as payment.
+       * @param rate The rate in base:quote at which you want to buy.
+       * @param amount the amount of base you want to buy.
+       * @param broadcast true to broadcast the transaction on the network.
+       * @param The signed transaction selling the funds.
+       */
+      signed_transaction buy( string buyer_account,
+                              string base,
+                              string quote,
+                              double rate,
+                              double amount,
+                              bool broadcast );
 
       /** Borrow an asset or update the debt/collateral ratio for the loan.
        *
@@ -957,6 +1059,21 @@ class wallet_api
       signed_transaction update_bitasset(string symbol,
                                          bitasset_options new_options,
                                          bool broadcast = false);
+
+
+      /** Update the given asset's dividend asset options.
+       *
+       * If the asset is not already a dividend-paying asset, it will be converted into one.
+       *
+       * @param symbol the name or id of the asset to update, which must be a market-issued asset
+       * @param new_options the new dividend_asset_options object, which will entirely replace the existing
+       *                    options.
+       * @param broadcast true to broadcast the transaction on the network
+       * @returns the signed transaction updating the asset
+       */
+      signed_transaction update_dividend_asset(string symbol,
+                                               dividend_asset_options new_options,
+                                               bool broadcast = false);
 
       /** Update the set of feed-producing accounts for a BitAsset.
        *
@@ -1282,6 +1399,38 @@ class wallet_api
                                           bool approve,
                                           bool broadcast = false);
 
+      /** Change your witness votes.
+       *
+       * An account can publish a list of all witnesses they approve of.  
+       * Each account's vote is weighted according to the number of shares of the
+       * core asset owned by that account at the time the votes are tallied.
+       * This command allows you to add or remove one or more witnesses from this list 
+       * in one call.  When you are changing your vote on several witnesses, this
+       * may be easier than multiple `vote_for_witness` and 
+       * `set_desired_witness_and_committee_member_count` calls.
+       *
+       * @note you cannot vote against a witness, you can only vote for the witness
+       *       or not vote for the witness.
+       *
+       * @param voting_account the name or id of the account who is voting with their shares
+       * @param witnesses_to_approve the names or ids of the witnesses owner accounts you wish
+       *                             to approve (these will be added to the list of witnesses
+       *                             you currently approve).  This list can be empty.
+       * @param witnesses_to_reject the names or ids of the witnesses owner accounts you wish
+       *                            to reject (these will be removed fromthe list of witnesses
+       *                            you currently approve).  This list can be empty.
+       * @param desired_number_of_witnesses the number of witnesses you believe the network
+       *                                    should have.  You must vote for at least this many
+       *                                    witnesses.  You can set this to 0 to abstain from 
+       *                                    voting on the number of witnesses.
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed transaction changing your vote for the given witnesses
+       */
+      signed_transaction update_witness_votes(string voting_account,
+                                              std::vector<std::string> witnesses_to_approve,
+                                              std::vector<std::string> witnesses_to_reject,
+                                              uint16_t desired_number_of_witnesses,
+                                              bool broadcast = false);
       /** Set the voting proxy for an account.
        *
        * If a user does not wish to take an active part in voting, they can choose
@@ -1389,6 +1538,20 @@ class wallet_api
          const variant_object& changed_values,
          bool broadcast = false);
 
+      /** Propose a dividend asset update.
+       *
+       * @param proposing_account The account paying the fee to propose the tx
+       * @param expiration_time Timestamp specifying when the proposal will either take effect or expire.
+       * @param changed_values dividend asset parameters to update
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed version of the transaction
+       */
+      signed_transaction propose_dividend_asset_update(
+         const string& proposing_account,
+         fc::time_point_sec expiration_time,
+         const variant_object& changed_values,
+         bool broadcast = false);
+
       /** Approve or disapprove a proposal.
        *
        * @param fee_paying_account The account paying the fee for the op.
@@ -1403,9 +1566,229 @@ class wallet_api
          const approval_delta& delta,
          bool broadcast /* = false */
          );
+         
+      order_book get_order_book( const string& base, const string& quote, unsigned limit = 50);
+
+      asset get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id);
+      std::vector<event_object> get_events_containing_sub_string(const std::string& sub_string, const std::string& language);
+
+      /** Get an order book for a betting market, with orders aggregated into bins with similar
+       * odds
+       *
+       * @param betting_market_id the betting market
+       * @param precision the number of digits of precision for binning
+       */
+      binned_order_book get_binned_order_book(graphene::chain::betting_market_id_type betting_market_id, int32_t precision);
+
+      std::vector<matched_bet_object> get_matched_bets_for_bettor(account_id_type bettor_id) const;
+
+      std::vector<matched_bet_object> get_all_matched_bets_for_bettor(account_id_type bettor_id, bet_id_type start = bet_id_type(), unsigned limit = 1000) const;
+
+      vector<sport_object> list_sports() const;
+      vector<event_group_object> list_event_groups(sport_id_type sport_id) const;
+      vector<betting_market_group_object> list_betting_market_groups(event_id_type event_id) const;
+      vector<betting_market_object> list_betting_markets(betting_market_group_id_type betting_market_group_id) const;
+      global_betting_statistics_object get_global_betting_statistics() const;
+      vector<event_object> list_events_in_group(event_group_id_type event_group_id) const;
+      vector<bet_object> get_unmatched_bets_for_bettor(betting_market_id_type betting_market_id, account_id_type account_id) const;
+      vector<bet_object> get_all_unmatched_bets_for_bettor(account_id_type account_id) const;
+
+      signed_transaction propose_create_sport(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              internationalized_string_type name,
+              bool broadcast = false);
+
+      signed_transaction propose_update_sport(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              sport_id_type sport_id,
+              fc::optional<internationalized_string_type> name,
+              bool broadcast = false);
+
+      signed_transaction propose_create_event_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              internationalized_string_type name,
+              sport_id_type sport_id,
+              bool broadcast = false);
+
+      signed_transaction propose_update_event_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              event_group_id_type event_group,
+              fc::optional<object_id_type> sport_id,
+              fc::optional<internationalized_string_type> name,
+              bool broadcast = false);
+
+      signed_transaction propose_create_event(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              internationalized_string_type name,
+              internationalized_string_type season,
+              fc::optional<time_point_sec> start_time,
+              event_group_id_type event_group_id,
+              bool broadcast = false);
+
+      signed_transaction propose_update_event(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              event_id_type event_id,
+              fc::optional<object_id_type> event_group_id,
+              fc::optional<internationalized_string_type> name,
+              fc::optional<internationalized_string_type> season,
+              fc::optional<event_status> status,
+              fc::optional<time_point_sec> start_time,
+              bool broadcast = false);
+
+      signed_transaction propose_create_betting_market_rules(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              internationalized_string_type name,
+              internationalized_string_type description,
+              bool broadcast = false);
+
+      signed_transaction propose_update_betting_market_rules(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              betting_market_rules_id_type rules_id,
+              fc::optional<internationalized_string_type> name,
+              fc::optional<internationalized_string_type> description,
+              bool broadcast = false);
+
+      signed_transaction propose_create_betting_market_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              internationalized_string_type description,
+              event_id_type event_id,
+              betting_market_rules_id_type rules_id,
+              asset_id_type asset_id,
+              bool broadcast = false);
+
+      signed_transaction propose_update_betting_market_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              betting_market_group_id_type betting_market_group_id,
+              fc::optional<internationalized_string_type> description,
+              fc::optional<object_id_type> rules_id,
+              fc::optional<betting_market_group_status> status,
+              bool broadcast = false);
+
+      signed_transaction propose_create_betting_market(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              betting_market_group_id_type group_id,
+              internationalized_string_type description,
+              internationalized_string_type payout_condition,
+              bool broadcast = false);
+
+      signed_transaction propose_update_betting_market(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              betting_market_id_type market_id,
+              fc::optional<object_id_type> group_id,
+              fc::optional<internationalized_string_type> description,
+              fc::optional<internationalized_string_type> payout_condition,
+              bool broadcast = false);
+
+      /** Place a bet  
+       * @param bettor the account placing the bet
+       * @param betting_market_id the market on which to bet
+       * @param back_or_lay back or lay
+       * @param amount the amount to bet
+       * @param asset_symbol the asset to bet with (must be the same as required by the betting market group)
+       * @param backer_multiplier the odds (use 2.0 for a 1:1 bet)
+       * @param broadcast true to broadcast the transaction
+       */
+      signed_transaction place_bet(string bettor,
+                                   betting_market_id_type betting_market_id,
+                                   bet_type back_or_lay,
+                                   string amount,
+                                   string asset_symbol,
+                                   double backer_multiplier,
+                                   bool broadcast = false);
+
+      signed_transaction cancel_bet(string betting_account,
+                                                bet_id_type bet_id,
+                                                bool broadcast = false);
+
+      signed_transaction propose_resolve_betting_market_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              betting_market_group_id_type betting_market_group_id,
+              const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions,
+              bool broadcast = false);
+
+      signed_transaction propose_cancel_betting_market_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              betting_market_group_id_type betting_market_group_id,
+              bool broadcast = false);
+
+      /** Creates a new tournament
+       * @param creator the accout that is paying the fee to create the tournament
+       * @param options the options detailing the specifics of the tournament
+       * @return the signed version of the transaction
+       */
+      signed_transaction tournament_create( string creator, tournament_options options, bool broadcast = false );
+
+      /** Join an existing tournament
+       * @param payer_account the account that is paying the buy-in and the fee to join the tournament
+       * @param player_account the account that will be playing in the tournament
+       * @param buy_in_amount buy_in to pay
+       * @param buy_in_asset_symbol buy_in asset
+       * @param tournament_id the tournament the user wishes to join
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed version of the transaction
+       */
+      signed_transaction tournament_join( string payer_account, string player_account, tournament_id_type tournament_id, string buy_in_amount, string buy_in_asset_symbol, bool broadcast = false );
+
+      /** Leave an existing tournament
+       * @param payer_account the account that is paying the fee
+       * @param player_account the account that would be playing in the tournament
+       * @param tournament_id the tournament the user wishes to leave
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed version of the transaction
+       */
+      signed_transaction tournament_leave(string payer_account, string player_account, tournament_id_type tournament_id, bool broadcast = false);
+
+      /** Get a list of upcoming tournaments
+       * @param limit the number of tournaments to return
+       */
+      vector<tournament_object> get_upcoming_tournaments(uint32_t limit);
+
+      vector<tournament_object> get_tournaments(tournament_id_type stop,
+                                                unsigned limit,
+                                                tournament_id_type start);
+
+      vector<tournament_object> get_tournaments_by_state(tournament_id_type stop,
+                                                         unsigned limit,
+                                                         tournament_id_type start,
+                                                         tournament_state state);
+
+      /** Get specific information about a tournament
+       * @param tournament_id the ID of the tournament 
+       */
+      tournament_object get_tournament(tournament_id_type id);
+
+      /** Play a move in the rock-paper-scissors game
+       * @param game_id the id of the game
+       * @param player_account the name of the player
+       * @param gesture rock, paper, or scissors
+       * @return the signed version of the transaction
+       */
+      signed_transaction rps_throw(game_id_type game_id,
+                                   string player_account,
+                                   rock_paper_scissors_gesture gesture,
+                                   bool broadcast);
 
       void dbg_make_uia(string creator, string symbol);
       void dbg_make_mia(string creator, string symbol);
+      void dbg_push_blocks( std::string src_filename, uint32_t count );
+      void dbg_generate_blocks( std::string debug_wif_key, uint32_t count );
+      void dbg_stream_json_objects( const std::string& filename );
+      void dbg_update_object( fc::variant_object update );
+
       void flood_network(string prefix, uint32_t number_of_transactions);
 
       void network_add_nodes( const vector<string>& nodes );
@@ -1446,6 +1829,7 @@ FC_REFLECT( graphene::wallet::wallet_data,
             (pending_account_registrations)(pending_witness_registrations)
             (labeled_keys)
             (blind_receipts)
+            (committed_game_moves)
             (ws_server)
             (ws_user)
             (ws_password)
@@ -1515,10 +1899,14 @@ FC_API( graphene::wallet::wallet_api,
         (import_account_keys)
         (import_balance)
         (suggest_brain_key)
+        (derive_owner_keys_from_brain_key)
+        (get_private_key_from_password)
         (register_account)
         (upgrade_account)
         (create_account_with_brain_key)
         (sell_asset)
+        (sell)
+        (buy)
         (borrow_asset)
         (cancel_order)
         (transfer)
@@ -1527,6 +1915,7 @@ FC_API( graphene::wallet::wallet_api,
         (create_asset)
         (update_asset)
         (update_bitasset)
+        (update_dividend_asset)
         (update_asset_feed_producers)
         (publish_asset_feed)
         (issue_asset)
@@ -1550,6 +1939,7 @@ FC_API( graphene::wallet::wallet_api,
         (withdraw_vesting)
         (vote_for_committee_member)
         (vote_for_witness)
+        (update_witness_votes)
         (set_voting_proxy)
         (set_desired_witness_and_committee_member_count)
         (get_account)
@@ -1557,6 +1947,9 @@ FC_API( graphene::wallet::wallet_api,
         (get_block)
         (get_account_count)
         (get_account_history)
+        (get_relative_account_history)
+        (is_public_key_registered)
+        (list_core_accounts)
         (get_market_history)
         (get_global_properties)
         (get_dynamic_global_properties)
@@ -1573,9 +1966,14 @@ FC_API( graphene::wallet::wallet_api,
         (get_prototype_operation)
         (propose_parameter_change)
         (propose_fee_change)
+        (propose_dividend_asset_update)
         (approve_proposal)
         (dbg_make_uia)
         (dbg_make_mia)
+        (dbg_push_blocks)
+        (dbg_generate_blocks)
+        (dbg_stream_json_objects)
+        (dbg_update_object)
         (flood_network)
         (network_add_nodes)
         (network_get_connected_peers)
@@ -1591,4 +1989,41 @@ FC_API( graphene::wallet::wallet_api,
         (blind_transfer)
         (blind_history)
         (receive_blind_transfer)
+        (list_sports)
+        (list_event_groups)
+        (list_betting_market_groups)
+        (list_betting_markets)
+        (list_events_in_group)
+        (get_unmatched_bets_for_bettor)
+        (get_all_unmatched_bets_for_bettor)
+        (get_global_betting_statistics)
+        (propose_create_sport)
+        (propose_create_event_group)
+        (propose_create_event)
+        (propose_create_betting_market_group)
+        (propose_create_betting_market)
+        (propose_create_betting_market_rules)
+        (propose_update_betting_market_rules)
+        (propose_update_sport)
+        (propose_update_event_group)
+        (propose_update_event)
+        (propose_update_betting_market_group)
+        (propose_update_betting_market)
+        (place_bet)
+        (cancel_bet)
+        (propose_resolve_betting_market_group)
+        (tournament_create)
+        (tournament_join)
+        (tournament_leave)
+        (rps_throw)
+        (get_upcoming_tournaments)
+        (get_tournaments)
+        (get_tournaments_by_state)
+        (get_tournament)
+        (get_order_book)
+        (get_total_matched_bet_amount_for_betting_market_group)
+        (get_events_containing_sub_string)
+        (get_binned_order_book)
+        (get_matched_bets_for_bettor)
+        (get_all_matched_bets_for_bettor)
       )

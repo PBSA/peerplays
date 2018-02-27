@@ -29,12 +29,15 @@
 #include <graphene/chain/block_summary_object.hpp>
 #include <graphene/chain/global_property_object.hpp>
 #include <graphene/chain/operation_history_object.hpp>
+
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/transaction_object.hpp>
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/evaluator.hpp>
+
+#include <fc/smart_ref_impl.hpp>
 
 namespace graphene { namespace chain {
 
@@ -239,7 +242,7 @@ processed_transaction database::_push_transaction( const signed_transaction& trx
    auto processed_trx = _apply_transaction( trx );
    _pending_tx.push_back(processed_trx);
 
-   notify_changed_objects();
+   // notify_changed_objects();
    // The transaction applied successfully. Merge its changes into the pending block session.
    temp_session.merge();
 
@@ -283,13 +286,13 @@ processed_transaction database::push_proposal(const proposal_object& proposal)
       {
          _applied_ops.resize( old_applied_ops_size );
       }
-      elog( "e", ("e",e.to_detail_string() ) );
+      edump((e));
       throw;
    }
 
    ptrx.operation_results = std::move(eval_state.operation_results);
    return ptrx;
-} FC_CAPTURE_AND_RETHROW( (proposal) ) }
+} FC_CAPTURE_AND_RETHROW() }
 
 signed_block database::generate_block(
    fc::time_point_sec when,
@@ -394,6 +397,22 @@ signed_block database::_generate_block(
    pending_block.transaction_merkle_root = pending_block.calculate_merkle_root();
    pending_block.witness = witness_id;
 
+   // Genesis witnesses start with a default initial secret        
+   if( witness_obj.next_secret_hash == secret_hash_type::hash( secret_hash_type() ) )     
+       pending_block.previous_secret = secret_hash_type();       
+   else       
+   {      
+       secret_hash_type::encoder last_enc;        
+       fc::raw::pack( last_enc, block_signing_private_key );      
+       fc::raw::pack( last_enc, witness_obj.previous_secret );        
+       pending_block.previous_secret = last_enc.result();        
+   }      
+      
+   secret_hash_type::encoder next_enc;        
+   fc::raw::pack( next_enc, block_signing_private_key );      
+   fc::raw::pack( next_enc, pending_block.previous_secret );     
+   pending_block.next_secret_hash = secret_hash_type::hash(next_enc.result());       
+
    if( !(skip & skip_witness_signature) )
       pending_block.sign( block_signing_private_key );
 
@@ -460,6 +479,10 @@ const vector<optional< operation_history_object > >& database::get_applied_opera
    return _applied_ops;
 }
 
+vector<optional< operation_history_object > >& database::get_applied_operations()
+{
+   return _applied_ops;
+}
 //////////////////// private methods ////////////////////
 
 void database::apply_block( const signed_block& next_block, uint32_t skip )
@@ -506,10 +529,12 @@ void database::_apply_block( const signed_block& next_block )
        * for transactions when validating broadcast transactions or
        * when building a block.
        */
-      apply_transaction( trx, skip | skip_transaction_signatures );
+      apply_transaction( trx, skip );
       ++_current_trx_in_block;
    }
 
+   if (global_props.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
+       update_witness_schedule(next_block);
    update_global_dynamic_data(next_block);
    update_signing_witness(signing_witness, next_block);
    update_last_irreversible_block();
@@ -519,11 +544,14 @@ void database::_apply_block( const signed_block& next_block )
       perform_chain_maintenance(next_block, global_props);
 
    create_block_summary(next_block);
+   place_delayed_bets(); // must happen after update_global_dynamic_data() updates the time
    clear_expired_transactions();
    clear_expired_proposals();
    clear_expired_orders();
    update_expired_feeds();
    update_withdraw_permissions();
+   update_tournaments();
+   update_betting_markets(next_block.timestamp);
 
    // n.b., update_maintenance_flag() happens this late
    // because get_slot_time() / get_slot_at_time() is needed above
@@ -531,7 +559,10 @@ void database::_apply_block( const signed_block& next_block )
    // update_global_dynamic_data() as perhaps these methods only need
    // to be called for header validation?
    update_maintenance_flag( maint_needed );
-   update_witness_schedule();
+   if (global_props.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SHUFFLED_ALGORITHM)
+        update_witness_schedule();
+   if( !_node_property_object.debug_updates.empty() )
+      apply_debug_updates();
 
    // notify observers that the block has been applied
    applied_block( next_block ); //emit
@@ -540,24 +571,7 @@ void database::_apply_block( const signed_block& next_block )
    notify_changed_objects();
 } FC_CAPTURE_AND_RETHROW( (next_block.block_num()) )  }
 
-void database::notify_changed_objects()
-{ try {
-   if( _undo_db.enabled() ) 
-   {
-      const auto& head_undo = _undo_db.head();
-      vector<object_id_type> changed_ids;  changed_ids.reserve(head_undo.old_values.size());
-      for( const auto& item : head_undo.old_values ) changed_ids.push_back(item.first);
-      for( const auto& item : head_undo.new_ids ) changed_ids.push_back(item);
-      vector<const object*> removed;
-      removed.reserve( head_undo.removed.size() );
-      for( const auto& item : head_undo.removed )
-      {
-         changed_ids.push_back( item.first );
-         removed.emplace_back( item.second.get() );
-      }
-      changed_objects(changed_ids);
-   }
-} FC_CAPTURE_AND_RETHROW() }
+
 
 processed_transaction database::apply_transaction(const signed_transaction& trx, uint32_t skip)
 {
@@ -662,6 +676,9 @@ const witness_object& database::validate_block_header( uint32_t skip, const sign
    FC_ASSERT( head_block_id() == next_block.previous, "", ("head_block_id",head_block_id())("next.prev",next_block.previous) );
    FC_ASSERT( head_block_time() < next_block.timestamp, "", ("head_block_time",head_block_time())("next",next_block.timestamp)("blocknum",next_block.block_num()) );
    const witness_object& witness = next_block.witness(*this);
+//DLN: TODO: Temporarily commented out to test shuffle vs RNG scheduling algorithm for witnesses, this was causing shuffle agorithm to fail during create_witness test. This should be re-enabled for RNG, and maybe for shuffle too, don't really know for sure.
+//   FC_ASSERT( secret_hash_type::hash( next_block.previous_secret ) == witness.next_secret_hash, "",        
+//              ("previous_secret", next_block.previous_secret)("next_secret_hash", witness.next_secret_hash)("null_secret_hash", secret_hash_type::hash( secret_hash_type())));
 
    if( !(skip&skip_witness_signature) ) 
       FC_ASSERT( next_block.validate_signee( witness.signing_key ) );

@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html ng-app="startApp">
+<head>
+    <title>Peerplays Bookie Sandbox</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.7/slate/bootstrap.min.css" rel="stylesheet" integrity="sha384-RpX8okQqCyUNG7PlOYNybyJXYTtGQH+7rIKiVvg1DLg6jahLEk47VvpUyS+E2/uJ" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-notification/0.3.6/angular-ui-notification.css" integrity="sha256-nUDje0at3OX3LxmQBmrtDzK/G4AdRqKBS14DHuwvCPk=" crossorigin="anonymous" />
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.7/angular.min.js"></script>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.7/angular-route.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/big.js/3.1.3/big.min.js" integrity="sha256-db2rMJ0e5hPHK2tpOTcLuoD+hNPwds4hJmXa2tKb9vg=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-notification/0.3.6/angular-ui-notification.js" integrity="sha256-VTliIwXOO5VUVjSukUkAqP3+hSM2U3aLJGtv3xvGOag=" crossorigin="anonymous"></script>
+    <script type="text/javascript">
+      var startApp=angular.module('startApp',['ngRoute', 'ui-notification']);
+
+      startApp.config(['$routeProvider',
+        function($routeProvider) {
+          $routeProvider.
+            when('/page1', {
+              templateUrl: '/page1.html',
+              controller: 'Page1Controller'
+            }).
+            when('/page2', {
+              templateUrl: '/page2.html',
+              controller: 'Page2Controller'
+            }).
+            otherwise({
+              redirectTo: '/page1'
+            });
+        }]);
+
+      startApp.controller('Page1Controller', ['$scope', 'Notification', '$interval', function($scope, Notification, $interval) {
+          let precision = 5;
+          let percentage_fee = new Big(0);//new Big('0.02');
+          let bet_id_sequence = 0;
+
+
+          let stop_on_error = true;
+          let error_count = 0;
+          let stop_on_warning = false;
+          let warning_count = 0;
+
+          let log_warning = (message) => {
+            ++warning_count;
+            Notification.error({message: message, delay: 10000});
+            //console.log("Warning: " + message);
+          };
+          let log_error = (message) => {
+            ++error_count;
+            Notification.error({message: message, delay: 10000});
+            //console.log("Error: " + message);
+          };
+
+
+          class LogEntry {
+            constructor(description) {
+              this.description = description;
+              this.subentries = [];
+            }
+            add_log_message(description) {
+              let newLogEntry = new LogEntry(description);
+              this.subentries.push(newLogEntry);
+              return newLogEntry;
+            }
+          }
+
+          class Position {
+            constructor(account_name, balance, balance_at_last_payout = balance, win = 0, not_win = 0, cancel = 0, not_cancel = 0, fees_paid = 0, refundable_unmatched_bets = 0, unmatched_back_bets = 0, unmatched_lay_bets = 0, unused_lay_exposure = 0, unused_back_exposure = 0, unused_locked_in_profit = 0) {
+              this.account_name = account_name;
+              this.balance = new Big(balance);
+              this.balance_at_last_payout = new Big(balance_at_last_payout);
+              this.win = new Big(win);
+              this.not_win = new Big(not_win);
+              this.cancel = new Big(cancel);
+              this.not_cancel = new Big(not_cancel);
+              this.fees_paid = new Big(fees_paid);
+              this.refundable_unmatched_bets = new Big(refundable_unmatched_bets);
+              this.unmatched_back_bets = new Big(unmatched_back_bets);
+              this.unmatched_lay_bets = new Big(unmatched_lay_bets);
+              this.unused_lay_exposure  = new Big(unused_lay_exposure);
+              this.unused_back_exposure = new Big(unused_back_exposure);
+              this.unused_locked_in_profit = new Big(unused_locked_in_profit);
+            }
+            clone(new_account_name = this.account_name) {
+              return new Position(new_account_name, this.balance, this.balance_at_last_payout, this.win, this.not_win, this.cancel, this.not_cancel, 
+                                  this.fees_paid, this.refundable_unmatched_bets, this.unmatched_back_bets, this.unmatched_lay_bets, 
+                                  this.unused_lay_exposure, this.unused_back_exposure, this.unused_locked_in_profit);
+            }
+            minus(otherPosition) {
+              let differencePosition = this.clone(this.account_name + '_difference');
+              differencePosition.balance = differencePosition.balance.minus(otherPosition.balance);
+              differencePosition.balance_at_last_payout = differencePosition.balance_at_last_payout.minus(otherPosition.balance_at_last_payout);
+              differencePosition.win = differencePosition.win.minus(otherPosition.win);
+              differencePosition.not_win = differencePosition.not_win.minus(otherPosition.not_win);
+              differencePosition.cancel = differencePosition.cancel.minus(otherPosition.cancel);
+              differencePosition.not_cancel = differencePosition.not_cancel.minus(otherPosition.not_cancel);
+              differencePosition.fees_paid = differencePosition.fees_paid.minus(otherPosition.fees_paid);
+              differencePosition.refundable_unmatched_bets = differencePosition.refundable_unmatched_bets.minus(otherPosition.refundable_unmatched_bets);
+              differencePosition.unmatched_back_bets = differencePosition.unmatched_back_bets.minus(otherPosition.unmatched_back_bets);
+              differencePosition.unmatched_lay_bets = differencePosition.unmatched_lay_bets.minus(otherPosition.unmatched_lay_bets);
+              differencePosition.unused_lay_exposure = differencePosition.unused_lay_exposure.minus(otherPosition.unused_lay_exposure);
+              differencePosition.unused_back_exposure = differencePosition.unused_back_exposure.minus(otherPosition.unused_back_exposure);
+              differencePosition.unused_locked_in_profit = differencePosition.unused_locked_in_profit.minus(otherPosition.unused_locked_in_profit);
+              return differencePosition;
+            }
+            has_nonzero_component() {
+              return ! (this.balance.eq(0) && this.balance_at_last_payout.eq(0) && this.win.eq(0) && this.not_win.eq(0) &&
+                        this.cancel.eq(0) && this.not_cancel.eq(0) && this.fees_paid.eq(0) && this.refundable_unmatched_bets.eq(0) &&
+                        this.unmatched_back_bets.eq(0) && this.unmatched_lay_bets.eq(0) && this.unused_lay_exposure.eq(0) && 
+                        this.unused_back_exposure.eq(0) && this.unused_locked_in_profit.eq(0));
+            }
+            reduce(parent_event_log_entry) {
+                let additional_not_cancel_balance = big_min(this.win, this.not_win);
+                this.win = this.win.minus(additional_not_cancel_balance);
+                this.not_win = this.not_win.minus(additional_not_cancel_balance);
+                this.not_cancel = this.not_cancel.plus(additional_not_cancel_balance);
+
+                let immediate_winnings = big_min(this.cancel, this.not_cancel);
+                this.cancel = this.cancel.minus(immediate_winnings);
+                this.not_cancel = this.not_cancel.minus(immediate_winnings);
+                parent_event_log_entry.add_log_message(`reducing position, returning immediate winnings of ${immediate_winnings}`);
+                return immediate_winnings;
+            }
+            adjust_betting_position(back_or_lay, amount_bet, amount_matched, fee_paid, parent_event_log_entry, deduct_amount_bet = true){
+                if (back_or_lay == 'back')
+                  this.win = this.win.plus(amount_bet).plus(amount_matched);
+                else
+                  this.not_win = this.not_win.plus(amount_bet).plus(amount_matched);
+                this.cancel = this.cancel.plus(amount_bet);
+                this.fees_paid = this.fees_paid.plus(fee_paid);
+                
+                if (deduct_amount_bet)
+                {
+                  parent_event_log_entry.add_log_message(`in adjust_betting_position, reducing refundable_unmatched_bets from ${this.refundable_unmatched_bets.toFixed()} to ${this.refundable_unmatched_bets.minus(amount_bet).toFixed()} to pay for the bet`);
+                  this.refundable_unmatched_bets = this.refundable_unmatched_bets.minus(amount_bet);
+
+                }
+                return this.reduce(parent_event_log_entry);
+            }
+            apply_full_bet(bet, parent_event_log_entry) {
+              this.refundable_unmatched_bets = this.refundable_unmatched_bets.plus(this.adjust_betting_position(bet.back_or_lay, 
+                                                                                                                bet.amount_to_bet, bet.get_matching_amount(), 
+                                                                                                                bet.amount_reserved_for_fees, parent_event_log_entry, true));
+              this.refundable_unmatched_bets = this.refundable_unmatched_bets.minus(bet.amount_to_bet);
+            }
+          }
+
+          let make_starting_balance = (account_name) => new Position(account_name, 10000);
+          let all_account_names = ['alice', 'bob', 'charlie', 'dave'];
+          let total_supply = new Big(10000).times(all_account_names.length); 
+          let make_all_account_balances = () => {
+            return all_account_names.reduce( (balances, name) => {
+              balances[name] = make_starting_balance(name);
+              return balances;
+            }, {});
+          };
+          $scope.account_balances = { simple: make_all_account_balances(), complex: make_all_account_balances()};
+          $scope.position_element_is_inconsistent = (account_name, position_element) => {
+            return !$scope.account_balances.simple[account_name][position_element].eq($scope.account_balances.complex[account_name][position_element])
+          };
+
+          $scope.global_invariant_is_violated = (system) => {
+            let balance_system = $scope.account_balances[system];
+
+            let total_win_balance = new Big(0);
+            let total_not_win_balance = new Big(0);
+            let total_fees_paid = new Big(0);
+            let total_cancel_balance = new Big(0);
+
+            for (var account_name in balance_system) {
+                if (balance_system.hasOwnProperty(account_name)) {
+                    let balance_object = balance_system[account_name];
+
+                    let balance_if_win = balance_object.balance.plus(balance_object.win).plus(balance_object.not_cancel).plus(balance_object.refundable_unmatched_bets);
+                    let balance_if_not_win = balance_object.balance.plus(balance_object.not_win).plus(balance_object.not_cancel).plus(balance_object.refundable_unmatched_bets);
+                    let balance_if_cancel = balance_object.balance.plus(balance_object.cancel).plus(balance_object.refundable_unmatched_bets).plus(balance_object.fees_paid);
+
+                    total_win_balance = total_win_balance.plus(balance_if_win);
+                    total_not_win_balance = total_not_win_balance.plus(balance_if_not_win);
+                    total_cancel_balance = total_cancel_balance.plus(balance_if_cancel);
+                    total_fees_paid = total_fees_paid.plus(balance_object.fees_paid);
+                }
+            }
+
+            if (!total_win_balance.plus(total_fees_paid).eq(total_supply) || 
+                !total_not_win_balance.plus(total_fees_paid).eq(total_supply) ||
+                !total_cancel_balance.eq(total_supply))
+              return true;
+            return false;
+          };
+          $scope.invariant_is_violated = (system, account_name) => {
+            let balance_record = $scope.account_balances[system][account_name];
+
+            if (!balance_record.balance.plus(balance_record.cancel).plus(balance_record.refundable_unmatched_bets).plus(balance_record.fees_paid).eq(balance_record.balance_at_last_payout)) {
+              log_error(`Invariant violated for ${balance_record.account_name}, cancel + refundable + fees != balance_at_last_payout`);
+              return true;
+            }
+
+            if (!balance_record.win.eq(0) && !balance_record.not_win.eq(0)) {
+              log_error(`Invariant violated for ${balance_record.account_name}, either win or not_win must be 0`);
+              return true;
+            }
+
+            if (!balance_record.cancel.eq(0) && !balance_record.not_cancel.eq(0)) {
+              log_error(`Invariant violated for ${balance_record.account_name}, either cancel or not_cancel must be 0`);
+              return true;
+            }
+
+            if (system == 'simple')
+            {
+              if (balance_record.not_win.lt(balance_record.unused_lay_exposure) || 
+                  balance_record.win.lt(balance_record.unused_back_exposure) ||
+                  balance_record.not_cancel.lt(balance_record.unused_locked_in_profit)) {
+                log_error(`Invariant violated for ${balance_record.account_name}, not_win < unused_lay_exposure or win < unused_back_exposure or not_cancel < unused_locked_in_profit`);
+                return true;
+              }
+
+              if (!balance_record.unmatched_lay_bets.plus(balance_record.unmatched_back_bets).eq(
+                  balance_record.refundable_unmatched_bets.plus(
+                  balance_record.win).minus(balance_record.unused_back_exposure).plus(
+                  balance_record.not_win).minus(balance_record.unused_lay_exposure).plus(
+                  balance_record.not_cancel).minus(balance_record.unused_locked_in_profit))) {
+                log_error(`Invariant violated for ${balance_record.account_name}, unmatched_lay_bets + unmatched_back_bets != refundable_unmatched_bets + (win - unused_back_exposure) + (not_win - unused_lay_exposure) + (not_cancel - unused_locked_in_profit)`);
+                return true;
+              }
+            }
+
+            return false;
+          };
+
+          $scope.order_book = { backs: [], lays: [] };
+
+          let compute_matching_amount = (bet_amount, backer_multiplier, back_or_lay) => {
+            if (back_or_lay == 'back')
+              return bet_amount.times(backer_multiplier.minus(1)).round(precision, 0);
+            else
+              return bet_amount.div(backer_multiplier.minus(1)).round(precision, 0);
+          };
+
+          class Bet {
+            constructor(bettor, back_or_lay, amount_to_bet, backer_multiplier, amount_reserved_for_fees) {
+              this.bet_id = bet_id_sequence++;
+              this.bettor = bettor;
+              this.back_or_lay = back_or_lay;
+              this.amount_to_bet = new Big(amount_to_bet).round(precision, 0);
+              this.backer_multiplier = new Big(backer_multiplier).round(precision, 0);
+              this.amount_reserved_for_fees = new Big(amount_reserved_for_fees).round(precision, 0);
+            }
+            get odds() {
+              return this.backer_multiplier.minus(1);
+            }
+            get_matching_amount() {
+              return compute_matching_amount(this.amount_to_bet, this.backer_multiplier, this.back_or_lay);
+            }
+          }
+
+          $scope.bet_to_place = {bettor: 'alice', back_or_lay: 'back', backer_multiplier: null, amount_to_bet: null};
+          let clear_event_log = () => $scope.event_log = new LogEntry('Betting Engine Log');
+          $scope.clear_event_log = clear_event_log;
+          clear_event_log();
+
+          // for sorting order books
+          let order_compare = (a, b) => Number(a.backer_multiplier.minus(b.backer_multiplier));
+
+          let big_min = (a, b) => a.lt(b) ? a : b;
+          let big_max = (a, b) => a.gt(b) ? a : b;
+
+          let remove_bet_from_order_books = (bet) => {
+            let order_book = bet.back_or_lay == 'back' ? $scope.order_book['backs'] : $scope.order_book['lays'];
+            let bet_index = order_book.findIndex( (x) => x.bet_id == bet.bet_id );
+            //console.log("removing item ", bet_index);
+            order_book.splice(bet_index, 1);
+          };
+
+          let update_unmatched_bet_position = (bettor, potential_return_amount, amount_bet, parent_event_log_entry) => {
+            let bettor_balances_simple_system = $scope.account_balances['simple'][bettor];
+            let original_refundable_unmatched_bets = bettor_balances_simple_system.refundable_unmatched_bets;
+            let lay_exposure_used_by_unmatched_back_bets = big_min(bettor_balances_simple_system.unmatched_back_bets, bettor_balances_simple_system.not_win);
+            let back_exposure_used_by_unmatched_lay_bets = big_min(bettor_balances_simple_system.unmatched_lay_bets, bettor_balances_simple_system.win);
+            let allowable_exposure_for_unmatched_bets = lay_exposure_used_by_unmatched_back_bets.plus(back_exposure_used_by_unmatched_lay_bets);
+
+            parent_event_log_entry.add_log_message(`allowable_exposure_for_unmatched_bets: ${allowable_exposure_for_unmatched_bets.toFixed()}`);
+            bettor_balances_simple_system.unused_back_exposure = bettor_balances_simple_system.win.minus(back_exposure_used_by_unmatched_lay_bets);
+            bettor_balances_simple_system.unused_lay_exposure = bettor_balances_simple_system.not_win.minus(lay_exposure_used_by_unmatched_back_bets);
+
+            let unmatched_bets_not_covered_by_exposure = bettor_balances_simple_system.unmatched_back_bets.plus(
+                                                         bettor_balances_simple_system.unmatched_lay_bets).minus(
+                                                         allowable_exposure_for_unmatched_bets);
+            let amount_of_locked_in_profit_leaned_on = big_min(unmatched_bets_not_covered_by_exposure, bettor_balances_simple_system.not_cancel);
+            bettor_balances_simple_system.unused_locked_in_profit = bettor_balances_simple_system.not_cancel.minus(amount_of_locked_in_profit_leaned_on);
+            let unmatched_bets_not_covered_by_exposure_profit = unmatched_bets_not_covered_by_exposure.minus(amount_of_locked_in_profit_leaned_on);
+
+            parent_event_log_entry.add_log_message(`unmatched_bets_not_covered_by_exposure_profit = ${unmatched_bets_not_covered_by_exposure_profit.toFixed()}`);
+
+            bettor_balances_simple_system.refundable_unmatched_bets = big_max(unmatched_bets_not_covered_by_exposure_profit, new Big(0));
+            let delta_refundable_unmatched_bets = bettor_balances_simple_system.refundable_unmatched_bets.minus(
+                                                  original_refundable_unmatched_bets);
+            parent_event_log_entry.add_log_message(`refundable_unmatched_bets: ${bettor_balances_simple_system.refundable_unmatched_bets.toFixed()}, refundable_unmatched_bets changed by ${delta_refundable_unmatched_bets.toFixed()}`);
+            let return_amount = potential_return_amount.minus(
+                                amount_bet).minus(
+                                delta_refundable_unmatched_bets)
+            parent_event_log_entry.add_log_message(`return_amount: ${return_amount.toFixed()}`);
+            if (return_amount.lt(0))
+              log_error(`Return amount of ${return_amount.toFixed()} for account ${bettor} is negative`);
+            bettor_balances_simple_system.balance = bettor_balances_simple_system.balance.plus(return_amount);
+          };
+
+          let cancel_bet = (bet, parent_event_log_entry) => {
+            let cancel_log_entry = parent_event_log_entry.add_log_message(`[simple] Canceling ${bet.back_or_lay} bet from ${bet.bettor} for amount ${bet.amount_to_bet.toFixed()}`);
+            let bettor_balances_simple_system = $scope.account_balances['simple'][bet.bettor];
+
+            if (bet.back_or_lay == 'back')
+              bettor_balances_simple_system.unmatched_back_bets = bettor_balances_simple_system.unmatched_back_bets.minus(bet.amount_to_bet);
+            else
+              bettor_balances_simple_system.unmatched_lay_bets = bettor_balances_simple_system.unmatched_lay_bets.minus(bet.amount_to_bet);
+            
+            update_unmatched_bet_position(bet.bettor, new Big(0), new Big(0), cancel_log_entry);
+            remove_bet_from_order_books(bet);
+          };
+
+          let bet_was_matched = (bet, amount_bet, amount_matched, actual_multiplier, parent_event_log_entry) => {
+            let fee_paid = bet.amount_reserved_for_fees.times(amount_bet).div(bet.amount_to_bet).round(precision, 3);
+
+            // adjust balances in the simple system
+            let simple_system_log_entry = parent_event_log_entry.add_log_message(`[simple] Computing refundable amount for ${bet.back_or_lay} bet from ${bet.bettor}, matched ${amount_bet.toFixed()}`);
+            let bettor_balances_simple_system = $scope.account_balances['simple'][bet.bettor];
+            let original_refundable_unmatched_bets = bettor_balances_simple_system.refundable_unmatched_bets;
+
+            let exposure = null;
+            if (bet.back_or_lay == 'back')
+            {
+              exposure = bettor_balances_simple_system.not_win;
+              bettor_balances_simple_system.unmatched_back_bets = bettor_balances_simple_system.unmatched_back_bets.minus(amount_bet);
+            }
+            else
+            {
+              exposure = bettor_balances_simple_system.win;
+              bettor_balances_simple_system.unmatched_lay_bets = bettor_balances_simple_system.unmatched_lay_bets.minus(amount_bet);
+            }
+            let locked_in_profit = bettor_balances_simple_system.not_cancel;
+            simple_system_log_entry.add_log_message(`exposure: ${exposure.toFixed()}, locked_in_profit: ${locked_in_profit.toFixed()}`);
+            
+            //let amount_covered_by_exposure = big_min(amount_bet, exposure);
+            //let amount_not_covered_by_exposure = amount_bet.minus(amount_covered_by_exposure);
+            //let amount_of_locked_in_profit_leaned_on = big_min(amount_not_covered_by_exposure, locked_in_profit);
+            //let amount_of_locked_in_profit_not_leaned_on = locked_in_profit.minus(amount_of_locked_in_profit_leaned_on);
+            //simple_system_log_entry.add_log_message(`amount_covered_by_exposure: ${amount_covered_by_exposure.toFixed()}, amount_not_covered_by_exposure: ${amount_not_covered_by_exposure.toFixed()}, amount_of_locked_in_profit_leaned_on: ${amount_of_locked_in_profit_leaned_on.toFixed()}, amount_of_locked_in_profit_not_leaned_on: ${amount_of_locked_in_profit_not_leaned_on.toFixed()}`);
+
+            // ===================> match happens <========================
+            let potential_return_amount = bettor_balances_simple_system.adjust_betting_position(bet.back_or_lay, amount_bet, amount_matched, 
+                                                                                                fee_paid, simple_system_log_entry, false);
+            // ===================> match happened <=======================
+            simple_system_log_entry.add_log_message(`potential_return_amount: ${potential_return_amount.toFixed()}`);
+            update_unmatched_bet_position(bet.bettor, potential_return_amount, amount_bet, simple_system_log_entry);
+            // end simple system
+
+
+            // Adjust balances in the complex system
+            let complex_system_log_entry = parent_event_log_entry.add_log_message(`[complex] ${bet.bettor} bet matched ${amount_bet.toFixed()} against ${amount_matched.toFixed()} (actual decimal odds: ${actual_multiplier.toFixed()}, paid fees of ${fee_paid.toFixed()})`);
+
+            let bettor_balances_complex_system = $scope.account_balances['complex'][bet.bettor];
+            let immediate_winnings_complex_system = bettor_balances_complex_system.adjust_betting_position(bet.back_or_lay, amount_bet, amount_matched, 
+                                                                                            fee_paid, complex_system_log_entry);
+
+            // take our winnings into refundable.  later we'll move anything we can into the actual balance
+            bettor_balances_complex_system.refundable_unmatched_bets = bettor_balances_complex_system.refundable_unmatched_bets.plus(immediate_winnings_complex_system);
+            if (immediate_winnings_complex_system.gt(0))
+              complex_system_log_entry.add_log_message(`bet produced ${immediate_winnings_complex_system.toFixed()} immediate winnings for ${bet.bettor}, adding them to refundable_unmatched_bets until we figure out if we can pay them out`);
+
+
+            // adjust the bet, removing it if it is completely matched
+            if (bet.amount_to_bet.eq(amount_bet)) {
+              remove_bet_from_order_books(bet);
+              return true;
+            } else {
+              bet.amount_to_bet = bet.amount_to_bet.minus(amount_bet);
+              bet.amount_reserved_for_fees = bet.amount_reserved_for_fees.minus(fee_paid);
+              if (bet.get_matching_amount().eq(0)) {
+                cancel_bet(bet, parent_event_log_entry);
+                return true;
+              }
+            }
+
+            return false;
+          };
+          
+          let match_bet = (taker_bet, maker_bet, parent_event_log_entry) => {
+            let result = 0;
+
+            if (taker_bet.bettor == maker_bet.bettor) {
+              //Notification.error({message: 'You just matched your own bet.  The simple algorithm does not yet account for this, so the results may be incorrect', delay: 10000});
+
+
+              // let bettor_balances = $scope.account_balances['simple'][taker_bet.account_name];
+              // // we are matching our own bet... just cancel out the taker bet, and cancel that amount of the maker bet
+              // if (taker_bet.back_or_lay == 'back')
+              //   bettor_balances.unmatched_back_bets = bettor_balances.unmatched_back_bets.minus(taker_bet.amount_to_bet);
+              // else
+              //   bettor_balances.unmatched_lay_bets = bettor_balances.unmatched_lay_bets.minus(taker_bet.amount_to_bet);
+
+              // remove_bet_from_order_books(taker_bet);
+            }
+
+            let maximum_amount_to_match = compute_matching_amount(taker_bet.amount_to_bet, maker_bet.backer_multiplier, taker_bet.back_or_lay);
+            if (maximum_amount_to_match.lte(maker_bet.amount_to_bet)) {
+              // we will consume the entire taker bet
+              result |= bet_was_matched(taker_bet, taker_bet.amount_to_bet, maximum_amount_to_match, maker_bet.backer_multiplier, parent_event_log_entry);
+              result |= bet_was_matched(maker_bet, maximum_amount_to_match, taker_bet.amount_to_bet, maker_bet.backer_multiplier, parent_event_log_entry) << 1;
+            }
+            else
+            {
+              let taker_amount = maker_bet.get_matching_amount();
+              let maker_amount = compute_matching_amount(taker_amount, maker_bet.backer_multiplier, taker_bet.back_or_lay);
+              result |= bet_was_matched(taker_bet, taker_amount, maker_amount, maker_bet.backer_multiplier, parent_event_log_entry);
+              result |= bet_was_matched(maker_bet, maker_amount, taker_amount, maker_bet.backer_multiplier, parent_event_log_entry) << 1;
+            }
+            return result;
+          };
+
+          let try_to_match_bet = (new_bet, back_or_lay, order_book_to_match_against, parent_event_log_entry) => {
+              let finished = false;
+              let accounts_affected = new Set();
+              while (!finished && order_book_to_match_against.length) {
+                  let top_of_order_book = order_book_to_match_against[0];
+                  if (new_bet.backer_multiplier.lt(top_of_order_book.backer_multiplier))
+                      return accounts_affected; // new_bet was not fully consumed
+
+                  let match_log_entry = parent_event_log_entry.add_log_message(`matched a bet from ${new_bet.bettor} to bet from ${top_of_order_book.bettor}`);
+                  orders_matched_flags = match_bet(new_bet, top_of_order_book, match_log_entry);
+                  accounts_affected.add(new_bet.bettor);
+                  accounts_affected.add(top_of_order_book.bettor);
+                  finished = orders_matched_flags != 2;
+              }
+              return accounts_affected; // if we got here, we failed to completely match the bet
+          };
+
+          let simulate_order_book = (order_book, bettor_balances, back_or_lay, parent_event_log_entry) => {
+              let simulated_balances = bettor_balances.clone();
+              let simulation_log_entry = parent_event_log_entry.add_log_message(`simulating ${order_book.length} ${back_or_lay} bets`);
+              let minimum_refundable = bettor_balances.refundable_unmatched_bets;
+              order_book.forEach((bet) => {
+                simulated_balances.apply_full_bet(bet, simulation_log_entry);
+                if (simulated_balances.refundable_unmatched_bets.lt(minimum_refundable))
+                  minimum_refundable = simulated_balances.refundable_unmatched_bets;
+              });
+              simulation_log_entry.add_log_message(`when executing the ${back_or_lay} order book, refundable_unmatched_bets never dropped below ${minimum_refundable.toFixed()}`);
+              return minimum_refundable;
+          };
+
+          let simulate_order_book_for_bettor = (bettor, parent_event_log_entry, new_bet = null) => {
+              let simulation_event_log_entry = parent_event_log_entry.add_log_message(`simulating order book for ${bettor}`);
+
+              // only consider our orders
+              let bettor_backs = $scope.order_book['backs'].filter( (x) => x.bettor == bettor );
+              let bettor_lays = $scope.order_book['lays'].filter( (x) => x.bettor == bettor );
+              let current_bettor_balances = $scope.account_balances['complex'][bettor];
+              let fake_bettor_balances = current_bettor_balances.clone();
+              simulation_event_log_entry.add_log_message(`balances for ${bettor}: refundable: ${fake_bettor_balances.refundable_unmatched_bets.toFixed()}`);
+              
+
+              if (new_bet) {
+                simulation_event_log_entry.add_log_message(`simulating with new bet, assuming ${new_bet.bettor} puts all ${new_bet.amount_to_bet.toFixed()} into refundable_unmatched_bets`);
+                // add the new order to the filtered order book
+                let new_bet_order_book = new_bet.back_or_lay == 'back' ? bettor_backs : bettor_lays;
+                new_bet_order_book.push(new_bet);
+                new_bet_order_book.sort(order_compare);
+
+                // fake a balance object where we paid the full bet amount into refundable
+                fake_bettor_balances.refundable_unmatched_bets = fake_bettor_balances.refundable_unmatched_bets.plus(new_bet.amount_to_bet);
+                simulation_event_log_entry.add_log_message(`pretending we pay the full bet amount of ${new_bet.amount_to_bet.toFixed()} into refundable, so the fake refundable is now ${fake_bettor_balances.refundable_unmatched_bets.toFixed()}`);
+              } 
+
+              let fake_bettor_balances_for_lays_first = fake_bettor_balances.clone();
+
+              // run the (filtered) order books -- this returns the lowest balance in refundable_unmatched_bets during the simulation
+              let backs_minimum_refundable_unmatched_bets = simulate_order_book(bettor_backs, fake_bettor_balances, 'back', simulation_event_log_entry);
+              fake_bettor_balances.refundable_unmatched_bets = backs_minimum_refundable_unmatched_bets;
+              simulation_event_log_entry.add_log_message(`[backs first] after simulating backs, we reduce our simulated refundable ${fake_bettor_balances.refundable_unmatched_bets.toFixed()} to before simulating lays`);
+              let lays_minimum_refundable_unmatched_bets = simulate_order_book(bettor_lays, fake_bettor_balances, 'lay', simulation_event_log_entry);
+              fake_bettor_balances.refundable_unmatched_bets = lays_minimum_refundable_unmatched_bets;
+              simulation_event_log_entry.add_log_message(`[backs first] after simulating lays, our simulated refundable is ${fake_bettor_balances.refundable_unmatched_bets.toFixed()}`);
+              let minimum_refundable_unmatched_bets = lays_minimum_refundable_unmatched_bets;
+
+
+
+              simulation_event_log_entry.add_log_message(`now simulating in the other order (lays, then backs) to see if we get a different answer`);
+              let lays_first_lays_minimum_refundable_unmatched_bets = simulate_order_book(bettor_lays, fake_bettor_balances_for_lays_first, 'lay', simulation_event_log_entry);
+              fake_bettor_balances_for_lays_first.refundable_unmatched_bets = lays_first_lays_minimum_refundable_unmatched_bets;
+              simulation_event_log_entry.add_log_message(`[lays first] after simulating lays, our simulated refundable is ${fake_bettor_balances_for_lays_first.refundable_unmatched_bets.toFixed()}`);
+              let lays_first_backs_minimum_refundable_unmatched_bets = simulate_order_book(bettor_backs, fake_bettor_balances_for_lays_first, 'back', simulation_event_log_entry);
+              fake_bettor_balances_for_lays_first.refundable_unmatched_bets = lays_first_backs_minimum_refundable_unmatched_bets;
+              simulation_event_log_entry.add_log_message(`[lays first] after simulating backs, we reduce our simulated refundable ${fake_bettor_balances_for_lays_first.refundable_unmatched_bets.toFixed()} to before simulating lays`);
+
+              if (!fake_bettor_balances_for_lays_first.refundable_unmatched_bets.eq(fake_bettor_balances.refundable_unmatched_bets)) {
+                Notification.error({message: `Results differe between backs-first and lays-first: backs-first: ${fake_bettor_balances.refundable_unmatched_bets.toFixed()}, lays-first: ${fake_bettor_balances_for_lays_first.refundable_unmatched_bets.toFixed()}`});
+              }
+
+
+              if (new_bet)
+              {
+                parent_event_log_entry.add_log_message(`At the end of simulation, minimum_refundable was ${minimum_refundable_unmatched_bets.toFixed()}`);
+                let amount_to_refund_from_refundable = minimum_refundable_unmatched_bets.minus(new_bet.amount_to_bet);
+                if (amount_to_refund_from_refundable.lt(0)) {
+                  // if any of the defecit can be covered by the not_cancel balance, account for that here
+                  let amount_bettor_must_pay = amount_to_refund_from_refundable.times(-1); // flip the sign so it's easier to understand
+                  amount_bettor_must_pay = amount_bettor_must_pay.minus(current_bettor_balances.not_cancel);
+                  if (amount_bettor_must_pay.gt(0))
+                    parent_event_log_entry.add_log_message(`To place this bet, ${bettor} must deposit ${amount_bettor_must_pay.toFixed()}`);
+                  else
+                    parent_event_log_entry.add_log_message(`${bettor} can place this bet using exposure + locked-in winnings}`);
+                } else if (amount_to_refund_from_refundable.gt(0)) {
+                  parent_event_log_entry.add_log_message(`When ${bettor} places this bet, they will immediately get back ${amount_to_refund_from_refundable.toFixed()}`);
+                } else /* amount to refund == 0 */ {
+                  parent_event_log_entry.add_log_message(`${bettor} can place this bet entirely on exposure`);
+                }
+
+                return amount_to_refund_from_refundable;
+              }
+              else
+              {
+                return minimum_refundable_unmatched_bets;
+              }
+          };
+
+          let register_bet_simple_system = (new_bet, parent_event_log_entry) => {
+            let initial_simulation_event_log = parent_event_log_entry.add_log_message(`[simple] evaluating new bet to determine how much ${new_bet.bettor} must pay to refundable_unmatched_bets`);
+            let bettor_balances_simple_system = $scope.account_balances['simple'][new_bet.bettor];
+            let exposure = null;
+            if (new_bet.back_or_lay == 'back') 
+            {
+              exposure = bettor_balances_simple_system.unused_lay_exposure;
+            }
+            else
+            {
+              exposure = bettor_balances_simple_system.unused_back_exposure;
+            }
+
+            let amount_of_exposure_leaned_on = big_min(new_bet.amount_to_bet, exposure);
+            let bet_amount_not_covered_by_exposure = new_bet.amount_to_bet.minus(amount_of_exposure_leaned_on);
+            let amount_of_locked_in_profit_leaned_on = big_min(bet_amount_not_covered_by_exposure, bettor_balances_simple_system.unused_locked_in_profit);
+            let required_funds = new_bet.amount_to_bet.minus(amount_of_exposure_leaned_on).minus(amount_of_locked_in_profit_leaned_on);
+            initial_simulation_event_log.add_log_message(`The new bet leans on ${amount_of_exposure_leaned_on.toFixed()} exposure, ${amount_of_locked_in_profit_leaned_on.toFixed()} locked-in profit, and requires ${required_funds.toFixed()} to be paid in cash`);
+
+            if (required_funds.lte(bettor_balances_simple_system.balance))
+            {
+              if (new_bet.back_or_lay == 'back')
+              {
+                bettor_balances_simple_system.unused_lay_exposure = bettor_balances_simple_system.unused_lay_exposure.minus(amount_of_exposure_leaned_on);
+                bettor_balances_simple_system.unmatched_back_bets = bettor_balances_simple_system.unmatched_back_bets.plus(new_bet.amount_to_bet);
+              }
+              else
+              {
+                bettor_balances_simple_system.unused_back_exposure = bettor_balances_simple_system.unused_back_exposure.minus(amount_of_exposure_leaned_on);
+                bettor_balances_simple_system.unmatched_lay_bets = bettor_balances_simple_system.unmatched_lay_bets.plus(new_bet.amount_to_bet);
+              }
+              bettor_balances_simple_system.unused_locked_in_profit = bettor_balances_simple_system.unused_locked_in_profit.minus(amount_of_locked_in_profit_leaned_on);
+
+              if (required_funds.gt(0))
+              {
+                bettor_balances_simple_system.balance = bettor_balances_simple_system.balance.minus(required_funds);
+                bettor_balances_simple_system.refundable_unmatched_bets = bettor_balances_simple_system.refundable_unmatched_bets.plus(required_funds);
+
+                initial_simulation_event_log.add_log_message(`Determined ${new_bet.bettor} needs to deposit ${required_funds.toFixed()} to place the bet`);
+              }
+              else
+                initial_simulation_event_log.add_log_message(`Determined ${new_bet.bettor} can place the bet without depositing any funds into refundable_unmatched_Bets`);
+              return true;
+            }
+            else
+            {
+                initial_simulation_event_log.add_log_message(`Unable to place bet, determined ${new_bet.bettor} would need ${required_funds.toFixed()} to place the bet`);
+                return false;
+            }
+
+          };
+
+          let register_bet_complex_system = (new_bet, parent_event_log_entry) => {
+              let initial_simulation_event_log = parent_event_log_entry.add_log_message(`[complex] simulating order book with new bet to determine how much ${new_bet.bettor} must pay to refundable_unmatched_bets`);
+
+              // compute how much it costs to place the bet
+              let amount_to_refund_from_refundable_complex_system = simulate_order_book_for_bettor(new_bet.bettor, initial_simulation_event_log, new_bet);
+              initial_simulation_event_log.add_log_message(`Determined ${new_bet.bettor} needs to deposit ${amount_to_refund_from_refundable_complex_system.times(-1).toFixed()} to place the bet`);
+              let bettor_balances_complex_system = $scope.account_balances['complex'][new_bet.bettor];
+              let bet_is_allowed_complex_system = bettor_balances_complex_system.balance.gte(amount_to_refund_from_refundable_complex_system.times(-1));
+              if (bet_is_allowed_complex_system)
+              {
+                // pay what is required into refundable_unmatched_bets
+                bettor_balances_complex_system.balance = bettor_balances_complex_system.balance.plus(amount_to_refund_from_refundable_complex_system);
+                bettor_balances_complex_system.refundable_unmatched_bets = bettor_balances_complex_system.refundable_unmatched_bets.minus(amount_to_refund_from_refundable_complex_system);
+                return true;
+              }
+              else
+              {
+                initial_simulation_event_log.add_log_message(`Unable to place bet, determined ${new_bet.bettor} would need ${amount_to_refund_from_refundable_complex_system.times(-1).toFixed()} to place the bet`);
+                return false;
+              }
+          };
+
+          let update_unmatched_bets_complex_system = (accounts_affected, event_log_entry) => { 
+            if (accounts_affected.size) {
+              let secondary_simulation_event_log = event_log_entry.add_log_message(`[complex] Updating affected accounts ${Array.from(accounts_affected).join(',')}.  Now simulating the order books of their accounts to determine whether we can refund any of their refundable_unmatched_bets to their balances`);
+
+              accounts_affected.forEach((account) => {
+                let partial_match_event_log_entry = secondary_simulation_event_log.add_log_message(`Simulating order book for ${account} account to find out what we can refund`);
+                let amount_to_refund_from_refundable_for_account = simulate_order_book_for_bettor(account, partial_match_event_log_entry);
+
+                if (amount_to_refund_from_refundable_for_account.gt(0)) {
+                  partial_match_event_log_entry.add_log_message(`Refunding ${amount_to_refund_from_refundable_for_account.toFixed()} to ${account}`);
+                  let account_balances = $scope.account_balances['complex'][account];
+                  account_balances.refundable_unmatched_bets = account_balances.refundable_unmatched_bets.minus(amount_to_refund_from_refundable_for_account);
+                  account_balances.balance = account_balances.balance.plus(amount_to_refund_from_refundable_for_account);
+                } else {
+                  partial_match_event_log_entry.add_log_message(`Unable to refund anything to ${account}`);
+                }
+              });
+            }
+          };
+
+          $scope.place_bet = (new_bet) => {
+              let event_log_entry = $scope.event_log.add_log_message(`${new_bet.bettor} places a ${new_bet.back_or_lay} bet for ${new_bet.amount_to_bet.toFixed()} at decimal odds ${new_bet.backer_multiplier.toFixed()}`);
+
+              let bettor_balances_complex_system = $scope.account_balances['complex'][new_bet.bettor];
+              let bet_is_allowed_complex_system = register_bet_complex_system(new_bet, event_log_entry);
+              let bet_is_allowed_simple_system = register_bet_simple_system(new_bet, event_log_entry);
+
+              // if we were allowed to palce the bet, add it to the order books and then see if we can match it now
+              if (bet_is_allowed_complex_system && bet_is_allowed_simple_system) {
+                let order_book = new_bet.back_or_lay == 'back' ? $scope.order_book.backs : $scope.order_book.lays;
+                let order_book_to_match_against = new_bet.back_or_lay == 'back' ? $scope.order_book.lays : $scope.order_book.backs;
+
+                order_book.push(new_bet);
+                order_book.sort(order_compare);
+
+                let accounts_affected = try_to_match_bet(new_bet, new_bet.back_or_lay, order_book_to_match_against, event_log_entry);
+                event_log_entry.add_log_message(`After matching bet, accounts_affected is ${Array.from(accounts_affected).join(',')}`);
+                update_unmatched_bets_complex_system(accounts_affected, event_log_entry);
+                return true;
+              }
+              else
+              {
+                return false;
+              }
+
+          };
+
+          $scope.place_bet_from_form = () => {
+              let amount_to_bet = new Big($scope.bet_to_place.amount_to_bet).round(precision, 0);
+              let fees = amount_to_bet.times(percentage_fee).round(precision, 3);
+              let new_bet = new Bet($scope.bet_to_place.bettor, $scope.bet_to_place.back_or_lay, 
+                                    amount_to_bet, $scope.bet_to_place.backer_multiplier, fees);
+              $scope.place_bet(new_bet);
+              $scope.bet_to_place = {bettor: 'alice', back_or_lay: 'back', amount_to_bet: null, amount_to_win: null};
+          };
+
+          $scope.cancel_bet_interactive = (bet) => {
+            let cancel_bet_log_entry = $scope.event_log.add_log_message(`Canceling bet of ${bet.amount_to_bet.toFixed()} from ${bet.bettor}`);
+            let bettor = bet.bettor;
+            cancel_bet(bet, cancel_bet_log_entry);
+            let accounts_affected = new Set();
+            accounts_affected.add(bettor);
+            update_unmatched_bets_complex_system(accounts_affected, cancel_bet_log_entry);
+          };
+
+          let cancel_all_bets_during_payout = (parent_log_entry) => {
+              // During a bulk cancel, we can do things more efficiently than canceling each bet individually
+              let cancel_event_log_entry = parent_log_entry.add_log_message(`Canceling all bets`);
+
+              $scope.order_book.backs = [];
+              $scope.order_book.lays = [];
+
+              for (var balance_system_name in $scope.account_balances) {
+                  if ($scope.account_balances.hasOwnProperty(balance_system_name)) {
+                      let balance_system = $scope.account_balances[balance_system_name];
+                      for (var account_name in balance_system) {
+                          if (balance_system.hasOwnProperty(account_name)) {
+                              let balance_object = balance_system[account_name];
+                              if (balance_object.refundable_unmatched_bets.gt(0)) {
+                                  cancel_event_log_entry.add_log_message(`Restored ${balance_object.refundable_unmatched_bets} to ${account_name} from refundable_unmatched_bets`);
+                                  balance_object.balance = balance_object.balance.plus(balance_object.refundable_unmatched_bets);
+                                  balance_object.refundable_unmatched_bets = new Big(0);
+                              }
+
+                              balance_object.unmatched_back_bets = new Big(0);
+                              balance_object.unmatched_lay_bets = new Big(0);
+                              balance_object.unused_lay_exposure = new Big(0);
+                              balance_object.unused_back_exposure = new Big(0);
+                              balance_object.unused_locked_in_profit = new Big(0);
+                          }
+                      }
+                  }
+              }
+          };
+
+          $scope.payout = (condition) => {
+              let payout_event_log_entry = $scope.event_log.add_log_message(`Paying out a ${condition}`);
+              cancel_all_bets_during_payout(payout_event_log_entry);
+              for (var balance_system_name in $scope.account_balances) {
+                  if ($scope.account_balances.hasOwnProperty(balance_system_name)) {
+                      let balance_system = $scope.account_balances[balance_system_name];
+                      let payout_balance_system_event_log_entry = payout_event_log_entry.add_log_message(`Paying out balance system ${balance_system_name}`);
+                      for (var account_name in balance_system) {
+                          if (balance_system.hasOwnProperty(account_name)) {
+                              let balance_object = balance_system[account_name];
+                              let total_paid = null;
+                              let fees_paid = null;
+                              if (condition == 'win') {
+                                  total_paid = balance_object.win.plus(balance_object.not_cancel);
+                                  fees_paid = balance_object.fees_paid;
+                                  if (total_paid.gt(0))
+                                    payout_balance_system_event_log_entry.add_log_message(`Paying ${total_paid.toFixed()} from win (${balance_object.win.toFixed()}) + not_cancel (${balance_object.not_cancel.toFixed()}) to ${account_name}, paying system fees of ${fees_paid}`);
+                              } else if (condition == 'not win') {
+                                  total_paid = balance_object.not_win.plus(balance_object.not_cancel);
+                                  fees_paid = balance_object.fees_paid;
+                                  if (total_paid.gt(0))
+                                    payout_balance_system_event_log_entry.add_log_message(`Paying ${total_paid.toFixed()} from not_win (${balance_object.not_win.toFixed()}) + not_cancel (${balance_object.not_cancel.toFixed()}) to ${account_name}, paying system fees of ${fees_paid}`);
+                              } else {
+                                  total_paid = balance_object.cancel.plus(balance_object.fees_paid);
+                                  fees_paid = new Big(0);
+                                  if (total_paid.gt(0))
+                                      payout_balance_system_event_log_entry.add_log_message(`Paying ${total_paid.toFixed()} from cancel balance to ${account_name}, paying system fees of ${fees_paid}`);
+                              }
+
+                              balance_object.win = new Big(0);
+                              balance_object.not_win = new Big(0);
+                              balance_object.not_cancel = new Big(0);
+                              balance_object.cancel = new Big(0);
+                              balance_object.fees_paid = new Big(0);
+                              balance_object.balance = balance_object.balance.plus(total_paid);
+                              balance_object.balance_at_last_payout = new Big(balance_object.balance);
+                          }
+                      }
+                  }
+              }
+          };
+
+          let get_random_int = (min, max) => {
+              min = Math.ceil(min);
+              max = Math.floor(max);
+              return Math.floor(Math.random() * (max - min)) + min;
+          };
+
+          let valid_bet_odds_list = [];
+          let make_valid_bet_odds_list = () => {
+            let valid_bet_odds_table = [ [    2, new Big(  '.0100')],  /* <=    2:  0.01 */ 
+                                         [    3, new Big(  '.0200')],  /* <=    3:  0.02 */ 
+                                         [    4, new Big(  '.0500')],  /* <=    4:  0.05 */ 
+                                         [    6, new Big(  '.1000')],  /* <=    6:  0.10 */ 
+                                         [   10, new Big(  '.2000')],  /* <=   10:  0.20 */ 
+                                         [   20, new Big(  '.5000')],  /* <=   20:  0.50 */ 
+                                         [   30, new Big( '1.0000')],  /* <=   30:  1.00 */ 
+                                         [   50, new Big( '2.0000')],  /* <=   50:  2.00 */ 
+                                         [  100, new Big( '5.0000')],  /* <=  100:  5.00 */ 
+                                         [ 1000, new Big('10.0000')] ]; /* <= 1000: 10.00 */
+
+            let current_odds = new Big('1');
+            for (let i = 0; i < valid_bet_odds_table.length; ++i) {
+              while (current_odds < valid_bet_odds_table[i][0]) {
+                current_odds = current_odds.plus(valid_bet_odds_table[i][1]);
+                valid_bet_odds_list.push(current_odds);
+              }
+            }
+          };
+          make_valid_bet_odds_list();
+          //valid_bet_odds_list.forEach((odds) => { console.log(`odds: ${odds.toFixed()}`); });
+
+          let random_bet_timer = null;
+          let number_of_random_bets_placed = 0;
+          let number_of_random_bets_to_place = 1000;
+          let max_difference = new Big(0);
+
+          let place_random_bet = () => {
+            let back_or_lay = get_random_int(0, 2) == 0 ? 'back' : 'lay';
+            let bettor = all_account_names[get_random_int(0, 3/*all_account_names.length*/)];
+            let amount_to_bet = get_random_int(1, 11) * 10;
+            let odds = valid_bet_odds_list[get_random_int(1, valid_bet_odds_list.length)];
+
+            //let original_balance_simple = $scope.account_balances.simple[bettor].clone();
+            //let original_balance_complex = $scope.account_balances.complex[bettor].clone();
+            if ($scope.place_bet(new Bet(bettor, back_or_lay, amount_to_bet, odds, 0))) {
+              if (number_of_random_bets_placed % 100 == 0)
+                console.log(`placed bet #${number_of_random_bets_placed}`);
+            } else {
+              // unable to place bet due to lack of funds, randomly cancel a bet instead
+              if (number_of_random_bets_placed % 100 == 0)
+                console.log(`bet rejected because of insufficient funds, canceling a random bet instead #${number_of_random_bets_placed}`);
+              let bettor_bets = $scope.order_book['backs'].filter( (x) => x.bettor == bettor ).concat($scope.order_book['lays'].filter( (x) => x.bettor == bettor ));
+              let bet_to_cancel = bettor_bets[get_random_int(0, bettor_bets.length)];
+              $scope.cancel_bet_interactive(bet_to_cancel);
+            }
+            //let final_balance_simple = $scope.account_balances.simple[bettor].clone();
+            //let final_balance_complex = $scope.account_balances.complex[bettor].clone();
+            //let delta_balance_simple = final_balance_simple.minus(original_balance_simple);
+            //let delta_balance_complex = final_balance_complex.minus(original_balance_complex);
+            //if (delta_balance_simple.has_nonzero_component() || delta_balance_complex.has_nonzero_component())
+            //  console.log(`${bettor} delta balances simple: ${JSON.stringify(delta_balance_simple)}, complex: ${JSON.stringify(delta_balance_complex)}`);
+
+            // check global invariants
+            for (var balance_system_name in $scope.account_balances)
+                if ($scope.account_balances.hasOwnProperty(balance_system_name))
+                    if ($scope.global_invariant_is_violated(balance_system_name)) {
+                        log_error(`Random bet violated global invariant for ${balance_system_name}`);
+                        if (stop_on_error)
+                          $interval.cancel(random_bet_timer);
+                        return;
+                    }
+
+            // check per-account invariants
+            for (var balance_system_name in $scope.account_balances)
+                if ($scope.account_balances.hasOwnProperty(balance_system_name)) {
+                    let balance_system = $scope.account_balances[balance_system_name];
+                    for (var account_name in balance_system)
+                        if (balance_system.hasOwnProperty(account_name)) 
+                            if ($scope.invariant_is_violated(balance_system_name, account_name)) {
+                                log_error(`Random bet violated account invariant for ${account_name} in ${balance_system_name}`);
+                                if (stop_on_error)
+                                  $interval.cancel(random_bet_timer);
+                                return;
+                            }
+                }
+
+            // check matching between accounting systems 
+            let simple_balances = $scope.account_balances['simple'];
+            for (var account_name in simple_balances)
+                if (simple_balances.hasOwnProperty(account_name))
+                    if ($scope.position_element_is_inconsistent(account_name, 'balance') ||
+                        $scope.position_element_is_inconsistent(account_name, 'win') ||
+                        $scope.position_element_is_inconsistent(account_name, 'not_win') ||
+                        $scope.position_element_is_inconsistent(account_name, 'cancel') ||
+                        $scope.position_element_is_inconsistent(account_name, 'not_cancel') || 
+                        $scope.position_element_is_inconsistent(account_name, 'refundable_unmatched_bets') ||
+                        $scope.position_element_is_inconsistent(account_name, 'fees_paid')) {
+                          max_difference = big_max(max_difference, $scope.account_balances.complex[bettor].balance.minus($scope.account_balances.simple[bettor].balance));
+                          log_warning(`Random bet from ${bettor} exposed difference between simple and complex accounting system, max difference is ${max_difference.toFixed()}`);
+                          if (stop_on_warning)
+                            $interval.cancel(random_bet_timer);
+                          return;
+                        }
+            ++number_of_random_bets_placed;
+            if (number_of_random_bets_placed >= number_of_random_bets_to_place)
+              $interval.cancel(random_bet_timer);
+
+            $scope.clear_event_log();
+          };
+
+          // Enable this block to place bets without any display, stopping when there is an error
+          // for (let i = 0; i < 10000; ++i) {
+          //   place_random_bet();
+          //   if (stop_on_error && error_count)
+          //     break;
+          //   if (stop_on_warning && warning_count)
+          //     break;
+          // }
+
+          // enable this to place random bets at a pace you can watch
+          // random_bet_timer = $interval(place_random_bet, 150);
+          
+
+          //$scope.place_bet(new Bet("alice", "back", 10, 10, 0));
+          //$scope.place_bet(new Bet("bob", "lay", 90, 10, 0));
+          //$scope.place_bet(new Bet("alice", "lay", 50, 2, 0));
+          //$scope.place_bet(new Bet("bob", "back", 50, 2, 0)); // locked in profit of 40 for alice
+          //$scope.place_bet(new Bet("alice", "back", 40, 2, 0));
+          //$scope.place_bet(new Bet("bob", "lay", 40, 2, 0));
+
+          // $scope.place_bet(new Bet("alice", "back", 100, 2, 0));
+          // $scope.place_bet(new Bet("alice", "back", 100, 4, 0));
+          // $scope.place_bet(new Bet("alice", "back", 100, 6, 0));
+          // $scope.place_bet(new Bet("alice", "back", 100, 8, 0));
+          // $scope.place_bet(new Bet("alice", "back", 100, 10, 0));
+          // $scope.place_bet(new Bet("bob", "lay", 400, 4, 0));
+          // $scope.place_bet(new Bet("charlie", "lay", 850, 8, 0));
+
+          //$scope.place_bet(new Bet("alice", "lay", 100, 10, 0));
+          //$scope.place_bet(new Bet("bob", "back", 900, 10, 0));
+          //$scope.place_bet(new Bet("alice", "back", 100, 4, 0));
+          //$scope.place_bet(new Bet("bob", "lay", 300, 4, 0));
+          //$scope.place_bet(new Bet("alice", "lay", 301, 8, 0));
+          //$scope.place_bet(new Bet("bob", "back", 50, 2, 0));
+          //$scope.place_bet("bob", "lay", 100, 1100);
+          //$scope.place_bet("bob", "lay", 1000, 1500);
+
+          //$scope.place_bet("alice", "back", 500, 1500);
+      }]);
+
+startApp.controller('Page2Controller', ['$scope', function($scope) {
+}]);
+    </script>
+</head>
+<body>
+
+    <!-- Inline partials -->
+    <!-- Page 1 -->
+<script type="text/ng-template" id="/page1.html">
+  <div class="container">
+    <div class="page-header">
+      <h1>Peerplays Engine Playground</h1>
+    </div>
+    <div class="row">
+      <div class="col-sm-12">
+        <div class="panel panel-default">
+          <div class="panel-heading"><span ng-class="{'text-warning': global_invariant_is_violated('simple')}">Simple Available Balances</span></div>
+          <table class="table">
+            <col>
+            <col>
+            <colgroup span="4"></colgroup>
+            <col>
+            <col>
+            <colgroup span="2"></colgroup>
+            <colgroup span="3"></colgroup>
+            <tr>
+              <th></th>
+              <th></th>
+              <th colspan="4">position</th>
+              <th></th>
+              <th></th>
+              <th colspan="2">unmatched</th>
+              <th colspan="3">unused</th>
+            </tr>
+            <tr>
+              <th></th>
+              <th>balance</th>
+              <th>win</th>
+              <th>not win</th>
+              <th>cancel</th>
+              <th>not cancel</th>
+              <th>refundable</th>
+              <th>fees_paid</th>
+              <th>backs</th>
+              <th>lays</th>
+              <th>lay exposure</th>
+              <th>back exposure</th>
+              <th>locked-in profit</th>
+            </tr>
+            <tr ng-repeat="(account_name, balance_record) in account_balances.simple">
+              <td><span ng-class="{'text-warning': invariant_is_violated('simple', account_name)}">{{account_name}}</span></td>
+              <td><span ng-class="{'text-warning': position_element_is_inconsistent(account_name, 'balance')}">{{balance_record.balance.toFixed()}}</span></td>
+              <td><span ng-class="{'text-warning': position_element_is_inconsistent(account_name, 'win')}">{{balance_record.win.toFixed()}}</span></td>
+              <td><span ng-class="{'text-warning': position_element_is_inconsistent(account_name, 'not_win')}">{{balance_record.not_win.toFixed()}}</span></td>
+              <td><span ng-class="{'text-warning': position_element_is_inconsistent(account_name, 'cancel')}">{{balance_record.cancel.toFixed()}}</span></td>
+              <td><span ng-class="{'text-warning': position_element_is_inconsistent(account_name, 'not_cancel')}">{{balance_record.not_cancel.toFixed()}}</span></td>
+              <td><span ng-class="{'text-warning': position_element_is_inconsistent(account_name, 'refundable_unmatched_bets')}">{{balance_record.refundable_unmatched_bets.toFixed()}}</span></td>
+              <td><span ng-class="{'text-warning': position_element_is_inconsistent(account_name, 'fees_paid')}">{{balance_record.fees_paid.toFixed()}}</span></td>
+              <td>{{balance_record.unmatched_back_bets.toFixed()}}</td>
+              <td>{{balance_record.unmatched_lay_bets.toFixed()}}</td>
+              <td>{{balance_record.unused_lay_exposure.toFixed()}}</td>
+              <td>{{balance_record.unused_back_exposure.toFixed()}}</td>
+              <td>{{balance_record.unused_locked_in_profit.toFixed()}}</td>
+            </tr>
+          </table>
+        </div>
+        <div class="panel panel-default">
+          <div class="panel-heading"><span ng-class="{'text-warning': global_invariant_is_violated('complex')}">Complex Available Balances</span></div>
+          <table class="table">
+            <tr>
+              <th></th>
+              <th>balance</th>
+              <th>win</th>
+              <th>not win</th>
+              <th>cancel</th>
+              <th>not cancel</th>
+              <th>refundable</th>
+              <th>fees_paid</th>
+            </tr>
+            <tr ng-repeat="(account_name, balance_record) in account_balances.complex">
+              <td><span ng-class="{'text-warning': invariant_is_violated('simple', account_name)}">{{account_name}}</span></td>
+              <td><span ng-class="{'text-warning': position_element_is_inconsistent(account_name, 'balance')}">{{balance_record.balance.toFixed()}}</span></td>
+              <td><span ng-class="{'text-warning': position_element_is_inconsistent(account_name, 'win')}">{{balance_record.win.toFixed()}}</span></td>
+              <td><span ng-class="{'text-warning': position_element_is_inconsistent(account_name, 'not_win')}">{{balance_record.not_win.toFixed()}}</span></td>
+              <td><span ng-class="{'text-warning': position_element_is_inconsistent(account_name, 'cancel')}">{{balance_record.cancel.toFixed()}}</span></td>
+              <td><span ng-class="{'text-warning': position_element_is_inconsistent(account_name, 'not_cancel')}">{{balance_record.not_cancel.toFixed()}}</span></td>
+              <td><span ng-class="{'text-warning': position_element_is_inconsistent(account_name, 'refundable_unmatched_bets')}">{{balance_record.refundable_unmatched_bets.toFixed()}}</span></td>
+              <td><span ng-class="{'text-warning': position_element_is_inconsistent(account_name, 'fees_paid')}">{{balance_record.fees_paid.toFixed()}}</span></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-sm-6">
+        <div class="panel panel-default">
+          <div class="panel-heading">Place Bet</div>
+          <form class="form-horizontal">
+            <div class="form-group">
+              <label for="account" class="control-label col-sm-2">Account:</label>
+              <div class="col-sm-10">
+                <select id="account" class="form-control" ng-model="bet_to_place.bettor">
+                  <option ng-repeat="(account_name, balance) in account_balances.simple" value="{{account_name}}">{{account_name}}</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="bet-type" class="control-label col-sm-2">Bet Type:</label>
+              <div class="col-sm-10">
+                <select id="bet-type" class="form-control" ng-model="bet_to_place.back_or_lay">
+                  <option value="back">Back</option>
+                  <option value="lay">Lay</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="amount-to-bet" class="control-label col-sm-2">Amount to bet:</label>
+              <div class="col-sm-10">
+                <input id="amount-to-bet" class="form-control" type="text" ng-model="bet_to_place.amount_to_bet" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="amount-to-win" class="control-label col-sm-2">Backer multiplier:</label>
+              <div class="col-sm-10">
+                <input id="amount-to-win" class="form-control" type="text" ng-model="bet_to_place.backer_multiplier" /></label><br />
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="col-sm-offset-2 col-sm-10">
+                <input type="button" class="btn btn-default" ng-click="place_bet_from_form()" value="Place Bet" />
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="col-sm-6">
+        <div class="panel panel-default">
+          <div class="panel-heading">Resolve Market</div>
+          <div class="container">
+            <form class="form">
+              <div class="form-group">
+              <button type="button" class="btn btn-primary" ng-click="payout('win')">Win</button>
+              <button type="button" class="btn btn-primary" ng-click="payout('not win')">Not Win</button>
+              <button type="button" class="btn btn-primary" ng-click="payout('cancel')">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <h2>Order book</h2>
+    <div class="row">
+      <div class="col-sm-6">
+        <div class="panel panel-default">
+          <div class="panel-heading">Back orders</div>
+          <table class="table">
+            <tr>
+              <th>account</th>
+              <th>amount_to_bet</th>
+              <th>backer_multiplier</th>
+              <th>odds</th>
+              <th></th>
+            </tr>
+            <tr ng-repeat="order in order_book.backs">
+              <td>{{order.bettor}}</td>
+              <td>{{order.amount_to_bet.toFixed()}}</td>
+              <td>{{order.backer_multiplier.toFixed()}}</td>
+              <td>{{order.odds.toFixed()}}:1</td>
+              <td><span ng-click="cancel_bet_interactive(order)" class="glyphicon glyphicon-remove" style="pointer-events: all" aria-hidden="true"></span></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+      <div class="col-sm-6">
+        <div class="panel panel-default">
+          <div class="panel-heading">Lay orders</div>
+          <table class="table">
+            <tr>
+              <th>account</th>
+              <th>amount_to_bet</th>
+              <th>backer_multiplier</th>
+              <th>odds</th>
+              <th></th>
+            </tr>
+            <tr ng-repeat="order in order_book.lays">
+              <td>{{order.bettor}}</td>
+              <td>{{order.amount_to_bet.toFixed()}}</td>
+              <td>{{order.backer_multiplier.toFixed()}}</td>
+              <td>{{order.odds.toFixed()}}:1</td>
+              <td><span ng-click="cancel_bet_interactive(order)" class="glyphicon glyphicon-remove" style="pointer-events: all" aria-hidden="true"></span></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <h2>Event log</h2>
+    <div class="well">
+      <ul>
+        <li ng-repeat="event in event_log.subentries" ng-include="'logEntryTree'"></li>
+        </li>
+      </ul>
+      <button type="button" class="btn btn-primary" ng-click="clear_event_log()">Clear Log</button>
+    </div>
+</div>
+</script>
+<script type="text/ng-template" id="logEntryTree">
+    {{ event.description }}
+    <ul ng-if="event.subentries">
+        <li ng-repeat="event in event.subentries" ng-include="'logEntryTree'"></li>
+    </ul>
+</script>
+<!-- Page 2 -->
+<script type="text/ng-template" id="/page2.html">
+<div>
+    <h3>Welcome to the second page</h3>
+    <div>
+        <a ng-href="#/page1" >Back</a>
+    </div>
+</div>
+</script>
+<!-- end of partials -->
+
+    <div id="page-div" ng-view>
+    </div>
+</body>
+</html>

@@ -33,6 +33,8 @@
 #include <boost/version.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/multiprecision/integer.hpp>
+#include <boost/algorithm/string/join.hpp>
 
 #include <boost/range/adaptor/map.hpp>
 #include <boost/range/algorithm_ext/erase.hpp>
@@ -59,9 +61,19 @@
 #include <fc/crypto/hex.hpp>
 #include <fc/thread/mutex.hpp>
 #include <fc/thread/scoped_lock.hpp>
+#include <fc/crypto/rand.hpp>
 
 #include <graphene/app/api.hpp>
 #include <graphene/chain/asset_object.hpp>
+
+#include <graphene/chain/tournament_object.hpp>
+#include <graphene/chain/match_object.hpp>
+#include <graphene/chain/game_object.hpp>
+#include <graphene/chain/protocol/rock_paper_scissors.hpp>
+#include <graphene/chain/rock_paper_scissors.hpp>
+
+#include <graphene/bookie/bookie_api.hpp>
+
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <graphene/utilities/git_revision.hpp>
 #include <graphene/utilities/key_conversion.hpp>
@@ -69,6 +81,7 @@
 #include <graphene/wallet/wallet.hpp>
 #include <graphene/wallet/api_documentation.hpp>
 #include <graphene/wallet/reflect_util.hpp>
+#include <graphene/debug_witness/debug_api.hpp>
 #include <fc/smart_ref_impl.hpp>
 
 #ifndef WIN32
@@ -122,6 +135,12 @@ public:
    std::string operator()(const account_create_operation& op)const;
    std::string operator()(const account_update_operation& op)const;
    std::string operator()(const asset_create_operation& op)const;
+   std::string operator()(const asset_dividend_distribution_operation& op)const;
+   std::string operator()(const tournament_payout_operation& op)const;
+   std::string operator()(const bet_place_operation& op)const;
+   std::string operator()(const bet_matched_operation& op)const;
+   std::string operator()(const bet_canceled_operation& op)const;
+   std::string operator()(const bet_adjusted_operation& op)const;
 };
 
 template<class T>
@@ -280,7 +299,7 @@ private:
       auto iter = _wallet.pending_witness_registrations.find(witness_name);
       FC_ASSERT(iter != _wallet.pending_witness_registrations.end());
       std::string wif_key = iter->second;
-      
+
       // get the list key id this key is registered with in the chain
       fc::optional<fc::ecc::private_key> witness_private_key = wif_to_key(wif_key);
       FC_ASSERT(witness_private_key);
@@ -316,12 +335,12 @@ private:
             if( optional_account )
                claim_registered_account(*optional_account);
       }
-      
+
       if (!_wallet.pending_witness_registrations.empty())
       {
          // make a vector of the owner accounts for witnesses pending registration
          std::vector<string> pending_witness_names = boost::copy_range<std::vector<string> >(boost::adaptors::keys(_wallet.pending_witness_registrations));
-      
+
          // look up the owners on the blockchain
          std::vector<fc::optional<graphene::chain::account_object>> owner_account_objects = _remote_db->lookup_account_names(pending_witness_names);
 
@@ -333,6 +352,126 @@ private:
                if (witness_obj)
                   claim_registered_witness(optional_account->name);
             }
+      }
+   }
+
+   // return true if any of my_accounts are players in this tournament
+   bool tournament_is_relevant_to_my_accounts(const tournament_object& tournament_obj)
+   {
+      tournament_details_object tournament_details = get_object<tournament_details_object>(tournament_obj.tournament_details_id);
+      for (const account_object& account_obj : _wallet.my_accounts)
+         if (tournament_details.registered_players.find(account_obj.id) != tournament_details.registered_players.end())
+            return true;
+      return false;
+   }
+
+   fc::mutex _subscribed_object_changed_mutex;
+   void subscribed_object_changed(const variant& changed_objects_variant)
+   {
+      fc::scoped_lock<fc::mutex> lock(_resync_mutex);
+      fc::variants changed_objects = changed_objects_variant.get_array();
+      for (const variant& changed_object_variant : changed_objects)
+      {
+         // changed_object_variant is either the object, or just the id if the object was removed
+         if (changed_object_variant.is_object())
+         {
+            try
+            {
+               object_id_type id = changed_object_variant["id"].as<tournament_id_type>();
+               tournament_object current_tournament_obj = changed_object_variant.as<tournament_object>();
+               auto tournament_cache_iter = tournament_cache.find(id);
+               if (tournament_cache_iter != tournament_cache.end())
+               {
+                  const tournament_object& cached_tournament_obj = *tournament_cache_iter;
+                  if (cached_tournament_obj.get_state() != current_tournament_obj.get_state())
+                  {
+                     ilog("Tournament ${id} changed state from ${old} to ${new}",
+                          ("id", id)
+                          ("old", cached_tournament_obj.get_state())
+                          ("new", current_tournament_obj.get_state()));
+                     if (current_tournament_obj.get_state() == tournament_state::in_progress)
+                        monitor_matches_in_tournament(current_tournament_obj);
+                  }
+                  tournament_cache.modify(tournament_cache_iter, [&](tournament_object& obj) { obj = current_tournament_obj; });
+               }
+               else if (tournament_is_relevant_to_my_accounts(current_tournament_obj))
+               {
+                  ilog ("We were just notified about an in-progress tournament ${id} relevant to our accounts",
+                        ("id", current_tournament_obj.id));
+                  tournament_cache.insert(current_tournament_obj);
+                  if (current_tournament_obj.get_state() == tournament_state::in_progress)
+                     monitor_matches_in_tournament(current_tournament_obj);
+               }
+               continue;
+            }
+            catch (const fc::exception& e)
+            {
+            //   idump((e));
+            }
+            try
+            {
+               object_id_type id = changed_object_variant["id"].as<match_id_type>();
+               match_object current_match_obj = changed_object_variant.as<match_object>();
+               auto match_cache_iter = match_cache.find(id);
+               if (match_cache_iter != match_cache.end())
+               {
+                  const match_object& cached_match_obj = *match_cache_iter;
+                  if (cached_match_obj.get_state() != current_match_obj.get_state() ||
+                      cached_match_obj.games.size() != current_match_obj.games.size())
+                  {
+                     ilog("match ${id} changed state from ${old} to ${new}",
+                          ("id", id)
+                          ("old", cached_match_obj.get_state())
+                          ("new", current_match_obj.get_state()));
+                     match_in_new_state(current_match_obj);
+                  }
+                  match_cache.modify(match_cache_iter, [&](match_object& obj) { obj = current_match_obj; });
+               }
+               continue;
+            }
+            catch (const fc::exception& e)
+            {
+            //   idump((e));
+            }
+            try
+            {
+               object_id_type id = changed_object_variant["id"].as<game_id_type>();
+               game_object current_game_obj = changed_object_variant.as<game_object>();
+               auto game_cache_iter = game_cache.find(id);
+               if (game_cache_iter != game_cache.end())
+               {
+                  const game_object& cached_game_obj = *game_cache_iter;
+                  if (cached_game_obj.get_state() != current_game_obj.get_state())
+                  {
+                     ilog("game ${id} changed state from ${old} to ${new}",
+                          ("id", id)
+                          ("old", cached_game_obj.get_state())
+                          ("new", current_game_obj.get_state()));
+                     game_in_new_state(current_game_obj);
+                  }
+                  game_cache.modify(game_cache_iter, [&](game_object& obj) { obj = current_game_obj; });
+               }
+               continue;
+            }
+            catch (const fc::exception& e)
+            {
+            //   idump((e));
+            }
+            try
+            {
+               object_id_type id = changed_object_variant["id"].as<account_id_type>();
+               if (_wallet.my_accounts.find(id) != _wallet.my_accounts.end())
+               {
+                  account_object account = changed_object_variant.as<account_object>();
+                  _wallet.update_account(account);
+               }
+               continue;
+            }
+            catch (const fc::exception& e)
+            {
+            //   idump((e));
+            }
+         }
       }
    }
 
@@ -365,9 +504,9 @@ private:
 
    // if the user executes the same command twice in quick succession,
    // we might generate the same transaction id, and cause the second
-   // transaction to be rejected.  This can be avoided by altering the 
+   // transaction to be rejected.  This can be avoided by altering the
    // second transaction slightly (bumping up the expiration time by
-   // a second).  Keep track of recent transaction ids we've generated 
+   // a second).  Keep track of recent transaction ids we've generated
    // so we can know if we need to do this
    struct recently_generated_transaction_record
    {
@@ -377,7 +516,7 @@ private:
    struct timestamp_index{};
    typedef boost::multi_index_container<recently_generated_transaction_record,
                                         boost::multi_index::indexed_by<boost::multi_index::hashed_unique<boost::multi_index::member<recently_generated_transaction_record,
-                                                                                                                                    graphene::chain::transaction_id_type, 
+                                                                                                                                    graphene::chain::transaction_id_type,
                                                                                                                                     &recently_generated_transaction_record::transaction_id>,
                                                                                                          std::hash<graphene::chain::transaction_id_type> >,
                                                                        boost::multi_index::ordered_non_unique<boost::multi_index::tag<timestamp_index>,
@@ -392,7 +531,8 @@ public:
         _remote_api(rapi),
         _remote_db(rapi->database()),
         _remote_net_broadcast(rapi->network_broadcast()),
-        _remote_hist(rapi->history())
+        _remote_hist(rapi->history()),
+        _remote_bookie(rapi->bookie())
    {
       chain_id_type remote_chain_id = _remote_db->get_chain_id();
       if( remote_chain_id != _chain_id )
@@ -408,10 +548,16 @@ public:
          on_block_applied( block_id );
       } );
 
+      _remote_db->set_subscribe_callback( [this](const variant& object )
+      {
+         on_subscribe_callback( object );
+      }, false );
+
       _wallet.chain_id = _chain_id;
       _wallet.ws_server = initial_data.ws_server;
       _wallet.ws_user = initial_data.ws_user;
       _wallet.ws_password = initial_data.ws_password;
+
    }
    virtual ~wallet_api_impl()
    {
@@ -444,6 +590,12 @@ public:
    void on_block_applied( const variant& block_id )
    {
       fc::async([this]{resync();}, "Resync after block");
+   }
+
+   void on_subscribe_callback( const variant& object )
+   {
+      //idump((object));
+      fc::async([this, object]{subscribed_object_changed(object);}, "Object changed");
    }
 
    bool copy_wallet_file( string destination_filename )
@@ -513,6 +665,7 @@ public:
       result["participation"] = (100*dynamic_props.recent_slots_filled.popcount()) / 128.0;
       result["active_witnesses"] = global_props.active_witnesses;
       result["active_committee_members"] = global_props.active_committee_members;
+      result["entropy"] = dynamic_props.random;
       return result;
    }
 
@@ -686,7 +839,7 @@ public:
       if (!optional_private_key)
          FC_THROW("Invalid private key");
       graphene::chain::public_key_type wif_pub_key = optional_private_key->get_public_key();
-      
+
       account_object account = get_account( account_name_or_id );
 
       // make a list of all current public keys for the named account
@@ -707,6 +860,147 @@ public:
    }
 
    vector< signed_transaction > import_balance( string name_or_id, const vector<string>& wif_keys, bool broadcast );
+
+   void game_in_new_state(const game_object& game_obj)
+   { try {
+      if (game_obj.get_state() == game_state::expecting_commit_moves)
+      {
+         if (game_obj.players.size() != 2) // we only support RPS, a 2 player game
+            return;
+         const rock_paper_scissors_game_details& rps_details = game_obj.game_details.get<rock_paper_scissors_game_details>();
+         for (unsigned i = 0; i < 2; ++i)
+         {
+            if (!rps_details.commit_moves.at(i)) // if this player hasn't committed their move
+            {
+               const account_id_type& account_id = game_obj.players[i];
+               if (_wallet.my_accounts.find(account_id) != _wallet.my_accounts.end()) // and they're us
+               {
+                  ilog("Game ${game_id}: it is ${account_name}'s turn to commit their move",
+                       ("game_id", game_obj.id)
+                       ("account_name", get_account(account_id).name));
+               }
+            }
+         }
+      }
+      else if (game_obj.get_state() == game_state::expecting_reveal_moves)
+      {
+         if (game_obj.players.size() != 2) // we only support RPS, a 2 player game
+            return;
+         const rock_paper_scissors_game_details& rps_details = game_obj.game_details.get<rock_paper_scissors_game_details>();
+         for (unsigned i = 0; i < 2; ++i)
+         {
+            if (rps_details.commit_moves.at(i) && 
+                !rps_details.reveal_moves.at(i)) // if this player has committed but not revealed
+            {
+               const account_id_type& account_id = game_obj.players[i];
+               if (_wallet.my_accounts.find(account_id) != _wallet.my_accounts.end()) // and they're us
+               {
+                  if (self.is_locked())
+                     ilog("Game ${game_id}: unable to broadcast ${account_name}'s reveal because the wallet is locked",
+                          ("game_id", game_obj.id)
+                          ("account_name", get_account(account_id).name));
+                  else
+                  {
+                     ilog("Game ${game_id}: it is ${account_name}'s turn to reveal their move",
+                          ("game_id", game_obj.id)
+                          ("account_name", get_account(account_id).name));
+
+                     auto iter = _wallet.committed_game_moves.find(*rps_details.commit_moves.at(i));
+                     if (iter != _wallet.committed_game_moves.end())
+                     {
+                        const rock_paper_scissors_throw_reveal& reveal = iter->second;
+                        
+                        game_move_operation move_operation;
+                        move_operation.game_id = game_obj.id;
+                        move_operation.player_account_id = account_id;
+                        move_operation.move = reveal;
+
+                        signed_transaction trx;
+                        trx.operations = {move_operation};
+                        set_operation_fees( trx, _remote_db->get_global_properties().parameters.current_fees);
+                        trx.validate();
+                        ilog("Broadcasting reveal...");
+                        trx = sign_transaction(trx, true);
+                        ilog("Reveal broadcast, transaction id is ${id}", ("id", trx.id()));
+                     }
+                  }
+               }
+            }
+         }
+      }
+   } FC_RETHROW_EXCEPTIONS(warn, "") }
+
+   void match_in_new_state(const match_object& match_obj)
+   { try {
+      if (match_obj.get_state() == match_state::match_in_progress)
+      {
+         for (const account_id_type& account_id : match_obj.players)
+         {
+            if (_wallet.my_accounts.find(account_id) != _wallet.my_accounts.end())
+            {
+               ilog("Match ${match} is now in progress for player ${account}",
+                    ("match", match_obj.id)("account", get_account(account_id).name));
+               for (const game_id_type& game_id : match_obj.games)
+               {
+                  game_object game_obj = get_object<game_object>(game_id);
+                  auto insert_result = game_cache.insert(game_obj);
+                  if (insert_result.second)
+                     game_in_new_state(game_obj);
+               }
+            }
+         }
+      }
+   } FC_RETHROW_EXCEPTIONS(warn, "") }
+
+   // Cache all matches in the tournament, which will also register us for 
+   // updates on those matches
+   void monitor_matches_in_tournament(const tournament_object& tournament_obj)
+   { try {
+      tournament_details_object tournament_details = get_object<tournament_details_object>(tournament_obj.tournament_details_id);
+      for (const match_id_type& match_id : tournament_details.matches)
+      {
+         match_object match_obj = get_object<match_object>(match_id);
+         auto insert_result = match_cache.insert(match_obj);
+         if (insert_result.second)
+            match_in_new_state(match_obj);
+      }
+   } FC_RETHROW_EXCEPTIONS(warn, "") }
+
+   void resync_active_tournaments()
+   {
+      // check to see if any of our accounts are registered for tournaments
+      // the real purpose of this is to ensure that we are subscribed for callbacks on these tournaments
+      ilog("Checking my accounts for active tournaments",);
+      tournament_cache.clear();
+      match_cache.clear();
+      game_cache.clear();
+      for (const account_object& my_account : _wallet.my_accounts)
+      {
+         std::vector<tournament_id_type> tournament_ids = _remote_db->get_registered_tournaments(my_account.id, 100);
+         for (const tournament_id_type& tournament_id : tournament_ids)
+         {
+            try
+            {
+               tournament_object tournament = get_object<tournament_object>(tournament_id);
+               auto insert_result = tournament_cache.insert(tournament);
+               if (insert_result.second)
+               {
+                  // then this is the first time we've seen this tournament
+                  monitor_matches_in_tournament(tournament);
+               }
+               tournament_ids.push_back(tournament.id);
+            }
+            catch (const fc::exception& e)
+            {
+               edump((e)(tournament_id));
+            }
+         }
+         if (!tournament_ids.empty())
+            ilog("Account ${my_account} is registered for tournaments: ${tournaments}", ("my_account", my_account.name)("tournaments", tournament_ids));
+         else
+            ilog("Account ${my_account} is not registered for any tournaments", ("my_account", my_account.name));
+      }
+   }
 
    bool load_wallet_file(string wallet_filename = "")
    {
@@ -767,6 +1061,8 @@ public:
             i++;
          }
       }
+
+      resync_active_tournaments();
 
       return true;
    }
@@ -1042,7 +1338,7 @@ public:
    { try {
          int active_key_index = find_first_unused_derived_key_index(owner_privkey);
          fc::ecc::private_key active_privkey = derive_private_key( key_to_wif(owner_privkey), active_key_index);
-         
+
          int memo_key_index = find_first_unused_derived_key_index(active_privkey);
          fc::ecc::private_key memo_privkey = derive_private_key( key_to_wif(active_privkey), memo_key_index);
 
@@ -1186,6 +1482,27 @@ public:
         FC_THROW("No asset with that symbol exists!");
 
       asset_update_bitasset_operation update_op;
+      update_op.issuer = asset_to_update->issuer;
+      update_op.asset_to_update = asset_to_update->id;
+      update_op.new_options = new_options;
+
+      signed_transaction tx;
+      tx.operations.push_back( update_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (symbol)(new_options)(broadcast) ) }
+
+   signed_transaction update_dividend_asset(string symbol,
+                                            dividend_asset_options new_options,
+                                            bool broadcast /* = false */)
+   { try {
+      optional<asset_object> asset_to_update = find_asset(symbol);
+      if (!asset_to_update)
+        FC_THROW("No asset with that symbol exists!");
+
+      asset_update_dividend_operation update_op;
       update_op.issuer = asset_to_update->issuer;
       update_op.asset_to_update = asset_to_update->id;
       update_op.new_options = new_options;
@@ -1350,7 +1667,7 @@ public:
       return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (authorizing_account)(account_to_list)(new_listing_status)(broadcast) ) }
 
-   signed_transaction create_committee_member(string owner_account, string url, 
+   signed_transaction create_committee_member(string owner_account, string url,
                                       bool broadcast /* = false */)
    { try {
 
@@ -1370,7 +1687,7 @@ public:
 
    witness_object get_witness(string owner_account)
    {
-      try 
+      try
       {
          fc::optional<witness_id_type> witness_id = maybe_id<witness_id_type>(owner_account);
          if (witness_id)
@@ -1405,7 +1722,7 @@ public:
 
    committee_member_object get_committee_member(string owner_account)
    {
-      try 
+      try
       {
          fc::optional<committee_member_id_type> committee_member_id = maybe_id<committee_member_id_type>(owner_account);
          if (committee_member_id)
@@ -1452,6 +1769,11 @@ public:
       witness_create_op.witness_account = witness_account.id;
       witness_create_op.block_signing_key = witness_public_key;
       witness_create_op.url = url;
+      secret_hash_type::encoder enc;
+      fc::raw::pack(enc, witness_private_key);
+      fc::raw::pack(enc, secret_hash_type());
+      witness_create_op.initial_secret = secret_hash_type::hash(enc.result());
+
 
       if (_remote_db->get_witness_by_account(witness_create_op.witness_account))
          FC_THROW("Account ${owner_account} is already a witness", ("owner_account", owner_account));
@@ -1460,7 +1782,7 @@ public:
       tx.operations.push_back( witness_create_op );
       set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
       tx.validate();
-         
+
       _wallet.pending_witness_registrations[owner_account] = key_to_wif(witness_private_key);
 
       return sign_transaction( tx, broadcast );
@@ -1480,8 +1802,10 @@ public:
       witness_update_op.witness_account = witness_account.id;
       if( url != "" )
          witness_update_op.new_url = url;
-      if( block_signing_key != "" )
+      if( block_signing_key != "" ) {
          witness_update_op.new_signing_key = public_key_type( block_signing_key );
+         witness_update_op.new_initial_secret = secret_hash_type::hash(secret_hash_type());
+      }
 
       signed_transaction tx;
       tx.operations.push_back( witness_update_op );
@@ -1701,9 +2025,9 @@ public:
    } FC_CAPTURE_AND_RETHROW( (voting_account)(committee_member)(approve)(broadcast) ) }
 
    signed_transaction vote_for_witness(string voting_account,
-                                        string witness,
-                                        bool approve,
-                                        bool broadcast /* = false */)
+                                       string witness,
+                                       bool approve,
+                                       bool broadcast /* = false */)
    { try {
       account_object voting_account_object = get_account(voting_account);
       account_id_type witness_owner_account_id = get_account_id(witness);
@@ -1733,6 +2057,47 @@ public:
 
       return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (voting_account)(witness)(approve)(broadcast) ) }
+
+   signed_transaction update_witness_votes(string voting_account,
+                                           std::vector<std::string> witnesses_to_approve,
+                                           std::vector<std::string> witnesses_to_reject,
+                                           uint16_t desired_number_of_witnesses,
+                                           bool broadcast /* = false */)
+   { try {
+      account_object voting_account_object = get_account(voting_account);
+      for (const std::string& witness : witnesses_to_approve)
+      {
+         account_id_type witness_owner_account_id = get_account_id(witness);
+         fc::optional<witness_object> witness_obj = _remote_db->get_witness_by_account(witness_owner_account_id);
+         if (!witness_obj)
+            FC_THROW("Account ${witness} is not registered as a witness", ("witness", witness));
+         auto insert_result = voting_account_object.options.votes.insert(witness_obj->vote_id);
+         if (!insert_result.second)
+            FC_THROW("Account ${account} was already voting for witness ${witness}", ("account", voting_account)("witness", witness));
+      }
+      for (const std::string& witness : witnesses_to_reject)
+      {
+         account_id_type witness_owner_account_id = get_account_id(witness);
+         fc::optional<witness_object> witness_obj = _remote_db->get_witness_by_account(witness_owner_account_id);
+         if (!witness_obj)
+            FC_THROW("Account ${witness} is not registered as a witness", ("witness", witness));
+         unsigned votes_removed = voting_account_object.options.votes.erase(witness_obj->vote_id);
+         if (!votes_removed)
+            FC_THROW("Account ${account} is already not voting for witness ${witness}", ("account", voting_account)("witness", witness));
+      }
+      voting_account_object.options.num_witness = desired_number_of_witnesses;
+
+      account_update_operation account_update_op;
+      account_update_op.account = voting_account_object.id;
+      account_update_op.new_options = voting_account_object.options;
+
+      signed_transaction tx;
+      tx.operations.push_back( account_update_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (voting_account)(witnesses_to_approve)(witnesses_to_reject)(desired_number_of_witnesses)(broadcast) ) }
 
    signed_transaction set_voting_proxy(string account_to_modify,
                                        optional<string> voting_account,
@@ -1774,7 +2139,7 @@ public:
 
       if (account_object_to_modify.options.num_witness == desired_number_of_witnesses &&
           account_object_to_modify.options.num_committee == desired_number_of_committee_members)
-         FC_THROW("Account ${account} is already voting for ${witnesses} witnesses and ${committee_members} committee_members", 
+         FC_THROW("Account ${account} is already voting for ${witnesses} witnesses and ${committee_members} committee_members",
                   ("account", account_to_modify)("witnesses", desired_number_of_witnesses)("committee_members",desired_number_of_witnesses));
       account_object_to_modify.options.num_witness = desired_number_of_witnesses;
       account_object_to_modify.options.num_committee = desired_number_of_committee_members;
@@ -2087,6 +2452,23 @@ public:
 
          return ss.str();
       };
+      m["get_relative_account_history"] = [this](variant result, const fc::variants& a)
+      {
+         auto r = result.as<vector<operation_detail>>();
+         std::stringstream ss;
+
+         for( operation_detail& d : r )
+         {
+            operation_history_object& i = d.op;
+            auto b = _remote_db->get_block_header(i.block_num);
+            FC_ASSERT(b);
+            ss << b->timestamp.to_iso_string() << " ";
+            i.op.visit(operation_printer(ss, *this, i.result));
+            ss << " \n";
+         }
+
+         return ss.str();
+      };
 
       m["list_account_balances"] = [this](variant result, const fc::variants& a)
       {
@@ -2099,6 +2481,21 @@ public:
          std::stringstream ss;
          for( unsigned i = 0; i < asset_recs.size(); ++i )
             ss << asset_recs[i].amount_to_pretty_string(r[i]) << "\n";
+
+         return ss.str();
+      };
+
+      m["list_core_accounts"] = [this](variant result, const fc::variants& a)
+      {
+         std::stringstream ss;
+
+         auto balances = result.as<vector<account_balance_object>>();
+         for (const account_balance_object& balance: balances)
+         {
+             const account_object& account = get_account(balance.owner);
+             //ss << account.name << " " <<  std::string(balance.id) << " " << balance.balance.value << "\n";
+             ss << account.name << " " <<  std::string(balance.id) << " " << get_asset(balance.asset_type).amount_to_pretty_string(balance.balance) << "\n";
+         }
 
          return ss.str();
       };
@@ -2161,9 +2558,242 @@ public:
          for( auto& r : records )
          {
             asset_object as = get_asset( r.amount.asset_id );
-            ss << fc::get_approximate_relative_time_string( r.date ) 
+            ss << fc::get_approximate_relative_time_string( r.date )
                << "  " << as.amount_to_pretty_string( r.amount ) << "  " << r.from_label << "  =>  " << r.to_label  << "  " << r.memo <<"\n";
          }
+         return ss.str();
+      };
+      m["get_upcoming_tournaments"] = m["get_tournaments"] = m["get_tournaments_by_state"] = [this](variant result, const fc::variants& a)
+      {
+         const vector<tournament_object> tournaments = result.as<vector<tournament_object> >();
+         std::stringstream ss;
+         ss << "ID       GAME                  BUY IN    PLAYERS\n";
+         ss << "====================================================================================\n";
+         for( const tournament_object& tournament_obj : tournaments )
+         {
+            asset_object buy_in_asset = get_asset(tournament_obj.options.buy_in.asset_id);
+            ss << fc::variant(tournament_obj.id).as<std::string>() << "  " 
+               << buy_in_asset.amount_to_pretty_string(tournament_obj.options.buy_in.amount) << "  "
+               << tournament_obj.options.number_of_players << " players\n";
+            switch (tournament_obj.get_state())
+            {
+            case tournament_state::accepting_registrations:
+               {
+                  ss << "  Waiting for players, " << tournament_obj.registered_players << " of " << tournament_obj.options.number_of_players << " have registered\n";
+                  ss << "  If enough players register, the game will start ";
+                  if (tournament_obj.options.start_time)
+                     ss << "at " << tournament_obj.options.start_time->to_iso_string() << "\n";
+                  else
+                     ss << *tournament_obj.options.start_delay << " seconds after the last player registers\n";
+                  break;
+               }
+            case tournament_state::awaiting_start:
+               {
+                  ss << "  All players have registered, tournament will start at " << tournament_obj.start_time->to_iso_string() << "\n";
+                  break;
+               }
+            case tournament_state::in_progress:
+               {
+                  ss << "  Tournament started at " << tournament_obj.start_time->to_iso_string() << "\n";
+                  break;
+               }
+            case tournament_state::registration_period_expired:
+               {
+                  ss << "  Tournament was canceled at " << tournament_obj.options.registration_deadline.to_iso_string() << ", not enough players registered\n";
+                  break;
+               }
+            case tournament_state::concluded:
+               {
+                  ss << "  Tournament finished at " << tournament_obj.end_time->to_iso_string() << "\n";
+                  break;
+               }
+            }
+         }
+         return ss.str();
+      };
+      m["get_tournament"] = [this](variant result, const fc::variants& a)
+      {
+         std::stringstream ss;
+
+         tournament_object tournament = result.as<tournament_object>();
+         tournament_details_object tournament_details = _remote_db->get_objects({result["tournament_details_id"].as<object_id_type>()})[0].as<tournament_details_object>();
+         tournament_state state = tournament.get_state();
+         if (state == tournament_state::accepting_registrations)
+         {
+            ss << "Tournament is accepting registrations\n";
+            ss << "Players " <<  tournament.registered_players << "/" << tournament.options.number_of_players  << ":\n";
+            for (const account_id_type& player : tournament_details.registered_players)
+               ss << "\t" << get_account(player).name << "\n";
+         }
+         else if (state == tournament_state::registration_period_expired)
+         {
+            ss << "Tournament registration period expired\n";
+            ss << "Players " <<  tournament.registered_players << "/" << tournament.options.number_of_players  << ":\n";
+            for (const account_id_type& player : tournament_details.registered_players)
+               ss << "\t" << get_account(player).name << "\n";
+         }
+         else if (state == tournament_state::awaiting_start)
+         {
+            ss << "Tournament starts at " << tournament.start_time->to_iso_string() << "\n";
+            ss << "Players:\n";
+            for (const account_id_type& player : tournament_details.registered_players)
+               ss << "\t" << get_account(player).name << "\n";
+         }
+         else if (state == tournament_state::in_progress ||
+                  state == tournament_state::concluded)
+         {
+            unsigned num_matches = tournament_details.matches.size();
+            uint32_t num_rounds = boost::multiprecision::detail::find_msb(tournament_details.matches.size() + 1);
+            unsigned num_rows = (num_matches + 1) * 2 - 1;
+            for (unsigned row = 0; row < num_rows; ++row)
+            {
+               for (unsigned round = 0; round <= num_rounds; ++round)
+               {
+                  unsigned row_offset = (1 << round) - 1;
+                  unsigned row_vertical_spacing = 1 << (round + 1);
+                  if (row >= row_offset && 
+                      (row - row_offset) % row_vertical_spacing == 0)
+                  {
+                     unsigned player_number_in_round = (row - row_offset) / row_vertical_spacing;
+                     unsigned first_player_in_round = (num_matches - (num_matches >> round)) * 2;
+                     unsigned player_number = first_player_in_round + player_number_in_round;
+
+                     unsigned match_number = player_number / 2;
+                     unsigned player_in_match = player_number % 2;
+
+                     std::string player_name;
+                     if (round == num_rounds)
+                     {
+                        match_object match = get_object<match_object>(tournament_details.matches[num_matches - 1]);
+                        if (match.get_state() == match_state::match_complete && 
+                            !match.match_winners.empty())
+                        {
+                           assert(match.match_winners.size() == 1);
+                           player_name = get_account(*match.match_winners.begin()).name;
+                        }
+                     }
+                     else
+                     {
+                        match_object match = get_object<match_object>(tournament_details.matches[match_number]);
+                        if (!match.players.empty())
+                        {
+                           if (player_in_match < match.players.size())
+                              player_name = get_account(match.players[player_in_match]).name;
+                           else
+                              player_name = "[bye]";
+                        }
+                     }
+
+                     ss << "__";
+                     ss << std::setfill('_') << std::setw(10) << player_name.substr(0,10);
+                     ss << "__";
+                  }
+                  else
+                     ss << "              ";
+
+                  if (round != num_rounds)
+                  {
+                     unsigned round_horizontal_spacing = 1 << round;
+                     unsigned next_row_vertical_spacing = 1 << (round + 2);
+                     for (unsigned i = 0; i < round_horizontal_spacing; ++i)
+                     {
+                        if ((row - 1 - i - row_offset) % next_row_vertical_spacing == 0)
+                           ss << "\\";
+                        else if ((row - row_vertical_spacing + i - row_offset) % next_row_vertical_spacing == 0)
+                           ss << "/";
+                        else
+                           ss << " ";
+                     }
+                  }
+               }
+               ss << "\n";
+            }
+         }
+
+         return ss.str();
+      };
+      m["get_order_book"] = [this](variant result, const fc::variants& a)
+      {
+         auto orders = result.as<order_book>();
+         auto bids = orders.bids;
+         auto asks = orders.asks;
+         std::stringstream ss;
+         std::stringstream sum_stream;
+         sum_stream << "Sum(" << orders.base << ')';
+         double bid_sum = 0;
+         double ask_sum = 0;
+         const int spacing = 20;
+
+         auto prettify_num = [&]( double n )
+         {
+            //ss << n;
+            if (abs( round( n ) - n ) < 0.00000000001 )
+            {
+               //ss << setiosflags( !ios::fixed ) << (int) n;     // doesn't compile on Linux with gcc
+               ss << (int) n;
+            }
+            else if (n - floor(n) < 0.000001)
+            {
+               ss << setiosflags( ios::fixed ) << setprecision(10) << n;
+            }
+            else
+            {
+               ss << setiosflags( ios::fixed ) << setprecision(6) << n;
+            }
+         };
+
+         ss << setprecision( 8 ) << setiosflags( ios::fixed ) << setiosflags( ios::left );
+
+         ss << ' ' << setw( (spacing * 4) + 6 ) << "BUY ORDERS" << "SELL ORDERS\n"
+            << ' ' << setw( spacing + 1 ) << "Price" << setw( spacing ) << orders.quote << ' ' << setw( spacing )
+            << orders.base << ' ' << setw( spacing ) << sum_stream.str()
+            << "   " << setw( spacing + 1 ) << "Price" << setw( spacing ) << orders.quote << ' ' << setw( spacing )
+            << orders.base << ' ' << setw( spacing ) << sum_stream.str()
+            << "\n====================================================================================="
+            << "|=====================================================================================\n";
+
+         for (unsigned i = 0; i < bids.size() || i < asks.size() ; i++)
+         {
+            if ( i < bids.size() )
+            {
+                bid_sum += bids[i].base;
+                ss << ' ' << setw( spacing );
+                prettify_num( bids[i].price );
+                ss << ' ' << setw( spacing );
+                prettify_num( bids[i].quote );
+                ss << ' ' << setw( spacing );
+                prettify_num( bids[i].base );
+                ss << ' ' << setw( spacing );
+                prettify_num( bid_sum );
+                ss << ' ';
+            }
+            else
+            {
+                ss << setw( (spacing * 4) + 5 ) << ' ';
+            }
+
+            ss << '|';
+
+            if ( i < asks.size() )
+            {
+               ask_sum += asks[i].base;
+               ss << ' ' << setw( spacing );
+               prettify_num( asks[i].price );
+               ss << ' ' << setw( spacing );
+               prettify_num( asks[i].quote );
+               ss << ' ' << setw( spacing );
+               prettify_num( asks[i].base );
+               ss << ' ' << setw( spacing );
+               prettify_num( ask_sum );
+            }
+
+            ss << '\n';
+         }
+
+         ss << endl
+            << "Buy Total:  " << bid_sum << ' ' << orders.base << endl
+            << "Sell Total: " << ask_sum << ' ' << orders.base << endl;
+
          return ss.str();
       };
 
@@ -2286,6 +2916,46 @@ public:
       return sign_transaction(tx, broadcast);
    }
 
+   signed_transaction propose_dividend_asset_update(
+      const string& proposing_account,
+      fc::time_point_sec expiration_time,
+      const variant_object& changed_values,
+      bool broadcast = false)
+   {
+      FC_ASSERT( changed_values.contains("asset_to_update") );
+
+      const chain_parameters& current_params = get_global_properties().parameters;
+      asset_update_dividend_operation changed_op;
+      fc::reflector<asset_update_dividend_operation>::visit(
+         fc::from_variant_visitor<asset_update_dividend_operation>( changed_values, changed_op )
+         );
+
+      optional<asset_object> asset_to_update = find_asset(changed_op.asset_to_update);
+      if (!asset_to_update)
+        FC_THROW("No asset with that symbol exists!");
+
+      asset_update_dividend_operation update_op;
+      update_op.issuer = asset_to_update->issuer;
+      update_op.asset_to_update = asset_to_update->id;
+      update_op.new_options = changed_op.new_options;
+
+      proposal_create_operation prop_op;
+
+      prop_op.expiration_time = expiration_time;
+      prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+      prop_op.fee_paying_account = get_account(proposing_account).id;
+
+      prop_op.proposed_ops.emplace_back( update_op );
+      current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+      signed_transaction tx;
+      tx.operations.push_back(prop_op);
+      set_operation_fees(tx, current_params.current_fees);
+      tx.validate();
+
+      return sign_transaction(tx, broadcast);
+   }
+
    signed_transaction approve_proposal(
       const string& fee_paying_account,
       const string& proposal_id,
@@ -2338,6 +3008,34 @@ public:
       create_asset(get_account(creator).name, symbol, 2, opts, bopts, true);
    }
 
+   void dbg_push_blocks( const std::string& src_filename, uint32_t count )
+   {
+      use_debug_api();
+      (*_remote_debug)->debug_push_blocks( src_filename, count );
+      (*_remote_debug)->debug_stream_json_objects_flush();
+   }
+
+   void dbg_generate_blocks( const std::string& debug_wif_key, uint32_t count )
+   {
+      use_debug_api();
+      (*_remote_debug)->debug_generate_blocks( debug_wif_key, count );
+      (*_remote_debug)->debug_stream_json_objects_flush();
+   }
+
+   void dbg_stream_json_objects( const std::string& filename )
+   {
+      use_debug_api();
+      (*_remote_debug)->debug_stream_json_objects( filename );
+      (*_remote_debug)->debug_stream_json_objects_flush();
+   }
+
+   void dbg_update_object( const fc::variant_object& update )
+   {
+      use_debug_api();
+      (*_remote_debug)->debug_update_object( update );
+      (*_remote_debug)->debug_stream_json_objects_flush();
+   }
+
    void use_network_node_api()
    {
       if( _remote_net_node )
@@ -2353,6 +3051,26 @@ public:
          "connecting to.  Please follow the instructions in README.md to set up an apiaccess file.\n"
          "\n";
          throw(e);
+      }
+   }
+
+   void use_debug_api()
+   {
+      if( _remote_debug )
+         return;
+      try
+      {
+        _remote_debug = _remote_api->debug();
+      }
+      catch( const fc::exception& e )
+      {
+         std::cerr << "\nCouldn't get debug node API.  You probably are not configured\n"
+         "to access the debug API on the node you are connecting to.\n"
+         "\n"
+         "To fix this problem:\n"
+         "- Please ensure you are running debug_node, not witness_node.\n"
+         "- Please follow the instructions in README.md to set up an apiaccess file.\n"
+         "\n";
       }
    }
 
@@ -2392,7 +3110,7 @@ public:
             dbg_make_uia(master.name, "SHILL");
          } catch(...) {/* Ignore; the asset probably already exists.*/}
 
-         fc::time_point start = fc::time_point::now(); 
+         fc::time_point start = fc::time_point::now();
          for( int i = 0; i < number_of_accounts; ++i )
          {
             std::ostringstream brain_key;
@@ -2448,11 +3166,31 @@ public:
    fc::api<database_api>   _remote_db;
    fc::api<network_broadcast_api>   _remote_net_broadcast;
    fc::api<history_api>    _remote_hist;
+   fc::api<bookie_api>    _remote_bookie;
    optional< fc::api<network_node_api> > _remote_net_node;
+   optional< fc::api<graphene::debug_witness::debug_api> > _remote_debug;
 
    flat_map<string, operation> _prototype_ops;
 
    static_variant_map _operation_which_map = create_static_variant_map< operation >();
+
+   typedef multi_index_container<
+      tournament_object,
+      indexed_by<
+         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > > > > tournament_index_type;
+   tournament_index_type tournament_cache;
+
+   typedef multi_index_container<
+      match_object,
+      indexed_by<
+         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > > > > match_index_type;
+   match_index_type match_cache;
+
+   typedef multi_index_container<
+      game_object,
+      indexed_by<
+         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > > > > game_index_type;
+   game_index_type game_cache;
 
 #ifdef __unix__
    mode_t                  _old_umask;
@@ -2474,7 +3212,7 @@ std::string operation_printer::operator()(const T& op)const
    //op.get_balance_delta( acc, result );
    auto a = wallet.get_asset( op.fee.asset_id );
    auto payer = wallet.get_account( op.fee_payer() );
-   
+
    string op_name = fc::get_typename<T>::name();
    if( op_name.find_last_of(':') != string::npos )
       op_name.erase(0, op_name.find_last_of(':')+1);
@@ -2484,9 +3222,7 @@ std::string operation_printer::operator()(const T& op)const
    operation_result_printer rprinter(wallet);
    std::string str_result = result.visit(rprinter);
    if( str_result != "" )
-   {
       out << "   result: " << str_result;
-   }
    return "";
 }
 std::string operation_printer::operator()(const transfer_from_blind_operation& op)const
@@ -2494,7 +3230,7 @@ std::string operation_printer::operator()(const transfer_from_blind_operation& o
    auto a = wallet.get_asset( op.fee.asset_id );
    auto receiver = wallet.get_account( op.to );
 
-   out <<  receiver.name 
+   out <<  receiver.name
    << " received " << a.amount_to_pretty_string( op.amount ) << " from blinded balance";
    return "";
 }
@@ -2504,7 +3240,7 @@ std::string operation_printer::operator()(const transfer_to_blind_operation& op)
    auto a = wallet.get_asset( op.amount.asset_id );
    auto sender = wallet.get_account( op.from );
 
-   out <<  sender.name 
+   out <<  sender.name
    << " sent " << a.amount_to_pretty_string( op.amount ) << " to " << op.outputs.size() << " blinded balance" << (op.outputs.size()>1?"s":"")
    << " fee: " << fa.amount_to_pretty_string( op.fee );
    return "";
@@ -2566,6 +3302,74 @@ std::string operation_printer::operator()(const asset_create_operation& op) cons
    return fee(op.fee);
 }
 
+std::string operation_printer::operator()(const asset_dividend_distribution_operation& op)const
+{
+   asset_object dividend_paying_asset = wallet.get_asset(op.dividend_asset_id);
+   account_object receiver = wallet.get_account(op.account_id);
+
+   out << receiver.name << " received dividend payments for " << dividend_paying_asset.symbol << ": ";
+   std::vector<std::string> pretty_payout_amounts;
+   for (const asset& payment : op.amounts)
+   {
+      asset_object payout_asset = wallet.get_asset(payment.asset_id);
+      pretty_payout_amounts.push_back(payout_asset.amount_to_pretty_string(payment));
+   }
+   out << boost::algorithm::join(pretty_payout_amounts, ", ");
+   return "";
+}
+
+std::string operation_printer::operator()(const tournament_payout_operation& op)const
+{
+    asset_object payout_asset = wallet.get_asset(op.payout_amount.asset_id);
+
+    out << "Tournament #" << std::string(object_id_type(op.tournament_id)) << " Payout : "
+        << "Account '" << wallet.get_account(op.payout_account_id).name
+        << "', Amount " <<  payout_asset.amount_to_pretty_string(op.payout_amount) << ", Type "
+        << (op.type == payout_type::buyin_refund ? "buyin refund" : (op.type == payout_type::rake_fee ? "rake fee" : "prize award"))
+        << ".";
+    return "";
+}
+
+std::string operation_printer::operator()(const bet_place_operation& op)const
+{
+   auto fee_asset = wallet.get_asset(op.fee.asset_id);
+   auto asset = wallet.get_asset(op.amount_to_bet.asset_id);
+   auto bettor = wallet.get_account(op.bettor_id);
+
+   out << bettor.name << " placed a " << fc::json::to_string(op.back_or_lay) << " bet for " 
+       << asset.amount_to_pretty_string(op.amount_to_bet) << " at odds " << ((double)op.backer_multiplier /  GRAPHENE_BETTING_ODDS_PRECISION)
+       << " on market " << fc::json::to_string(op.betting_market_id)
+       << " fee: " << fee_asset.amount_to_pretty_string(op.fee);
+   return "";
+}
+
+std::string operation_printer::operator()(const bet_matched_operation& op)const
+{
+   auto asset = wallet.get_asset(op.amount_bet.asset_id);
+   auto bettor = wallet.get_account(op.bettor_id);
+
+   out << "  " << bettor.name << "'s bet " << fc::json::to_string(op.bet_id) << " matched " << asset.amount_to_pretty_string(op.amount_bet) << " at odds " << ((double)op.backer_multiplier /  GRAPHENE_BETTING_ODDS_PRECISION);
+   return "";
+}
+
+std::string operation_printer::operator()(const bet_canceled_operation& op)const
+{
+   auto asset = wallet.get_asset(op.stake_returned.asset_id);
+   auto bettor = wallet.get_account(op.bettor_id);
+
+   out << "  " << bettor.name << "'s bet " << fc::json::to_string(op.bet_id) << " was canceled, " << asset.amount_to_pretty_string(op.stake_returned) << " returned";
+   return "";
+}
+
+std::string operation_printer::operator()(const bet_adjusted_operation& op)const
+{
+   auto asset = wallet.get_asset(op.stake_returned.asset_id);
+   auto bettor = wallet.get_account(op.bettor_id);
+
+   out << "  " << bettor.name << "'s bet " << fc::json::to_string(op.bet_id) << " was adjusted, " << asset.amount_to_pretty_string(op.stake_returned) << " returned";
+   return "";
+}
+
 std::string operation_result_printer::operator()(const void_result& x) const
 {
    return "";
@@ -2583,7 +3387,29 @@ std::string operation_result_printer::operator()(const asset& a)
 
 }}}
 
+namespace graphene { namespace wallet {
+   vector<brain_key_info> utility::derive_owner_keys_from_brain_key(string brain_key, int number_of_desired_keys)
+   {
+      // Safety-check
+      FC_ASSERT( number_of_desired_keys >= 1 );
 
+      // Create as many derived owner keys as requested
+      vector<brain_key_info> results;
+      brain_key = graphene::wallet::detail::normalize_brain_key(brain_key);
+      for (int i = 0; i < number_of_desired_keys; ++i) {
+        fc::ecc::private_key priv_key = graphene::wallet::detail::derive_private_key( brain_key, i );
+
+        brain_key_info result;
+        result.brain_priv_key = brain_key;
+        result.wif_priv_key = key_to_wif( priv_key );
+        result.pub_key = priv_key.get_public_key();
+
+        results.push_back(result);
+      }
+
+      return results;
+   }
+}}
 
 namespace graphene { namespace wallet {
 
@@ -2641,7 +3467,7 @@ vector<operation_detail> wallet_api::get_account_history(string name, int limit)
    while( limit > 0 )
    {
       operation_history_id_type start;
-      if( result.size() ) 
+      if( result.size() )
       {
          start = result.back().op.id;
          start = start + 1;
@@ -2654,7 +3480,7 @@ vector<operation_detail> wallet_api::get_account_history(string name, int limit)
          auto memo = o.op.visit(detail::operation_printer(ss, *my, o.result));
          result.push_back( operation_detail{ memo, ss.str(), o } );
       }
-      if( current.size() < std::min(100,limit) )
+      if( (int)current.size() < std::min(100,limit) )
          break;
       limit -= current.size();
    }
@@ -2662,10 +3488,38 @@ vector<operation_detail> wallet_api::get_account_history(string name, int limit)
    return result;
 }
 
-
-vector<bucket_object> wallet_api::get_market_history( string symbol1, string symbol2, uint32_t bucket )const
+vector<operation_detail> wallet_api::get_relative_account_history(string name, uint32_t stop, int limit, uint32_t start)const
 {
-   return my->_remote_hist->get_market_history( get_asset_id(symbol1), get_asset_id(symbol2), bucket, fc::time_point_sec(), fc::time_point::now() );
+   
+   FC_ASSERT( start > 0 || limit <= 100 );
+   
+   vector<operation_detail> result;
+   auto account_id = get_account(name).get_id();
+
+   while( limit > 0 )
+   {
+      vector <operation_history_object> current = my->_remote_hist->get_relative_account_history(account_id, stop, std::min<uint32_t>(100, limit), start);
+      for (auto &o : current) {
+         std::stringstream ss;
+         auto memo = o.op.visit(detail::operation_printer(ss, *my, o.result));
+         result.push_back(operation_detail{memo, ss.str(), o});
+      }
+      if (current.size() < std::min<uint32_t>(100, limit))
+         break;
+      limit -= current.size();
+      start -= 100;
+      if( start == 0 ) break;
+   }
+   return result;
+}
+vector<account_balance_object> wallet_api::list_core_accounts()const
+{
+   return my->_remote_hist->list_core_accounts();
+}
+
+vector<bucket_object> wallet_api::get_market_history( string symbol1, string symbol2, uint32_t bucket , fc::time_point_sec start, fc::time_point_sec end )const
+{
+   return my->_remote_hist->get_market_history( get_asset_id(symbol1), get_asset_id(symbol2), bucket, start, end );
 }
 
 vector<limit_order_object> wallet_api::get_limit_orders(string a, string b, uint32_t limit)const
@@ -2711,6 +3565,25 @@ brain_key_info wallet_api::suggest_brain_key()const
    result.wif_priv_key = key_to_wif( priv_key );
    result.pub_key = priv_key.get_public_key();
    return result;
+}
+
+vector<brain_key_info> wallet_api::derive_owner_keys_from_brain_key(string brain_key, int number_of_desired_keys) const
+{
+   return graphene::wallet::utility::derive_owner_keys_from_brain_key(brain_key, number_of_desired_keys);
+}
+
+bool wallet_api::is_public_key_registered(string public_key) const
+{
+   bool is_known = my->_remote_db->is_public_key_registered(public_key);
+   return is_known;
+}
+
+pair<public_key_type,string> wallet_api::get_private_key_from_password( string account, string role, string password )const {
+   auto seed = password + account + role;
+   FC_ASSERT( seed.size() );
+   auto secret = fc::sha256::hash( seed.c_str(), seed.size() );
+   auto priv = fc::ecc::private_key::regenerate( secret );
+   return std::make_pair( public_key_type( priv.get_public_key() ), key_to_wif( priv ) );
 }
 
 string wallet_api::serialize_transaction( signed_transaction tx )const
@@ -3023,6 +3896,14 @@ signed_transaction wallet_api::update_bitasset(string symbol,
    return my->update_bitasset(symbol, new_options, broadcast);
 }
 
+signed_transaction wallet_api::update_dividend_asset(string symbol,
+                                                     dividend_asset_options new_options,
+                                                     bool broadcast /* = false */)
+{
+   return my->update_dividend_asset(symbol, new_options, broadcast);
+}
+
+
 signed_transaction wallet_api::update_asset_feed_producers(string symbol,
                                                            flat_set<string> new_feed_producers,
                                                            bool broadcast /* = false */)
@@ -3077,7 +3958,7 @@ signed_transaction wallet_api::whitelist_account(string authorizing_account,
    return my->whitelist_account(authorizing_account, account_to_list, new_listing_status, broadcast);
 }
 
-signed_transaction wallet_api::create_committee_member(string owner_account, string url, 
+signed_transaction wallet_api::create_committee_member(string owner_account, string url,
                                                bool broadcast /* = false */)
 {
    return my->create_committee_member(owner_account, url, broadcast);
@@ -3171,6 +4052,15 @@ signed_transaction wallet_api::vote_for_witness(string voting_account,
    return my->vote_for_witness(voting_account, witness, approve, broadcast);
 }
 
+signed_transaction wallet_api::update_witness_votes(string voting_account,
+                                                    std::vector<std::string> witnesses_to_approve,
+                                                    std::vector<std::string> witnesses_to_reject,
+                                                    uint16_t desired_number_of_witnesses,
+                                                    bool broadcast /* = false */)
+{
+   return my->update_witness_votes(voting_account, witnesses_to_approve, witnesses_to_reject, desired_number_of_witnesses, broadcast);
+}
+
 signed_transaction wallet_api::set_voting_proxy(string account_to_modify,
                                                 optional<string> voting_account,
                                                 bool broadcast /* = false */)
@@ -3183,7 +4073,7 @@ signed_transaction wallet_api::set_desired_witness_and_committee_member_count(st
                                                                       uint16_t desired_number_of_committee_members,
                                                                       bool broadcast /* = false */)
 {
-   return my->set_desired_witness_and_committee_member_count(account_to_modify, desired_number_of_witnesses, 
+   return my->set_desired_witness_and_committee_member_count(account_to_modify, desired_number_of_witnesses,
                                                      desired_number_of_committee_members, broadcast);
 }
 
@@ -3212,6 +4102,26 @@ void wallet_api::dbg_make_mia(string creator, string symbol)
 {
    FC_ASSERT(!is_locked());
    my->dbg_make_mia(creator, symbol);
+}
+
+void wallet_api::dbg_push_blocks( std::string src_filename, uint32_t count )
+{
+   my->dbg_push_blocks( src_filename, count );
+}
+
+void wallet_api::dbg_generate_blocks( std::string debug_wif_key, uint32_t count )
+{
+   my->dbg_generate_blocks( debug_wif_key, count );
+}
+
+void wallet_api::dbg_stream_json_objects( const std::string& filename )
+{
+   my->dbg_stream_json_objects( filename );
+}
+
+void wallet_api::dbg_update_object( fc::variant_object update )
+{
+   my->dbg_update_object( update );
 }
 
 void wallet_api::network_add_nodes( const vector<string>& nodes )
@@ -3250,6 +4160,16 @@ signed_transaction wallet_api::propose_fee_change(
    return my->propose_fee_change( proposing_account, expiration_time, changed_fees, broadcast );
 }
 
+signed_transaction wallet_api::propose_dividend_asset_update(
+   const string& proposing_account,
+   fc::time_point_sec expiration_time,
+   const variant_object& changed_fees,
+   bool broadcast /* = false */
+   )
+{
+   return my->propose_dividend_asset_update( proposing_account, expiration_time, changed_fees, broadcast );
+}
+
 signed_transaction wallet_api::approve_proposal(
    const string& fee_paying_account,
    const string& proposal_id,
@@ -3259,6 +4179,9 @@ signed_transaction wallet_api::approve_proposal(
 {
    return my->approve_proposal( fee_paying_account, proposal_id, delta, broadcast );
 }
+
+
+
 
 global_property_object wallet_api::get_global_properties() const
 {
@@ -3397,6 +4320,7 @@ void wallet_api::unlock(string password)
    my->_keys = std::move(pk.keys);
    my->_checksum = pk.checksum;
    my->self.lock_changed(false);
+   my->resync_active_tournaments();
 } FC_CAPTURE_AND_RETHROW() }
 
 void wallet_api::set_password( string password )
@@ -3522,7 +4446,7 @@ vector< signed_transaction > wallet_api_impl::import_balance( string name_or_id,
       if( broadcast )
          _remote_net_broadcast->broadcast_transaction(signed_tx);
    }
-   
+
    return result;
 } FC_CAPTURE_AND_RETHROW( (name_or_id) ) }
 
@@ -3550,6 +4474,28 @@ signed_transaction wallet_api::sell_asset(string seller_account,
 {
    return my->sell_asset(seller_account, amount_to_sell, symbol_to_sell, min_to_receive,
                          symbol_to_receive, expiration, fill_or_kill, broadcast);
+}
+
+signed_transaction wallet_api::sell( string seller_account,
+                                     string base,
+                                     string quote,
+                                     double rate,
+                                     double amount,
+                                     bool broadcast )
+{
+   return my->sell_asset( seller_account, std::to_string( amount ), base,
+                          std::to_string( rate * amount ), quote, 0, false, broadcast );
+}
+
+signed_transaction wallet_api::buy( string buyer_account,
+                                    string base,
+                                    string quote,
+                                    double rate,
+                                    double amount,
+                                    bool broadcast )
+{
+   return my->sell_asset( buyer_account, std::to_string( rate * amount ), quote,
+                          std::to_string( amount ), base, 0, false, broadcast );
 }
 
 signed_transaction wallet_api::borrow_asset(string seller_name, string amount_to_sell,
@@ -3675,7 +4621,7 @@ vector<asset>   wallet_api::get_blind_balances( string key_or_label )
 }
 
 blind_confirmation wallet_api::transfer_from_blind( string from_blind_account_key_or_label,
-                                                    string to_account_id_or_name, 
+                                                    string to_account_id_or_name,
                                                     string amount_in,
                                                     string symbol,
                                                     bool broadcast )
@@ -3694,7 +4640,7 @@ blind_confirmation wallet_api::transfer_from_blind( string from_blind_account_ke
 
 
    auto conf = blind_transfer_help( from_blind_account_key_or_label,
-                               from_blind_account_key_or_label, 
+                               from_blind_account_key_or_label,
                                blind_in, symbol, false, true/*to_temp*/ );
    FC_ASSERT( conf.outputs.size() > 0 );
 
@@ -3709,24 +4655,24 @@ blind_confirmation wallet_api::transfer_from_blind( string from_blind_account_ke
    conf.trx.operations.push_back(from_blind);
    ilog( "about to validate" );
    conf.trx.validate();
-   
+
    if( broadcast && conf.outputs.size() == 2 ) {
-       
+
        // Save the change
        blind_confirmation::output conf_output;
        blind_confirmation::output change_output = conf.outputs[0];
-       
+
        // The wallet must have a private key for confirmation.to, this is used to decrypt the memo
        public_key_type from_key = get_public_key(from_blind_account_key_or_label);
        conf_output.confirmation.to = from_key;
        conf_output.confirmation.one_time_key = change_output.confirmation.one_time_key;
        conf_output.confirmation.encrypted_memo = change_output.confirmation.encrypted_memo;
        conf_output.confirmation_receipt = conf_output.confirmation;
-       //try { 
+       //try {
        receive_blind_transfer( conf_output.confirmation_receipt, from_blind_account_key_or_label, "@"+to_account.name );
        //} catch ( ... ){}
    }
-   
+
    ilog( "about to broadcast" );
    conf.trx = sign_transaction( conf.trx, broadcast );
 
@@ -3747,7 +4693,7 @@ blind_confirmation wallet_api::blind_transfer_help( string from_key_or_label,
                                                string symbol,
                                                bool broadcast,
                                                bool to_temp )
-{ 
+{
    blind_confirmation confirm;
    try {
 
@@ -3791,7 +4737,7 @@ blind_confirmation wallet_api::blind_transfer_help( string from_key_or_label,
          blinding_factors.push_back( start->data.blinding_factor );
          total_amount += start->amount;
 
-         if( total_amount >= amount + blind_tr.fee ) 
+         if( total_amount >= amount + blind_tr.fee )
             break;
       }
       ++start;
@@ -3859,7 +4805,7 @@ blind_confirmation wallet_api::blind_transfer_help( string from_key_or_label,
       conf_output.decrypted_memo.amount = change;
       conf_output.decrypted_memo.blinding_factor = change_blind_factor;
       conf_output.decrypted_memo.commitment = change_out.commitment;
-      conf_output.decrypted_memo.check   = from_secret._hash[0]; 
+      conf_output.decrypted_memo.check   = from_secret._hash[0];
       conf_output.confirmation.one_time_key = one_time_key.get_public_key();
       conf_output.confirmation.to = from_key;
       conf_output.confirmation.encrypted_memo = fc::aes_encrypt( from_secret, fc::raw::pack( conf_output.decrypted_memo ) );
@@ -3877,7 +4823,7 @@ blind_confirmation wallet_api::blind_transfer_help( string from_key_or_label,
    conf_output.decrypted_memo.amount = amount;
    conf_output.decrypted_memo.blinding_factor = blind_factor;
    conf_output.decrypted_memo.commitment = to_out.commitment;
-   conf_output.decrypted_memo.check   = secret._hash[0]; 
+   conf_output.decrypted_memo.check   = secret._hash[0];
    conf_output.confirmation.one_time_key = one_time_key.get_public_key();
    conf_output.confirmation.to = to_key;
    conf_output.confirmation.encrypted_memo = fc::aes_encrypt( secret, fc::raw::pack( conf_output.decrypted_memo ) );
@@ -3887,9 +4833,9 @@ blind_confirmation wallet_api::blind_transfer_help( string from_key_or_label,
    confirm.outputs.push_back( conf_output );
 
    /** commitments must be in sorted order */
-   std::sort( blind_tr.outputs.begin(), blind_tr.outputs.end(), 
+   std::sort( blind_tr.outputs.begin(), blind_tr.outputs.end(),
               [&]( const blind_output& a, const blind_output& b ){ return a.commitment < b.commitment; } );
-   std::sort( blind_tr.inputs.begin(), blind_tr.inputs.end(), 
+   std::sort( blind_tr.inputs.begin(), blind_tr.inputs.end(),
               [&]( const blind_input& a, const blind_input& b ){ return a.commitment < b.commitment; } );
 
    confirm.trx.operations.emplace_back( std::move(blind_tr) );
@@ -3914,10 +4860,10 @@ blind_confirmation wallet_api::blind_transfer_help( string from_key_or_label,
  *  Transfers a public balance from @from to one or more blinded balances using a
  *  stealth transfer.
  */
-blind_confirmation wallet_api::transfer_to_blind( string from_account_id_or_name, 
+blind_confirmation wallet_api::transfer_to_blind( string from_account_id_or_name,
                                                   string asset_symbol,
                                                   /** map from key or label to amount */
-                                                  vector<pair<string, string>> to_amounts, 
+                                                  vector<pair<string, string>> to_amounts,
                                                   bool broadcast )
 { try {
    FC_ASSERT( !is_locked() );
@@ -3949,7 +4895,7 @@ blind_confirmation wallet_api::transfer_to_blind( string from_account_id_or_name
 
       auto amount = asset_obj->amount_from_string(item.second);
       total_amount += amount;
-      
+
 
       fc::ecc::public_key to_pub_key = to_key;
       blind_output out;
@@ -3965,7 +4911,7 @@ blind_confirmation wallet_api::transfer_to_blind( string from_account_id_or_name
       conf_output.decrypted_memo.amount = amount;
       conf_output.decrypted_memo.blinding_factor = blind_factor;
       conf_output.decrypted_memo.commitment = out.commitment;
-      conf_output.decrypted_memo.check   = secret._hash[0]; 
+      conf_output.decrypted_memo.check   = secret._hash[0];
       conf_output.confirmation.one_time_key = one_time_key.get_public_key();
       conf_output.confirmation.to = to_key;
       conf_output.confirmation.encrypted_memo = fc::aes_encrypt( secret, fc::raw::pack( conf_output.decrypted_memo ) );
@@ -3979,7 +4925,7 @@ blind_confirmation wallet_api::transfer_to_blind( string from_account_id_or_name
    bop.blinding_factor = fc::ecc::blind_sum( blinding_factors, blinding_factors.size() );
 
    /** commitments must be in sorted order */
-   std::sort( bop.outputs.begin(), bop.outputs.end(), 
+   std::sort( bop.outputs.begin(), bop.outputs.end(),
               [&]( const blind_output& a, const blind_output& b ){ return a.commitment < b.commitment; } );
 
    confirm.trx.operations.push_back( bop );
@@ -4025,7 +4971,7 @@ blind_receipt wallet_api::receive_blind_transfer( string confirmation_receipt, s
 
    result.to_key   = *conf.to;
    result.to_label = get_key_label( result.to_key );
-   if( memo.from ) 
+   if( memo.from )
    {
       result.from_key = *memo.from;
       result.from_label = get_key_label( result.from_key );
@@ -4045,7 +4991,7 @@ blind_receipt wallet_api::receive_blind_transfer( string confirmation_receipt, s
    // confirm the amount matches the commitment (verify the blinding factor)
    auto commtiment_test = fc::ecc::blind( memo.blinding_factor, memo.amount.amount.value );
    FC_ASSERT( fc::ecc::verify_sum( {commtiment_test}, {memo.commitment}, 0 ) );
-   
+
    blind_balance bal;
    bal.amount = memo.amount;
    bal.to     = *conf.to;
@@ -4063,7 +5009,7 @@ blind_receipt wallet_api::receive_blind_transfer( string confirmation_receipt, s
    auto child_key_itr = owner.key_auths.find( child_pubkey );
    if( child_key_itr != owner.key_auths.end() )
       my->_keys[child_key_itr->first] = key_to_wif( child_priv_key );
-   
+
    // my->_wallet.blinded_balances[memo.amount.asset_id][bal.to].push_back( bal );
 
    result.date = fc::time_point::now();
@@ -4080,7 +5026,7 @@ vector<blind_receipt> wallet_api::blind_history( string key_or_account )
    vector<blind_receipt> result;
    auto pub_key = get_public_key( key_or_account );
 
-   if( pub_key == public_key_type() ) 
+   if( pub_key == public_key_type() )
       return vector<blind_receipt>();
 
    for( auto& r : my->_wallet.blind_receipts )
@@ -4092,11 +5038,706 @@ vector<blind_receipt> wallet_api::blind_history( string key_or_account )
    return result;
 }
 
+///////////////
+// peerplays //
+///////////////
+
+vector<sport_object> wallet_api::list_sports() const
+{
+    return my->_remote_db->list_sports();
+}
+
+vector<event_group_object> wallet_api::list_event_groups(sport_id_type sport_id) const
+{
+    return my->_remote_db->list_event_groups(sport_id);
+}
+
+vector<betting_market_group_object> wallet_api::list_betting_market_groups(event_id_type event_id) const
+{
+    return my->_remote_db->list_betting_market_groups(event_id);
+}
+
+vector<betting_market_object> wallet_api::list_betting_markets(betting_market_group_id_type betting_market_group_id) const
+{
+    return my->_remote_db->list_betting_markets(betting_market_group_id);
+}
+
+global_betting_statistics_object wallet_api::get_global_betting_statistics() const
+{
+    return my->_remote_db->get_global_betting_statistics();
+}
+
+vector<event_object>                wallet_api::list_events_in_group(event_group_id_type event_group_id) const
+{
+    return my->_remote_db->list_events_in_group(event_group_id);
+}
+
+vector<bet_object> wallet_api::get_unmatched_bets_for_bettor(betting_market_id_type betting_market_id, account_id_type account_id) const
+{
+    return my->_remote_db->get_unmatched_bets_for_bettor(betting_market_id, account_id);
+}
+
+vector<bet_object> wallet_api::get_all_unmatched_bets_for_bettor(account_id_type account_id) const
+{
+    return my->_remote_db->get_all_unmatched_bets_for_bettor(account_id);
+}
+
+signed_transaction wallet_api::propose_create_sport(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        internationalized_string_type name,
+        bool broadcast /*= false*/)
+{
+   FC_ASSERT( !is_locked() );
+   const chain_parameters& current_params = get_global_properties().parameters;
+
+   sport_create_operation sport_create_op;
+   sport_create_op.name = name;
+
+   proposal_create_operation prop_op;
+   prop_op.expiration_time = expiration_time;
+   prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+   prop_op.fee_paying_account = get_account(proposing_account).id;
+   prop_op.proposed_ops.emplace_back( sport_create_op );
+   current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+   signed_transaction tx;
+   tx.operations.push_back(prop_op);
+   my->set_operation_fees(tx, current_params.current_fees);
+   tx.validate();
+
+   return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::propose_update_sport(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        sport_id_type sport_id,
+        fc::optional<internationalized_string_type> name,
+        bool broadcast /*= false*/)
+{
+   FC_ASSERT( !is_locked() );
+   const chain_parameters& current_params = get_global_properties().parameters;
+
+   sport_update_operation sport_update_op;
+   sport_update_op.sport_id = sport_id;
+   sport_update_op.new_name = name;
+
+   proposal_create_operation prop_op;
+   prop_op.expiration_time = expiration_time;
+   prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+   prop_op.fee_paying_account = get_account(proposing_account).id;
+   prop_op.proposed_ops.emplace_back( sport_update_op );
+   current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+   signed_transaction tx;
+   tx.operations.push_back(prop_op);
+   my->set_operation_fees(tx, current_params.current_fees);
+   tx.validate();
+
+   return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::propose_create_event_group(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        internationalized_string_type name,
+        sport_id_type sport_id,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    event_group_create_operation event_group_create_op;
+    event_group_create_op.name = name;
+    event_group_create_op.sport_id = sport_id;
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( event_group_create_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::propose_update_event_group(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        event_group_id_type event_group,
+        fc::optional<object_id_type> sport_id,
+        fc::optional<internationalized_string_type> name,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    event_group_update_operation event_group_update_op;
+    event_group_update_op.new_sport_id = sport_id;
+    event_group_update_op.new_name = name;
+    event_group_update_op.event_group_id = event_group;
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( event_group_update_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::propose_create_event(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        internationalized_string_type name,
+        internationalized_string_type season,
+        fc::optional<time_point_sec> start_time,
+        event_group_id_type event_group_id,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    event_create_operation event_create_op;
+    event_create_op.start_time = start_time;
+    event_create_op.name = name;
+    event_create_op.season = season;
+    event_create_op.event_group_id = event_group_id;
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( event_create_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::propose_update_event(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        event_id_type event_id,
+        fc::optional<object_id_type> event_group_id,
+        fc::optional<internationalized_string_type> name,
+        fc::optional<internationalized_string_type> season,
+        fc::optional<event_status> status,
+        fc::optional<time_point_sec> start_time,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    event_update_operation event_update_op;
+    event_update_op.event_id = event_id;
+    event_update_op.new_event_group_id = event_group_id;
+    event_update_op.new_start_time = start_time;
+    event_update_op.new_name = name;
+    event_update_op.new_season = season;
+    event_update_op.new_status = status;
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( event_update_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::propose_create_betting_market_rules(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        internationalized_string_type name,
+        internationalized_string_type description,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    betting_market_rules_create_operation betting_market_rules_create_op;
+    betting_market_rules_create_op.name = name;
+    betting_market_rules_create_op.description = description;
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( betting_market_rules_create_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::propose_update_betting_market_rules(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        betting_market_rules_id_type rules_id,
+        fc::optional<internationalized_string_type> name,
+        fc::optional<internationalized_string_type> description,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    betting_market_rules_update_operation betting_market_rules_update_op;
+    betting_market_rules_update_op.betting_market_rules_id = rules_id;
+    betting_market_rules_update_op.new_name = name;
+    betting_market_rules_update_op.new_description = description;
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( betting_market_rules_update_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::propose_create_betting_market_group(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        internationalized_string_type description,
+        event_id_type event_id,
+        betting_market_rules_id_type rules_id,
+        asset_id_type asset_id,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    betting_market_group_create_operation betting_market_group_create_op;
+    betting_market_group_create_op.description = description;
+    betting_market_group_create_op.event_id = event_id;
+    betting_market_group_create_op.rules_id = rules_id;
+    betting_market_group_create_op.asset_id = asset_id;
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( betting_market_group_create_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::propose_update_betting_market_group(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        betting_market_group_id_type betting_market_group_id,
+        fc::optional<internationalized_string_type> description,
+        fc::optional<object_id_type> rules_id,
+        fc::optional<betting_market_group_status> status,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    betting_market_group_update_operation betting_market_group_update_op;
+    betting_market_group_update_op.betting_market_group_id = betting_market_group_id;
+    betting_market_group_update_op.new_description = description;
+    betting_market_group_update_op.new_rules_id = rules_id;
+    betting_market_group_update_op.status = status;
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( betting_market_group_update_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::propose_create_betting_market(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        betting_market_group_id_type group_id,
+        internationalized_string_type description,
+        internationalized_string_type payout_condition,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    betting_market_create_operation betting_market_create_op;
+    betting_market_create_op.group_id = group_id;
+    betting_market_create_op.description = description;
+    betting_market_create_op.payout_condition = payout_condition;
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( betting_market_create_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::propose_update_betting_market(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        betting_market_id_type market_id,
+        fc::optional<object_id_type> group_id,
+        fc::optional<internationalized_string_type> description,
+        fc::optional<internationalized_string_type> payout_condition,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    betting_market_update_operation betting_market_update_op;
+    betting_market_update_op.betting_market_id = market_id;
+    betting_market_update_op.new_group_id = group_id;
+    betting_market_update_op.new_description = description;
+    betting_market_update_op.new_payout_condition = payout_condition;
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( betting_market_update_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::place_bet(string betting_account,
+                                         betting_market_id_type betting_market_id,
+                                         bet_type back_or_lay,
+                                         string amount,
+                                         string asset_symbol,
+                                         double backer_multiplier,
+                                         bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    fc::optional<asset_object> asset_obj = get_asset(asset_symbol);
+    FC_ASSERT(asset_obj, "Could not find asset matching ${asset}", ("asset", asset_symbol));
+
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    bet_place_operation bet_place_op;
+    bet_place_op.bettor_id = get_account(betting_account).id;
+    bet_place_op.betting_market_id = betting_market_id;
+    bet_place_op.amount_to_bet = asset_obj->amount_from_string(amount);
+    bet_place_op.backer_multiplier = (bet_multiplier_type)(backer_multiplier * GRAPHENE_BETTING_ODDS_PRECISION);
+    bet_place_op.back_or_lay = back_or_lay;
+
+    signed_transaction tx;
+    tx.operations.push_back(bet_place_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::cancel_bet(string betting_account,
+                                          bet_id_type bet_id,
+                                          bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    bet_cancel_operation bet_cancel_op;
+    bet_cancel_op.bettor_id = get_account(betting_account).id;
+    bet_cancel_op.bet_to_cancel = bet_id;
+
+    signed_transaction tx;
+    tx.operations.push_back(bet_cancel_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::propose_resolve_betting_market_group(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        betting_market_group_id_type betting_market_group_id,
+        const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    betting_market_group_resolve_operation betting_market_group_resolve_op;
+    betting_market_group_resolve_op.betting_market_group_id = betting_market_group_id;
+    betting_market_group_resolve_op.resolutions = resolutions;
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( betting_market_group_resolve_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::propose_cancel_betting_market_group(
+        const string& proposing_account,
+        fc::time_point_sec expiration_time,
+        betting_market_group_id_type betting_market_group_id,
+        bool broadcast /*= false*/)
+{
+    FC_ASSERT( !is_locked() );
+    const chain_parameters& current_params = get_global_properties().parameters;
+
+    betting_market_group_cancel_unmatched_bets_operation betting_market_group_cancel_unmatched_bets_op;
+    betting_market_group_cancel_unmatched_bets_op.betting_market_group_id = betting_market_group_id;
+
+    proposal_create_operation prop_op;
+    prop_op.expiration_time = expiration_time;
+    prop_op.review_period_seconds = current_params.committee_proposal_review_period;
+    prop_op.fee_paying_account = get_account(proposing_account).id;
+    prop_op.proposed_ops.emplace_back( betting_market_group_cancel_unmatched_bets_op );
+    current_params.current_fees->set_fee( prop_op.proposed_ops.back().op );
+
+    signed_transaction tx;
+    tx.operations.push_back(prop_op);
+    my->set_operation_fees(tx, current_params.current_fees);
+    tx.validate();
+
+    return my->sign_transaction(tx, broadcast);
+}
+
+signed_transaction wallet_api::tournament_create( string creator, tournament_options options, bool broadcast )
+{
+   FC_ASSERT( !is_locked() );
+   account_object creator_account_obj = get_account(creator);
+
+   signed_transaction tx;
+   tournament_create_operation op;
+   op.creator = creator_account_obj.get_id();
+   op.options = options;
+   tx.operations = {op};
+   my->set_operation_fees( tx, my->_remote_db->get_global_properties().parameters.current_fees );
+   tx.validate();
+
+   return my->sign_transaction( tx, broadcast );
+}
+
+signed_transaction wallet_api::tournament_join( string payer_account, 
+                                                string player_account, 
+                                                tournament_id_type tournament_id, 
+                                                string buy_in_amount, 
+                                                string buy_in_asset_symbol,
+                                                bool broadcast )
+{
+   FC_ASSERT( !is_locked() );
+   account_object payer_account_obj = get_account(payer_account);
+   account_object player_account_obj = get_account(player_account);
+   //graphene::chain::tournament_object tournament_obj = my->get_object<graphene::chain::tournament_object>(tournament_id);
+
+   fc::optional<asset_object> buy_in_asset_obj = get_asset(buy_in_asset_symbol);
+   FC_ASSERT(buy_in_asset_obj, "Could not find asset matching ${asset}", ("asset", buy_in_asset_symbol));
+
+   signed_transaction tx;
+   tournament_join_operation op;
+   op.payer_account_id = payer_account_obj.get_id();
+   op.player_account_id = player_account_obj.get_id();
+   op.tournament_id = tournament_id;
+   op.buy_in = buy_in_asset_obj->amount_from_string(buy_in_amount);
+
+   tx.operations = {op};
+   my->set_operation_fees( tx, my->_remote_db->get_global_properties().parameters.current_fees );
+   tx.validate();
+
+   return my->sign_transaction( tx, broadcast );
+}
+
+signed_transaction wallet_api::tournament_leave( string canceling_account,
+                                                 string player_account,
+                                                 tournament_id_type tournament_id,
+                                                 bool broadcast)
+{
+    FC_ASSERT( !is_locked() );
+    account_object player_account_obj = get_account(player_account);
+    account_object canceling_account_obj = get_account(canceling_account);
+    //graphene::chain::tournament_object tournament_obj = my->get_object<graphene::chain::tournament_object>(tournament_id);
+
+    signed_transaction tx;
+    tournament_leave_operation op;
+    op.canceling_account_id = canceling_account_obj.get_id();
+    op.player_account_id = player_account_obj.get_id();
+    op.tournament_id = tournament_id;
+
+    tx.operations = {op};
+    my->set_operation_fees( tx, my->_remote_db->get_global_properties().parameters.current_fees );
+    tx.validate();
+
+    return my->sign_transaction( tx, broadcast );
+}
+
+vector<tournament_object> wallet_api::get_upcoming_tournaments(uint32_t limit)
+{
+   return my->_remote_db->get_tournaments_in_state(tournament_state::accepting_registrations, limit);
+}
+vector<tournament_object> wallet_api::get_tournaments(tournament_id_type stop,
+                                          unsigned limit,
+                                          tournament_id_type start) {
+   return my->_remote_db->get_tournaments(stop, limit, start);
+}
+
+vector<tournament_object> wallet_api::get_tournaments_by_state(tournament_id_type stop,
+                                                   unsigned limit,
+                                                   tournament_id_type start,
+                                                   tournament_state state) {
+   return my->_remote_db->get_tournaments_by_state(stop, limit, start, state);
+}
+
+tournament_object wallet_api::get_tournament(tournament_id_type id)
+{
+   return my->_remote_db->get_objects({id})[0].as<tournament_object>();
+}
+
+signed_transaction wallet_api::rps_throw(game_id_type game_id,
+                                         string player_account,
+                                         rock_paper_scissors_gesture gesture,
+                                         bool broadcast)
+{
+   FC_ASSERT( !is_locked() );
+
+   // check whether the gesture is appropriate for the game we're playing
+   graphene::chain::game_object game_obj = my->get_object<graphene::chain::game_object>(game_id);
+   graphene::chain::match_object match_obj = my->get_object<graphene::chain::match_object>(game_obj.match_id);
+   graphene::chain::tournament_object tournament_obj = my->get_object<graphene::chain::tournament_object>(match_obj.tournament_id);
+   graphene::chain::rock_paper_scissors_game_options game_options = 
+      tournament_obj.options.game_options.get<graphene::chain::rock_paper_scissors_game_options>();
+   if ((int)gesture >= game_options.number_of_gestures)
+      FC_THROW("Gesture ${gesture} not supported in this game", ("gesture", gesture));
+
+   account_object player_account_obj = get_account(player_account);
+
+   // construct the complete throw, the commit, and reveal
+   rock_paper_scissors_throw full_throw;
+   fc::rand_bytes((char*)&full_throw.nonce1, sizeof(full_throw.nonce1));
+   fc::rand_bytes((char*)&full_throw.nonce2, sizeof(full_throw.nonce2));
+   full_throw.gesture = gesture;
+
+   rock_paper_scissors_throw_commit commit_throw;
+   commit_throw.nonce1 = full_throw.nonce1;
+   std::vector<char> full_throw_packed(fc::raw::pack(full_throw));
+   commit_throw.throw_hash = fc::sha256::hash(full_throw_packed.data(), full_throw_packed.size());
+
+   rock_paper_scissors_throw_reveal reveal_throw;
+   reveal_throw.nonce2 = full_throw.nonce2;
+   reveal_throw.gesture = full_throw.gesture;
+
+   // store off the reveal for transmitting after both players commit
+   my->_wallet.committed_game_moves[commit_throw] = reveal_throw;
+
+   // broadcast the commit
+   signed_transaction tx;
+   game_move_operation move_operation;
+   move_operation.game_id = game_id;
+   move_operation.player_account_id = player_account_obj.id;
+   move_operation.move = commit_throw;
+   tx.operations = {move_operation};
+   my->set_operation_fees( tx, my->_remote_db->get_global_properties().parameters.current_fees );
+   tx.validate();
+
+   return my->sign_transaction( tx, broadcast );
+}
+
 // default ctor necessary for FC_REFLECT
 signed_block_with_info::signed_block_with_info()
 {
 }
 
+order_book wallet_api::get_order_book( const string& base, const string& quote, unsigned limit )
+{
+   return( my->_remote_db->get_order_book( base, quote, limit ) );
+}
+
+asset wallet_api::get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id)
+{
+    return( my->_remote_bookie->get_total_matched_bet_amount_for_betting_market_group(group_id) );
+}
+
+std::vector<event_object> wallet_api::get_events_containing_sub_string(const std::string& sub_string, const std::string& language)
+{
+    return( my->_remote_bookie->get_events_containing_sub_string(sub_string, language) );
+}
+
+binned_order_book wallet_api::get_binned_order_book(graphene::chain::betting_market_id_type betting_market_id, int32_t precision)
+{
+    return( my->_remote_bookie->get_binned_order_book(betting_market_id, precision) );
+}
+
+std::vector<matched_bet_object> wallet_api::get_matched_bets_for_bettor(account_id_type bettor_id) const
+{
+    return( my->_remote_bookie->get_matched_bets_for_bettor(bettor_id) );
+}
+
+std::vector<matched_bet_object> wallet_api::get_all_matched_bets_for_bettor(account_id_type bettor_id, bet_id_type start, unsigned limit) const
+{
+    return( my->_remote_bookie->get_all_matched_bets_for_bettor(bettor_id, start, limit) );
+}
+
+// default ctor necessary for FC_REFLECT
 signed_block_with_info::signed_block_with_info( const signed_block& block )
    : signed_block( block )
 {

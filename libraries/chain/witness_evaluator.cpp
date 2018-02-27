@@ -46,6 +46,7 @@ object_id_type witness_create_evaluator::do_apply( const witness_create_operatio
    const auto& new_witness_object = db().create<witness_object>( [&]( witness_object& obj ){
          obj.witness_account  = op.witness_account;
          obj.signing_key      = op.block_signing_key;
+         obj.next_secret_hash = op.initial_secret;
          obj.vote_id          = vote_id;
          obj.url              = op.url;
    });
@@ -69,6 +70,8 @@ void_result witness_update_evaluator::do_apply( const witness_update_operation& 
             wit.url = *op.new_url;
          if( op.new_signing_key.valid() )
             wit.signing_key = *op.new_signing_key;
+         if( op.new_initial_secret.valid() )
+            wit.next_secret_hash = *op.new_initial_secret;
       });
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }

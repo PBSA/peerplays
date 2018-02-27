@@ -31,8 +31,10 @@
 #include <fc/uint128.hpp>
 
 #include <algorithm>
+#include <boost/multi_index/composite_key.hpp>
 
-
+#define offset_d(i,f)    (long(&(i)->f) - long(i))
+#define offset_s(t,f)    offset_d((t*)1000, f)
 
 namespace graphene { namespace chain {
    using namespace graphene::db;
@@ -171,13 +173,29 @@ namespace graphene { namespace chain {
     * @ingroup object_index
     */
    struct by_account;
+   struct by_asset_balance;
    typedef multi_index_container<
       vesting_balance_object,
       indexed_by<
          ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
          ordered_non_unique< tag<by_account>,
             member<vesting_balance_object, account_id_type, &vesting_balance_object::owner>
-         >
+         >,
+        //ordered_unique< tag<by_asset_balance>,
+        ordered_non_unique< tag<by_asset_balance>,
+           composite_key<
+              vesting_balance_object,
+              member_offset<vesting_balance_object, asset_id_type, (size_t) (offset_s(vesting_balance_object,balance) + offset_s(asset,asset_id))>,
+              member_offset<vesting_balance_object, share_type, (size_t) (offset_s(vesting_balance_object,balance) + offset_s(asset,amount))>
+              //member<vesting_balance_object, account_id_type, &vesting_balance_object::owner>
+              //member_offset<vesting_balance_object, account_id_type, (size_t) (offset_s(vesting_balance_object,owner))>
+           >,
+           composite_key_compare<
+              std::less< asset_id_type >,
+              std::greater< share_type >
+              //std::less< account_id_type >
+           >
+        >
       >
    > vesting_balance_multi_index_type;
    /**

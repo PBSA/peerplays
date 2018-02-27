@@ -112,6 +112,53 @@ namespace graphene { namespace chain {
       void validate()const;
    };
 
+   /**
+    * @brief The dividend_asset_options struct contains configurable options available only to dividend-paying assets.
+    *
+    * @note Changes to this struct will break protocol compatibility
+    */
+   struct dividend_asset_options {
+      /// Time when the next payout should occur.
+      /// The payouts will happen on the maintenance interval at or after this time
+      /// If this is set to null, there will be no payouts.
+      fc::optional<fc::time_point_sec> next_payout_time;
+      /// If payouts happen on a fixed schedule, this specifies the interval between
+      /// payouts in seconds.  After each payout, the next payout time will be incremented by
+      /// this amount.
+      /// If payout_interval is not set, the next payout (if any) will be the last until
+      /// the options are updated again.
+      fc::optional<uint32_t> payout_interval;
+      /// Each dividend distribution incurs a fee that is based on the number of accounts
+      /// that hold the dividend asset, not as a percentage of the amount paid out. 
+      /// This parameter prevents assets from being distributed unless the fee is less than
+      /// the percentage here, to prevent a slow trickle of deposits to the account from being
+      /// completely consumed.
+      /// In other words, if you set this parameter to 10% and the fees work out to 100 BTS
+      /// to share out, balances in the dividend distribution accounts will not be shared out
+      /// if the balance is less than 10000 BTS.  
+      uint64_t minimum_fee_percentage;
+
+      /// Normally, pending dividend payments are calculated each maintenance interval in
+      /// which there are balances in the dividend distribution account.  At present, this
+      /// is once per hour on the BitShares blockchain.  If this is too often (too expensive
+      /// in fees or to computationally-intensive for the blockchain) this can be increased.
+      /// If you set this to, for example, one day, distributions will take place on even
+      /// multiples of one day, allowing deposits to the distribution account to accumulate
+      /// for 23 maintenance intervals and then computing the pending payouts on the 24th.
+      ///
+      /// Payouts will always occur at the next payout time whether or not it falls on a
+      /// multiple of the distribution interval, and the timer on the distribution interval
+      /// are reset at payout time.  So if you have the distribution interval at three days 
+      /// and the payout interval at one week, payouts will occur at days 3, 6, 7, 10, 13, 14...
+      fc::optional<uint32_t> minimum_distribution_interval;
+
+      extensions_type extensions;
+
+      /// Perform internal consistency checks.
+      /// @throws fc::exception if any check fails
+      void validate()const;
+   };
+
 
    /**
     * @ingroup operations
@@ -237,6 +284,59 @@ namespace graphene { namespace chain {
    };
 
    /**
+    * Virtual op generated when a dividend asset pays out dividends
+    */
+   struct asset_dividend_distribution_operation : public base_operation
+   {
+      asset_dividend_distribution_operation() {}
+      asset_dividend_distribution_operation(const asset_id_type& dividend_asset_id,
+                                            const account_id_type& account_id,
+                                            const flat_set<asset>& amounts) :
+         dividend_asset_id(dividend_asset_id),
+         account_id(account_id),
+         amounts(amounts)
+      {}
+      struct fee_parameters_type {
+         /* note: this is a virtual op and there are no fees directly charged for it */
+
+         /* Whenever the system computes the pending dividend payments for an asset,
+          * it charges the distribution_base_fee + distribution_fee_per_holder.
+          * The computational cost of distributing the dividend payment is proportional
+          * to the number of dividend holders the asset is divided up among.
+          */
+         /** This fee is charged whenever the system schedules pending dividend
+          * payments.
+          */
+         uint64_t distribution_base_fee;
+         /** This fee is charged (in addition to the distribution_base_fee) for each 
+          * user the dividend payment is shared out amongst
+          */
+         uint32_t distribution_fee_per_holder;
+      };
+
+      asset           fee;
+
+      /// The dividend-paying asset which triggered this payout
+      asset_id_type   dividend_asset_id;
+
+      /// The user account receiving the dividends
+      account_id_type account_id;
+
+      /// The amounts received
+      flat_set<asset> amounts;
+
+      extensions_type extensions;
+
+      account_id_type fee_payer()const { return account_id; }
+      void            validate()const {
+         FC_ASSERT( false, "virtual operation" );
+      }
+
+      share_type calculate_fee(const fee_parameters_type& params)const
+      { return 0; }
+   };
+
+   /**
     * @ingroup operations
     */
    struct asset_fund_fee_pool_operation : public base_operation
@@ -313,6 +413,35 @@ namespace graphene { namespace chain {
       asset_id_type   asset_to_update;
 
       bitasset_options new_options;
+      extensions_type  extensions;
+
+      account_id_type fee_payer()const { return issuer; }
+      void            validate()const;
+   };
+
+   /**
+    * @brief Update options specific to dividend-paying assets
+    * @ingroup operations
+    *
+    * Dividend-paying assets have some options which are not relevant to other asset types. 
+    * This operation is used to update those options an an existing dividend-paying asset.
+    * This can also be used to convert a non-dividend-paying asset into a dividend-paying 
+    * asset.
+    *
+    * @pre @ref issuer MUST be an existing account and MUST match asset_object::issuer on @ref asset_to_update
+    * @pre @ref fee MUST be nonnegative, and @ref issuer MUST have a sufficient balance to pay it
+    * @pre @ref new_options SHALL be internally consistent, as verified by @ref validate()
+    * @post @ref asset_to_update will have dividend-specific options matching those of new_options
+    */
+   struct asset_update_dividend_operation : public base_operation
+   {
+      struct fee_parameters_type { uint64_t fee = 500 * GRAPHENE_BLOCKCHAIN_PRECISION; };
+
+      asset           fee;
+      account_id_type issuer;
+      asset_id_type   asset_to_update;
+
+      dividend_asset_options new_options;
       extensions_type  extensions;
 
       account_id_type fee_payer()const { return issuer; }
@@ -462,6 +591,15 @@ FC_REFLECT( graphene::chain::asset_options,
             (description)
             (extensions)
           )
+
+FC_REFLECT( graphene::chain::dividend_asset_options,
+            (next_payout_time)
+            (payout_interval)
+            (minimum_fee_percentage)
+            (minimum_distribution_interval)
+            (extensions)
+          )
+
 FC_REFLECT( graphene::chain::bitasset_options,
             (feed_lifetime_sec)
             (minimum_feeds)
@@ -480,11 +618,12 @@ FC_REFLECT( graphene::chain::asset_settle_cancel_operation::fee_parameters_type,
 FC_REFLECT( graphene::chain::asset_fund_fee_pool_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::asset_update_operation::fee_parameters_type, (fee)(price_per_kbyte) )
 FC_REFLECT( graphene::chain::asset_update_bitasset_operation::fee_parameters_type, (fee) )
+FC_REFLECT( graphene::chain::asset_update_dividend_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::asset_update_feed_producers_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::asset_publish_feed_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::asset_issue_operation::fee_parameters_type, (fee)(price_per_kbyte) )
 FC_REFLECT( graphene::chain::asset_reserve_operation::fee_parameters_type, (fee) )
-
+FC_REFLECT( graphene::chain::asset_dividend_distribution_operation::fee_parameters_type, (distribution_base_fee)(distribution_fee_per_holder))
 
 FC_REFLECT( graphene::chain::asset_create_operation,
             (fee)
@@ -511,6 +650,13 @@ FC_REFLECT( graphene::chain::asset_update_bitasset_operation,
             (new_options)
             (extensions)
           )
+FC_REFLECT( graphene::chain::asset_update_dividend_operation,
+            (fee)
+            (issuer)
+            (asset_to_update)
+            (new_options)
+            (extensions)
+          )
 FC_REFLECT( graphene::chain::asset_update_feed_producers_operation,
             (fee)(issuer)(asset_to_update)(new_feed_producers)(extensions)
           )
@@ -525,3 +671,4 @@ FC_REFLECT( graphene::chain::asset_reserve_operation,
             (fee)(payer)(amount_to_reserve)(extensions) )
 
 FC_REFLECT( graphene::chain::asset_fund_fee_pool_operation, (fee)(from_account)(asset_id)(amount)(extensions) );
+FC_REFLECT( graphene::chain::asset_dividend_distribution_operation, (fee)(dividend_asset_id)(account_id)(amounts)(extensions) );

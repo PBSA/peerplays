@@ -457,18 +457,57 @@ BOOST_AUTO_TEST_CASE( witness_create )
    while( ((db.get_dynamic_global_properties().current_aslot + 1) % witnesses.size()) != 0 )
       generate_block();
 
-   int produced = 0;
-   // Make sure we get scheduled at least once in witnesses.size()*2 blocks
-   // may take this many unless we measure where in the scheduling round we are
-   // TODO:  intense_test that repeats this loop many times
-   for( size_t i=0, n=witnesses.size()*2; i<n; i++ )
+   if (db.get_global_properties().parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
    {
-      signed_block block = generate_block();
-      if( block.witness == nathan_witness_id )
-         produced++;
+       generate_blocks(witnesses.size());
+
+       // make sure we're scheduled to produce
+       vector<witness_id_type> near_witnesses = db.get_near_witness_schedule();
+       BOOST_CHECK( std::find( near_witnesses.begin(), near_witnesses.end(), nathan_witness_id )
+                    != near_witnesses.end() );
+
+       struct generator_helper {
+          database_fixture& f;
+          witness_id_type nathan_id;
+          fc::ecc::private_key nathan_key;
+          bool nathan_generated_block;
+
+          void operator()(witness_id_type id) {
+             if( id == nathan_id )
+             {
+                nathan_generated_block = true;
+                f.generate_block(0, nathan_key);
+             } else
+                f.generate_block(0);
+             BOOST_CHECK_EQUAL(f.db.get_dynamic_global_properties().current_witness.instance.value, id.instance.value);
+             f.db.get_near_witness_schedule();
+          }
+       };
+
+       generator_helper h = std::for_each(near_witnesses.begin(), near_witnesses.end(),
+                                          generator_helper{*this, nathan_witness_id, nathan_private_key, false});
+       BOOST_CHECK(h.nathan_generated_block);
+
+       BOOST_CHECK_EQUAL( db.witness_participation_rate(), GRAPHENE_100_PERCENT );
    }
-   BOOST_CHECK_GE( produced, 1 );
-} FC_LOG_AND_RETHROW() }
+
+   if (db.get_global_properties().parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SHUFFLED_ALGORITHM)
+   {
+       int produced = 0;
+       // Make sure we get scheduled at least once in witnesses.size()*2 blocks
+       // may take this many unless we measure where in the scheduling round we are
+       // TODO:  intense_test that repeats this loop many times
+       for( size_t i=0, n=witnesses.size()*2; i<n; i++ )
+       {
+          signed_block block = generate_block();
+          if( block.witness == nathan_witness_id )
+             produced++;
+        }
+        BOOST_CHECK_GE( produced, 1 );
+   }
+
+ } FC_LOG_AND_RETHROW()
+}
 
 /**
  *  This test should verify that the asset_global_settle operation works as expected,
@@ -1331,6 +1370,79 @@ BOOST_AUTO_TEST_CASE(zero_second_vbo)
    } FC_LOG_AND_RETHROW()
 }
 
+BOOST_AUTO_TEST_CASE( vbo_withdraw_different )
+{
+   try
+   {
+      ACTORS((alice)(izzy));
+      // don't pay witnesses so we have some worker budget to work with
+
+      // transfer(account_id_type(), alice_id, asset(1000));
+
+      asset_id_type stuff_id = create_user_issued_asset( "STUFF", izzy_id(db), 0 ).id;
+      issue_uia( alice_id, asset( 1000, stuff_id ) );
+
+      // deposit STUFF with linear vesting policy
+      vesting_balance_id_type vbid;
+      {
+         linear_vesting_policy_initializer pinit;
+         pinit.begin_timestamp = db.head_block_time();
+         pinit.vesting_cliff_seconds    = 30;
+         pinit.vesting_duration_seconds = 30;
+
+         vesting_balance_create_operation create_op;
+         create_op.creator = alice_id;
+         create_op.owner = alice_id;
+         create_op.amount = asset(100, stuff_id);
+         create_op.policy = pinit;
+
+         signed_transaction create_tx;
+         create_tx.operations.push_back( create_op );
+         set_expiration( db, create_tx );
+         sign(create_tx, alice_private_key);
+
+         processed_transaction ptx = PUSH_TX( db, create_tx );
+         vbid = ptx.operation_results[0].get<object_id_type>();
+      }
+
+      // wait for VB to mature
+      generate_blocks( 30 );
+
+      BOOST_CHECK( vbid(db).get_allowed_withdraw( db.head_block_time() ) == asset(100, stuff_id) );
+
+      // bad withdrawal op (wrong asset)
+      {
+         vesting_balance_withdraw_operation op;
+
+         op.vesting_balance = vbid;
+         op.amount = asset(100);
+         op.owner = alice_id;
+
+         signed_transaction withdraw_tx;
+         withdraw_tx.operations.push_back(op);
+         set_expiration( db, withdraw_tx );
+         sign( withdraw_tx, alice_private_key );
+         GRAPHENE_CHECK_THROW( PUSH_TX( db, withdraw_tx ), fc::exception );
+      }
+
+      // good withdrawal op
+      {
+         vesting_balance_withdraw_operation op;
+
+         op.vesting_balance = vbid;
+         op.amount = asset(100, stuff_id);
+         op.owner = alice_id;
+
+         signed_transaction withdraw_tx;
+         withdraw_tx.operations.push_back(op);
+         set_expiration( db, withdraw_tx );
+         sign( withdraw_tx, alice_private_key );
+         PUSH_TX( db, withdraw_tx );
+      }
+   }
+   FC_LOG_AND_RETHROW()
+}
+
 // TODO:  Write linear VBO tests
 
 BOOST_AUTO_TEST_CASE( top_n_special )
@@ -1338,6 +1450,7 @@ BOOST_AUTO_TEST_CASE( top_n_special )
    ACTORS( (alice)(bob)(chloe)(dan)(izzy)(stan) );
 
    generate_blocks( HARDFORK_516_TIME );
+   generate_blocks( HARDFORK_599_TIME );
 
    try
    {
@@ -1490,6 +1603,7 @@ BOOST_AUTO_TEST_CASE( buyback )
 
    generate_blocks( HARDFORK_538_TIME );
    generate_blocks( HARDFORK_555_TIME );
+   generate_blocks( HARDFORK_599_TIME );
 
    try
    {
