@@ -142,7 +142,7 @@ namespace detail {
          if( _options->count("seed-nodes") )
          {
             auto seeds_str = _options->at("seed-nodes").as<string>();
-            auto seeds = fc::json::from_string(seeds_str).as<vector<string>>();
+            auto seeds = fc::json::from_string(seeds_str).as<vector<string>>(2);
             for( const string& endpoint_string : seeds )
             {
                try {
@@ -226,7 +226,7 @@ namespace detail {
 
       void new_connection( const fc::http::websocket_connection_ptr& c )
       {
-         auto wsc = std::make_shared<fc::rpc::websocket_api_connection>(*c);
+         auto wsc = std::make_shared<fc::rpc::websocket_api_connection>(*c, GRAPHENE_NET_MAX_NESTED_OBJECTS);
          auto login = std::make_shared<graphene::app::login_api>( std::ref(*_self) );
          login->enable_api("database_api");
 
@@ -292,7 +292,7 @@ namespace detail {
          _websocket_tls_server->start_accept();
       } FC_CAPTURE_AND_RETHROW() }
 
-      application_impl(application* self)
+      explicit application_impl(application* self)
          : _self(self),
            _chain_db(std::make_shared<chain::database>())
       {
@@ -309,7 +309,6 @@ namespace detail {
          public_key_type init_pubkey( init_key );
          for( uint64_t i=0; i<genesis.initial_active_witnesses; i++ )
             genesis.initial_witness_candidates[i].block_signing_key = init_pubkey;
-         return;
       }
 
       void startup()
@@ -317,13 +316,13 @@ namespace detail {
          bool clean = !fc::exists(_data_dir / "blockchain/dblock");
          fc::create_directories(_data_dir / "blockchain/dblock");
 
-         auto initial_state = [&] {
+         auto initial_state = [this] {
             ilog("Initializing database...");
             if( _options->count("genesis-json") )
             {
                std::string genesis_str;
                fc::read_file_contents( _options->at("genesis-json").as<boost::filesystem::path>(), genesis_str );
-               genesis_state_type genesis = fc::json::from_string( genesis_str ).as<genesis_state_type>();
+               genesis_state_type genesis = fc::json::from_string( genesis_str ).as<genesis_state_type>( 20 );
                bool modified_genesis = false;
                if( _options->count("genesis-timestamp") )
                {
@@ -356,7 +355,7 @@ namespace detail {
                graphene::egenesis::compute_egenesis_json( egenesis_json );
                FC_ASSERT( egenesis_json != "" );
                FC_ASSERT( graphene::egenesis::get_egenesis_json_hash() == fc::sha256::hash( egenesis_json ) );
-               auto genesis = fc::json::from_string( egenesis_json ).as<genesis_state_type>();
+               auto genesis = fc::json::from_string( egenesis_json ).as<genesis_state_type>( 20 );
                genesis.initial_chain_id = fc::sha256::hash( egenesis_json );
                return genesis;
             }
@@ -372,7 +371,7 @@ namespace detail {
             loaded_checkpoints.reserve( cps.size() );
             for( auto cp : cps )
             {
-               auto item = fc::json::from_string(cp).as<std::pair<uint32_t,block_id_type> >();
+               auto item = fc::json::from_string(cp).as<std::pair<uint32_t,block_id_type> >( 2 );
                loaded_checkpoints[item.first] = item.second;
             }
          }
@@ -447,9 +446,21 @@ namespace detail {
             _force_validate = true;
          }
 
-         if( _options->count("api-access") )
-            _apiaccess = fc::json::from_file( _options->at("api-access").as<boost::filesystem::path>() )
-               .as<api_access>();
+         if( _options->count("api-access") ) {
+
+            if(fc::exists(_options->at("api-access").as<boost::filesystem::path>()))
+            {
+               _apiaccess = fc::json::from_file( _options->at("api-access").as<boost::filesystem::path>() ).as<api_access>( 20 );
+               ilog( "Using api access file from ${path}",
+                     ("path", _options->at("api-access").as<boost::filesystem::path>().string()) );
+            }
+            else
+            {
+               elog("Failed to load file from ${path}",
+                  ("path", _options->at("api-access").as<boost::filesystem::path>().string()));
+               std::exit(EXIT_FAILURE);
+            }
+         }
          else
          {
             // TODO:  Remove this generous default access policy
@@ -991,7 +1002,7 @@ void application::initialize(const fc::path& data_dir, const boost::program_opti
       if( fc::exists(genesis_out) )
       {
          try {
-            genesis_state = fc::json::from_file(genesis_out).as<genesis_state_type>();
+            genesis_state = fc::json::from_file(genesis_out).as<genesis_state_type>( 20 );
          } catch(const fc::exception& e) {
             std::cerr << "Unable to parse existing genesis file:\n" << e.to_string()
                       << "\nWould you like to replace it? [y/N] ";
