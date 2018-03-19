@@ -36,6 +36,7 @@ namespace graphene { namespace chain {
 
 void_result betting_market_rules_create_evaluator::do_evaluate(const betting_market_rules_create_operation& op)
 { try {
+   FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -52,6 +53,7 @@ object_id_type betting_market_rules_create_evaluator::do_apply(const betting_mar
 
 void_result betting_market_rules_update_evaluator::do_evaluate(const betting_market_rules_update_operation& op)
 { try {
+   FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
    _rules = &op.betting_market_rules_id(db());
    FC_ASSERT(op.new_name.valid() || op.new_description.valid(), "nothing to update");
@@ -72,6 +74,7 @@ void_result betting_market_rules_update_evaluator::do_apply(const betting_market
 void_result betting_market_group_create_evaluator::do_evaluate(const betting_market_group_create_operation& op)
 { try {
    database& d = db();
+   FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
 
    // the event_id in the operation can be a relative id.  If it is,
@@ -119,6 +122,7 @@ object_id_type betting_market_group_create_evaluator::do_apply(const betting_mar
 void_result betting_market_group_update_evaluator::do_evaluate(const betting_market_group_update_operation& op)
 { try {
    database& d = db();
+   FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
    _betting_market_group = &op.betting_market_group_id(d);
 
@@ -192,6 +196,7 @@ void_result betting_market_group_update_evaluator::do_apply(const betting_market
 
 void_result betting_market_create_evaluator::do_evaluate(const betting_market_create_operation& op)
 { try {
+   FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
 
    // the betting_market_group_id in the operation can be a relative id.  If it is,
@@ -223,6 +228,7 @@ object_id_type betting_market_create_evaluator::do_apply(const betting_market_cr
 void_result betting_market_update_evaluator::do_evaluate(const betting_market_update_operation& op)
 { try {
    database& d = db();
+   FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
    _betting_market = &op.betting_market_id(d);
    FC_ASSERT(op.new_group_id.valid() || op.new_description.valid() || op.new_payout_condition.valid(), "nothing to change");
@@ -261,7 +267,7 @@ void_result betting_market_update_evaluator::do_apply(const betting_market_updat
 void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
 { try {
    const database& d = db();
-
+   FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
    _betting_market = &op.betting_market_id(d);
    _betting_market_group = &_betting_market->group_id(d);
 
@@ -332,6 +338,7 @@ object_id_type bet_place_evaluator::do_apply(const bet_place_operation& op)
 void_result bet_cancel_evaluator::do_evaluate(const bet_cancel_operation& op)
 { try {
    const database& d = db();
+   FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
    _bet_to_cancel = &op.bet_to_cancel(d);
    FC_ASSERT( op.bettor_id == _bet_to_cancel->bettor_id, "You can only cancel your own bets" );
 
@@ -347,6 +354,7 @@ void_result bet_cancel_evaluator::do_apply(const bet_cancel_operation& op)
 void_result betting_market_group_resolve_evaluator::do_evaluate(const betting_market_group_resolve_operation& op)
 { try {
    database& d = db();
+   FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
    _betting_market_group = &op.betting_market_group_id(d);
    d.validate_betting_market_group_resolutions(*_betting_market_group, op.resolutions);
    return void_result();
@@ -360,6 +368,7 @@ void_result betting_market_group_resolve_evaluator::do_apply(const betting_marke
 
 void_result betting_market_group_cancel_unmatched_bets_evaluator::do_evaluate(const betting_market_group_cancel_unmatched_bets_operation& op)
 { try {
+   FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
    _betting_market_group = &op.betting_market_group_id(db());
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
