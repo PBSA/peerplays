@@ -25,8 +25,10 @@
 #include <graphene/chain/proposal_evaluator.hpp>
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/account_object.hpp>
+#include <graphene/chain/protocol/account.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <graphene/chain/exceptions.hpp>
+#include <graphene/chain/hardfork.hpp>
 
 #include <fc/smart_ref_impl.hpp>
 
@@ -118,6 +120,11 @@ struct proposal_operation_hardfork_visitor
 
    void operator()(const event_update_status_operation &v) const {
        FC_ASSERT( block_time >= HARDFORK_1000_TIME, "event_update_status_operation not allowed yet!" );
+   }
+
+   void operator()(const graphene::chain::account_create_operation &aco) const {
+      if (block_time < HARDFORK_999_TIME)
+         FC_ASSERT( !aco.extensions.value.affiliate_distributions.valid(), "Affiliate reward distributions not allowed yet" );
    }
 
    // loop and self visit in proposals

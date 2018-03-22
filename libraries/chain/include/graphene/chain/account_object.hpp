@@ -227,6 +227,8 @@ namespace graphene { namespace chain {
           */
          optional< flat_set<asset_id_type> > allowed_assets;
 
+         optional< affiliate_reward_distributions > affiliate_distributions;
+
          bool has_special_authority()const
          {
             return (owner_special_authority.which() != special_authority::tag< no_special_authority >::value)
@@ -446,7 +448,7 @@ FC_REFLECT_DERIVED( graphene::chain::account_object,
                     (cashback_vb)
                     (owner_special_authority)(active_special_authority)
                     (top_n_control_flags)
-                    (allowed_assets)
+                    (allowed_assets)(affiliate_distributions)
                     )
 
 FC_REFLECT_DERIVED( graphene::chain::account_balance_object,
