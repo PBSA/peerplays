@@ -128,20 +128,11 @@ void asset_create_evaluator::pay_fee()
 
 object_id_type asset_create_evaluator::do_apply( const asset_create_operation& op )
 { try {
-   bool hf_429 = fee_is_odd && db().head_block_time() > HARDFORK_CORE_429_TIME;
-
    const asset_dynamic_data_object& dyn_asset =
       db().create<asset_dynamic_data_object>( [&]( asset_dynamic_data_object& a ) {
          a.current_supply = 0;
-         a.fee_pool = core_fee_paid - (hf_429 ? 1 : 0);
+         a.fee_pool = core_fee_paid - (fee_is_odd ? 1 : 0);
       });
-   if( fee_is_odd && !hf_429 )
-   {
-      const auto& core_dd = db().get<asset_object>( asset_id_type() ).dynamic_data( db() );
-      db().modify( core_dd, [=]( asset_dynamic_data_object& dd ) {
-         dd.current_supply++;
-      });
-   }
 
    asset_bitasset_data_id_type bit_asset_id;
    if( op.bitasset_opts.valid() )
