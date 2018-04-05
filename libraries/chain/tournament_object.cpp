@@ -311,10 +311,8 @@ namespace graphene { namespace chain {
                const account_id_type& winner = *event.match.match_winners.begin();
                uint16_t rake_fee_percentage = event.db.get_global_properties().parameters.rake_fee_percentage;
 
-               // check whether the core asset pays dividends.  If so, we transfer the rake fee 
-               // to the core asset's dividend account
-               const asset_object& core_asset_obj = asset_id_type()(event.db);
-               optional<asset_dividend_data_id_type> dividend_id = core_asset_obj.dividend_data_id;
+               const asset_object & asset_obj = asset_id_type(0)(event.db);
+               optional<asset_dividend_data_id_type> dividend_id = asset_obj.dividend_data_id;
 
                share_type rake_amount = 0;
                if (dividend_id)
