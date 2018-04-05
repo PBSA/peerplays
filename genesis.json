@@ -1,16 +1,16 @@
 {
-  "initial_timestamp": "2018-02-01T00:00:00",
-  "max_core_supply": "1000000000000000",
+  "initial_timestamp": "2017-09-05T16:00:00",
+  "max_core_supply": "1446051993031",
   "initial_parameters": {
     "current_fees": {
       "parameters": [[
           0,{
-            "fee": 2000000,
-            "price_per_kbyte": 1000000
+            "fee": 1000,
+            "price_per_kbyte": 1000
           }
         ],[
           1,{
-            "fee": 500000
+            "fee": 50
           }
         ],[
           2,{
@@ -18,113 +18,113 @@
           }
         ],[
           3,{
-            "fee": 2000000
+            "fee": "500000000000"
           }
         ],[
           4,{}
         ],[
           5,{
-            "basic_fee": 500000,
-            "premium_fee": 200000000,
-            "price_per_kbyte": 100000
+            "basic_fee": 500,
+            "premium_fee": 250000,
+            "price_per_kbyte": 1000
           }
         ],[
           6,{
-            "fee": 2000000,
-            "price_per_kbyte": 100000
+            "fee": 100,
+            "price_per_kbyte": 1000
           }
         ],[
           7,{
-            "fee": 300000
+            "fee": 1000
           }
         ],[
           8,{
-            "membership_annual_fee": 200000000,
-            "membership_lifetime_fee": 1000000000
+            "membership_annual_fee": "500000000000",
+            "membership_lifetime_fee": 500000
           }
         ],[
           9,{
-            "fee": 50000000
+            "fee": 200000
           }
         ],[
           10,{
-            "symbol3": "50000000000",
-            "symbol4": "30000000000",
-            "long_symbol": 500000000,
-            "price_per_kbyte": 10
+            "symbol3": "500000000000",
+            "symbol4": "500000000000",
+            "long_symbol": 5000000,
+            "price_per_kbyte": 1000
           }
         ],[
           11,{
-            "fee": 50000000,
-            "price_per_kbyte": 10
+            "fee": 100000,
+            "price_per_kbyte": 100
           }
         ],[
           12,{
-            "fee": 50000000
+            "fee": "500000000000"
           }
         ],[
           13,{
-            "fee": 50000000
+            "fee": "500000000000"
           }
         ],[
           14,{
-            "fee": 2000000,
-            "price_per_kbyte": 100000
+            "fee": 1000,
+            "price_per_kbyte": 1000
           }
         ],[
           15,{
-            "fee": 2000000
+            "fee": 1000
           }
         ],[
           16,{
-            "fee": 100000
+            "fee": 1000
           }
         ],[
           17,{
-            "fee": 10000000
+            "fee": "500000000000"
           }
         ],[
           18,{
-            "fee": 50000000
+            "fee": "500000000000"
           }
         ],[
           19,{
-            "fee": 100000
+            "fee": "500000000000"
           }
         ],[
           20,{
-            "fee": 500000000
+            "fee": 800000
           }
         ],[
           21,{
-            "fee": 2000000
+            "fee": 50000
           }
         ],[
           22,{
-            "fee": 2000000,
-            "price_per_kbyte": 10
+            "fee": 1000,
+            "price_per_kbyte": 1000
           }
         ],[
           23,{
-            "fee": 2000000,
-            "price_per_kbyte": 10
+            "fee": 1000,
+            "price_per_kbyte": 1000
           }
         ],[
           24,{
-            "fee": 100000
+            "fee": 0
           }
         ],[
           25,{
-            "fee": 100000
+            "fee": 3000
           }
         ],[
           26,{
-            "fee": 100000
+            "fee": 1000
           }
         ],[
           27,{
-            "fee": 2000000,
-            "price_per_kbyte": 10
+            "fee": 1000,
+            "price_per_kbyte": 1000
           }
         ],[
           28,{
@@ -132,15 +132,15 @@
           }
         ],[
           29,{
-            "fee": 500000000
+            "fee": 100000
           }
         ],[
           30,{
-            "fee": 2000000
+            "fee": 50000
           }
         ],[
           31,{
-            "fee": 100000
+            "fee": 1000
           }
         ],[
           32,{
@@ -148,62 +148,61 @@
           }
         ],[
           33,{
-            "fee": 2000000
+            "fee": 1000
           }
         ],[
           34,{
-            "fee": 500000000
+            "fee": "500000000000"
           }
         ],[
           35,{
-            "fee": 100000,
-            "price_per_kbyte": 10
+            "fee": 1000,
+            "price_per_kbyte": 1000
           }
         ],[
           36,{
-            "fee": 100000
+            "fee": 1000
           }
         ],[
           37,{}
         ],[
           38,{
-            "fee": 2000000,
-            "price_per_kbyte": 10
+            "fee": 20000,
+            "price_per_kbyte": 1000
           }
         ],[
           39,{
-            "fee": 500000,
-            "price_per_output": 500000
+            "fee": 1000,
+            "price_per_output": 1000
           }
         ],[
           40,{
-            "fee": 500000,
-            "price_per_output": 500000
+            "fee": 1000,
+            "price_per_output": 1000
           }
         ],[
           41,{
-            "fee": 500000
+            "fee": 1000
           }
         ],[
           42,{}
         ],[
           43,{
-            "fee": 2000000
+            "fee": 3000
           }
         ],[
           44,{}
         ],[
           45,{
-            "fee": 50000000
+            "fee": 1000
           }
         ],[
           46,{
-            "distribution_base_fee": 0,
-            "distribution_fee_per_holder": 0
+            "fee": 5000
           }
         ],[
           47,{
-            "fee": 100000
+            "fee": 0
           }
         ],[
           48,{
@@ -211,297 +210,179 @@
           }
         ],[
           49,{
-            "fee": 100000
-          }
-        ],[
-          50,{
-            "fee": 100000
-          }
-        ],[
-          51,{
-            "fee": 100000
-          }
-        ],[
-          52,{
-            "fee": 100000
-          }
-        ],[
-          53,{
-            "fee": 100000
-          }
-        ],[
-          54,{
-            "fee": 100000
-          }
-        ],[
-          55,{
-            "fee": 100000
-          }
-        ],[
-          56,{
-            "fee": 100000
-          }
-        ],[
-          57,{
-            "fee": 1
-          }
-        ],[
-          58,{
-            "fee": 100000
-          }
-        ],[
-          59,{}
-        ],[
-          60,{}
-        ],[
-          61,{
-            "fee": 100000
-          }
-        ],[
-          62,{}
-        ],[
-          63,{
-            "fee": 0
-          }
-        ],[
-          64,{}
-        ],[
-          65,{
-            "fee": 100000
-          }
-        ],[
-          66,{
-            "fee": 100000
-          }
-        ],[
-          67,{
-            "fee": 100000
-          }
-        ],[
-          68,{}
-        ],[
-          69,{
-            "fee": 100000
-          }
-        ],[
-          70,{
-            "fee": 100000
-          }
-        ],[
-          71,{
-            "fee": 100000
+            "distribution_base_fee": 0,
+            "distribution_fee_per_holder": 0
           }
         ]
       ],
       "scale": 10000
     },
     "block_interval": 3,
-    "maintenance_interval": 600,
+    "maintenance_interval": 3600,
     "maintenance_skip_slots": 3,
-    "committee_proposal_review_period": 900,
-    "maximum_transaction_size": 2048,
-    "maximum_block_size": 2048000000,
+    "committee_proposal_review_period": 3600,
+    "maximum_transaction_size": 99999,
+    "maximum_block_size": 2000000,
     "maximum_time_until_expiration": 86400,
     "maximum_proposal_lifetime": 2419200,
     "maximum_asset_whitelist_authorities": 10,
     "maximum_asset_feed_publishers": 10,
-    "maximum_witness_count": 1001,
-    "maximum_committee_count": 1001,
-    "maximum_authority_membership": 10,
-    "reserve_percent_of_fee": 2000,
-    "network_percent_of_fee": 2000,
-    "lifetime_referrer_percent_of_fee": 3000,
-    "cashback_vesting_period_seconds": 31536000,
-    "cashback_vesting_threshold": 10000000,
+    "maximum_witness_count": 101,
+    "maximum_committee_count": 33,
+    "maximum_authority_membership": 11,
+    "reserve_percent_of_fee": 0,
+    "network_percent_of_fee": 10000,
+    "lifetime_referrer_percent_of_fee": 0,
+    "cashback_vesting_period_seconds": 9999999,
+    "cashback_vesting_threshold": 100000,
     "count_non_member_votes": true,
-    "allow_non_member_whitelists": false,
-    "witness_pay_per_block": 1000000,
-    "worker_budget_per_day": "50000000000",
+    "allow_non_member_whitelists": true,
+    "witness_pay_per_block": 725,
+    "worker_budget_per_day": 0,
     "max_predicate_opcode": 1,
-    "fee_liquidation_threshold": 10000000,
+    "fee_liquidation_threshold": "500000000000",
     "accounts_per_fee_scale": 1000,
-    "account_fee_scale_bitshifts": 4,
+    "account_fee_scale_bitshifts": 0,
     "max_authority_depth": 2,
-    "min_bet_multiplier": 10100,
-    "max_bet_multiplier": 10000000,
-    "betting_rake_fee_percentage": 300,
-    "permitted_betting_odds_increments": [[
-        20000,
-        100
-      ],[
-        30000,
-        200
-      ],[
-        40000,
-        500
-      ],[
-        60000,
-        1000
-      ],[
-        100000,
-        2000
-      ],[
-        200000,
-        5000
-      ],[
-        300000,
-        10000
-      ],[
-        500000,
-        20000
-      ],[
-        1000000,
-        50000
-      ],[
-        10000000,
-        100000
-      ]
-    ],
-    "witness_schedule_algorithm": 1,
-    "min_round_delay": 0,
-    "max_round_delay": 600,
-    "min_time_per_commit_move": 0,
-    "max_time_per_commit_move": 600,
-    "min_time_per_reveal_move": 0,
-    "max_time_per_reveal_move": 600,
+    "witness_schedule_algorithm": 0,
+    "min_round_delay": 10,
+    "max_round_delay": 300,
+    "min_time_per_commit_move": 15,
+    "max_time_per_commit_move": 15,
+    "min_time_per_reveal_move": 9,
+    "max_time_per_reveal_move": 9,
     "rake_fee_percentage": 300,
     "maximum_registration_deadline": 2592000,
     "maximum_players_in_tournament": 256,
     "maximum_tournament_whitelist_length": 1000,
-    "maximum_tournament_start_time_in_future": 2419200,
-    "maximum_tournament_start_delay": 604800,
-    "maximum_tournament_number_of_wins": 100,
+    "maximum_tournament_start_time_in_future": 5184000,
+    "maximum_tournament_start_delay": 259200,
+    "maximum_tournament_number_of_wins": 25,
     "extensions": []
   },
-  "initial_bts_accounts": [],
+  "initial_bts_accounts": [{
+      "name": "bts-adam",
+      "owner_authority": {
+        "weight_threshold": 1,
+        "account_auths": [],
+        "key_auths": [[
+            "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+            1
+          ]
+        ],
+        "address_auths": []
+      },
+      "active_authority": {
+        "weight_threshold": 1,
+        "account_auths": [],
+        "key_auths": [[
+            "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+            1
+          ]
+        ],
+        "address_auths": []
+      },
+      "core_balance": 100000000000
+    }
+  ],
   "initial_accounts": [{
       "name": "init0",
-      "owner_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-      "active_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "owner_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "active_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
       "is_lifetime_member": true
     },{
       "name": "init1",
-      "owner_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-      "active_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "owner_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "active_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
       "is_lifetime_member": true
     },{
       "name": "init2",
-      "owner_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-      "active_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "owner_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "active_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
       "is_lifetime_member": true
     },{
       "name": "init3",
-      "owner_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-      "active_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "owner_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "active_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
       "is_lifetime_member": true
     },{
       "name": "init4",
-      "owner_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-      "active_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "owner_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "active_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
       "is_lifetime_member": true
     },{
       "name": "init5",
-      "owner_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-      "active_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "owner_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "active_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
       "is_lifetime_member": true
     },{
       "name": "init6",
-      "owner_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-      "active_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "owner_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "active_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
       "is_lifetime_member": true
     },{
       "name": "init7",
-      "owner_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-      "active_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "owner_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "active_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
       "is_lifetime_member": true
     },{
       "name": "init8",
-      "owner_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-      "active_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "owner_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "active_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
       "is_lifetime_member": true
     },{
       "name": "init9",
-      "owner_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-      "active_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "owner_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "active_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
       "is_lifetime_member": true
     },{
       "name": "init10",
-      "owner_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-      "active_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "owner_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "active_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
       "is_lifetime_member": true
     },{
-      "name": "nathan",
-      "owner_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-      "active_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-      "is_lifetime_member": true
-    },{
-      "name": "romek",
-      "owner_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-      "active_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "name": "adam",
+      "owner_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+      "active_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
       "is_lifetime_member": true
     }
   ],
-  "initial_assets": [{
-      "symbol": "PIXEL.BITCOIN",
-      "issuer_name": "committee-account",
-      "description": "1 bitcoin",
-      "precision": 3,
-      "max_supply": "10000000000000000",
-      "accumulated_fees": 0,
-      "is_bitasset": true,
-      "collateral_records": []
-    },{
-      "symbol": "PIXEL.STEEM",
-      "issuer_name": "committee-account",
-      "description": "1 steem",
-      "precision": 3,
-      "max_supply": "10000000000000000",
-      "accumulated_fees": 0,
-      "is_bitasset": true,
-      "collateral_records": []
-    }
-  ],
-  "initial_balances": [{
-      "owner": "PPYFAbAx7yuxt725qSZvfwWqkdCwp9ZnUama",
-      "asset_symbol": "PPY",
-      "amount": "1000000000000000"
-    }
-  ],
-  "initial_vesting_balances": [],
+  "initial_assets": [],
+  "initial_balances": [],
   "initial_active_witnesses": 11,
   "initial_witness_candidates": [{
       "owner_name": "init0",
-      "block_signing_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+      "block_signing_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
     },{
       "owner_name": "init1",
-      "block_signing_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+      "block_signing_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
     },{
       "owner_name": "init2",
-      "block_signing_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+      "block_signing_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
     },{
       "owner_name": "init3",
-      "block_signing_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+      "block_signing_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
     },{
       "owner_name": "init4",
-      "block_signing_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+      "block_signing_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
     },{
       "owner_name": "init5",
-      "block_signing_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+      "block_signing_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
     },{
       "owner_name": "init6",
-      "block_signing_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+      "block_signing_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
     },{
       "owner_name": "init7",
-      "block_signing_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+      "block_signing_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
     },{
       "owner_name": "init8",
-      "block_signing_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+      "block_signing_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
     },{
       "owner_name": "init9",
-      "block_signing_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+      "block_signing_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
     },{
       "owner_name": "init10",
-      "block_signing_key": "PPY6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+      "block_signing_key": "PPYTEST6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
     }
   ],
   "initial_committee_candidates": [{
@@ -518,20 +399,12 @@
       "owner_name": "init5"
     },{
       "owner_name": "init6"
-    },{
-      "owner_name": "init7"
-    },{
-      "owner_name": "init8"
-    },{
-      "owner_name": "init9"
-    },{
-      "owner_name": "init10"
     }
   ],
   "initial_worker_candidates": [],
   "initial_chain_id": "aa34045518f1469a28fa4578240d5f039afa9959c0b95ce3b39674efa691fb21",
   "immutable_parameters": {
-    "min_committee_member_count": 11,
+    "min_committee_member_count": 9,
     "min_witness_count": 11,
     "num_special_accounts": 0,
     "num_special_assets": 0
