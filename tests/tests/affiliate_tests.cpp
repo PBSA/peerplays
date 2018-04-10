@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
+ * Copyright (c) 2018 Peerplays Blockchain Standards Association, and contributors.
  *
  * The MIT License
  *
@@ -33,6 +33,7 @@
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/witness_scheduler_rng.hpp>
 #include <graphene/chain/exceptions.hpp>
+#include <graphene/chain/affiliate_payout.hpp>
 
 #include <graphene/db/simple_index.hpp>
 
@@ -49,10 +50,6 @@ using namespace graphene::db;
 
 BOOST_FIXTURE_TEST_SUITE( affiliate_tests, database_fixture )
 
-/**
- * Verify that names are RFC-1035 compliant https://tools.ietf.org/html/rfc1035
- * https://github.com/cryptonomex/graphene/issues/15
- */
 BOOST_AUTO_TEST_CASE( account_test )
 {
    ACTORS( (alice)(ann)(audrey) );
@@ -155,6 +152,190 @@ BOOST_AUTO_TEST_CASE( account_test )
    const auto& share_audrey = app_bookie->second._dist.find( audrey_id );
    BOOST_CHECK( share_audrey != app_bookie->second._dist.end() );
    BOOST_CHECK_EQUAL( 10, share_audrey->second );
+}
+
+BOOST_AUTO_TEST_CASE( affiliate_payout_helper_test )
+{
+   ACTORS( (alice)(ann)(audrey)(irene) );
+
+   const asset_id_type btc_id = create_user_issued_asset( "BTC", irene, 0 ).id;
+   issue_uia( irene, asset( 100000, btc_id ) );
+
+   generate_blocks( HARDFORK_999_TIME );
+   generate_block();
+
+   test::set_expiration( db, trx );
+   trx.clear();
+
+   // Paula: 100% to Alice for Bookie / nothing for RPS
+   const fc::ecc::private_key paula_private_key = generate_private_key( "paula" );
+   account_create_operation aco = make_account( "paula", paula_private_key.get_public_key() );
+   aco.extensions.value.affiliate_distributions = affiliate_reward_distributions();
+   aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[alice_id] = GRAPHENE_100_PERCENT;
+   trx.operations.push_back( aco );
+
+   // Penny: For Bookie 60% to Alice + 40% to Ann / For RPS 20% to Alice, 30% to Ann, 50% to Audrey
+   const fc::ecc::private_key penny_private_key = generate_private_key( "penny" );
+   aco = make_account( "penny", penny_private_key.get_public_key() );
+   aco.extensions.value.affiliate_distributions = affiliate_reward_distributions();
+   aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[alice_id] = GRAPHENE_100_PERCENT * 3 / 5;
+   aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[ann_id]   = GRAPHENE_100_PERCENT
+                                                                                  - aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[alice_id];
+   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[alice_id]    = GRAPHENE_100_PERCENT / 5;
+   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[audrey_id]   = GRAPHENE_100_PERCENT / 2;
+   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[ann_id]      = GRAPHENE_100_PERCENT
+                                                                                  - aco.extensions.value.affiliate_distributions->_dists[rps]._dist[alice_id]
+                                                                                  - aco.extensions.value.affiliate_distributions->_dists[rps]._dist[audrey_id];
+   trx.operations.push_back( aco );
+
+   // Petra: nothing for Bookie / For RPS 10% to Ann, 90% to Audrey
+   const fc::ecc::private_key petra_private_key = generate_private_key( "petra" );
+   aco = make_account( "petra", petra_private_key.get_public_key() );
+   aco.extensions.value.affiliate_distributions = affiliate_reward_distributions();
+   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[ann_id]    = GRAPHENE_100_PERCENT / 10;
+   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[audrey_id] = GRAPHENE_100_PERCENT
+                                                                                - aco.extensions.value.affiliate_distributions->_dists[rps]._dist[ann_id];
+   trx.operations.push_back( aco );
+   processed_transaction result = db.push_transaction(trx, ~0);
+
+   account_id_type paula_id = result.operation_results[0].get<object_id_type>();
+   account_id_type penny_id = result.operation_results[1].get<object_id_type>();
+   account_id_type petra_id = result.operation_results[2].get<object_id_type>();
+
+   int64_t alice_ppy  = 0;
+   int64_t ann_ppy    = 0;
+   int64_t audrey_ppy = 0;
+   int64_t alice_btc  = 0;
+   int64_t ann_btc    = 0;
+   int64_t audrey_btc = 0;
+
+   {
+      const tournament_object& game = db.create<tournament_object>( []( tournament_object& t ) {
+         t.options.game_options = rock_paper_scissors_game_options();
+         t.options.buy_in = asset( 10 );
+      });
+      affiliate_payout_helper helper = affiliate_payout_helper( db, game );
+      // Alice has no distribution set
+      BOOST_CHECK_EQUAL( 0, helper.payout( alice_id, asset(1000) ).value );
+      // Paula has nothing for Bookie
+      BOOST_CHECK_EQUAL( 0, helper.payout( paula_id, asset(1000) ).value );
+      // 20% of 4 gets rounded down to 0
+      BOOST_CHECK_EQUAL( 0, helper.payout( penny_id, asset(4) ).value );
+
+      // 20% of 5 = 1 is paid to Audrey
+      BOOST_CHECK_EQUAL( 1, helper.payout( penny_id, asset(5) ).value );
+      audrey_ppy++;
+
+      // 20% of 50 = 10: 2 to Alice, 3 to Ann, 5 to Audrey
+      BOOST_CHECK_EQUAL( 10, helper.payout( penny_id, asset(50) ).value );
+      alice_ppy += 2;
+      ann_ppy += 3;
+      audrey_ppy += 5;
+
+      // 20% of 59 = 11: 1 to Ann, 10 to Audrey
+      BOOST_CHECK_EQUAL( 11, helper.payout( petra_id, asset(59) ).value );
+      audrey_ppy += 10;
+      ann_ppy += 1;
+
+      // Cannot add BTC after paying out PPY
+      BOOST_CHECK_THROW( helper.payout( penny_id, asset( 1000, btc_id ) ), fc::assert_exception );
+
+      helper.commit();
+
+      BOOST_CHECK_EQUAL( alice_ppy,  get_balance( alice_id, asset_id_type() ) );
+      BOOST_CHECK_EQUAL( ann_ppy,    get_balance( ann_id, asset_id_type() ) );
+      BOOST_CHECK_EQUAL( audrey_ppy, get_balance( audrey_id, asset_id_type() ) );
+   }
+
+   {
+      const tournament_object& game = db.create<tournament_object>( [btc_id]( tournament_object& t ) {
+         t.options.game_options = rock_paper_scissors_game_options();
+         t.options.buy_in = asset( 10, btc_id );
+      });
+      affiliate_payout_helper helper = affiliate_payout_helper( db, game );
+      // 20% of 60 = 12: 2 to Alice, 3 to Ann, 7 to Audrey
+      BOOST_CHECK_EQUAL( 12, helper.payout( penny_id, asset( 60, btc_id ) ).value );
+      alice_btc += 2;
+      ann_btc += 3;
+      audrey_btc += 7;
+      // Cannot add PPY after paying out BTC
+      BOOST_CHECK_THROW( helper.payout( penny_id, asset( 1000 ) ), fc::assert_exception );
+      helper.commit();
+      BOOST_CHECK_EQUAL( alice_btc,  get_balance( alice_id, btc_id ) );
+      BOOST_CHECK_EQUAL( ann_btc,    get_balance( ann_id, btc_id ) );
+      BOOST_CHECK_EQUAL( audrey_btc, get_balance( audrey_id, btc_id ) );
+   }
+
+   {
+      const betting_market_group_object& game = db.create<betting_market_group_object>( []( betting_market_group_object& b ) {
+         b.asset_id = asset_id_type();
+      } );
+      affiliate_payout_helper helper = affiliate_payout_helper( db, game );
+      // Alice has no distribution set
+      BOOST_CHECK_EQUAL( 0, helper.payout( alice_id, asset(1000) ).value );
+      // Petra has nothing for Bookie
+      BOOST_CHECK_EQUAL( 0, helper.payout( petra_id, asset(1000) ).value );
+      // 20% of 4 gets rounded down to 0
+      BOOST_CHECK_EQUAL( 0, helper.payout( penny_id, asset(4) ).value );
+
+      // 20% of 5 = 1 is paid to Ann
+      BOOST_CHECK_EQUAL( 1, helper.payout( penny_id, asset(5) ).value );
+      ann_ppy++;
+
+      // 20% of 40 = 8: 8 to Alice
+      BOOST_CHECK_EQUAL( 8, helper.payout( paula_id, asset(40) ).value );
+      alice_ppy += 8;
+
+      // intermediate commit should clear internal accumulator
+      helper.commit();
+
+      // 20% of 59 = 11: 6 to Alice, 5 to Ann
+      BOOST_CHECK_EQUAL( 11, helper.payout( penny_id, asset(59) ).value );
+      alice_ppy += 6;
+      ann_ppy += 5;
+
+      // Cannot add BTC after paying out PPY
+      BOOST_CHECK_THROW( helper.payout( penny_id, asset( 1000, btc_id ) ), fc::assert_exception );
+
+      helper.commit();
+
+      BOOST_CHECK_EQUAL( alice_ppy,  get_balance( alice_id, asset_id_type() ) );
+      BOOST_CHECK_EQUAL( ann_ppy,    get_balance( ann_id, asset_id_type() ) );
+      BOOST_CHECK_EQUAL( audrey_ppy, get_balance( audrey_id, asset_id_type() ) );
+   }
+
+   {
+      const betting_market_group_object& game = db.create<betting_market_group_object>( [btc_id]( betting_market_group_object& b ) {
+         b.asset_id = btc_id;
+      } );
+      affiliate_payout_helper helper = affiliate_payout_helper( db, game );
+      // 20% of 60 = 12: 7 to Alice, 5 to Ann
+      BOOST_CHECK_EQUAL( 12, helper.payout( penny_id, asset( 60, btc_id ) ).value );
+      alice_btc += 7;
+      ann_btc += 5;
+      // Cannot add PPY after paying out BTC
+      BOOST_CHECK_THROW( helper.payout( penny_id, asset( 1000 ) ), fc::assert_exception );
+      helper.commit();
+      BOOST_CHECK_EQUAL( alice_btc,  get_balance( alice_id, btc_id ) );
+      BOOST_CHECK_EQUAL( ann_btc,    get_balance( ann_id, btc_id ) );
+      BOOST_CHECK_EQUAL( audrey_btc, get_balance( audrey_id, btc_id ) );
+   }
+
+   {
+      // Fix total supply
+      auto& index = db.get_index_type<account_balance_index>().indices().get<by_account_asset>();
+      auto itr = index.find( boost::make_tuple( account_id_type(), asset_id_type() ) );
+      BOOST_CHECK( itr != index.end() );
+      db.modify( *itr, [alice_ppy,ann_ppy,audrey_ppy]( account_balance_object& bal ) {
+         bal.balance -= alice_ppy + ann_ppy + audrey_ppy;
+      });
+
+      itr = index.find( boost::make_tuple( irene_id, btc_id ) );
+      BOOST_CHECK( itr != index.end() );
+      db.modify( *itr, [alice_btc,ann_btc,audrey_btc]( account_balance_object& bal ) {
+         bal.balance -= alice_btc + ann_btc + audrey_btc;
+      });
+   }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
