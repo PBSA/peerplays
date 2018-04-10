@@ -108,6 +108,8 @@ add_library( graphene_chain
              betting_market_object.cpp
              betting_market_group_object.cpp
 
+             affiliate_payout.cpp
+
              ${HEADERS}
              ${PROTOCOL_HEADERS}
              "${CMAKE_CURRENT_BINARY_DIR}/include/graphene/chain/hardfork.hpp"

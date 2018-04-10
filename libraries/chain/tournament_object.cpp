@@ -24,6 +24,7 @@
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/match_object.hpp>
+#include <graphene/chain/affiliate_payout.hpp>
 
 #include <boost/msm/back/state_machine.hpp>
 #include <boost/msm/front/state_machine_def.hpp>
@@ -333,7 +334,15 @@ namespace graphene { namespace chain {
                   event.db.push_applied_operation(op);
                }
 
-               if (dividend_id && rake_amount.value)
+               if (rake_amount.value)
+               {
+                  affiliate_payout_helper payout_helper( event.db, tournament_obj );
+                  rake_amount -= payout_helper.payout( winner, asset( rake_amount, tournament_obj.options.buy_in.asset_id ) );
+                  payout_helper.commit();
+                  FC_ASSERT( rake_amount.value >= 0 );
+               }
+
+               if (rake_amount.value)
                {
                   // Adjusting balance of dividend_distribution_account
                   const asset_dividend_data_id_type& asset_dividend_data_id_= *dividend_id;

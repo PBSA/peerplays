@@ -24,6 +24,7 @@
 
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/account_object.hpp>
+#include <graphene/chain/affiliate_payout.hpp>
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/event_object.hpp>
@@ -167,6 +168,8 @@ void database::settle_betting_market_group(const betting_market_group_object& be
       rake_account_id = core_asset_dividend_data_obj.dividend_distribution_account;
    }
 
+   affiliate_payout_helper payout_helper( *this, betting_market_group );
+
    // collect the resolutions of all markets in the BMG: they were previously published and
    // stored in the individual betting markets
    std::map<betting_market_id_type, betting_market_resolution_type> resolutions_by_market_id;
@@ -262,6 +265,9 @@ void database::settle_betting_market_group(const betting_market_group_object& be
       {
          rake_amount = ((fc::uint128_t(net_profits.value) * rake_fee_percentage + GRAPHENE_100_PERCENT - 1) / GRAPHENE_100_PERCENT).to_uint64();
          if (rake_amount.value)
+            rake_amount -= payout_helper.payout( bettor_id, asset( rake_amount, betting_market_group.asset_id ) );
+         FC_ASSERT( rake_amount.value >= 0 );
+         if (rake_amount.value)
             adjust_balance(*rake_account_id, asset(rake_amount, betting_market_group.asset_id));
       }
       
@@ -323,6 +329,8 @@ void database::remove_completed_events()
       fc_dlog(fc::logger::get("betting"), "removing settled event ${id}", ("id", event.id));
       remove(event);
    }
+
+   payout_helper.commit();
 }
 
 share_type adjust_betting_position(database& db, 

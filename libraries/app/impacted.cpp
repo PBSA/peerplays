@@ -275,6 +275,11 @@ struct get_impacted_account_visitor
    {
       _impacted.insert( op.payout_account_id );
    }
+   void operator()( const affiliate_payout_operation& op )
+   {
+      _impacted.insert( op.affiliate );
+   }
+   void operator()( const affiliate_referral_payout_operation& op ) { }
 };
 
 void operation_get_impacted_accounts( const operation& op, flat_set<account_id_type>& result )
