@@ -58,12 +58,16 @@ namespace graphene { namespace chain {
              FC_ASSERT( share < remaining );
              payout *= share;
              payout /= remaining;
+             //ilog("Paying ${p} of ${P} for ${s} of ${r}", ("p",payout.to_uint64())("P",to_pay.value)("s",share)("r",remaining) );
              remaining -= share;
           }
           FC_ASSERT( payout.to_uint64() <= to_pay );
           if( payout > 0 )
           {
-             accumulator[affiliate] += asset( payout.to_uint64(), amount.asset_id );
+             if ( accumulator.find(affiliate) == accumulator.end() )
+                accumulator[affiliate] = asset( payout.to_uint64(), amount.asset_id );
+             else
+                accumulator[affiliate] += asset( payout.to_uint64(), amount.asset_id );
              to_pay -= payout.to_uint64();
              paid += payout.to_uint64();
           }
@@ -82,6 +86,7 @@ namespace graphene { namespace chain {
          _db.adjust_balance( entry.first, entry.second );
          _db.push_applied_operation( affiliate_payout_operation( entry.first, tag, entry.second ) );
       }
+      accumulator.clear();
    }
 
 } } // graphene::chain

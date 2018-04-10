@@ -59,7 +59,7 @@ namespace graphene { namespace chain {
    public:
       template<typename GAME>
       affiliate_payout_helper( database& db, const GAME& game )
-      : tag( get_tag_for_game( game ) ), _db(db) {}
+      : _db(db), tag( get_tag_for_game( game ) ) {}
 
       share_type payout( account_id_type player, const asset& amount );
       share_type payout( const account_object& player, const asset& amount );
