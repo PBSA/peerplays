@@ -51,10 +51,9 @@ struct network_node_api_tests_fixture : public database_fixture
                           ~0 | database::skip_undo_history_check);
     }
 
-    void check_transactions_equal(const transaction& left, const transaction& right)
+    void check_transaction_in_list(const map<transaction_id_type, signed_transaction>& left, const transaction& right)
     {
-        BOOST_CHECK(left.id() == right.id());
-        BOOST_CHECK(left.digest() == right.digest());
+        BOOST_CHECK(left.find(right.id()) != left.end());
     }
 };
 
@@ -78,7 +77,7 @@ BOOST_AUTO_TEST_CASE(list_pending_proposals_one) {
         auto pending_transactions = network_node_api.list_pending_transactions();
 
         BOOST_REQUIRE_EQUAL(pending_transactions.size(), 1);
-        check_transactions_equal(pending_transactions[0], sam_transaction);
+        check_transaction_in_list(pending_transactions, sam_transaction);
     } FC_LOG_AND_RETHROW()
 }
 
@@ -92,8 +91,8 @@ BOOST_AUTO_TEST_CASE(list_pending_proposals_several) {
         auto pending_transactions = network_node_api.list_pending_transactions();
 
         BOOST_REQUIRE_EQUAL(pending_transactions.size(), 2);
-        check_transactions_equal(pending_transactions[0], sam_transaction);
-        check_transactions_equal(pending_transactions[1], dan_transaction);
+        check_transaction_in_list(pending_transactions, sam_transaction);
+        check_transaction_in_list(pending_transactions, dan_transaction);
     } FC_LOG_AND_RETHROW()
 }
 
@@ -105,7 +104,7 @@ BOOST_AUTO_TEST_CASE(list_pending_proposals_one_after_applying) {
 
         auto pending_transactions = network_node_api.list_pending_transactions();
         BOOST_REQUIRE_EQUAL(pending_transactions.size(), 1);
-        check_transactions_equal(pending_transactions[0], sam_transaction);
+        check_transaction_in_list(pending_transactions, sam_transaction);
 
         trigger_transactions_applying();
 
@@ -123,8 +122,8 @@ BOOST_AUTO_TEST_CASE(list_pending_proposals_several_after_applying) {
 
         auto pending_transactions = network_node_api.list_pending_transactions();
         BOOST_REQUIRE_EQUAL(pending_transactions.size(), 2);
-        check_transactions_equal(pending_transactions[0], sam_transaction);
-        check_transactions_equal(pending_transactions[1], dan_transaction);
+        check_transaction_in_list(pending_transactions, sam_transaction);
+        check_transaction_in_list(pending_transactions, dan_transaction);
 
         trigger_transactions_applying();
 
@@ -148,15 +147,15 @@ BOOST_AUTO_TEST_CASE(list_pending_proposals_postponed) {
 
         auto pending_transactions = network_node_api.list_pending_transactions();
         BOOST_REQUIRE_EQUAL(pending_transactions.size(), 3);
-        check_transactions_equal(pending_transactions[0], sam_transaction);
-        check_transactions_equal(pending_transactions[1], dan_transaction);
-        check_transactions_equal(pending_transactions[2], jon_transaction);
+        check_transaction_in_list(pending_transactions, sam_transaction);
+        check_transaction_in_list(pending_transactions, dan_transaction);
+        check_transaction_in_list(pending_transactions, jon_transaction);
 
         trigger_transactions_applying();
 
         pending_transactions = network_node_api.list_pending_transactions();
         BOOST_REQUIRE_EQUAL(pending_transactions.size(), 1);
-        check_transactions_equal(pending_transactions[0], jon_transaction);
+        check_transaction_in_list(pending_transactions, jon_transaction);
 
         trigger_transactions_applying();
 
@@ -176,10 +175,10 @@ BOOST_AUTO_TEST_CASE(subscribe_to_pending_transactions) {
         });
 
         auto sam_transaction = push_transaction_for_account_creation("sam");
-        check_transactions_equal(sam_transaction, transaction_in_notification);
+        BOOST_CHECK(sam_transaction.id() == transaction_in_notification.id());
 
         auto dan_transaction = push_transaction_for_account_creation("dan");
-        check_transactions_equal(dan_transaction, transaction_in_notification);
+        BOOST_CHECK(dan_transaction.id() == transaction_in_notification.id());
 
     } FC_LOG_AND_RETHROW()
 }
