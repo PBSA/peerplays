@@ -227,6 +227,21 @@ namespace {
                     _pending_transactions.erase(transaction_it);
                 }
             }
+
+            /*
+             * Remove expired transactions from pending_transactions
+             */
+            for (const auto& transaction: _pending_transactions)
+            {
+               if (transaction.expiration < block.timestamp)
+               {
+                  auto transaction_it = find_transaction(_pending_transactions, transaction);
+                  if (_pending_transactions.end() != transaction_it)
+                  {
+                     _pending_transactions.erase(transaction_it);
+                  }
+               }
+            }
         });
     }
 
