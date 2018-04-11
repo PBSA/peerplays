@@ -44,18 +44,6 @@
 
 namespace graphene { namespace app {
 
-namespace {
-
-    std::vector<signed_transaction>::const_iterator find_transaction( const std::vector<signed_transaction>& transactions, const transaction& transaction_to_find )
-    {
-        auto transaction_it = std::find_if(transactions.begin(), transactions.end(),
-                                           [&]( const signed_transaction& transaction ){
-                                               return transaction.id() == transaction_to_find.id();
-                                           });
-        return transaction_it;
-    }
-}
-
     login_api::login_api(application& a)
     :_app(a)
     {
@@ -206,10 +194,11 @@ namespace {
     network_node_api::network_node_api( application& a ) : _app( a )
     {
         _pending_trx_connection = _app.chain_database()->on_pending_transaction.connect([this]( const signed_transaction& transaction ){
-            auto transaction_it = find_transaction(_pending_transactions, transaction);
+
+            auto transaction_it = _pending_transactions.find(transaction.id());
             if (_pending_transactions.end() == transaction_it)
             {
-                _pending_transactions.push_back(transaction);
+                _pending_transactions[transaction.id()] = transaction;
             }
 
             if (_on_pending_transaction)
@@ -221,7 +210,7 @@ namespace {
         _applied_block_connection = _app.chain_database()->applied_block.connect([this]( const signed_block& block ){
             for (const auto& transaction: block.transactions)
             {
-                auto transaction_it = find_transaction(_pending_transactions, transaction);
+                auto transaction_it = _pending_transactions.find(transaction.id());
                 if (_pending_transactions.end() != transaction_it)
                 {
                     _pending_transactions.erase(transaction_it);
@@ -233,9 +222,9 @@ namespace {
              */
             for (const auto& transaction: _pending_transactions)
             {
-               if (transaction.expiration < block.timestamp)
+               if (transaction.second.expiration < block.timestamp)
                {
-                  auto transaction_it = find_transaction(_pending_transactions, transaction);
+                  auto transaction_it = _pending_transactions.find(transaction.second.id());
                   if (_pending_transactions.end() != transaction_it)
                   {
                      _pending_transactions.erase(transaction_it);
@@ -277,7 +266,7 @@ namespace {
        return _app.p2p_node()->set_advanced_node_parameters(params);
     }
 
-    std::vector<signed_transaction> network_node_api::list_pending_transactions() const
+    map<transaction_id_type, signed_transaction> network_node_api::list_pending_transactions() const
     {
         return _pending_transactions;
     }

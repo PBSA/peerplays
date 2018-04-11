@@ -267,7 +267,7 @@ namespace graphene { namespace app {
          /**
           * @brief Return list of pending transactions.
           */
-         std::vector<signed_transaction> list_pending_transactions() const;
+         map<transaction_id_type, signed_transaction> list_pending_transactions() const;
 
          /**
           * @brief Subscribes caller for notifications about pending transactions.
@@ -282,7 +282,7 @@ namespace graphene { namespace app {
 
       private:
          application& _app;
-         std::vector< signed_transaction > _pending_transactions;
+         map<transaction_id_type, signed_transaction> _pending_transactions;
          boost::signals2::scoped_connection _pending_trx_connection;
          boost::signals2::scoped_connection _applied_block_connection;
          std::function<void(const variant&)> _on_pending_transaction;
