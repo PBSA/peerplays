@@ -216,29 +216,26 @@ BOOST_AUTO_TEST_CASE( affiliate_payout_helper_test )
       });
       affiliate_payout_helper helper = affiliate_payout_helper( db, game );
       // Alice has no distribution set
-      BOOST_CHECK_EQUAL( 0, helper.payout( alice_id, asset(1000) ).value );
+      BOOST_CHECK_EQUAL( 0, helper.payout( alice_id, 1000 ).value );
       // Paula has nothing for Bookie
-      BOOST_CHECK_EQUAL( 0, helper.payout( paula_id, asset(1000) ).value );
+      BOOST_CHECK_EQUAL( 0, helper.payout( paula_id, 1000 ).value );
       // 20% of 4 gets rounded down to 0
-      BOOST_CHECK_EQUAL( 0, helper.payout( penny_id, asset(4) ).value );
+      BOOST_CHECK_EQUAL( 0, helper.payout( penny_id, 4 ).value );
 
       // 20% of 5 = 1 is paid to Audrey
-      BOOST_CHECK_EQUAL( 1, helper.payout( penny_id, asset(5) ).value );
+      BOOST_CHECK_EQUAL( 1, helper.payout( penny_id, 5 ).value );
       audrey_ppy++;
 
       // 20% of 50 = 10: 2 to Alice, 3 to Ann, 5 to Audrey
-      BOOST_CHECK_EQUAL( 10, helper.payout( penny_id, asset(50) ).value );
+      BOOST_CHECK_EQUAL( 10, helper.payout( penny_id, 50 ).value );
       alice_ppy += 2;
       ann_ppy += 3;
       audrey_ppy += 5;
 
       // 20% of 59 = 11: 1 to Ann, 10 to Audrey
-      BOOST_CHECK_EQUAL( 11, helper.payout( petra_id, asset(59) ).value );
+      BOOST_CHECK_EQUAL( 11, helper.payout( petra_id, 59 ).value );
       audrey_ppy += 10;
       ann_ppy += 1;
-
-      // Cannot add BTC after paying out PPY
-      BOOST_CHECK_THROW( helper.payout( penny_id, asset( 1000, btc_id ) ), fc::assert_exception );
 
       helper.commit();
 
@@ -254,12 +251,10 @@ BOOST_AUTO_TEST_CASE( affiliate_payout_helper_test )
       });
       affiliate_payout_helper helper = affiliate_payout_helper( db, game );
       // 20% of 60 = 12: 2 to Alice, 3 to Ann, 7 to Audrey
-      BOOST_CHECK_EQUAL( 12, helper.payout( penny_id, asset( 60, btc_id ) ).value );
+      BOOST_CHECK_EQUAL( 12, helper.payout( penny_id, 60 ).value );
       alice_btc += 2;
       ann_btc += 3;
       audrey_btc += 7;
-      // Cannot add PPY after paying out BTC
-      BOOST_CHECK_THROW( helper.payout( penny_id, asset( 1000 ) ), fc::assert_exception );
       helper.commit();
       BOOST_CHECK_EQUAL( alice_btc,  get_balance( alice_id, btc_id ) );
       BOOST_CHECK_EQUAL( ann_btc,    get_balance( ann_id, btc_id ) );
@@ -272,30 +267,27 @@ BOOST_AUTO_TEST_CASE( affiliate_payout_helper_test )
       } );
       affiliate_payout_helper helper = affiliate_payout_helper( db, game );
       // Alice has no distribution set
-      BOOST_CHECK_EQUAL( 0, helper.payout( alice_id, asset(1000) ).value );
+      BOOST_CHECK_EQUAL( 0, helper.payout( alice_id, 1000 ).value );
       // Petra has nothing for Bookie
-      BOOST_CHECK_EQUAL( 0, helper.payout( petra_id, asset(1000) ).value );
+      BOOST_CHECK_EQUAL( 0, helper.payout( petra_id, 1000 ).value );
       // 20% of 4 gets rounded down to 0
-      BOOST_CHECK_EQUAL( 0, helper.payout( penny_id, asset(4) ).value );
+      BOOST_CHECK_EQUAL( 0, helper.payout( penny_id, 4 ).value );
 
       // 20% of 5 = 1 is paid to Ann
-      BOOST_CHECK_EQUAL( 1, helper.payout( penny_id, asset(5) ).value );
+      BOOST_CHECK_EQUAL( 1, helper.payout( penny_id, 5 ).value );
       ann_ppy++;
 
       // 20% of 40 = 8: 8 to Alice
-      BOOST_CHECK_EQUAL( 8, helper.payout( paula_id, asset(40) ).value );
+      BOOST_CHECK_EQUAL( 8, helper.payout( paula_id, 40 ).value );
       alice_ppy += 8;
 
       // intermediate commit should clear internal accumulator
       helper.commit();
 
       // 20% of 59 = 11: 6 to Alice, 5 to Ann
-      BOOST_CHECK_EQUAL( 11, helper.payout( penny_id, asset(59) ).value );
+      BOOST_CHECK_EQUAL( 11, helper.payout( penny_id, 59 ).value );
       alice_ppy += 6;
       ann_ppy += 5;
-
-      // Cannot add BTC after paying out PPY
-      BOOST_CHECK_THROW( helper.payout( penny_id, asset( 1000, btc_id ) ), fc::assert_exception );
 
       helper.commit();
 
@@ -310,11 +302,9 @@ BOOST_AUTO_TEST_CASE( affiliate_payout_helper_test )
       } );
       affiliate_payout_helper helper = affiliate_payout_helper( db, game );
       // 20% of 60 = 12: 7 to Alice, 5 to Ann
-      BOOST_CHECK_EQUAL( 12, helper.payout( penny_id, asset( 60, btc_id ) ).value );
+      BOOST_CHECK_EQUAL( 12, helper.payout( penny_id, 60 ).value );
       alice_btc += 7;
       ann_btc += 5;
-      // Cannot add PPY after paying out BTC
-      BOOST_CHECK_THROW( helper.payout( penny_id, asset( 1000 ) ), fc::assert_exception );
       helper.commit();
       BOOST_CHECK_EQUAL( alice_btc,  get_balance( alice_id, btc_id ) );
       BOOST_CHECK_EQUAL( ann_btc,    get_balance( ann_id, btc_id ) );

@@ -337,7 +337,7 @@ namespace graphene { namespace chain {
                if (rake_amount.value)
                {
                   affiliate_payout_helper payout_helper( event.db, tournament_obj );
-                  rake_amount -= payout_helper.payout( winner, asset( rake_amount, tournament_obj.options.buy_in.asset_id ) );
+                  rake_amount -= payout_helper.payout( winner, rake_amount );
                   payout_helper.commit();
                   FC_ASSERT( rake_amount.value >= 0 );
                }

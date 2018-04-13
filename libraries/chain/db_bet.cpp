@@ -265,7 +265,7 @@ void database::settle_betting_market_group(const betting_market_group_object& be
       {
          rake_amount = ((fc::uint128_t(net_profits.value) * rake_fee_percentage + GRAPHENE_100_PERCENT - 1) / GRAPHENE_100_PERCENT).to_uint64();
          if (rake_amount.value)
-            rake_amount -= payout_helper.payout( bettor_id, asset( rake_amount, betting_market_group.asset_id ) );
+            rake_amount -= payout_helper.payout( bettor_id, rake_amount );
          FC_ASSERT( rake_amount.value >= 0 );
          if (rake_amount.value)
             adjust_balance(*rake_account_id, asset(rake_amount, betting_market_group.asset_id));

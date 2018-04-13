@@ -29,12 +29,12 @@
 
 namespace graphene { namespace chain {
 
-   share_type affiliate_payout_helper::payout( account_id_type player, const asset& amount )
+   share_type affiliate_payout_helper::payout( account_id_type player, share_type amount )
    {
       return payout( player(_db), amount );
    }
 
-   share_type affiliate_payout_helper::payout( const account_object& player, const asset& amount )
+   share_type affiliate_payout_helper::payout( const account_object& player, share_type amount )
    {
       if( !player.affiliate_distributions.valid() )
          return 0;
@@ -42,12 +42,13 @@ namespace graphene { namespace chain {
       if( dist == player.affiliate_distributions->_dists.end() || dist->second._dist.empty() )
          return 0;
 
-      share_type to_pay = amount.amount.value / 5; // 20% fixed
-      if( to_pay <= 0 )
+      amount = amount.value / 5; // 20% fixed
+      if( amount <= 0 )
          return 0;
 
       uint16_t remaining = GRAPHENE_100_PERCENT;
       share_type paid = 0;
+      share_type to_pay = amount;
       for( const auto& entry : dist->second._dist )
       {
           const account_id_type affiliate = entry.first;
@@ -65,16 +66,17 @@ namespace graphene { namespace chain {
           if( payout > 0 )
           {
              if ( accumulator.find(affiliate) == accumulator.end() )
-                accumulator[affiliate] = asset( payout.to_uint64(), amount.asset_id );
+                accumulator[affiliate] = payout.to_uint64();
              else
-                accumulator[affiliate] += asset( payout.to_uint64(), amount.asset_id );
+                accumulator[affiliate] += payout.to_uint64();
              to_pay -= payout.to_uint64();
              paid += payout.to_uint64();
           }
       }
       FC_ASSERT( to_pay == 0 );
+      FC_ASSERT( paid == amount );
 
-      _db.push_applied_operation( affiliate_referral_payout_operation( player.id, amount ) );
+      _db.push_applied_operation( affiliate_referral_payout_operation( player.id, asset( amount, payout_asset ) ) );
 
       return paid;
    }
@@ -83,7 +85,7 @@ namespace graphene { namespace chain {
    {
       for( const auto& entry : accumulator )
       {
-         _db.adjust_balance( entry.first, entry.second );
+         _db.adjust_balance( entry.first, asset( entry.second, payout_asset ) );
          _db.push_applied_operation( affiliate_payout_operation( entry.first, tag, entry.second ) );
       }
       accumulator.clear();
