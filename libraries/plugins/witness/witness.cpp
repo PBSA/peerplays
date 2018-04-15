@@ -183,6 +183,8 @@ block_production_condition::block_production_condition_enum witness_plugin::bloc
    {
       elog("Got exception while generating block:\n${e}", ("e", e.to_detail_string()));
       result = block_production_condition::exception_producing_block;
+      elog("Discarding all pending transactions in an attempt to prevent the same error from occurring the next time we try to produce a block");
+      database().clear_pending();
    }
 
    switch( result )
