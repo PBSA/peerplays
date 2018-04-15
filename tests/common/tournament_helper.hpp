@@ -51,9 +51,9 @@ public:
                                dividend_asset_options new_options,
                                const fc::ecc::private_key& sig_priv_key);
 
-    optional<account_id_type> get_asset_dividend_account(const asset_id_type& asset_id)const;
+    optional<account_id_type> get_asset_dividend_account( const asset_id_type& asset_id = asset_id_type() )const;
 
-    const tournament_id_type create_tournament (const account_id_type& creator,
+    const tournament_id_type create_tournament( const account_id_type& creator,
                                                 const fc::ecc::private_key& sig_priv_key,
                                                 asset buy_in,
                                                 uint32_t number_of_players = 2,
@@ -89,6 +89,11 @@ public:
                    const fc::ecc::private_key& sig_priv_key
                    );
 
+    void rps_reveal( const game_id_type& game_id,
+                     const account_id_type& player_id,
+                     rock_paper_scissors_gesture gesture,
+                     const fc::ecc::private_key& sig_priv_key );
+
     // spaghetti programming
     // walking through all tournaments, matches and games and throwing random moves
     // optionaly skip generting randomly selected moves
@@ -113,4 +118,6 @@ private:
     std::map<account_id_type, std::map<asset_id_type, share_type>> players_fees;
     // store of commits and reveals
     std::map<rock_paper_scissors_throw_commit, rock_paper_scissors_throw_reveal> committed_game_moves;
+    // store of latest commits, for use by rps_reveal
+    std::map<account_id_type, rock_paper_scissors_throw_commit> latest_committs;
 };

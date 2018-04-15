@@ -131,7 +131,7 @@ optional<account_id_type> tournaments_helper::get_asset_dividend_account(const a
 {
         graphene::chain::database& db = df.db;
         optional<account_id_type> result;
-        const asset_object& asset_obj = asset_id(db);
+        const asset_object& asset_obj = asset_id_type()(db);
 
         if (asset_obj.dividend_data_id.valid())
         {
@@ -270,7 +270,7 @@ void tournaments_helper::rps_throw(const game_id_type& game_id,
        match_object match_obj = game_obj.match_id(db);
        tournament_object tournament_obj = match_obj.tournament_id(db);
        rock_paper_scissors_game_options game_options = tournament_obj.options.game_options.get<rock_paper_scissors_game_options>();
-       assert((int)gesture < game_options.number_of_gestures);
+       FC_ASSERT( (int)gesture < game_options.number_of_gestures );
 
        account_object player_account_obj = player_id(db);
 
@@ -291,6 +291,7 @@ void tournaments_helper::rps_throw(const game_id_type& game_id,
 
        // store off the reveal for applying after both players commit
        committed_game_moves[commit_throw] = reveal_throw;
+       latest_committs[player_account_obj.id] = commit_throw;
 
        signed_transaction tx;
        game_move_operation move_operation;
@@ -308,6 +309,33 @@ void tournaments_helper::rps_throw(const game_id_type& game_id,
        df.sign(tx, sig_priv_key);
        if (/*match_obj.match_winners.empty() &&*/ game_obj.get_state() == game_state::expecting_commit_moves) // checking again
           PUSH_TX(db, tx);
+}
+
+void tournaments_helper::rps_reveal( const game_id_type& game_id,
+                                     const account_id_type& player_id,
+                                     rock_paper_scissors_gesture gesture,
+                                     const fc::ecc::private_key& sig_priv_key )
+{
+   graphene::chain::database& db = df.db;
+
+   FC_ASSERT( latest_committs.find(player_id) != latest_committs.end() );
+   const auto& reveal = committed_game_moves.find( latest_committs[player_id] );
+   FC_ASSERT( reveal != committed_game_moves.end() );
+   FC_ASSERT( reveal->second.gesture == gesture );
+
+   game_move_operation move_operation;
+   move_operation.game_id = game_id;
+   move_operation.player_account_id = player_id;
+   move_operation.move = reveal->second;
+
+   signed_transaction tx;
+   tx.operations.push_back( move_operation );
+   const asset f = db.current_fee_schedule().set_fee( tx.operations[0] );
+   players_fees[player_id][f.asset_id] -= f.amount;
+   tx.validate();
+   test::set_expiration( db, tx );
+   df.sign( tx, sig_priv_key );
+   PUSH_TX(db, tx);
 }
 
 // spaghetti programming
