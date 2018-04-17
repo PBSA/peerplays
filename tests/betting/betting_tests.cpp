@@ -442,6 +442,34 @@ BOOST_AUTO_TEST_CASE(inexact_odds)
    FC_LOG_AND_RETHROW()
 }
 
+BOOST_AUTO_TEST_CASE(bet_reversal_test)
+{
+   // test whether we can bet our entire balance in one direction, then reverse our bet (while having zero balance)
+   try
+   {
+      generate_blocks(1);
+      ACTORS( (alice)(bob) );
+      CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
+
+      transfer(account_id_type(), alice_id, asset(10000000));
+      share_type alice_expected_balance = 10000000;
+      BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
+
+      // back with our entire balance
+      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(10000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+      BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), 0);
+
+      // reverse the bet
+      place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(20000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+      BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), 0);
+
+      // try to re-reverse it, but go too far
+      BOOST_CHECK_THROW( place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(30000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION), fc::exception);
+      BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), 0);
+   }
+   FC_LOG_AND_RETHROW()
+}
+
 BOOST_AUTO_TEST_CASE(persistent_objects_test)
 {
    try

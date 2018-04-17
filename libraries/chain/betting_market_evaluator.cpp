@@ -300,10 +300,6 @@ void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
 
    FC_ASSERT(op.amount_to_bet.amount > share_type(), "Cannot place a bet with zero amount");
 
-   // do they have enough in their account to place the bet
-   FC_ASSERT( d.get_balance( *fee_paying_account, *_asset ).amount  >= op.amount_to_bet.amount, "insufficient balance",
-              ("balance", d.get_balance(*fee_paying_account, *_asset))("amount_to_bet", op.amount_to_bet.amount)  );
-
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -326,11 +322,17 @@ object_id_type bet_place_evaluator::do_apply(const bet_place_operation& op)
 
    bet_id_type new_bet_id = new_bet.id; // save the bet id here, new_bet may be deleted during place_bet()
 
-   d.adjust_balance(fee_paying_account->id, -op.amount_to_bet);
-
+   // place the bet, this may return guaranteed winnings
    ddump((_betting_market_group->bets_are_delayed())(_current_params->live_betting_delay_time));
    if (!_betting_market_group->bets_are_delayed() || _current_params->live_betting_delay_time <= 0)
       d.place_bet(new_bet);
+
+   // now that their guaranteed winnings have been returned, check whether they have enough in their account to place the bet
+   FC_ASSERT( d.get_balance( *fee_paying_account, *_asset ).amount  >= op.amount_to_bet.amount, "insufficient balance",
+              ("balance", d.get_balance(*fee_paying_account, *_asset))("amount_to_bet", op.amount_to_bet.amount)  );
+
+   // pay for it
+   d.adjust_balance(fee_paying_account->id, -op.amount_to_bet);
 
    return new_bet_id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
