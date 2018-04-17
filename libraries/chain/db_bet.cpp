@@ -7,6 +7,7 @@
 
 #include <boost/range/iterator_range.hpp>
 #include <boost/range/combine.hpp>
+#include <boost/range/join.hpp>
 #include <boost/tuple/tuple.hpp>
 
 namespace graphene { namespace chain {
@@ -276,9 +277,14 @@ void database::settle_betting_market_group(const betting_market_group_object& be
 
    dlog("removing betting market group ${id}", ("id", betting_market_group.id));
    remove(betting_market_group);
+}
 
-   if (event.get_status() == event_status::canceled ||
-       event.get_status() == event_status::settled) {
+void database::remove_completed_events()
+{
+   const auto& event_index = get_index_type<event_object_index>().indices().get<by_event_status>();
+   auto canceled_events = boost::make_iterator_range(event_index.equal_range(event_status::canceled));
+   auto settled_events = boost::make_iterator_range(event_index.equal_range(event_status::settled));
+   for (const event_object& event : boost::join(canceled_events, settled_events)) {
       dlog("removing event ${id}", ("id", event.id));
       remove(event);
    }

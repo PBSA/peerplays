@@ -677,6 +677,7 @@ void process_settled_betting_markets(database& db, fc::time_point_sec current_bl
 void database::update_betting_markets(fc::time_point_sec current_block_time)
 {
    process_settled_betting_markets(*this, current_block_time);
+   remove_completed_events();
 }
 
 } }

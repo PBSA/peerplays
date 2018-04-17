@@ -731,6 +731,35 @@ BOOST_AUTO_TEST_CASE( chained_market_create_test )
    } FC_LOG_AND_RETHROW()
 }
 
+BOOST_AUTO_TEST_CASE( testnet_witness_block_production_error )
+{
+   try
+   {
+      CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
+      create_betting_market_group({{"en", "Unused"}}, capitals_vs_blackhawks.id, betting_market_rules.id, asset_id_type(), false, 0);
+      generate_blocks(1);
+
+      BOOST_TEST_MESSAGE("setting the event in progress");
+      update_event(capitals_vs_blackhawks.id, _status = event_status::in_progress);
+      generate_blocks(1);
+      BOOST_CHECK(capitals_vs_blackhawks.get_status() == event_status::in_progress);
+      BOOST_CHECK(moneyline_betting_markets.get_status() == betting_market_group_status::in_play);
+
+      BOOST_TEST_MESSAGE("setting the event to finished");
+      update_event(capitals_vs_blackhawks.id, _status = event_status::finished);
+      generate_blocks(1);
+      BOOST_CHECK(capitals_vs_blackhawks.get_status() == event_status::finished);
+      BOOST_CHECK(moneyline_betting_markets.get_status() == betting_market_group_status::closed);
+      BOOST_CHECK(capitals_win_market.get_status() == betting_market_status::unresolved);
+      BOOST_CHECK(blackhawks_win_market.get_status() == betting_market_status::unresolved);
+      //BOOST_CHECK(unused_betting_market_group.get_status() == betting_market_group_status::closed);
+
+      BOOST_TEST_MESSAGE("setting the event to canceled");
+      update_event(capitals_vs_blackhawks.id, _status = event_status::canceled);
+      generate_blocks(1);
+   } FC_LOG_AND_RETHROW()
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
 
