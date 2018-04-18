@@ -41,11 +41,7 @@
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/hardfork.hpp>
 
-#include <graphene/chain/sport_object.hpp>
-#include <graphene/chain/event_object.hpp>
-#include <graphene/chain/event_group_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
-#include <graphene/chain/betting_market_object.hpp>
 
 #include <graphene/bookie/bookie_api.hpp>
 
@@ -1380,40 +1376,6 @@ BOOST_AUTO_TEST_CASE( cancel_one_event_in_group )
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
-// set up a fixture that places a series of two matched bets, we'll use this fixture to verify
-// the result in all three possible outcomes
-struct simple_bet_test_fixture : database_fixture {
-   betting_market_id_type capitals_win_betting_market_id;
-   betting_market_id_type blackhawks_win_betting_market_id;
-   betting_market_group_id_type moneyline_betting_markets_id;
-
-   simple_bet_test_fixture()
-   {
-      ACTORS( (alice)(bob) );
-      CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
-
-      // give alice and bob 10k each
-      transfer(account_id_type(), alice_id, asset(10000));
-      transfer(account_id_type(), bob_id, asset(10000));
-
-      // place bets at 10:1
-      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 11 * GRAPHENE_BETTING_ODDS_PRECISION);
-      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000, asset_id_type()), 11 * GRAPHENE_BETTING_ODDS_PRECISION);
-
-      // reverse positions at 1:1
-      place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(1100, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
-      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(1100, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
-
-      capitals_win_betting_market_id = capitals_win_market.id;
-      blackhawks_win_betting_market_id = blackhawks_win_market.id;
-      moneyline_betting_markets_id = moneyline_betting_markets.id;
-
-      // close betting to prepare for the next operation which will be grading or cancel
-      update_betting_market_group(moneyline_betting_markets.id, _status = betting_market_group_status::closed);
-      generate_blocks(1);
-   }
-};
 
 BOOST_FIXTURE_TEST_SUITE( simple_bet_tests, simple_bet_test_fixture )
 
