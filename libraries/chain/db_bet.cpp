@@ -264,11 +264,12 @@ void database::settle_betting_market_group(const betting_market_group_object& be
       if (net_profits.value > 0 && rake_account_id)
       {
          rake_amount = ((fc::uint128_t(net_profits.value) * rake_fee_percentage + GRAPHENE_100_PERCENT - 1) / GRAPHENE_100_PERCENT).to_uint64();
+         share_type affiliates_share;
          if (rake_amount.value)
-            rake_amount -= payout_helper.payout( bettor_id, rake_amount );
-         FC_ASSERT( rake_amount.value >= 0 );
-         if (rake_amount.value)
-            adjust_balance(*rake_account_id, asset(rake_amount, betting_market_group.asset_id));
+            affiliates_share = payout_helper.payout( bettor_id, rake_amount );
+         FC_ASSERT( rake_amount.value >= affiliates_share.value );
+         if (rake_amount.value > affiliates_share.value)
+            adjust_balance(*rake_account_id, asset(rake_amount - affiliates_share, betting_market_group.asset_id));
       }
       
       // pay winning - rake
