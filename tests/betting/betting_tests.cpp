@@ -28,7 +28,7 @@
 #include <boost/scoped_ptr.hpp>
 #pragma GCC diagnostic pop
 
-#include "../common/database_fixture.hpp"
+#include "../common/betting_test_markets.hpp"
 
 #include <boost/test/unit_test.hpp>
 #include <fc/crypto/openssl.hpp>
@@ -48,7 +48,6 @@
 #include <graphene/chain/betting_market_object.hpp>
 
 #include <graphene/bookie/bookie_api.hpp>
-//#include <boost/algorithm/string/replace.hpp>
 
 struct enable_betting_logging_config {
    enable_betting_logging_config()
