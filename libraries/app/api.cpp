@@ -117,6 +117,12 @@ namespace graphene { namespace app {
           if( _app.get_plugin( "bookie" ) )
              _bookie_api = std::make_shared<graphene::bookie::bookie_api>(std::ref(_app));
        }
+       else if( api_name == "affiliate_stats_api" )
+       {
+          // can only enable this API if the plugin was loaded
+          if( _app.get_plugin( "affiliate_stats" ) )
+             _affiliate_stats_api = std::make_shared<graphene::affiliate_stats::affiliate_stats_api>(std::ref(_app));
+       }
        return;
     }
 
@@ -279,6 +285,12 @@ namespace graphene { namespace app {
     {
        FC_ASSERT(_bookie_api);
        return *_bookie_api;
+    }
+
+    fc::api<graphene::affiliate_stats::affiliate_stats_api> login_api::affiliate_stats() const
+    {
+       FC_ASSERT(_affiliate_stats_api);
+       return *_affiliate_stats_api;
     }
 
 #if 0

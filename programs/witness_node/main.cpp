@@ -29,6 +29,7 @@
 #include <graphene/market_history/market_history_plugin.hpp>
 //#include <graphene/generate_genesis/generate_genesis_plugin.hpp>
 //#include <graphene/generate_uia_sharedrop_genesis/generate_uia_sharedrop_genesis.hpp>
+#include <graphene/affiliate_stats/affiliate_stats_plugin.hpp>
 #include <graphene/bookie/bookie_plugin.hpp>
 #include <graphene/utilities/git_revision.hpp>
 #include <graphene/snapshot/snapshot.hpp>
@@ -84,6 +85,7 @@ int main(int argc, char** argv) {
       //auto generate_genesis_plug = node->register_plugin<generate_genesis_plugin::generate_genesis_plugin>();
       //auto generate_uia_sharedrop_genesis_plug = node->register_plugin<generate_uia_sharedrop_genesis::generate_uia_sharedrop_genesis_plugin>();
       auto list_plug = node->register_plugin<accounts_list::accounts_list_plugin>();
+      auto affiliate_stats_plug = node->register_plugin<affiliate_stats::affiliate_stats_plugin>();
       auto bookie_plug = node->register_plugin<bookie::bookie_plugin>();
       auto snapshot_plug = node->register_plugin<snapshot_plugin::snapshot_plugin>();
 
