@@ -23,6 +23,7 @@
  */
 
 #include <graphene/affiliate_stats/affiliate_stats_plugin.hpp>
+#include <graphene/affiliate_stats/affiliate_stats_objects.hpp>
 
 #include <graphene/app/impacted.hpp>
 
@@ -45,10 +46,8 @@ class affiliate_stats_plugin_impl
 {
    public:
       affiliate_stats_plugin_impl(affiliate_stats_plugin& _plugin)
-         : _self( _plugin )
-      { }
+         : _self( _plugin ) { }
       virtual ~affiliate_stats_plugin_impl();
-
 
       /** this method is called as a callback after a block is applied
        * and will process/index all operations that were applied in the block.
@@ -60,23 +59,67 @@ class affiliate_stats_plugin_impl
          return _self.database();
       }
 
+      typedef void result_type;
+      template<typename Operation>
+      void operator()( const Operation& op ) {}
+
       affiliate_stats_plugin& _self;
+      app_reward_index*       _ar_index;
+      referral_reward_index*  _rr_index;
    private:
 };
 
 affiliate_stats_plugin_impl::~affiliate_stats_plugin_impl() {}
 
+template<>
+void affiliate_stats_plugin_impl::operator()( const affiliate_payout_operation& op )
+{
+    auto& by_app = _ar_index->indices().get<by_app_asset>();
+    auto itr = by_app.find( boost::make_tuple( op.tag, op.payout.asset_id ) );
+    if( itr == by_app.end() )
+    {
+       database().create<app_reward_object>( [&op]( app_reward_object& aro ) {
+          aro.app = op.tag;
+          aro.total_payout = op.payout;
+       });
+    }
+    else
+    {
+       database().modify( *itr, [&op]( app_reward_object& aro ) {
+          aro.total_payout += op.payout;
+       });
+    }
+}
+
+template<>
+void affiliate_stats_plugin_impl::operator()( const affiliate_referral_payout_operation& op )
+{
+    auto& by_referral = _rr_index->indices().get<by_referral_asset>();
+    auto itr = by_referral.find( boost::make_tuple( op.player, op.payout.asset_id ) );
+    if( itr == by_referral.end() )
+    {
+       database().create<referral_reward_object>( [&op]( referral_reward_object& rro ) {
+          rro.referral = op.player;
+          rro.total_payout = op.payout;
+       });
+    }
+    else
+    {
+       database().modify( *itr, [&op]( referral_reward_object& rro ) {
+          rro.total_payout += op.payout;
+       });
+    }
+}
+
 void affiliate_stats_plugin_impl::update_affiliate_stats( const signed_block& b )
 {
-   graphene::chain::database& db = database();
-   vector<optional< operation_history_object > >& hist = db.get_applied_operations();
+   vector<optional< operation_history_object > >& hist = database().get_applied_operations();
    for( optional< operation_history_object >& o_op : hist )
    {
       if( !o_op.valid() )
          continue;
 
-      const operation_history_object& op = *o_op;
-
+      o_op->op.visit( *this );
    }
 }
 
@@ -107,9 +150,9 @@ void affiliate_stats_plugin::plugin_initialize(const boost::program_options::var
 {
    database().applied_block.connect( [this]( const signed_block& b){ my->update_affiliate_stats(b); } );
 
-   // FIXME
    // my->_oho_index = database().add_index< primary_index< simple_index< operation_history_object > > >();
-   // database().add_index< primary_index< account_transaction_history_index > >();
+   my->_ar_index = database().add_index< primary_index< app_reward_index > >();
+   my->_rr_index = database().add_index< primary_index< referral_reward_index > >();
 }
 
 void affiliate_stats_plugin::plugin_startup() {}
