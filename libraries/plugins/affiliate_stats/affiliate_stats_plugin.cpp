@@ -42,6 +42,19 @@ namespace graphene { namespace affiliate_stats {
 
 namespace detail {
 
+class affiliate_reward_index : public graphene::db::index_observer
+{
+   public:
+      affiliate_reward_index( graphene::chain::database& _db ) : db(_db) {}
+      virtual void on_add( const graphene::db::object& obj ) override;
+      virtual void on_remove( const graphene::db::object& obj ) override;
+      virtual void on_modify( const graphene::db::object& before ) override{};
+
+      std::map<graphene::chain::account_id_type, std::set<graphene::chain::operation_history_id_type> > _history_by_account;
+   private:
+      graphene::chain::database& db;
+};
+
 class affiliate_stats_plugin_impl
 {
    public:
@@ -59,13 +72,16 @@ class affiliate_stats_plugin_impl
          return _self.database();
       }
 
+      const std::set<graphene::chain::operation_history_id_type>& get_reward_history( account_id_type& affiliate )const;
+
       typedef void result_type;
       template<typename Operation>
       void operator()( const Operation& op ) {}
 
-      affiliate_stats_plugin& _self;
-      app_reward_index*       _ar_index;
-      referral_reward_index*  _rr_index;
+      shared_ptr<affiliate_reward_index> _fr_index;
+      affiliate_stats_plugin&            _self;
+      app_reward_index*                  _ar_index;
+      referral_reward_index*             _rr_index;
    private:
 };
 
@@ -123,8 +139,41 @@ void affiliate_stats_plugin_impl::update_affiliate_stats( const signed_block& b 
    }
 }
 
-} // end namespace detail
+static const std::set<graphene::chain::operation_history_id_type> EMPTY;
+const std::set<graphene::chain::operation_history_id_type>& affiliate_stats_plugin_impl::get_reward_history( account_id_type& affiliate )const
+{
+    auto itr = _fr_index->_history_by_account.find( affiliate );
+    if( itr == _fr_index->_history_by_account.end() )
+       return EMPTY;
+    return itr->second;
+}
 
+
+static optional<std::pair<account_id_type, operation_history_id_type>> get_account( const database& db, const object& obj )
+{
+   FC_ASSERT( dynamic_cast<const account_transaction_history_object*>(&obj) );
+   const account_transaction_history_object& ath = static_cast<const account_transaction_history_object&>(obj);
+   const operation_history_object& oho = db.get<operation_history_object>( ath.operation_id );
+   if( oho.op.which() == operation::tag<affiliate_payout_operation>::value )
+      return std::make_pair( ath.account, ath.operation_id );
+   return optional<std::pair<account_id_type, operation_history_id_type>>();
+}
+
+void affiliate_reward_index::on_add( const object& obj )
+{
+   optional<std::pair<account_id_type, operation_history_id_type>> acct_ath = get_account( db, obj );
+   if( !acct_ath.valid() ) return;
+   _history_by_account[acct_ath->first].insert( acct_ath->second );
+}
+
+void affiliate_reward_index::on_remove( const object& obj )
+{
+   optional<std::pair<account_id_type, operation_history_id_type>> acct_ath = get_account( db, obj );
+   if( !acct_ath.valid() ) return;
+   _history_by_account[acct_ath->first].erase( acct_ath->second );
+}
+
+} // end namespace detail
 
 affiliate_stats_plugin::affiliate_stats_plugin()
    : my( new detail::affiliate_stats_plugin_impl(*this) ) {}
@@ -150,11 +199,17 @@ void affiliate_stats_plugin::plugin_initialize(const boost::program_options::var
 {
    database().applied_block.connect( [this]( const signed_block& b){ my->update_affiliate_stats(b); } );
 
-   // my->_oho_index = database().add_index< primary_index< simple_index< operation_history_object > > >();
    my->_ar_index = database().add_index< primary_index< app_reward_index > >();
    my->_rr_index = database().add_index< primary_index< referral_reward_index > >();
+   my->_fr_index = shared_ptr<detail::affiliate_reward_index>( new detail::affiliate_reward_index( database() ) );
+   const_cast<primary_index<account_transaction_history_index>&>(database().get_index_type<primary_index<account_transaction_history_index>>()).add_observer( my->_fr_index );
 }
 
 void affiliate_stats_plugin::plugin_startup() {}
+
+const std::set<graphene::chain::operation_history_id_type>& affiliate_stats_plugin::get_reward_history( account_id_type& affiliate )const
+{
+   return my->get_reward_history( affiliate );
+}
 
 } } // graphene::affiliate_stats

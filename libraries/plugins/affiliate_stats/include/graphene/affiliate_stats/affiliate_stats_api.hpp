@@ -30,6 +30,7 @@
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/chain/protocol/asset.hpp>
 #include <graphene/chain/event_object.hpp>
+#include <graphene/chain/operation_history_object.hpp>
 
 #include <graphene/affiliate_stats/affiliate_stats_objects.hpp>
 
@@ -47,7 +48,12 @@ namespace detail {
 
 class referral_payment {
 public:
-
+   referral_payment();
+   referral_payment( const operation_history_object& oho );
+   operation_history_id_type id;
+   uint32_t                  block_num;
+   app_tag                   tag;
+   asset                     payout;
 };
 
 class top_referred_account {
@@ -73,7 +79,7 @@ class affiliate_stats_api
    public:
       affiliate_stats_api(graphene::app::application& app);
 
-      std::vector<referral_payment> list_historic_referral_rewards( account_id_type affiliate )const;
+      std::vector<referral_payment> list_historic_referral_rewards( account_id_type affiliate, operation_history_id_type start, uint16_t limit = 100 )const;
       // get_pending_referral_reward() - not implemented because we have continuous payouts
       // get_previous_referral_reward() - not implemented because we have continuous payouts
       std::vector<top_referred_account> list_top_referred_accounts( asset_id_type asset, uint16_t limit = 100 )const;
@@ -84,7 +90,7 @@ class affiliate_stats_api
 
 } } // graphene::affiliate_stats
 
-FC_REFLECT(graphene::affiliate_stats::referral_payment, )
+FC_REFLECT(graphene::affiliate_stats::referral_payment, (id)(block_num)(tag)(payout) )
 FC_REFLECT(graphene::affiliate_stats::top_referred_account, (referral)(total_payout) )
 FC_REFLECT(graphene::affiliate_stats::top_app, (app)(total_payout) )
 

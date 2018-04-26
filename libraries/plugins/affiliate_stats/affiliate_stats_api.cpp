@@ -38,6 +38,8 @@
 
 #include <graphene/affiliate_stats/affiliate_stats_api.hpp>
 
+#include <graphene/account_history/account_history_plugin.hpp>
+
 namespace graphene { namespace affiliate_stats {
 
 namespace detail {
@@ -52,9 +54,9 @@ class affiliate_stats_api_impl
          std::vector<top_referred_account> result;
          result.reserve( limit );
          auto& idx = app.chain_database()->get_index_type<referral_reward_index>().indices().get<by_asset>();
-         auto itr = idx.find( asset );
+         auto itr = idx.lower_bound( boost::make_tuple( asset, share_type(GRAPHENE_MAX_SHARE_SUPPLY) ) );
          while( itr != idx.end() && itr->get_asset_id() == asset && limit-- > 0 )
-             result.push_back( *itr );
+             result.push_back( *itr++ );
          return result;
       }
 
@@ -63,9 +65,22 @@ class affiliate_stats_api_impl
          std::vector<top_app> result;
          result.reserve( limit );
          auto& idx = app.chain_database()->get_index_type<app_reward_index>().indices().get<by_asset>();
-         auto itr = idx.find( asset );
+         auto itr = idx.lower_bound( boost::make_tuple( asset, share_type(GRAPHENE_MAX_SHARE_SUPPLY) ) );
          while( itr != idx.end() && itr->get_asset_id() == asset && limit-- > 0 )
-             result.push_back( *itr );
+             result.push_back( *itr++ );
+         return result;
+      }
+
+      std::vector<referral_payment> list_historic_referral_rewards( account_id_type affiliate, operation_history_id_type start, uint16_t limit )const
+      {
+         shared_ptr<const affiliate_stats_plugin> plugin = app.get_plugin<const affiliate_stats_plugin>( "affiliate_stats" );
+
+         std::vector<referral_payment> result;
+         const auto& list = plugin->get_reward_history( affiliate );
+         result.reserve( limit );
+         auto inner = list.lower_bound( start );
+         while( inner != list.end() && result.size() < limit )
+            result.push_back( referral_payment( (*inner++)(*app.chain_database()) ) );
          return result;
       }
 
@@ -87,6 +102,7 @@ top_app::top_app() {}
 top_app::top_app( const app_reward_object& aro )
    : app( aro.app ), total_payout( aro.total_payout ) {}
 
+
 affiliate_stats_api::affiliate_stats_api(graphene::app::application& app)
    : my(std::make_shared<detail::affiliate_stats_api_impl>(app)) {}
 
@@ -102,10 +118,18 @@ std::vector<top_app> affiliate_stats_api::list_top_rewards_per_app( asset_id_typ
    return my->list_top_rewards_per_app( asset, limit );
 }
 
-std::vector<referral_payment> affiliate_stats_api::list_historic_referral_rewards( account_id_type affiliate )const
+std::vector<referral_payment> affiliate_stats_api::list_historic_referral_rewards( account_id_type affiliate, operation_history_id_type start, uint16_t limit )const
 {
-   FC_ASSERT( false, "Not implemented!" );
+   FC_ASSERT( limit <= 100 );
+   return my->list_historic_referral_rewards( affiliate, start, limit );
 }
+
+
+referral_payment::referral_payment() {}
+
+referral_payment::referral_payment( const operation_history_object& oho )
+   : id(oho.id), block_num(oho.block_num), tag(oho.op.get<affiliate_payout_operation>().tag),
+     payout(oho.op.get<affiliate_payout_operation>().payout) {}
 
 } } // graphene::affiliate_stats
 

@@ -63,6 +63,8 @@ class affiliate_stats_plugin : public graphene::app::plugin
       virtual void plugin_initialize(const boost::program_options::variables_map& options) override;
       virtual void plugin_startup() override;
 
+      const std::set<graphene::chain::operation_history_id_type>& get_reward_history( account_id_type& affiliate )const;
+
       friend class detail::affiliate_stats_plugin_impl;
       std::unique_ptr<detail::affiliate_stats_plugin_impl> my;
 };
