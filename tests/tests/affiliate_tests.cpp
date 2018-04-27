@@ -33,6 +33,8 @@
 #include <graphene/chain/match_object.hpp>
 #include <graphene/chain/tournament_object.hpp>
 
+#include <graphene/affiliate_stats/affiliate_stats_api.hpp>
+
 using namespace graphene::chain;
 using namespace graphene::db;
 
@@ -142,53 +144,140 @@ BOOST_AUTO_TEST_CASE( account_test )
    BOOST_CHECK_EQUAL( 10, share_audrey->second );
 }
 
+static vector<account_id_type> create_players( database_fixture& db )
+{
+   auto generate_private_key = [&db]( const string& seed ) { return db.generate_private_key( seed ); };
+   auto create_account = [&db]( const string& name, const fc::ecc::public_key& key ) { return db.create_account( name, key ); };
+   vector<account_id_type> result;
+   const auto& accounts = db.db.get_index_type<account_index>().indices().get<by_name>();
+   auto find_account = [&accounts]( const string& name ) {
+      auto itr = accounts.find( name );
+      if( itr != accounts.end() )
+         return optional<const account_object*>( &(*itr) );
+      return optional<const account_object*>();
+   };
+
+   {
+      optional<const account_object*> tmp = find_account("alice");
+      if( tmp.valid() )
+         result.push_back( (*tmp)->id );
+      else
+      {
+         ACTOR( alice );
+         result.push_back( alice_id );
+      }
+   }
+
+   {
+      optional<const account_object*> tmp = find_account("ann");
+      if( tmp.valid() )
+         result.push_back( (*tmp)->id );
+      else
+      {
+         ACTOR( ann );
+         result.push_back( ann_id );
+      }
+   }
+
+   {
+      optional<const account_object*> tmp = find_account("audrey");
+      if( tmp.valid() )
+         result.push_back( (*tmp)->id );
+      else
+      {
+         ACTOR( audrey );
+         result.push_back( audrey_id );
+      }
+   }
+
+   const account_id_type alice_id  = result[0];
+   const account_id_type ann_id    = result[1];
+   const account_id_type audrey_id = result[2];
+
+   db.generate_blocks( HARDFORK_999_TIME );
+   db.generate_block();
+
+   signed_transaction trx;
+   test::set_expiration( db.db, trx );
+
+   optional<const account_object*> tmp = find_account("paula");
+   if( tmp.valid() )
+      result.push_back( (*tmp)->id );
+   else
+   {
+      // Paula: 100% to Alice for Bookie / nothing for RPS
+      const fc::ecc::private_key paula_private_key = generate_private_key( "paula" );
+      account_create_operation aco = db.make_account( "paula", paula_private_key.get_public_key() );
+      aco.extensions.value.affiliate_distributions = affiliate_reward_distributions();
+      aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[alice_id] = GRAPHENE_100_PERCENT;
+      trx.operations.push_back( aco );
+      processed_transaction op_result = db.db.push_transaction(trx, ~0);
+      result.push_back( op_result.operation_results[0].get<object_id_type>() );
+      trx.clear();
+      db.fund( account_id_type(op_result.operation_results[0].get<object_id_type>())( db.db ), asset(20000000) );
+   }
+
+   tmp = find_account("penny");
+   if( tmp.valid() )
+      result.push_back( (*tmp)->id );
+   else
+   {
+      // Penny: For Bookie 60% to Alice + 40% to Ann / For RPS 20% to Alice, 30% to Ann, 50% to Audrey
+      const fc::ecc::private_key penny_private_key = generate_private_key( "penny" );
+      account_create_operation aco = db.make_account( "penny", penny_private_key.get_public_key() );
+      aco.extensions.value.affiliate_distributions = affiliate_reward_distributions();
+      aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[alice_id] = GRAPHENE_100_PERCENT * 3 / 5;
+      aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[ann_id]   = GRAPHENE_100_PERCENT
+                                                                                     - aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[alice_id];
+      aco.extensions.value.affiliate_distributions->_dists[rps]._dist[alice_id]    = GRAPHENE_100_PERCENT / 5;
+      aco.extensions.value.affiliate_distributions->_dists[rps]._dist[audrey_id]   = GRAPHENE_100_PERCENT / 2;
+      aco.extensions.value.affiliate_distributions->_dists[rps]._dist[ann_id]      = GRAPHENE_100_PERCENT
+                                                                                     - aco.extensions.value.affiliate_distributions->_dists[rps]._dist[alice_id]
+                                                                                     - aco.extensions.value.affiliate_distributions->_dists[rps]._dist[audrey_id];
+      trx.operations.push_back( aco );
+      processed_transaction op_result = db.db.push_transaction(trx, ~0);
+      result.push_back( op_result.operation_results[0].get<object_id_type>() );
+      trx.clear();
+      db.fund( account_id_type(op_result.operation_results[0].get<object_id_type>())( db.db ), asset(30000000) );
+   }
+
+   tmp = find_account("petra");
+   if( tmp.valid() )
+      result.push_back( (*tmp)->id );
+   else
+   {
+      // Petra: nothing for Bookie / For RPS 10% to Ann, 90% to Audrey
+      const fc::ecc::private_key petra_private_key = generate_private_key( "petra" );
+      account_create_operation aco = db.make_account( "petra", petra_private_key.get_public_key() );
+      aco.extensions.value.affiliate_distributions = affiliate_reward_distributions();
+      aco.extensions.value.affiliate_distributions->_dists[rps]._dist[ann_id]    = GRAPHENE_100_PERCENT / 10;
+      aco.extensions.value.affiliate_distributions->_dists[rps]._dist[audrey_id] = GRAPHENE_100_PERCENT
+                                                                                   - aco.extensions.value.affiliate_distributions->_dists[rps]._dist[ann_id];
+      trx.operations.push_back( aco );
+      processed_transaction op_result = db.db.push_transaction(trx, ~0);
+      result.push_back( op_result.operation_results[0].get<object_id_type>() );
+      trx.clear();
+      db.fund( account_id_type(op_result.operation_results[0].get<object_id_type>())( db.db ), asset(40000000) );
+   }
+
+   return result;
+}
+
 BOOST_AUTO_TEST_CASE( affiliate_payout_helper_test )
 {
-   ACTORS( (alice)(ann)(audrey)(irene) );
+   ACTORS( (irene) );
 
    const asset_id_type btc_id = create_user_issued_asset( "BTC", irene, 0 ).id;
    issue_uia( irene, asset( 100000, btc_id ) );
 
-   generate_blocks( HARDFORK_999_TIME );
-   generate_block();
-
-   test::set_expiration( db, trx );
-   trx.clear();
-
-   // Paula: 100% to Alice for Bookie / nothing for RPS
-   const fc::ecc::private_key paula_private_key = generate_private_key( "paula" );
-   account_create_operation aco = make_account( "paula", paula_private_key.get_public_key() );
-   aco.extensions.value.affiliate_distributions = affiliate_reward_distributions();
-   aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[alice_id] = GRAPHENE_100_PERCENT;
-   trx.operations.push_back( aco );
-
-   // Penny: For Bookie 60% to Alice + 40% to Ann / For RPS 20% to Alice, 30% to Ann, 50% to Audrey
-   const fc::ecc::private_key penny_private_key = generate_private_key( "penny" );
-   aco = make_account( "penny", penny_private_key.get_public_key() );
-   aco.extensions.value.affiliate_distributions = affiliate_reward_distributions();
-   aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[alice_id] = GRAPHENE_100_PERCENT * 3 / 5;
-   aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[ann_id]   = GRAPHENE_100_PERCENT
-                                                                                  - aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[alice_id];
-   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[alice_id]    = GRAPHENE_100_PERCENT / 5;
-   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[audrey_id]   = GRAPHENE_100_PERCENT / 2;
-   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[ann_id]      = GRAPHENE_100_PERCENT
-                                                                                  - aco.extensions.value.affiliate_distributions->_dists[rps]._dist[alice_id]
-                                                                                  - aco.extensions.value.affiliate_distributions->_dists[rps]._dist[audrey_id];
-   trx.operations.push_back( aco );
-
-   // Petra: nothing for Bookie / For RPS 10% to Ann, 90% to Audrey
-   const fc::ecc::private_key petra_private_key = generate_private_key( "petra" );
-   aco = make_account( "petra", petra_private_key.get_public_key() );
-   aco.extensions.value.affiliate_distributions = affiliate_reward_distributions();
-   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[ann_id]    = GRAPHENE_100_PERCENT / 10;
-   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[audrey_id] = GRAPHENE_100_PERCENT
-                                                                                - aco.extensions.value.affiliate_distributions->_dists[rps]._dist[ann_id];
-   trx.operations.push_back( aco );
-   processed_transaction result = db.push_transaction(trx, ~0);
-
-   account_id_type paula_id = result.operation_results[0].get<object_id_type>();
-   account_id_type penny_id = result.operation_results[1].get<object_id_type>();
-   account_id_type petra_id = result.operation_results[2].get<object_id_type>();
+   vector<account_id_type> actors = create_players( *this );
+   BOOST_REQUIRE_EQUAL( 6, actors.size() );
+   const auto alice_id  = actors[0];
+   const auto ann_id    = actors[1];
+   const auto audrey_id = actors[2];
+   const auto paula_id  = actors[3];
+   const auto penny_id  = actors[4];
+   const auto petra_id  = actors[5];
 
    int64_t alice_ppy  = 0;
    int64_t ann_ppy    = 0;
@@ -318,56 +407,31 @@ BOOST_AUTO_TEST_CASE( affiliate_payout_helper_test )
 
 BOOST_AUTO_TEST_CASE( rps_tournament_payout_test )
 { try {
-   ACTORS( (alice)(ann)(audrey)(martha) );
+   ACTORS( (martha) );
 
-   generate_blocks( HARDFORK_999_TIME );
-   generate_block();
+   vector<account_id_type> actors = create_players( *this );
+   BOOST_REQUIRE_EQUAL( 6, actors.size() );
+   const auto alice_id  = actors[0];
+   const auto ann_id    = actors[1];
+   const auto audrey_id = actors[2];
+   const auto paula_id  = actors[3];
+   const auto penny_id  = actors[4];
+   const auto petra_id  = actors[5];
 
-   test::set_expiration( db, trx );
-   trx.clear();
+   const int64_t alice_ppy_start  = get_balance( alice_id, asset_id_type() );
+   const int64_t ann_ppy_start    = get_balance( ann_id, asset_id_type() );
+   const int64_t audrey_ppy_start = get_balance( audrey_id, asset_id_type() );
+   const int64_t paula_ppy_start  = get_balance( paula_id, asset_id_type() );
+   const int64_t penny_ppy_start  = get_balance( penny_id, asset_id_type() );
+   const int64_t petra_ppy_start  = get_balance( petra_id, asset_id_type() );
 
-   // Paula: 100% to Alice for Bookie / nothing for RPS
-   const fc::ecc::private_key paula_private_key = generate_private_key( "paula" );
-   account_create_operation aco = make_account( "paula", paula_private_key.get_public_key() );
-   aco.extensions.value.affiliate_distributions = affiliate_reward_distributions();
-   aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[alice_id] = GRAPHENE_100_PERCENT;
-   trx.operations.push_back( aco );
-
-   // Penny: For Bookie 60% to Alice + 40% to Ann / For RPS 20% to Alice, 30% to Ann, 50% to Audrey
-   const fc::ecc::private_key penny_private_key = generate_private_key( "penny" );
-   aco = make_account( "penny", penny_private_key.get_public_key() );
-   aco.extensions.value.affiliate_distributions = affiliate_reward_distributions();
-   aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[alice_id] = GRAPHENE_100_PERCENT * 3 / 5;
-   aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[ann_id]   = GRAPHENE_100_PERCENT
-                                                                                  - aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[alice_id];
-   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[alice_id]    = GRAPHENE_100_PERCENT / 5;
-   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[audrey_id]   = GRAPHENE_100_PERCENT / 2;
-   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[ann_id]      = GRAPHENE_100_PERCENT
-                                                                                  - aco.extensions.value.affiliate_distributions->_dists[rps]._dist[alice_id]
-                                                                                  - aco.extensions.value.affiliate_distributions->_dists[rps]._dist[audrey_id];
-   trx.operations.push_back( aco );
-
-   // Petra: nothing for Bookie / For RPS 10% to Ann, 90% to Audrey
-   const fc::ecc::private_key petra_private_key = generate_private_key( "petra" );
-   aco = make_account( "petra", petra_private_key.get_public_key() );
-   aco.extensions.value.affiliate_distributions = affiliate_reward_distributions();
-   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[ann_id]    = GRAPHENE_100_PERCENT / 10;
-   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[audrey_id] = GRAPHENE_100_PERCENT
-                                                                                - aco.extensions.value.affiliate_distributions->_dists[rps]._dist[ann_id];
-   trx.operations.push_back( aco );
-   processed_transaction result = db.push_transaction(trx, ~0);
-   trx.clear();
-
-   account_id_type paula_id = result.operation_results[0].get<object_id_type>();
-   account_id_type penny_id = result.operation_results[1].get<object_id_type>();
-   account_id_type petra_id = result.operation_results[2].get<object_id_type>();
+   const auto paula_private_key = generate_private_key("paula");
+   const auto penny_private_key = generate_private_key("penny");
+   const auto petra_private_key = generate_private_key("petra");
 
    fund( martha_id(db), asset(1000000000) );
-   fund( paula_id(db), asset(20000000) );
-   fund( penny_id(db), asset(30000000) );
-   fund( petra_id(db), asset(40000000) );
 
-   upgrade_to_lifetime_member( martha );
+   upgrade_to_lifetime_member( martha_id(db) );
 
    tournaments_helper helper(*this);
    account_id_type dividend_id = *helper.get_asset_dividend_account();
@@ -383,9 +447,9 @@ BOOST_AUTO_TEST_CASE( rps_tournament_payout_test )
    generate_block();
    const tournament_object& tournament = db.get<tournament_object>( tournament_id );
 
-   BOOST_CHECK_EQUAL( 19988000, get_balance( paula_id, asset_id_type() ) );
-   BOOST_CHECK_EQUAL( 29988000, get_balance( penny_id, asset_id_type() ) );
-   BOOST_CHECK_EQUAL( 39988000, get_balance( petra_id, asset_id_type() ) );
+   BOOST_CHECK_EQUAL( paula_ppy_start - 12000, get_balance( paula_id, asset_id_type() ) );
+   BOOST_CHECK_EQUAL( penny_ppy_start - 12000, get_balance( penny_id, asset_id_type() ) );
+   BOOST_CHECK_EQUAL( petra_ppy_start - 12000, get_balance( petra_id, asset_id_type() ) );
 
    const tournament_details_object& tournament_details = tournament.tournament_details_id(db);
    BOOST_CHECK_EQUAL( 3, tournament_details.matches.size() );
@@ -440,73 +504,42 @@ BOOST_AUTO_TEST_CASE( rps_tournament_payout_test )
 
    BOOST_CHECK_EQUAL( 3*GRAPHENE_1_PERCENT, db.get_global_properties().parameters.rake_fee_percentage );
    // Penny wins net 3*buy_in minus rake = 36000 - 1080 = 34920
-   BOOST_CHECK_EQUAL( 19988000, get_balance( paula_id, asset_id_type() ) );
-   BOOST_CHECK_EQUAL( 29988000 + 34920, get_balance( penny_id, asset_id_type() ) );
-   BOOST_CHECK_EQUAL( 39988000, get_balance( petra_id, asset_id_type() ) );
+   BOOST_CHECK_EQUAL( paula_ppy_start - 12000, get_balance( paula_id, asset_id_type() ) );
+   BOOST_CHECK_EQUAL( penny_ppy_start - 12000 + 34920, get_balance( penny_id, asset_id_type() ) );
+   BOOST_CHECK_EQUAL( petra_ppy_start - 12000, get_balance( petra_id, asset_id_type() ) );
 
    // Dividend account receives 80% of rake = 864
    BOOST_CHECK_EQUAL( div_ppy + 864, get_balance( dividend_id, asset_id_type() ) );
 
    // 20% of rake = 216 is paid to Penny's affiliates: 43 to Alice, 64 to Ann, 109 to Audrey
-   BOOST_CHECK_EQUAL( 43,  get_balance( alice_id,  asset_id_type() ) );
-   BOOST_CHECK_EQUAL( 64,  get_balance( ann_id,    asset_id_type() ) );
-   BOOST_CHECK_EQUAL( 109, get_balance( audrey_id, asset_id_type() ) );
+   BOOST_CHECK_EQUAL( alice_ppy_start  +  43, get_balance( alice_id,  asset_id_type() ) );
+   BOOST_CHECK_EQUAL( ann_ppy_start    +  64, get_balance( ann_id,    asset_id_type() ) );
+   BOOST_CHECK_EQUAL( audrey_ppy_start + 109, get_balance( audrey_id, asset_id_type() ) );
 
 } FC_LOG_AND_RETHROW() }
 
 
 BOOST_AUTO_TEST_CASE( bookie_payout_test )
 { try {
-   ACTORS( (alice)(ann)(audrey)(irene) );
-
-   generate_blocks( HARDFORK_999_TIME );
-   generate_block();
+   ACTORS( (irene) );
 
    const asset_id_type btc_id = create_user_issued_asset( "BTC", irene, 0 ).id;
 
-   test::set_expiration( db, trx );
-   trx.clear();
+   vector<account_id_type> actors = create_players( *this );
+   BOOST_REQUIRE_EQUAL( 6, actors.size() );
+   const auto alice_id  = actors[0];
+   const auto ann_id    = actors[1];
+   const auto audrey_id = actors[2];
+   const auto paula_id  = actors[3];
+   const auto penny_id  = actors[4];
+   const auto petra_id  = actors[5];
 
-   // Paula: 100% to Alice for Bookie / nothing for RPS
-   const fc::ecc::private_key paula_private_key = generate_private_key( "paula" );
-   account_create_operation aco = make_account( "paula", paula_private_key.get_public_key() );
-   aco.extensions.value.affiliate_distributions = affiliate_reward_distributions();
-   aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[alice_id] = GRAPHENE_100_PERCENT;
-   trx.operations.push_back( aco );
-
-   // Penny: For Bookie 60% to Alice + 40% to Ann / For RPS 20% to Alice, 30% to Ann, 50% to Audrey
-   const fc::ecc::private_key penny_private_key = generate_private_key( "penny" );
-   aco = make_account( "penny", penny_private_key.get_public_key() );
-   aco.extensions.value.affiliate_distributions = affiliate_reward_distributions();
-   aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[alice_id] = GRAPHENE_100_PERCENT * 3 / 5;
-   aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[ann_id]   = GRAPHENE_100_PERCENT
-                                                                                  - aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[alice_id];
-   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[alice_id]    = GRAPHENE_100_PERCENT / 5;
-   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[audrey_id]   = GRAPHENE_100_PERCENT / 2;
-   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[ann_id]      = GRAPHENE_100_PERCENT
-                                                                                  - aco.extensions.value.affiliate_distributions->_dists[rps]._dist[alice_id]
-                                                                                  - aco.extensions.value.affiliate_distributions->_dists[rps]._dist[audrey_id];
-   trx.operations.push_back( aco );
-
-   // Petra: nothing for Bookie / For RPS 10% to Ann, 90% to Audrey
-   const fc::ecc::private_key petra_private_key = generate_private_key( "petra" );
-   aco = make_account( "petra", petra_private_key.get_public_key() );
-   aco.extensions.value.affiliate_distributions = affiliate_reward_distributions();
-   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[ann_id]    = GRAPHENE_100_PERCENT / 10;
-   aco.extensions.value.affiliate_distributions->_dists[rps]._dist[audrey_id] = GRAPHENE_100_PERCENT
-                                                                                - aco.extensions.value.affiliate_distributions->_dists[rps]._dist[ann_id];
-   trx.operations.push_back( aco );
-   processed_transaction result = db.push_transaction(trx, ~0);
-   trx.clear();
-
-   account_id_type paula_id = result.operation_results[0].get<object_id_type>();
-   account_id_type penny_id = result.operation_results[1].get<object_id_type>();
-   account_id_type petra_id = result.operation_results[2].get<object_id_type>();
-
-   fund( paula_id(db), asset(20000000) );
-   fund( penny_id(db), asset(30000000) );
-   fund( petra_id(db), asset(40000000) );
-
+   const int64_t alice_ppy_start  = get_balance( alice_id, asset_id_type() );
+   const int64_t ann_ppy_start    = get_balance( ann_id, asset_id_type() );
+   const int64_t audrey_ppy_start = get_balance( audrey_id, asset_id_type() );
+   const int64_t paula_ppy_start  = get_balance( paula_id, asset_id_type() );
+   const int64_t penny_ppy_start  = get_balance( penny_id, asset_id_type() );
+//   const int64_t petra_ppy_start  = get_balance( petra_id, asset_id_type() );
 
    CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
 
@@ -529,19 +562,20 @@ BOOST_AUTO_TEST_CASE( bookie_payout_test )
    uint32_t rake_value;
    // rake_value = (-10000 + 110000 - 110000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
    // paula starts with 20000000, pays 10000 (bet), wins 110000, then pays 110000 (bet), wins 0
-   BOOST_CHECK_EQUAL( get_balance( paula_id, asset_id_type() ), 20000000 - 10000 + 110000 - 110000 + 0 );
+   BOOST_CHECK_EQUAL( get_balance( paula_id, asset_id_type() ), paula_ppy_start - 10000 + 110000 - 110000 + 0 );
    // no wins -> no affiliate payouts
 
    rake_value = (-100000 - 110000 + 220000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
    // penny starts with 30000000, pays 100000 (bet), wins 0, then pays 110000 (bet), wins 220000
-   BOOST_CHECK_EQUAL( get_balance( penny_id, asset_id_type() ), 30000000 - 100000 + 0 - 110000 + 220000 - rake_value );
+   BOOST_CHECK_EQUAL( get_balance( penny_id, asset_id_type() ), penny_ppy_start - 100000 + 0 - 110000 + 220000 - rake_value );
    // penny wins 10000 net, rake is 3% of that (=300)
    // Affiliate pay is 20% of rake (=60). Of this, 60%=36 go to Alice, 40%=24 go to Ann
-   BOOST_CHECK_EQUAL( 36, get_balance( alice_id, asset_id_type() ) );
-   BOOST_CHECK_EQUAL( 24, get_balance( ann_id, asset_id_type() ) );
-   BOOST_CHECK_EQUAL( 0, get_balance( audrey_id, asset_id_type() ) );
+   BOOST_CHECK_EQUAL( alice_ppy_start  + 36, get_balance( alice_id,  asset_id_type() ) );
+   BOOST_CHECK_EQUAL( ann_ppy_start    + 24, get_balance( ann_id,    asset_id_type() ) );
+   BOOST_CHECK_EQUAL( audrey_ppy_start +  0, get_balance( audrey_id, asset_id_type() ) );
 
    {
+      test::set_expiration( db, trx );
       issue_uia( paula_id, asset( 1000000, btc_id ) );
       issue_uia( petra_id, asset( 1000000, btc_id ) );
 
@@ -586,6 +620,19 @@ BOOST_AUTO_TEST_CASE( bookie_payout_test )
       BOOST_CHECK_EQUAL( get_balance( petra_id, btc_id ), 1000000 - 100000 + 110000 - 110000 + 0 - rake_value );
       // petra wins nothing -> no payout
    }
+
+} FC_LOG_AND_RETHROW() }
+
+
+BOOST_AUTO_TEST_CASE( statistics_test )
+{ try {
+
+   INVOKE(rps_tournament_payout_test);
+   INVOKE(bookie_payout_test);
+
+   generate_block();
+
+   graphene::affiliate_stats::affiliate_stats_api stats( app );
 
 } FC_LOG_AND_RETHROW() }
 
