@@ -32,6 +32,7 @@
 
 #include <boost/test/unit_test.hpp>
 #include <fc/crypto/openssl.hpp>
+#include <fc/log/appender.hpp>
 #include <openssl/rand.h>
 
 #include <graphene/utilities/tempdir.hpp>
@@ -47,6 +48,18 @@
 
 #include <graphene/bookie/bookie_api.hpp>
 //#include <boost/algorithm/string/replace.hpp>
+
+struct enable_betting_logging_config {
+   enable_betting_logging_config()
+   { 
+      fc::logger::get("betting").add_appender(fc::appender::get("stdout"));
+      fc::logger::get("betting").set_log_level(fc::log_level::debug);
+   }
+   ~enable_betting_logging_config()  { 
+      fc::logger::get("betting").remove_appender(fc::appender::get("stdout"));
+   }
+};
+BOOST_GLOBAL_FIXTURE( enable_betting_logging_config );
 
 using namespace graphene::chain;
 using namespace graphene::chain::test;
@@ -766,12 +779,14 @@ BOOST_AUTO_TEST_CASE( testnet_witness_block_production_error )
       CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
       create_betting_market_group({{"en", "Unused"}}, capitals_vs_blackhawks.id, betting_market_rules.id, asset_id_type(), false, 0);
       generate_blocks(1);
+      const betting_market_group_object& unused_betting_markets = *db.get_index_type<betting_market_group_object_index>().indices().get<by_id>().rbegin();
 
       BOOST_TEST_MESSAGE("setting the event in progress");
       update_event(capitals_vs_blackhawks.id, _status = event_status::in_progress);
       generate_blocks(1);
       BOOST_CHECK(capitals_vs_blackhawks.get_status() == event_status::in_progress);
       BOOST_CHECK(moneyline_betting_markets.get_status() == betting_market_group_status::in_play);
+      BOOST_CHECK(unused_betting_markets.get_status() == betting_market_group_status::in_play);
 
       BOOST_TEST_MESSAGE("setting the event to finished");
       update_event(capitals_vs_blackhawks.id, _status = event_status::finished);
@@ -780,7 +795,7 @@ BOOST_AUTO_TEST_CASE( testnet_witness_block_production_error )
       BOOST_CHECK(moneyline_betting_markets.get_status() == betting_market_group_status::closed);
       BOOST_CHECK(capitals_win_market.get_status() == betting_market_status::unresolved);
       BOOST_CHECK(blackhawks_win_market.get_status() == betting_market_status::unresolved);
-      //BOOST_CHECK(unused_betting_market_group.get_status() == betting_market_group_status::closed);
+      BOOST_CHECK(unused_betting_markets.get_status() == betting_market_group_status::closed);
 
       BOOST_TEST_MESSAGE("setting the event to canceled");
       update_event(capitals_vs_blackhawks.id, _status = event_status::canceled);
@@ -788,6 +803,66 @@ BOOST_AUTO_TEST_CASE( testnet_witness_block_production_error )
    } FC_LOG_AND_RETHROW()
 }
 
+BOOST_AUTO_TEST_CASE( cancel_one_event_in_group )
+{
+   // test that creates an event group with two events in it.  We walk one event through the 
+   // usual sequence and cancel it, verify that it doesn't alter the other event in the group
+   try
+   {
+      CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
+
+      // create a second event in the same betting market group
+      create_event({{"en", "Boston Bruins/Pittsburgh Penguins"}}, {{"en", "2016-17"}}, nhl.id);
+      generate_blocks(1);
+      const event_object& bruins_vs_penguins = *db.get_index_type<event_object_index>().indices().get<by_id>().rbegin();
+      create_betting_market_group({{"en", "Moneyline"}}, bruins_vs_penguins.id, betting_market_rules.id, asset_id_type(), false, 0);
+      generate_blocks(1);
+      const betting_market_group_object& bruins_penguins_moneyline_betting_markets = *db.get_index_type<betting_market_group_object_index>().indices().get<by_id>().rbegin();
+      create_betting_market(bruins_penguins_moneyline_betting_markets.id, {{"en", "Boston Bruins win"}});
+      generate_blocks(1);
+      const betting_market_object& bruins_win_market = *db.get_index_type<betting_market_object_index>().indices().get<by_id>().rbegin();
+      create_betting_market(bruins_penguins_moneyline_betting_markets.id, {{"en", "Pittsburgh Penguins win"}});
+      generate_blocks(1);
+      const betting_market_object& penguins_win_market = *db.get_index_type<betting_market_object_index>().indices().get<by_id>().rbegin();
+      (void)bruins_win_market; (void)penguins_win_market;
+
+      // check the initial state
+      BOOST_CHECK(capitals_vs_blackhawks.get_status() == event_status::upcoming);
+      BOOST_CHECK(bruins_vs_penguins.get_status() == event_status::upcoming);
+
+      BOOST_TEST_MESSAGE("setting the capitals_vs_blackhawks event to in-progress, leaving bruins_vs_penguins in upcoming");
+      update_event(capitals_vs_blackhawks.id, _status = event_status::in_progress);
+      generate_blocks(1);
+      BOOST_CHECK(capitals_vs_blackhawks.get_status() == event_status::in_progress);
+      BOOST_CHECK(moneyline_betting_markets.get_status() == betting_market_group_status::in_play);
+
+      BOOST_CHECK(bruins_vs_penguins.get_status() == event_status::upcoming);
+      BOOST_CHECK(bruins_penguins_moneyline_betting_markets.get_status() == betting_market_group_status::upcoming);
+      BOOST_CHECK(bruins_win_market.get_status() == betting_market_status::unresolved);
+      BOOST_CHECK(penguins_win_market.get_status() == betting_market_status::unresolved);
+
+      BOOST_TEST_MESSAGE("setting the capitals_vs_blackhawks event to finished");
+      update_event(capitals_vs_blackhawks.id, _status = event_status::finished);
+      generate_blocks(1);
+      BOOST_CHECK(capitals_vs_blackhawks.get_status() == event_status::finished);
+      BOOST_CHECK(moneyline_betting_markets.get_status() == betting_market_group_status::closed);
+      BOOST_CHECK(capitals_win_market.get_status() == betting_market_status::unresolved);
+      BOOST_CHECK(blackhawks_win_market.get_status() == betting_market_status::unresolved);
+      BOOST_CHECK(bruins_vs_penguins.get_status() == event_status::upcoming);
+      BOOST_CHECK(bruins_penguins_moneyline_betting_markets.get_status() == betting_market_group_status::upcoming);
+      BOOST_CHECK(bruins_win_market.get_status() == betting_market_status::unresolved);
+      BOOST_CHECK(penguins_win_market.get_status() == betting_market_status::unresolved);
+
+      BOOST_TEST_MESSAGE("setting the capitals_vs_blackhawks event to canceled");
+      update_event(capitals_vs_blackhawks.id, _status = event_status::canceled);
+      generate_blocks(1);
+      BOOST_CHECK(bruins_vs_penguins.get_status() == event_status::upcoming);
+      BOOST_CHECK(bruins_penguins_moneyline_betting_markets.get_status() == betting_market_group_status::upcoming);
+      BOOST_CHECK(bruins_win_market.get_status() == betting_market_status::unresolved);
+      BOOST_CHECK(penguins_win_market.get_status() == betting_market_status::unresolved);
+
+   } FC_LOG_AND_RETHROW()
+}
 
 BOOST_AUTO_TEST_SUITE_END()
 

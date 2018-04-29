@@ -282,15 +282,32 @@ void database::settle_betting_market_group(const betting_market_group_object& be
 void database::remove_completed_events()
 {
    const auto& event_index = get_index_type<event_object_index>().indices().get<by_event_status>();
-   auto canceled_events = boost::make_iterator_range(event_index.equal_range(event_status::canceled));
-   auto settled_events = boost::make_iterator_range(event_index.equal_range(event_status::settled));
-   for (const event_object& event : boost::join(canceled_events, settled_events)) {
-      dlog("removing event ${id}", ("id", event.id));
+
+   auto canceled_event_iter = event_index.lower_bound(event_status::canceled);
+   while (canceled_event_iter != event_index.end() && canceled_event_iter->get_status() == event_status::canceled)
+   {
+      const event_object& event = *canceled_event_iter;
+      ++canceled_event_iter;
+      dlog("removing canceled event ${id}", ("id", event.id));
+      remove(event);
+   }
+
+   auto settled_event_iter = event_index.lower_bound(event_status::settled);
+   while (settled_event_iter != event_index.end() && settled_event_iter->get_status() == event_status::settled)
+   {
+      const event_object& event = *settled_event_iter;
+      ++settled_event_iter;
+      dlog("removing settled event ${id}", ("id", event.id));
       remove(event);
    }
 }
 
-share_type adjust_betting_position(database& db, account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, share_type bet_amount, share_type matched_amount)
+share_type adjust_betting_position(database& db, 
+                                   account_id_type bettor_id, 
+                                   betting_market_id_type betting_market_id, 
+                                   bet_type back_or_lay, 
+                                   share_type bet_amount, 
+                                   share_type matched_amount)
 { try {
    assert(bet_amount >= 0);
    
@@ -304,8 +321,8 @@ share_type adjust_betting_position(database& db, account_id_type bettor_id, bett
    if (itr == index.end())
    {
       db.create<betting_market_position_object>([&](betting_market_position_object& position) {
-		 position.bettor_id = bettor_id;
-		 position.betting_market_id = betting_market_id;
+         position.bettor_id = bettor_id;
+         position.betting_market_id = betting_market_id;
          position.pay_if_payout_condition = back_or_lay == bet_type::back ? bet_amount + matched_amount : 0;
          position.pay_if_not_payout_condition = back_or_lay == bet_type::lay ? bet_amount + matched_amount : 0;
          position.pay_if_canceled = bet_amount;
@@ -314,8 +331,8 @@ share_type adjust_betting_position(database& db, account_id_type bettor_id, bett
       });
    } else {
       db.modify(*itr, [&](betting_market_position_object& position) {
-		 assert(position.bettor_id == bettor_id);
-		 assert(position.betting_market_id == betting_market_id);
+         assert(position.bettor_id == bettor_id);
+         assert(position.betting_market_id == betting_market_id);
          position.pay_if_payout_condition += back_or_lay == bet_type::back ? bet_amount + matched_amount : 0;
          position.pay_if_not_payout_condition += back_or_lay == bet_type::lay ? bet_amount + matched_amount : 0;
          position.pay_if_canceled += bet_amount;
@@ -420,12 +437,12 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
    assert(taker_amount_to_match <= taker_bet.amount_to_bet.amount);
    assert(taker_amount_to_match / taker_odds_ratio * taker_odds_ratio == taker_amount_to_match);
    {
-     // verify we're getting the odds we expect
-     fc::uint128_t payout_128 = maker_amount_to_match.value;
-     payout_128 += taker_amount_to_match.value;
-     payout_128 *= GRAPHENE_BETTING_ODDS_PRECISION;
-     payout_128 /= maker_bet.back_or_lay == bet_type::back ? maker_amount_to_match.value : taker_amount_to_match.value;
-     assert(payout_128.to_uint64() == maker_bet.backer_multiplier);
+      // verify we're getting the odds we expect
+      fc::uint128_t payout_128 = maker_amount_to_match.value;
+      payout_128 += taker_amount_to_match.value;
+      payout_128 *= GRAPHENE_BETTING_ODDS_PRECISION;
+      payout_128 /= maker_bet.back_or_lay == bet_type::back ? maker_amount_to_match.value : taker_amount_to_match.value;
+      assert(payout_128.to_uint64() == maker_bet.backer_multiplier);
    }
 #endif
 
