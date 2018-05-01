@@ -39,6 +39,7 @@
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/is_authorized_asset.hpp>
 #include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/hardfork.hpp>
 
 #include <graphene/chain/sport_object.hpp>
 #include <graphene/chain/event_object.hpp>
@@ -479,6 +480,43 @@ BOOST_AUTO_TEST_CASE(bet_reversal_test)
       // try to re-reverse it, but go too far
       BOOST_CHECK_THROW( place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(30000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION), fc::exception);
       BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), 0);
+   }
+   FC_LOG_AND_RETHROW()
+}
+
+BOOST_AUTO_TEST_CASE(bet_against_exposure_test)
+{
+   // test whether we can bet our entire balance in one direction, have it match, then reverse our bet (while having zero balance)
+   try
+   {
+      generate_blocks(1);
+      ACTORS( (alice)(bob) );
+      CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
+
+      transfer(account_id_type(), alice_id, asset(10000000));
+      transfer(account_id_type(), bob_id, asset(10000000));
+      int64_t alice_expected_balance = 10000000;
+      BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance);
+      int64_t bob_expected_balance = 10000000;
+      BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance);
+
+      // back with alice's entire balance
+      place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(10000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+      alice_expected_balance -= 10000000;
+      BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance);
+
+      // lay with bob's entire balance, which fully matches bob's bet
+      place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(10000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+      bob_expected_balance -= 10000000;
+      BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance);
+
+      // reverse the bet
+      place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(20000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+      BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance);
+
+      // try to re-reverse it, but go too far
+      BOOST_CHECK_THROW( place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(30000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION), fc::exception);
+      BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance);
    }
    FC_LOG_AND_RETHROW()
 }
@@ -2107,6 +2145,10 @@ BOOST_AUTO_TEST_SUITE_END()
 boost::unit_test::test_suite* init_unit_test_suite(int argc, char* argv[]) {
     std::srand(time(NULL));
     std::cout << "Random number generator seeded to " << time(NULL) << std::endl;
+
+    // betting operations don't take effect until HARDFORK 1000
+    GRAPHENE_TESTING_GENESIS_TIMESTAMP = HARDFORK_1000_TIME.sec_since_epoch();
+
     return nullptr;
 }
 
