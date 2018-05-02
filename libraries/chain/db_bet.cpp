@@ -401,7 +401,8 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
 {
    assert(taker_bet.amount_to_bet.asset_id == maker_bet.amount_to_bet.asset_id);
    assert(taker_bet.amount_to_bet.amount > 0 && maker_bet.amount_to_bet.amount > 0);
-   assert(taker_bet.back_or_lay == bet_type::back ? taker_bet.backer_multiplier <= maker_bet.backer_multiplier : taker_bet.backer_multiplier >= maker_bet.backer_multiplier);
+   assert(taker_bet.back_or_lay == bet_type::back ? taker_bet.backer_multiplier <= maker_bet.backer_multiplier : 
+                                                    taker_bet.backer_multiplier >= maker_bet.backer_multiplier);
    assert(taker_bet.back_or_lay != maker_bet.back_or_lay);
 
    int result = 0;
@@ -416,17 +417,33 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
    // and make some shortcuts to get to the maker's and taker's side of the ratio
    const share_type& maker_odds_ratio = maker_bet.back_or_lay == bet_type::back ? back_odds_ratio : lay_odds_ratio;
    const share_type& taker_odds_ratio = maker_bet.back_or_lay == bet_type::back ? lay_odds_ratio : back_odds_ratio;
+   // we need to figure out how much of the bet matches.  the smallest amount
+   // that could match is one maker_odds_ratio to one taker_odds_ratio, 
+   // but we can match any integer multiple of that ratio (called the 'factor' below), 
+   // limited only by the bet amounts.
+   //
    //idump((back_odds_ratio)(lay_odds_ratio));
    //idump((maker_odds_ratio)(taker_odds_ratio));
 
    // now figure out how much of the maker bet we'll consume.  We don't yet know whether the maker or taker
    // will be the limiting factor.
-   share_type maximum_taker_factor = taker_bet.amount_to_bet.amount / taker_odds_ratio;
+   share_type maximum_factor_taker_is_willing_to_pay = taker_bet.amount_to_bet.amount / taker_odds_ratio;
+   share_type maximum_factor_taker_is_willing_to_receive = taker_bet.get_exact_matching_amount() / maker_odds_ratio;
+
+   share_type maximum_taker_factor;
+   bool taker_was_limited_by_matching_amount = maximum_factor_taker_is_willing_to_receive < maximum_factor_taker_is_willing_to_pay;
+   if (taker_was_limited_by_matching_amount)
+      maximum_taker_factor = maximum_factor_taker_is_willing_to_receive;
+   else
+      maximum_taker_factor = maximum_factor_taker_is_willing_to_pay;
+
+   idump((maximum_factor_taker_is_willing_to_pay)(maximum_factor_taker_is_willing_to_receive)(maximum_taker_factor));
+
    share_type maximum_maker_factor = maker_bet.amount_to_bet.amount / maker_odds_ratio;
    share_type maximum_factor = std::min(maximum_taker_factor, maximum_maker_factor);
    share_type maker_amount_to_match = maximum_factor * maker_odds_ratio;
    share_type taker_amount_to_match = maximum_factor * taker_odds_ratio;
-   //idump((maker_amount_to_match)(taker_amount_to_match));
+   idump((maker_amount_to_match)(taker_amount_to_match));
 
    // TODO: analyze whether maximum_maker_amount_to_match can ever be zero here 
    assert(maker_amount_to_match != 0);
@@ -451,6 +468,50 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
    // maker bets will always be an exact multiple of maker_odds_ratio, so they will either completely match or remain on the books
    bool maker_bet_will_completely_match = maker_amount_to_match == maker_bet.amount_to_bet.amount;
 
+   if (maker_bet_will_completely_match && taker_amount_to_match != taker_bet.amount_to_bet.amount)
+   {
+      // then the taker bet will stay on the books.  If the taker odds != the maker odds, we will
+      // need to refund the stake the taker was expecting to pay but didn't.
+      // compute how much of the taker's bet should still be left on the books and how much
+      // the taker should pay for the remaining amount; refund any amount that won't remain
+      // on the books and isn't used to pay the bet we're currently matching.
+
+      share_type takers_odds_back_odds_ratio;
+      share_type takers_odds_lay_odds_ratio;
+      std::tie(takers_odds_back_odds_ratio, takers_odds_lay_odds_ratio) = taker_bet.get_ratio();
+      const share_type& takers_odds_taker_odds_ratio = taker_bet.back_or_lay == bet_type::back ? takers_odds_back_odds_ratio : takers_odds_lay_odds_ratio;
+      const share_type& takers_odds_maker_odds_ratio = taker_bet.back_or_lay == bet_type::back ? takers_odds_lay_odds_ratio : takers_odds_back_odds_ratio;
+
+      share_type unrounded_taker_remaining_amount_to_match = taker_bet.get_exact_matching_amount() - maker_amount_to_match;
+      // because we matched at the maker's odds and not the taker's odds, the remaining amount to match
+      // may not be an even multiple of the taker's odds; round it down.
+      share_type taker_remaining_factor = unrounded_taker_remaining_amount_to_match / takers_odds_maker_odds_ratio;
+      share_type taker_remaining_maker_amount_to_match = taker_remaining_factor * takers_odds_maker_odds_ratio;
+      share_type taker_remaining_bet_amount = taker_remaining_factor * takers_odds_taker_odds_ratio;
+
+      share_type taker_refund_amount = taker_bet.amount_to_bet.amount - taker_amount_to_match - taker_remaining_bet_amount;
+
+      if (taker_refund_amount > share_type())
+      {
+         db.modify(taker_bet, [&taker_refund_amount](bet_object& taker_bet_object) {
+                      taker_bet_object.amount_to_bet.amount -= taker_refund_amount;
+                   });
+         dlog("Refunding ${taker_refund_amount} to taker because we matched at the maker's odds of "
+              "${maker_odds} instead of the taker's odds ${taker_odds}",
+              ("taker_refund_amount", taker_refund_amount)
+              ("maker_odds", maker_bet.backer_multiplier)
+              ("taker_odds", taker_bet.backer_multiplier));
+         ddump((taker_bet));
+
+         db.adjust_balance(taker_bet.bettor_id, asset(taker_refund_amount, taker_bet.amount_to_bet.asset_id));
+         // TODO: update global statistics
+         bet_adjusted_operation bet_adjusted_op(taker_bet.bettor_id, taker_bet.id, 
+                                                asset(taker_refund_amount, taker_bet.amount_to_bet.asset_id));
+         // idump((bet_adjusted_op)(new_bet_object));
+         db.push_applied_operation(std::move(bet_adjusted_op));
+      }
+   }
+
    // if the maker bet stays on the books, we need to make sure the taker bet is removed from the books (either it fills completely,
    // or any un-filled amount is canceled)
    result |= bet_was_matched(db, taker_bet, taker_amount_to_match, maker_amount_to_match, maker_bet.backer_multiplier, !maker_bet_will_completely_match);
@@ -464,6 +525,39 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
 // called from the bet_place_evaluator
 bool database::place_bet(const bet_object& new_bet_object)
 {
+   // We allow users to place bets for any amount, but only amounts that are exact multiples of the odds
+   // ratio can be matched.  Immediately return any unmatchable amount in this bet.
+   share_type minimum_matchable_amount = new_bet_object.get_minimum_matchable_amount();
+   share_type scale_factor = new_bet_object.amount_to_bet.amount / minimum_matchable_amount;
+   share_type rounded_bet_amount = scale_factor * minimum_matchable_amount;
+
+   if (rounded_bet_amount == share_type())
+   {
+      // the bet was too small to match at all, cancel the bet
+      cancel_bet(new_bet_object, true);
+      return true;
+   }
+   else if (rounded_bet_amount != new_bet_object.amount_to_bet.amount)
+   {
+      asset stake_returned = new_bet_object.amount_to_bet;
+      stake_returned.amount -= rounded_bet_amount;
+
+      modify(new_bet_object, [&rounded_bet_amount](bet_object& modified_bet_object) {
+             modified_bet_object.amount_to_bet.amount = rounded_bet_amount;
+             });
+
+      adjust_balance(new_bet_object.bettor_id, stake_returned);
+      // TODO: update global statistics
+      bet_adjusted_operation bet_adjusted_op(new_bet_object.bettor_id, new_bet_object.id, 
+                                             stake_returned);
+      // idump((bet_adjusted_op)(new_bet_object));
+      push_applied_operation(std::move(bet_adjusted_op));
+
+      dlog("Refunded ${refund_amount} to round the bet down to something that can match exactly, new bet: ${new_bet}",
+           ("refund_amount", stake_returned.amount)
+           ("new_bet", new_bet_object));
+   }
+
    const auto& bet_odds_idx = get_index_type<bet_object_index>().indices().get<by_odds>();
 
    bet_type bet_type_to_match = new_bet_object.back_or_lay == bet_type::back ? bet_type::lay : bet_type::back;
@@ -488,45 +582,12 @@ bool database::place_bet(const bet_object& new_bet_object)
       // we continue if the maker bet was completely consumed AND the taker bet was not
       finished = orders_matched_flags != 2;
    }
-
    if (!(orders_matched_flags & 1))
-   {
-      // if the new (taker) bet was not completely consumed, we need to put whatever remains
-      // of it on the books.  But we only allow bets that can be exactly matched
-      // on the books, so round the amount down if necessary
-      share_type minimum_matchable_amount = new_bet_object.get_minimum_matchable_amount();
-      share_type scale_factor = new_bet_object.amount_to_bet.amount / minimum_matchable_amount;
-      share_type rounded_bet_amount = scale_factor * minimum_matchable_amount;
-      //idump((new_bet_object.amount_to_bet.amount)(rounded_bet_amount)(minimum_matchable_amount)(scale_factor));
+      ddump((new_bet_object));
 
-      if (rounded_bet_amount == share_type())
-      {
-         // the remainder of the bet was too small to match, cancel the bet
-         cancel_bet(new_bet_object, true);
-         return true;
-      }
-      else if (rounded_bet_amount != new_bet_object.amount_to_bet.amount)
-      {
-         asset stake_returned = new_bet_object.amount_to_bet;
-         stake_returned.amount -= rounded_bet_amount;
 
-         modify(new_bet_object, [&rounded_bet_amount](bet_object& modified_bet_object) {
-            modified_bet_object.amount_to_bet.amount = rounded_bet_amount;
-         });
-
-         adjust_balance(new_bet_object.bettor_id, stake_returned);
-         // TODO: update global statistics
-         bet_adjusted_operation bet_adjusted_op(new_bet_object.bettor_id, new_bet_object.id, 
-                                                stake_returned);
-         // idump((bet_adjusted_op)(new_bet_object));
-         push_applied_operation(std::move(bet_adjusted_op));
-         return false;
-      }
-      else
-         return false;
-   }
-   else
-      return true;
+   // return true if the taker bet was completely consumed
+   return (orders_matched_flags & 1) != 0;
 }
 
 } }
