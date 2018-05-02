@@ -277,6 +277,14 @@ void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
    ddump((_betting_market_group->get_status()));
    FC_ASSERT( _betting_market_group->get_status() != betting_market_group_status::frozen, 
               "Unable to place bets while the market is frozen" );
+   FC_ASSERT( _betting_market_group->get_status() != betting_market_group_status::closed, 
+              "Unable to place bets while the market is closed" );
+   FC_ASSERT( _betting_market_group->get_status() != betting_market_group_status::graded, 
+              "Unable to place bets while the market is graded" );
+   FC_ASSERT( _betting_market_group->get_status() != betting_market_group_status::re_grading, 
+              "Unable to place bets while the market is re-grading" );
+   FC_ASSERT( _betting_market_group->get_status() != betting_market_group_status::settled, 
+              "Unable to place bets while the market is settled" );
 
    _asset = &_betting_market_group->asset_id(d);
    FC_ASSERT( is_authorized_asset( d, *fee_paying_account, *_asset ) );
