@@ -85,8 +85,9 @@ namespace graphene { namespace chain {
    {
       for( const auto& entry : accumulator )
       {
-         _db.adjust_balance( entry.first, asset( entry.second, payout_asset ) );
-         _db.push_applied_operation( affiliate_payout_operation( entry.first, tag, entry.second ) );
+          asset payout = asset( entry.second, payout_asset );
+         _db.adjust_balance( entry.first, payout );
+         _db.push_applied_operation( affiliate_payout_operation( entry.first, tag, payout ) );
       }
       accumulator.clear();
    }
