@@ -917,42 +917,17 @@ BOOST_AUTO_TEST_CASE(test_settled_market_states)
 
       idump((capitals_win_market.get_status())); 
 
-      // lay 46 at 1.94 odds (50:47) -- this is too small to be placed on the books and there's
-      // nothing for it to match, so it should be canceled
-      bet_id_type automatically_canceled_bet_id = place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(46, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
+      BOOST_TEST_MESSAGE("setting the event to in_progress");
+      update_event(capitals_vs_blackhawks.id, _status = event_status::in_progress);
       generate_blocks(1);
-      BOOST_CHECK_MESSAGE(!db.find(automatically_canceled_bet_id), "Bet should have been canceled, but the blockchain still knows about it");
-      fc::variants objects_from_bookie = bookie_api.get_objects({automatically_canceled_bet_id});
-      idump((objects_from_bookie));
-      BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 1u);
-      BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>() == automatically_canceled_bet_id, "Bookie Plugin didn't return a deleted bet it");
 
-      // lay 47 at 1.94 odds (50:47) -- this bet should go on the order books normally
-      bet_id_type first_bet_on_books = place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(47, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
+      BOOST_TEST_MESSAGE("setting the event to finished");
+      update_event(capitals_vs_blackhawks.id, _status = event_status::finished);
       generate_blocks(1);
-      BOOST_CHECK_MESSAGE(db.find(first_bet_on_books), "Bet should exist on the blockchain");
-      objects_from_bookie = bookie_api.get_objects({first_bet_on_books});
-      idump((objects_from_bookie));
-      BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 1u);
-      BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>() == first_bet_on_books, "Bookie Plugin didn't return a bet that is currently on the books");
-
-      // place a bet that exactly matches 'first_bet_on_books', should result in empty books (thus, no bet_objects from the blockchain)
-      bet_id_type matching_bet = place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(50, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
-      BOOST_CHECK_MESSAGE(!db.find(first_bet_on_books), "Bet should have been filled, but the blockchain still knows about it");
-      BOOST_CHECK_MESSAGE(!db.find(matching_bet), "Bet should have been filled, but the blockchain still knows about it");
-      generate_blocks(1); // the bookie plugin doesn't detect matches until a block is generated
-
-      objects_from_bookie = bookie_api.get_objects({first_bet_on_books, matching_bet});
-      idump((objects_from_bookie));
-      BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 2u);
-      BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>() == first_bet_on_books, "Bookie Plugin didn't return a bet that has been filled");
-      BOOST_CHECK_MESSAGE(objects_from_bookie[1]["id"].as<bet_id_type>() == matching_bet, "Bookie Plugin didn't return a bet that has been filled");
-
-      update_betting_market_group(moneyline_betting_markets.id, _status = betting_market_group_status::closed);
 
       resolve_betting_market_group(moneyline_betting_markets.id,
-            {{capitals_win_market.id, betting_market_resolution_type::cancel},
-            {blackhawks_win_market.id, betting_market_resolution_type::cancel}});
+                                   {{capitals_win_market.id, betting_market_resolution_type::win},
+                                    {blackhawks_win_market.id, betting_market_resolution_type::not_win}});
 
       // as soon as the market is resolved during the generate_block(), these markets
       // should be deleted and our references will go out of scope.  Save the
@@ -962,32 +937,12 @@ BOOST_AUTO_TEST_CASE(test_settled_market_states)
 
       generate_blocks(1);
 
-      // test get_matched_bets_for_bettor
-      std::vector<graphene::bookie::matched_bet_object> alice_matched_bets = bookie_api.get_matched_bets_for_bettor(alice_id);
-      for (const graphene::bookie::matched_bet_object& matched_bet : alice_matched_bets)
-      {
-         idump((matched_bet));
-         for (operation_history_id_type id : matched_bet.associated_operations)
-            idump((id(db)));
-      }
-      BOOST_REQUIRE_EQUAL(alice_matched_bets.size(), 1u);
-      BOOST_CHECK(alice_matched_bets[0].amount_matched == 47);
-      std::vector<graphene::bookie::matched_bet_object> bob_matched_bets = bookie_api.get_matched_bets_for_bettor(bob_id);
-      for (const graphene::bookie::matched_bet_object& matched_bet : bob_matched_bets)
-      {
-         idump((matched_bet));
-         for (operation_history_id_type id : matched_bet.associated_operations)
-            idump((id(db)));
-      }
-      BOOST_REQUIRE_EQUAL(bob_matched_bets.size(), 1u);
-      BOOST_CHECK(bob_matched_bets[0].amount_matched == 50);
-
       // test getting markets
       //  test that we cannot get them from the database directly
       BOOST_CHECK_THROW(capitals_win_market_id(db), fc::exception);
       BOOST_CHECK_THROW(blackhawks_win_market_id(db), fc::exception);
 
-      objects_from_bookie = bookie_api.get_objects({capitals_win_market_id, blackhawks_win_market_id});
+      fc::variants objects_from_bookie = bookie_api.get_objects({capitals_win_market_id, blackhawks_win_market_id});
       BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 2u);
       idump((objects_from_bookie));
       BOOST_CHECK(!objects_from_bookie[0].is_null());
@@ -1690,8 +1645,13 @@ BOOST_AUTO_TEST_CASE(event_driven_standard_progression_1_with_delay)
    {
       CREATE_ICE_HOCKEY_BETTING_MARKET(false, 60 /* seconds */);
       graphene::bookie::bookie_api bookie_api(app);
-      // save the event id for checking after it is deleted
+
+      // save the ids for checking after it is deleted
       event_id_type capitals_vs_blackhawks_id = capitals_vs_blackhawks.id;
+      betting_market_group_id_type moneyline_betting_markets_id = moneyline_betting_markets.id;
+      betting_market_id_type capitals_win_market_id = capitals_win_market.id;
+      betting_market_id_type blackhawks_win_market_id = blackhawks_win_market.id;
+
 
       BOOST_TEST_MESSAGE("verify everything is in the correct initial state");
       BOOST_CHECK(capitals_vs_blackhawks.get_status() == event_status::upcoming);
@@ -1712,17 +1672,31 @@ BOOST_AUTO_TEST_CASE(event_driven_standard_progression_1_with_delay)
                                    {{capitals_win_market.id, betting_market_resolution_type::win},
                                     {blackhawks_win_market.id, betting_market_resolution_type::not_win}});
       generate_blocks(1);
+
       // it should be waiting 60 seconds before it settles
       BOOST_CHECK(capitals_vs_blackhawks.get_status() == event_status::finished);
       BOOST_CHECK(moneyline_betting_markets.get_status() == betting_market_group_status::graded);
+      BOOST_CHECK(capitals_win_market.get_status() == betting_market_status::graded);
+      BOOST_CHECK(capitals_win_market.resolution == betting_market_resolution_type::win);
+      BOOST_CHECK(blackhawks_win_market.get_status() == betting_market_status::graded);
+      BOOST_CHECK(blackhawks_win_market.resolution == betting_market_resolution_type::not_win);
 
       generate_blocks(60);
       // as soon as a block is generated, the betting market group will settle, and the market
       // and group will cease to exist.  The event should transition to "settled", then
       // removed.
-      fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
+      fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id, 
+                                                                 moneyline_betting_markets_id, 
+                                                                 capitals_win_market_id, 
+                                                                 blackhawks_win_market_id});
 
+      idump((objects_from_bookie));
       BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[1]["status"].as<std::string>(), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[2]["status"].as<std::string>(), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[2]["resolution"].as<std::string>(), "win");
+      BOOST_CHECK_EQUAL(objects_from_bookie[3]["status"].as<std::string>(), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[3]["resolution"].as<std::string>(), "not_win");
    } FC_LOG_AND_RETHROW()
 }
 
