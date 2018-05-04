@@ -34,6 +34,7 @@
 #include <graphene/chain/tournament_object.hpp>
 
 #include <graphene/affiliate_stats/affiliate_stats_api.hpp>
+#include <graphene/affiliate_stats/affiliate_stats_objects.hpp>
 
 using namespace graphene::chain;
 using namespace graphene::db;
@@ -607,11 +608,124 @@ BOOST_AUTO_TEST_CASE( statistics_test )
 { try {
 
    INVOKE(rps_tournament_payout_test);
+
+   affiliate_test_helper ath( *this );
+
+   transfer( ath.audrey_id, ath.alice_id, asset( 10 ), asset(0) );
+   transfer( ath.audrey_id, ath.ann_id,   asset( 10 ), asset(0) );
+
    INVOKE(bookie_payout_test);
+
+   const asset_id_type btc_id = get_asset( "BTC" ).id;
+
+   transfer( ath.alice_id, ath.ann_id,    asset( 100, btc_id ), asset(0) );
+   transfer( ath.alice_id, ath.audrey_id, asset( 100, btc_id ), asset(0) );
 
    generate_block();
 
+   {
+      const auto& idx = db.get_index_type<graphene::affiliate_stats::referral_reward_index>().indices().get<graphene::affiliate_stats::by_asset>();
+      BOOST_CHECK_EQUAL( 2, idx.size() ); // penny 216+60 CORE, paula 600 BTC
+   }
+
+   {
+      const auto& idx = db.get_index_type<graphene::affiliate_stats::app_reward_index>().indices().get<graphene::affiliate_stats::by_asset>();
+      BOOST_CHECK_EQUAL( 3, idx.size() ); // rps 216 CORE, bookie 60 CORE + 600 BTC
+   }
+
    graphene::affiliate_stats::affiliate_stats_api stats( app );
+
+   {
+      std::vector<graphene::affiliate_stats::referral_payment> refs = stats.list_historic_referral_rewards( ath.alice_id, operation_history_id_type() );
+      BOOST_CHECK_EQUAL( 3, refs.size() );
+      BOOST_REQUIRE_LE( 1, refs.size() );
+      BOOST_CHECK_EQUAL( app_tag::rps, refs[0].tag );
+      BOOST_CHECK_EQUAL( 43, refs[0].payout.amount.value );
+      BOOST_CHECK_EQUAL( 0, refs[0].payout.asset_id.instance.value );
+      BOOST_REQUIRE_LE( 2, refs.size() );
+      BOOST_CHECK_EQUAL( app_tag::bookie, refs[1].tag );
+      BOOST_CHECK_EQUAL( 36, refs[1].payout.amount.value );
+      BOOST_CHECK_EQUAL( 0, refs[1].payout.asset_id.instance.value );
+      BOOST_REQUIRE_LE( 3, refs.size() );
+      BOOST_CHECK_EQUAL( app_tag::bookie, refs[2].tag );
+      BOOST_CHECK_EQUAL( 600, refs[2].payout.amount.value );
+      BOOST_CHECK_EQUAL( btc_id.instance.value, refs[2].payout.asset_id.instance.value );
+
+      BOOST_CHECK_EQUAL( 3, stats.list_historic_referral_rewards( ath.alice_id, refs[0].id ).size() );
+      BOOST_CHECK_EQUAL( 2, stats.list_historic_referral_rewards( ath.alice_id, refs[1].id ).size() );
+      BOOST_CHECK_EQUAL( 1, stats.list_historic_referral_rewards( ath.alice_id, refs[2].id ).size() );
+
+      refs = stats.list_historic_referral_rewards( ath.ann_id, operation_history_id_type() );
+      BOOST_CHECK_EQUAL( 2, refs.size() );
+      BOOST_REQUIRE_LE( 1, refs.size() );
+      BOOST_CHECK_EQUAL( app_tag::rps, refs[0].tag );
+      BOOST_CHECK_EQUAL( 64, refs[0].payout.amount.value );
+      BOOST_CHECK_EQUAL( 0, refs[0].payout.asset_id.instance.value );
+      BOOST_REQUIRE_LE( 2, refs.size() );
+      BOOST_CHECK_EQUAL( app_tag::bookie, refs[1].tag );
+      BOOST_CHECK_EQUAL( 24, refs[1].payout.amount.value );
+      BOOST_CHECK_EQUAL( 0, refs[1].payout.asset_id.instance.value );
+
+      BOOST_CHECK_EQUAL( 2, stats.list_historic_referral_rewards( ath.ann_id, refs[0].id ).size() );
+      BOOST_CHECK_EQUAL( 1, stats.list_historic_referral_rewards( ath.ann_id, refs[1].id ).size() );
+
+      refs = stats.list_historic_referral_rewards( ath.audrey_id, operation_history_id_type() );
+      BOOST_CHECK_EQUAL( 1, refs.size() );
+      BOOST_REQUIRE_LE( 1, refs.size() );
+      BOOST_CHECK_EQUAL( app_tag::rps, refs[0].tag );
+      BOOST_CHECK_EQUAL( 109, refs[0].payout.amount.value );
+      BOOST_CHECK_EQUAL( 0, refs[0].payout.asset_id.instance.value );
+
+      BOOST_CHECK_EQUAL( 0, stats.list_historic_referral_rewards( ath.alice_id, operation_history_id_type(9990) ).size() );
+      BOOST_CHECK_EQUAL( 1, stats.list_historic_referral_rewards( ath.alice_id, operation_history_id_type(), 1 ).size() );
+      BOOST_CHECK_EQUAL( 0, stats.list_historic_referral_rewards( ath.paula_id, operation_history_id_type() ).size() );
+      BOOST_CHECK_EQUAL( 0, stats.list_historic_referral_rewards( ath.penny_id, operation_history_id_type() ).size() );
+      BOOST_CHECK_EQUAL( 0, stats.list_historic_referral_rewards( ath.petra_id, operation_history_id_type() ).size() );
+   }
+
+   {
+      std::vector<graphene::affiliate_stats::top_referred_account> refs = stats.list_top_referred_accounts( asset_id_type() );
+      BOOST_CHECK_EQUAL( 1, refs.size() );
+      BOOST_REQUIRE_LE( 1, refs.size() );
+      BOOST_CHECK_EQUAL( ath.penny_id.instance.value, refs[0].referral.instance.value );
+      BOOST_CHECK_EQUAL( 276, refs[0].total_payout.amount.value );
+      BOOST_CHECK_EQUAL( 0, refs[0].total_payout.asset_id.instance.value );
+
+      refs = stats.list_top_referred_accounts( btc_id );
+      BOOST_CHECK_EQUAL( 1, refs.size() );
+      BOOST_REQUIRE_LE( 1, refs.size() );
+      BOOST_CHECK_EQUAL( ath.paula_id.instance.value, refs[0].referral.instance.value );
+      BOOST_CHECK_EQUAL( 600, refs[0].total_payout.amount.value );
+      BOOST_CHECK_EQUAL( btc_id.instance.value, refs[0].total_payout.asset_id.instance.value );
+
+      BOOST_CHECK_EQUAL( 1, stats.list_top_referred_accounts( btc_id, 1 ).size() );
+      BOOST_CHECK_EQUAL( 0, stats.list_top_referred_accounts( btc_id, 0 ).size() );
+      BOOST_CHECK_EQUAL( 0, stats.list_top_referred_accounts( asset_id_type(9999) ).size() );
+   }
+
+   {
+      std::vector<graphene::affiliate_stats::top_app> top = stats.list_top_rewards_per_app( asset_id_type() );
+      BOOST_CHECK_EQUAL( 2, top.size() );
+      BOOST_REQUIRE_LE( 1, top.size() );
+      BOOST_CHECK_EQUAL( app_tag::rps, top[0].app );
+      BOOST_CHECK_EQUAL( 216, top[0].total_payout.amount.value );
+      BOOST_CHECK_EQUAL( 0, top[0].total_payout.asset_id.instance.value );
+      BOOST_REQUIRE_LE( 2, top.size() );
+      BOOST_CHECK_EQUAL( app_tag::bookie, top[1].app );
+      BOOST_CHECK_EQUAL( 60, top[1].total_payout.amount.value );
+      BOOST_CHECK_EQUAL( 0, top[1].total_payout.asset_id.instance.value );
+
+      top = stats.list_top_rewards_per_app( btc_id );
+      BOOST_CHECK_EQUAL( 1, top.size() );
+      BOOST_REQUIRE_LE( 1, top.size() );
+      BOOST_CHECK_EQUAL( app_tag::bookie, top[0].app );
+      BOOST_CHECK_EQUAL( 600, top[0].total_payout.amount.value );
+      BOOST_CHECK_EQUAL( btc_id.instance.value, top[0].total_payout.asset_id.instance.value );
+
+      BOOST_CHECK_EQUAL( 1, stats.list_top_rewards_per_app( asset_id_type(), 1 ).size() );
+      BOOST_CHECK_EQUAL( 0, stats.list_top_referred_accounts( btc_id, 0 ).size() );
+      BOOST_CHECK_EQUAL( 0, stats.list_top_rewards_per_app( asset_id_type(9999) ).size() );
+   }
 
 } FC_LOG_AND_RETHROW() }
 

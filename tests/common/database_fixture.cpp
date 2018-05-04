@@ -28,6 +28,7 @@
 #include <graphene/market_history/market_history_plugin.hpp>
 #include <graphene/bookie/bookie_plugin.hpp>
 #include <graphene/bookie/bookie_api.hpp>
+#include <graphene/affiliate_stats/affiliate_stats_plugin.hpp>
 
 #include <graphene/db/simple_index.hpp>
 
@@ -83,6 +84,7 @@ database_fixture::database_fixture()
    auto ahplugin = app.register_plugin<graphene::account_history::account_history_plugin>();
    auto mhplugin = app.register_plugin<graphene::market_history::market_history_plugin>();
    auto bookieplugin = app.register_plugin<graphene::bookie::bookie_plugin>();
+   auto affiliateplugin = app.register_plugin<graphene::affiliate_stats::affiliate_stats_plugin>();
    init_account_pub_key = init_account_priv_key.get_public_key();
 
    boost::program_options::variables_map options;
@@ -114,10 +116,13 @@ database_fixture::database_fixture()
    mhplugin->plugin_initialize(options);
    bookieplugin->plugin_set_app(&app);
    bookieplugin->plugin_initialize(options);
+   affiliateplugin->plugin_set_app(&app);
+   affiliateplugin->plugin_initialize(options);
 
    ahplugin->plugin_startup();
    mhplugin->plugin_startup();
    bookieplugin->plugin_startup();
+   affiliateplugin->plugin_startup();
 
    generate_block();
 
@@ -451,7 +456,7 @@ const asset_object& database_fixture::get_asset( const string& symbol )const
 {
    const auto& idx = db.get_index_type<asset_index>().indices().get<by_symbol>();
    const auto itr = idx.find(symbol);
-   assert( itr != idx.end() );
+   FC_ASSERT( itr != idx.end() );
    return *itr;
 }
 
@@ -459,7 +464,7 @@ const account_object& database_fixture::get_account( const string& name )const
 {
    const auto& idx = db.get_index_type<account_index>().indices().get<by_name>();
    const auto itr = idx.find(name);
-   assert( itr != idx.end() );
+   FC_ASSERT( itr != idx.end() );
    return *itr;
 }
 
