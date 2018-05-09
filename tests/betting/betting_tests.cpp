@@ -410,8 +410,6 @@ BOOST_AUTO_TEST_CASE(binned_order_books)
           idump((*bet_iter));
           ++bet_iter;
         }
-
-
       }
 
 
