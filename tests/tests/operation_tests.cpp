@@ -1287,6 +1287,7 @@ BOOST_AUTO_TEST_CASE( test_update_dividend_interval )
       throw;
    }
 }
+
 BOOST_AUTO_TEST_CASE( test_basic_dividend_distribution )
 {
    using namespace graphene;
@@ -1420,6 +1421,177 @@ BOOST_AUTO_TEST_CASE( test_basic_dividend_distribution )
       throw;
    }
 }
+
+BOOST_AUTO_TEST_CASE( test_basic_dividend_distribution_to_core_asset )
+{
+   using namespace graphene;
+   try {
+      BOOST_TEST_MESSAGE("Creating test accounts");
+      create_account("alice");
+      create_account("bob");
+      create_account("carol");
+      create_account("dave");
+      create_account("frank");
+      
+      BOOST_TEST_MESSAGE("Creating test asset");
+      {
+         asset_create_operation creator;
+         creator.issuer = account_id_type();
+         creator.fee = asset();
+         creator.symbol = "TEST";
+         creator.common_options.max_supply = 100000000;
+         creator.precision = 2;
+         creator.common_options.market_fee_percent = GRAPHENE_MAX_MARKET_FEE_PERCENT/100; /*1%*/
+         creator.common_options.issuer_permissions = UIA_ASSET_ISSUER_PERMISSION_MASK;
+         creator.common_options.flags = charge_market_fee;
+         creator.common_options.core_exchange_rate = price({asset(2),asset(1,asset_id_type(1))});
+         trx.operations.push_back(std::move(creator));
+         set_expiration(db, trx);
+         PUSH_TX( db, trx, ~0 );
+         trx.operations.clear();
+      }
+      generate_block();
+
+      const auto& dividend_holder_asset_object = asset_id_type(0)(db);
+      const auto& dividend_data = dividend_holder_asset_object.dividend_data(db);
+      const account_object& dividend_distribution_account = dividend_data.dividend_distribution_account(db);
+      const account_object& alice = get_account("alice");
+      const account_object& bob = get_account("bob");
+      const account_object& carol = get_account("carol");
+      const account_object& dave = get_account("dave");
+      const account_object& frank = get_account("frank");
+      const auto& test_asset_object = get_asset("TEST");
+
+      auto issue_asset_to_account = [&](const asset_object& asset_to_issue, const account_object& destination_account, int64_t amount_to_issue)
+      {
+         asset_issue_operation op;
+         op.issuer = asset_to_issue.issuer;
+         op.asset_to_issue = asset(amount_to_issue, asset_to_issue.id); 
+         op.issue_to_account = destination_account.id;
+         trx.operations.push_back( op );
+         set_expiration(db, trx);
+         PUSH_TX( db, trx, ~0 );
+         trx.operations.clear();
+      };
+
+      auto verify_pending_balance = [&](const account_object& holder_account_obj, const asset_object& payout_asset_obj, int64_t expected_balance) {
+         int64_t pending_balance = get_dividend_pending_payout_balance(dividend_holder_asset_object.id,
+                                                                       holder_account_obj.id,
+                                                                       payout_asset_obj.id);
+         BOOST_CHECK_EQUAL(pending_balance, expected_balance);
+      };
+
+      auto advance_to_next_payout_time = [&]() {
+         // Advance to the next upcoming payout time
+         BOOST_REQUIRE(dividend_data.options.next_payout_time);
+         fc::time_point_sec next_payout_scheduled_time = *dividend_data.options.next_payout_time;
+         idump((next_payout_scheduled_time));
+         // generate blocks up to the next scheduled time
+         generate_blocks(next_payout_scheduled_time);
+         // if the scheduled time fell on a maintenance interval, then we should have paid out.
+         // if not, we need to advance to the next maintenance interval to trigger the payout
+         if (dividend_data.options.next_payout_time)
+         {
+            // we know there was a next_payout_time set when we entered this, so if
+            // it has been cleared, we must have already processed payouts, no need to
+            // further advance time.
+            BOOST_REQUIRE(dividend_data.options.next_payout_time);
+            if (*dividend_data.options.next_payout_time == next_payout_scheduled_time)
+               generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+            generate_block();   // get the maintenance skip slots out of the way
+         }
+         idump((db.head_block_time()));
+      };
+
+      // the first test will be testing pending balances, so we need to hit a
+      // maintenance interval that isn't the payout interval.  Payout is
+      // every 3 days, maintenance interval is every 1 day.
+      advance_to_next_payout_time();
+
+      // Set up the first test, issue alice, bob, and carol, and dave each 1/4 of the total
+      // supply of the core asset. 
+      // Then deposit 400 TEST in the distribution account, and see that they
+      // each are credited 100 TEST.
+      transfer( committee_account(db), alice, asset( 250000000000000 ) );
+      transfer( committee_account(db), bob,   asset( 250000000000000 ) );
+      transfer( committee_account(db), carol, asset( 250000000000000 ) );
+      transfer( committee_account(db), dave,  asset( 250000000000000 ) );
+
+      BOOST_TEST_MESSAGE("Issuing 300 TEST to the dividend account");
+      issue_asset_to_account(test_asset_object, dividend_distribution_account, 40000);
+
+      generate_block();
+ 
+      BOOST_TEST_MESSAGE( "Generating blocks until next maintenance interval" );
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      generate_block();   // get the maintenance skip slots out of the way
+
+      verify_pending_balance(alice, test_asset_object, 10000);
+      verify_pending_balance(bob, test_asset_object, 10000);
+      verify_pending_balance(carol, test_asset_object, 10000);
+      verify_pending_balance(dave, test_asset_object, 10000);
+
+      // For the second test, issue dave more than the other two, so it's
+      // alice: 1/5 CORE, bob: 1/5 CORE, carol: 1/5 CORE, dave: 2/5 CORE
+      // Then deposit 500 TEST in the distribution account, and see that alice
+      // bob, and carol are credited with 100 TEST, and dave gets 200 TEST
+      BOOST_TEST_MESSAGE("Issuing dave twice as much of the holder asset");
+      transfer( alice, dave, asset( 50000000000000 ) );
+      transfer( bob, dave,   asset( 50000000000000 ) );
+      transfer( carol, dave, asset( 50000000000000 ) );
+      issue_asset_to_account(test_asset_object, dividend_distribution_account, 50000); // 500 at two digits of precision
+      BOOST_TEST_MESSAGE( "Generating blocks until next maintenance interval" );
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+      generate_block();   // get the maintenance skip slots out of the way
+      verify_pending_balance(alice, test_asset_object, 20000);
+      verify_pending_balance(bob, test_asset_object, 20000);
+      verify_pending_balance(carol, test_asset_object, 20000);
+      verify_pending_balance(dave, test_asset_object, 30000);
+
+      fc::time_point_sec old_next_payout_scheduled_time = *dividend_data.options.next_payout_time;
+      advance_to_next_payout_time();
+
+
+      BOOST_REQUIRE_MESSAGE(dividend_data.options.next_payout_time, "No new payout was scheduled");
+      BOOST_CHECK_MESSAGE(old_next_payout_scheduled_time != *dividend_data.options.next_payout_time,
+                             "New payout was scheduled for the same time as the last payout");
+      BOOST_CHECK_MESSAGE(old_next_payout_scheduled_time + *dividend_data.options.payout_interval == *dividend_data.options.next_payout_time,
+                             "New payout was not scheduled for the expected time");
+
+      auto verify_dividend_payout_operations = [&](const account_object& destination_account, const asset& expected_payout)
+      {
+         BOOST_TEST_MESSAGE("Verifying the virtual op was created");
+         const account_transaction_history_index& hist_idx = db.get_index_type<account_transaction_history_index>();
+         auto account_history_range = hist_idx.indices().get<by_seq>().equal_range(boost::make_tuple(destination_account.id));
+         BOOST_REQUIRE(account_history_range.first != account_history_range.second);
+         const operation_history_object& history_object = std::prev(account_history_range.second)->operation_id(db);
+         const asset_dividend_distribution_operation& distribution_operation = history_object.op.get<asset_dividend_distribution_operation>();
+         BOOST_CHECK(distribution_operation.account_id == destination_account.id);
+         BOOST_CHECK(distribution_operation.amounts.find(expected_payout) != distribution_operation.amounts.end());
+      };
+
+      BOOST_TEST_MESSAGE("Verifying the payouts");
+      BOOST_CHECK_EQUAL(get_balance(alice, test_asset_object), 20000);
+      verify_dividend_payout_operations(alice, asset(20000, test_asset_object.id));
+      verify_pending_balance(alice, test_asset_object, 0);
+      
+      BOOST_CHECK_EQUAL(get_balance(bob, test_asset_object), 20000);
+      verify_dividend_payout_operations(bob, asset(20000, test_asset_object.id));
+      verify_pending_balance(bob, test_asset_object, 0);
+      
+      BOOST_CHECK_EQUAL(get_balance(carol, test_asset_object), 20000);
+      verify_dividend_payout_operations(carol, asset(20000, test_asset_object.id));
+      verify_pending_balance(carol, test_asset_object, 0);
+
+      BOOST_CHECK_EQUAL(get_balance(dave, test_asset_object), 30000);
+      verify_dividend_payout_operations(dave, asset(30000, test_asset_object.id));
+      verify_pending_balance(dave, test_asset_object, 0);
+   } catch(fc::exception& e) {
+      edump((e.to_detail_string()));
+      throw;
+   }
+}
+
 BOOST_AUTO_TEST_CASE( test_dividend_distribution_interval )
 {
    using namespace graphene;
