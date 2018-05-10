@@ -1088,7 +1088,6 @@ void process_dividend_assets(database& db)
             {
                dlog("Dividend payout time has arrived for asset ${holder_asset}", 
                     ("holder_asset", dividend_holder_asset_obj.symbol));
-
 #ifndef NDEBUG
                // dump balances before the payouts for debugging
                const auto& balance_idx = db.get_index_type<account_balance_index>().indices().get<by_account_asset>();
@@ -1108,7 +1107,7 @@ void process_dividend_assets(database& db)
                // the pending_payouts_range is all payouts for this dividend asset, sorted by the holder's account
                // we iterate in this order so we can build up a list of payouts for each account to put in the 
                // virtual op
-               flat_set<asset> payouts_for_this_holder;
+               vector<asset> payouts_for_this_holder;
                fc::optional<account_id_type> last_holder_account_id;
 
                // cache the assets the distribution account is approved to send, we will be asking
@@ -1124,7 +1123,6 @@ void process_dividend_assets(database& db)
                   return is_approved;
                };
 
-               for (auto pending_balance_object_iter = pending_payouts_range.first; pending_balance_object_iter != pending_payouts_range.second; )
                {
                   const pending_dividend_payout_balance_for_holder_object& pending_balance_object = *pending_balance_object_iter;
 
@@ -1151,8 +1149,8 @@ void process_dividend_assets(database& db)
                      db.adjust_balance(pending_balance_object.owner,
                                        asset(pending_balance_object.pending_balance, 
                                              pending_balance_object.dividend_payout_asset_type));
-                     payouts_for_this_holder.insert(asset(pending_balance_object.pending_balance, 
-                                                          pending_balance_object.dividend_payout_asset_type));
+                     payouts_for_this_holder.push_back(asset(pending_balance_object.pending_balance, 
+                                                             pending_balance_object.dividend_payout_asset_type));
                      last_holder_account_id = pending_balance_object.owner;
                      amounts_paid_out_by_asset[pending_balance_object.dividend_payout_asset_type] += pending_balance_object.pending_balance;
 
