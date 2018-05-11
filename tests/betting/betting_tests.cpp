@@ -706,6 +706,124 @@ BOOST_AUTO_TEST_CASE(match_using_takers_expected_amounts5)
    FC_LOG_AND_RETHROW()
 }
 
+BOOST_AUTO_TEST_CASE(match_using_takers_expected_amounts6)
+{
+   try
+   {
+      generate_blocks(1);
+      ACTORS( (alice)(bob) );
+      CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
+
+      graphene::bookie::bookie_api bookie_api(app);
+
+      transfer(account_id_type(), alice_id, asset(1000000000));
+      share_type alice_expected_balance = 1000000000;
+      BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
+
+      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(10000000, asset_id_type()), 13 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
+      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(10000000, asset_id_type()), 15 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
+      place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(10000000, asset_id_type()), 16 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
+      alice_expected_balance -= 30000000;
+      BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
+
+      // check order books to see they match the bets we placed
+      const auto& bet_odds_idx = db.get_index_type<bet_object_index>().indices().get<by_odds>();
+      auto bet_iter = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
+      BOOST_REQUIRE(bet_iter != bet_odds_idx.end());
+      BOOST_REQUIRE(bet_iter->betting_market_id == capitals_win_market.id);
+      BOOST_REQUIRE(bet_iter->bettor_id == alice_id);
+      BOOST_REQUIRE(bet_iter->amount_to_bet == asset(10000000, asset_id_type()));
+      BOOST_REQUIRE(bet_iter->backer_multiplier == 13 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
+      BOOST_REQUIRE(bet_iter->back_or_lay == bet_type::back);
+      ++bet_iter;
+      BOOST_REQUIRE(bet_iter != bet_odds_idx.end());
+      BOOST_REQUIRE(bet_iter->betting_market_id == capitals_win_market.id);
+      BOOST_REQUIRE(bet_iter->bettor_id == alice_id);
+      BOOST_REQUIRE(bet_iter->amount_to_bet == asset(10000000, asset_id_type()));
+      BOOST_REQUIRE(bet_iter->backer_multiplier == 15 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
+      BOOST_REQUIRE(bet_iter->back_or_lay == bet_type::back);
+      ++bet_iter;
+      BOOST_REQUIRE(bet_iter != bet_odds_idx.end());
+      BOOST_REQUIRE(bet_iter->betting_market_id == capitals_win_market.id);
+      BOOST_REQUIRE(bet_iter->bettor_id == alice_id);
+      BOOST_REQUIRE(bet_iter->amount_to_bet == asset(10000000, asset_id_type()));
+      BOOST_REQUIRE(bet_iter->backer_multiplier == 16 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
+      BOOST_REQUIRE(bet_iter->back_or_lay == bet_type::back);
+      ++bet_iter;
+      BOOST_REQUIRE(bet_iter == bet_odds_idx.end() || bet_iter->betting_market_id != capitals_win_market.id);
+
+      // check the binned order books from the bookie plugin to make sure they match
+      graphene::bookie::binned_order_book binned_orders_point_one = bookie_api.get_binned_order_book(capitals_win_market.id, 1);
+      auto aggregated_back_bets_iter = binned_orders_point_one.aggregated_back_bets.begin();
+      BOOST_REQUIRE(aggregated_back_bets_iter != binned_orders_point_one.aggregated_back_bets.end());
+      BOOST_REQUIRE(aggregated_back_bets_iter->amount_to_bet.value == 10000000);
+      BOOST_REQUIRE(aggregated_back_bets_iter->backer_multiplier == 13 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
+      ++aggregated_back_bets_iter;
+      BOOST_REQUIRE(aggregated_back_bets_iter != binned_orders_point_one.aggregated_back_bets.end());
+      BOOST_REQUIRE(aggregated_back_bets_iter->amount_to_bet.value == 10000000);
+      BOOST_REQUIRE(aggregated_back_bets_iter->backer_multiplier == 15 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
+      ++aggregated_back_bets_iter;
+      BOOST_REQUIRE(aggregated_back_bets_iter != binned_orders_point_one.aggregated_back_bets.end());
+      BOOST_REQUIRE(aggregated_back_bets_iter->amount_to_bet.value == 10000000);
+      BOOST_REQUIRE(aggregated_back_bets_iter->backer_multiplier == 16 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
+      ++aggregated_back_bets_iter;
+      BOOST_REQUIRE(aggregated_back_bets_iter == binned_orders_point_one.aggregated_back_bets.end());
+      BOOST_REQUIRE(binned_orders_point_one.aggregated_lay_bets.empty());
+
+      transfer(account_id_type(), bob_id, asset(1000000000));
+      share_type bob_expected_balance = 1000000000;
+      BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
+
+      place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(5000000, asset_id_type()), 15 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
+      ilog("Order books after bob's matching lay bet:");
+      bet_iter = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
+      while (bet_iter != bet_odds_idx.end() && 
+             bet_iter->betting_market_id == capitals_win_market.id)
+      {
+        idump((*bet_iter));
+        ++bet_iter;
+      }
+
+      bob_expected_balance -= 5000000 - 2000000;
+      BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
+
+      // check order books to see they match after bob's bet matched
+      bet_iter = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
+      BOOST_REQUIRE(bet_iter != bet_odds_idx.end());
+      BOOST_REQUIRE(bet_iter->betting_market_id == capitals_win_market.id);
+      BOOST_REQUIRE(bet_iter->bettor_id == alice_id);
+      BOOST_REQUIRE(bet_iter->amount_to_bet == asset(10000000, asset_id_type()));
+      BOOST_REQUIRE(bet_iter->backer_multiplier == 15 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
+      BOOST_REQUIRE(bet_iter->back_or_lay == bet_type::back);
+      ++bet_iter;
+      BOOST_REQUIRE(bet_iter != bet_odds_idx.end());
+      BOOST_REQUIRE(bet_iter->betting_market_id == capitals_win_market.id);
+      BOOST_REQUIRE(bet_iter->bettor_id == alice_id);
+      BOOST_REQUIRE(bet_iter->amount_to_bet == asset(10000000, asset_id_type()));
+      BOOST_REQUIRE(bet_iter->backer_multiplier == 16 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
+      BOOST_REQUIRE(bet_iter->back_or_lay == bet_type::back);
+      ++bet_iter;
+      BOOST_REQUIRE(bet_iter == bet_odds_idx.end() || bet_iter->betting_market_id != capitals_win_market.id);
+
+      // check the binned order books from the bookie plugin to make sure they match
+      binned_orders_point_one = bookie_api.get_binned_order_book(capitals_win_market.id, 1);
+      aggregated_back_bets_iter = binned_orders_point_one.aggregated_back_bets.begin();
+      BOOST_REQUIRE(aggregated_back_bets_iter != binned_orders_point_one.aggregated_back_bets.end());
+      BOOST_REQUIRE(aggregated_back_bets_iter->amount_to_bet.value == 10000000);
+      BOOST_REQUIRE(aggregated_back_bets_iter->backer_multiplier == 15 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
+      ++aggregated_back_bets_iter;
+      BOOST_REQUIRE(aggregated_back_bets_iter != binned_orders_point_one.aggregated_back_bets.end());
+      BOOST_REQUIRE(aggregated_back_bets_iter->amount_to_bet.value == 10000000);
+      BOOST_REQUIRE(aggregated_back_bets_iter->backer_multiplier == 16 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
+      ++aggregated_back_bets_iter;
+      BOOST_REQUIRE(aggregated_back_bets_iter == binned_orders_point_one.aggregated_back_bets.end());
+      BOOST_REQUIRE(binned_orders_point_one.aggregated_lay_bets.empty());
+
+
+   }
+   FC_LOG_AND_RETHROW()
+}
+
 BOOST_AUTO_TEST_CASE(inexact_odds)
 {
    try
