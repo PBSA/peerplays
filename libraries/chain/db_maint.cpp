@@ -1123,6 +1123,7 @@ void process_dividend_assets(database& db)
                   return is_approved;
                };
 
+               for (auto pending_balance_object_iter = pending_payouts_range.first; pending_balance_object_iter != pending_payouts_range.second; )
                {
                   const pending_dividend_payout_balance_for_holder_object& pending_balance_object = *pending_balance_object_iter;
 
