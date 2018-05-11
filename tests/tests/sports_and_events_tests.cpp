@@ -21,24 +21,34 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <graphene/chain/protocol/sport.hpp>
 
-namespace graphene { namespace chain {
+#include <boost/test/unit_test.hpp>
 
-void sport_create_operation::validate() const
+#include <graphene/chain/database.hpp>
+#include <graphene/chain/exceptions.hpp>
+#include <graphene/chain/hardfork.hpp>
+
+#include <graphene/chain/account_object.hpp>
+#include <graphene/chain/asset_object.hpp>
+#include <graphene/chain/committee_member_object.hpp>
+#include <graphene/chain/market_object.hpp>
+#include <graphene/chain/vesting_balance_object.hpp>
+#include <graphene/chain/withdraw_permission_object.hpp>
+#include <graphene/chain/witness_object.hpp>
+#include <graphene/account_history/account_history_plugin.hpp>
+
+#include <fc/crypto/digest.hpp>
+
+#include "../common/database_fixture.hpp"
+
+using namespace graphene::chain;
+using namespace graphene::chain::test;
+
+BOOST_FIXTURE_TEST_SUITE( sports_and_events_tests, database_fixture )
+
+BOOST_AUTO_TEST_CASE( propose_delete_sport )
 {
-   FC_ASSERT( fee.amount >= 0 );
+
 }
 
-void sport_update_operation::validate() const
-{
-   FC_ASSERT( fee.amount >= 0 );
-}
-
-void sport_delete_operation::validate() const
-{
-    FC_ASSERT( fee.amount >= 0 );
-}
-
-} } // graphene::chain
-
+BOOST_AUTO_TEST_SUITE_END()

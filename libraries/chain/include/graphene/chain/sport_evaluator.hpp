@@ -47,4 +47,13 @@ namespace graphene { namespace chain {
          void_result do_apply( const sport_update_operation& o );
    };
 
+   class sport_delete_evaluator : public evaluator<sport_delete_evaluator>
+   {
+   public:
+       typedef sport_delete_operation operation_type;
+       
+       void_result do_evaluate( const sport_delete_operation& o );
+       void_result do_apply( const sport_delete_operation& o );
+   };
+    
 } } // graphene::chain

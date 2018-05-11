@@ -70,5 +70,11 @@ void_result sport_update_evaluator::do_evaluate(const sport_update_operation& op
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
+    
+void_result sport_delete_evaluator::do_evaluate( const sport_delete_operation& o )
+{}
+    
+void_result sport_delete_evaluator::do_apply( const sport_delete_operation& o )
+{}
 
 } } // graphene::chain

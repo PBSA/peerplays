@@ -106,6 +106,7 @@ namespace graphene { namespace chain {
             tournament_leave_operation,
             sport_create_operation,
             sport_update_operation,
+            sport_delete_operation,
             event_group_create_operation,
             event_group_update_operation,
             event_create_operation,
