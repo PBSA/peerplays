@@ -1329,6 +1329,14 @@ void database_fixture::update_event_group(event_group_id_type event_group_id,
 } FC_CAPTURE_AND_RETHROW( (name) )
 }
 
+void database_fixture::delete_event_group(event_group_id_type event_group_id)
+{ try {
+    event_group_delete_operation event_group_delete_op;
+    event_group_delete_op.event_group_id = event_group_id;
+    process_operation_by_witnesses(event_group_delete_op);
+} FC_CAPTURE_AND_RETHROW( (event_group_id) )
+}
+    
 void database_fixture::try_update_event_group(event_group_id_type event_group_id,
                                               fc::optional<object_id_type> sport_id,
                                               fc::optional<internationalized_string_type> name,

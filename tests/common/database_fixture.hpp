@@ -309,6 +309,7 @@ struct database_fixture {
    void  update_event_group(event_group_id_type event_group_id,
                             fc::optional<object_id_type> sport_id,
                             fc::optional<internationalized_string_type> name);
+   void  delete_event_group(event_group_id_type event_group_id);
    void  try_update_event_group(event_group_id_type event_group_id,
                                 fc::optional<object_id_type> sport_id,
                                 fc::optional<internationalized_string_type> name,

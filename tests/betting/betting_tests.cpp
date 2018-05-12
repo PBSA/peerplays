@@ -1583,6 +1583,18 @@ BOOST_AUTO_TEST_CASE(event_group_update_test)
    } FC_LOG_AND_RETHROW()
 }
 
+BOOST_AUTO_TEST_CASE(event_group_delete_test)
+{
+    try
+    {
+        ACTORS( (alice)(bob) );
+        CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
+        
+        delete_event_group(nhl.id);
+        const auto& event_group_by_id = db.get_index_type<event_group_object_index>().indices().get<by_id>();
+        BOOST_CHECK(event_group_by_id.end() == event_group_by_id.find(nhl.id));
+    } FC_LOG_AND_RETHROW()
+}
 
 BOOST_AUTO_TEST_CASE(event_update_test)
 {
@@ -1629,6 +1641,8 @@ BOOST_AUTO_TEST_CASE(event_update_test)
       BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000);
   } FC_LOG_AND_RETHROW()
 }
+
+
 
 BOOST_AUTO_TEST_CASE(betting_market_rules_update_test)
 {

@@ -105,6 +105,8 @@ void_result event_group_delete_evaluator::do_evaluate(const event_group_delete_o
 
 void_result event_group_delete_evaluator::do_apply(const event_group_delete_operation& op)
 { try {
+    database& _db = db();
+    _db.remove(_db.get(op.event_group_id));
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
     
