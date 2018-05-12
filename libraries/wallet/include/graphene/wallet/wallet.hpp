@@ -1627,6 +1627,12 @@ class wallet_api
               fc::optional<internationalized_string_type> name,
               bool broadcast = false);
 
+      signed_transaction propose_delete_event_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              event_group_id_type event_group,
+              bool broadcast = false);
+    
       signed_transaction propose_create_event(
               const string& proposing_account,
               fc::time_point_sec expiration_time,

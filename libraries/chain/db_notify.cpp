@@ -196,6 +196,7 @@ struct get_impacted_account_visitor
    void operator()(const sport_delete_operation&){}
    void operator()(const event_group_create_operation&){}
    void operator()(const event_group_update_operation& op ) {}
+   void operator()(const event_group_delete_operation& op ) {}
    void operator()(const event_create_operation&){}
    void operator()(const event_update_operation& op ) {}
    void operator()(const event_update_status_operation& op ) {}

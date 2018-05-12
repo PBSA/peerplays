@@ -96,5 +96,16 @@ void_result event_group_update_evaluator::do_apply(const event_group_update_oper
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
+    
+void_result event_group_delete_evaluator::do_evaluate(const event_group_delete_operation& op)
+{ try {
+    FC_ASSERT(trx_state->_is_proposed_trx);
+    return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
 
+void_result event_group_delete_evaluator::do_apply(const event_group_delete_operation& op)
+{ try {
+    return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+    
 } } // graphene::chain

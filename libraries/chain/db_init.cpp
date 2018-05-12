@@ -219,6 +219,7 @@ void database::initialize_evaluators()
    register_evaluator<sport_delete_evaluator>();
    register_evaluator<event_group_create_evaluator>();
    register_evaluator<event_group_update_evaluator>();
+   register_evaluator<event_group_delete_evaluator>();
    register_evaluator<event_create_evaluator>();
    register_evaluator<event_update_evaluator>();
    register_evaluator<event_update_status_evaluator>();
