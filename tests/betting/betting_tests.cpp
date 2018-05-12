@@ -1143,7 +1143,7 @@ BOOST_AUTO_TEST_CASE(delayed_bets_test) // test live betting
       // bob's bet will still be delayed, so the active order book will only contain alice's bet
       first_bet_in_market = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
       last_bet_in_market = bet_odds_idx.upper_bound(std::make_tuple(capitals_win_market.id));
-      edump((std::distance(first_bet_in_market, last_bet_in_market)));
+//      edump((std::distance(first_bet_in_market, last_bet_in_market)));
       BOOST_CHECK(std::distance(first_bet_in_market, last_bet_in_market) == 1);
       for (const auto& bet : boost::make_iterator_range(first_bet_in_market, last_bet_in_market))
         edump((bet));
@@ -1525,6 +1525,18 @@ BOOST_AUTO_TEST_CASE(sport_update_test)
      BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000);
 
    } FC_LOG_AND_RETHROW()
+}
+
+BOOST_AUTO_TEST_CASE(sport_delete_test)
+{
+    try
+    {
+        ACTORS( (alice) );
+        CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
+        delete_sport(ice_hockey.id);
+        const auto& sport_by_id = db.get_index_type<sport_object_index>().indices().get<by_id>();
+        BOOST_CHECK(sport_by_id.end() == sport_by_id.find(ice_hockey.id));
+    } FC_LOG_AND_RETHROW()
 }
 
 BOOST_AUTO_TEST_CASE(event_group_update_test)

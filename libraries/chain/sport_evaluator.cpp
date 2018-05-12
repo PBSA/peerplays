@@ -57,7 +57,7 @@ void_result sport_update_evaluator::do_evaluate(const sport_update_operation& op
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
- void_result sport_update_evaluator::do_apply(const sport_update_operation& op)
+void_result sport_update_evaluator::do_apply(const sport_update_operation& op)
 { try {
    database& _db = db();
    _db.modify(
@@ -71,10 +71,17 @@ void_result sport_update_evaluator::do_evaluate(const sport_update_operation& op
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
     
-void_result sport_delete_evaluator::do_evaluate( const sport_delete_operation& o )
-{}
+void_result sport_delete_evaluator::do_evaluate( const sport_delete_operation& op )
+{ try {
+   FC_ASSERT(trx_state->_is_proposed_trx);
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
     
-void_result sport_delete_evaluator::do_apply( const sport_delete_operation& o )
-{}
+void_result sport_delete_evaluator::do_apply( const sport_delete_operation& op )
+{ try {
+   database& _db = db();
+   _db.remove(_db.get(op.sport_id));
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
 
 } } // graphene::chain
