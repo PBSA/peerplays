@@ -1590,9 +1590,18 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test)
         ACTORS( (alice)(bob) );
         CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
         
+        const auto& event_1 = create_event({{"en", "Washington Capitals/Chicago Blackhawks1"}}, {{"en", "2016-17"}}, nhl.id);
+        const auto& event_2 = create_event({{"en", "Washington Capitals/Chicago Blackhawks2"}}, {{"en", "2016-17"}}, nhl.id);
+        const auto& event_3 = create_event({{"en", "Washington Capitals/Chicago Blackhawks3"}}, {{"en", "2016-17"}}, nhl.id);
+        
         delete_event_group(nhl.id);
+        
         const auto& event_group_by_id = db.get_index_type<event_group_object_index>().indices().get<by_id>();
         BOOST_CHECK(event_group_by_id.end() == event_group_by_id.find(nhl.id));
+        
+        BOOST_CHECK(event_status::canceled == event_1.get_status());
+        BOOST_CHECK(event_status::canceled == event_2.get_status());
+        BOOST_CHECK(event_status::canceled == event_3.get_status());
     } FC_LOG_AND_RETHROW()
 }
 

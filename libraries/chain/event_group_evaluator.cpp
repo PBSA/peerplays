@@ -23,6 +23,7 @@
  */
 #include <graphene/chain/event_group_evaluator.hpp>
 #include <graphene/chain/event_group_object.hpp>
+#include <graphene/chain/event_object.hpp>
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/exceptions.hpp>
@@ -106,6 +107,17 @@ void_result event_group_delete_evaluator::do_evaluate(const event_group_delete_o
 void_result event_group_delete_evaluator::do_apply(const event_group_delete_operation& op)
 { try {
     database& _db = db();
+    
+    const auto& events_for_group = _db.get_index_type<event_object_index>().indices().get<by_event_group_id>();
+    auto event_it = events_for_group.lower_bound(op.event_group_id);
+    auto event_end_it = events_for_group.upper_bound(op.event_group_id);
+    for (; event_it != event_end_it; ++event_it)
+    {
+        _db.modify( *event_it, [&](event_object& event_obj) {
+            event_obj.dispatch_new_status(_db, event_status::canceled);
+        });
+    }
+    
     _db.remove(_db.get(op.event_group_id));
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
