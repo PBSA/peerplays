@@ -1587,12 +1587,15 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test)
 {
     try
     {
-        ACTORS( (alice)(bob) );
         CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
         
         const auto& event_1 = create_event({{"en", "Washington Capitals/Chicago Blackhawks1"}}, {{"en", "2016-17"}}, nhl.id);
         const auto& event_2 = create_event({{"en", "Washington Capitals/Chicago Blackhawks2"}}, {{"en", "2016-17"}}, nhl.id);
         const auto& event_3 = create_event({{"en", "Washington Capitals/Chicago Blackhawks3"}}, {{"en", "2016-17"}}, nhl.id);
+        
+        const auto& market_group = create_betting_market_group({{"en", "Moneyline1"}}, event_1.id, betting_market_rules.id, asset_id_type(), false, 0);
+        const auto& market_1 = create_betting_market(market_group.id, {{"en", "M. Cilic defeats R. Federer1"}});
+        const auto& market_2 = create_betting_market(market_group.id, {{"en", "M. Cilic defeats R. Federer2"}});
         
         delete_event_group(nhl.id);
         
@@ -1602,6 +1605,11 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test)
         BOOST_CHECK(event_status::canceled == event_1.get_status());
         BOOST_CHECK(event_status::canceled == event_2.get_status());
         BOOST_CHECK(event_status::canceled == event_3.get_status());
+        
+        BOOST_CHECK(betting_market_group_status::canceled == market_group.get_status());
+        
+        BOOST_CHECK(betting_market_status::canceled == market_1.get_status());
+        BOOST_CHECK(betting_market_status::canceled == market_2.get_status());
     } FC_LOG_AND_RETHROW()
 }
 

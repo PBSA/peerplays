@@ -108,17 +108,12 @@ void_result event_group_delete_evaluator::do_apply(const event_group_delete_oper
 { try {
     database& _db = db();
     
-    const auto& events_for_group = _db.get_index_type<event_object_index>().indices().get<by_event_group_id>();
-    auto event_it = events_for_group.lower_bound(op.event_group_id);
-    auto event_end_it = events_for_group.upper_bound(op.event_group_id);
-    for (; event_it != event_end_it; ++event_it)
-    {
-        _db.modify( *event_it, [&](event_object& event_obj) {
-            event_obj.dispatch_new_status(_db, event_status::canceled);
-        });
-    }
+    const auto& event_group = _db.get(op.event_group_id);
+    _db.modify(event_group, [&](event_group_object& mutable_event_group) {
+        mutable_event_group.cancel_events(_db);
+    });
     
-    _db.remove(_db.get(op.event_group_id));
+    _db.remove(event_group);
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
     
