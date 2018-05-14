@@ -84,7 +84,6 @@ struct event_group_delete_operation : public base_operation
    void            validate()const;
 };
 
-
 } }
 
 FC_REFLECT( graphene::chain::event_group_create_operation::fee_parameters_type, (fee) )
@@ -97,4 +96,4 @@ FC_REFLECT( graphene::chain::event_group_update_operation,
 
 FC_REFLECT( graphene::chain::event_group_delete_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::event_group_delete_operation,
-           (fee)(event_group_id)(extensions) )
+            (fee)(event_group_id)(extensions) )

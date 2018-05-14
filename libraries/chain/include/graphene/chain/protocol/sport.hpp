@@ -84,4 +84,4 @@ FC_REFLECT( graphene::chain::sport_update_operation,
 
 FC_REFLECT( graphene::chain::sport_delete_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::sport_delete_operation,
-           (fee)(sport_id)(extensions) )
+            (fee)(sport_id)(extensions) )
