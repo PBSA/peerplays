@@ -1531,11 +1531,15 @@ BOOST_AUTO_TEST_CASE(sport_delete_test)
 {
     try
     {
-        ACTORS( (alice) );
         CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
+        
         delete_sport(ice_hockey.id);
+        
         const auto& sport_by_id = db.get_index_type<sport_object_index>().indices().get<by_id>();
+        const auto& event_group_by_id = db.get_index_type<event_group_object_index>().indices().get<by_id>();
+        
         BOOST_CHECK(sport_by_id.end() == sport_by_id.find(ice_hockey.id));
+        BOOST_CHECK(event_group_by_id.end() == event_group_by_id.find(nhl.id));
     } FC_LOG_AND_RETHROW()
 }
 
@@ -1589,13 +1593,13 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test)
     {
         CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
         
-        const auto& event_1 = create_event({{"en", "Washington Capitals/Chicago Blackhawks1"}}, {{"en", "2016-17"}}, nhl.id);
-        const auto& event_2 = create_event({{"en", "Washington Capitals/Chicago Blackhawks2"}}, {{"en", "2016-17"}}, nhl.id);
-        const auto& event_3 = create_event({{"en", "Washington Capitals/Chicago Blackhawks3"}}, {{"en", "2016-17"}}, nhl.id);
+        const auto& event_1 = create_event({{"en", "event 1"}}, {{"en", "2016-17"}}, nhl.id);
+        const auto& event_2 = create_event({{"en", "event 2"}}, {{"en", "2016-17"}}, nhl.id);
+        const auto& event_3 = create_event({{"en", "event 3"}}, {{"en", "2016-17"}}, nhl.id);
         
-        const auto& market_group = create_betting_market_group({{"en", "Moneyline1"}}, event_1.id, betting_market_rules.id, asset_id_type(), false, 0);
-        const auto& market_1 = create_betting_market(market_group.id, {{"en", "M. Cilic defeats R. Federer1"}});
-        const auto& market_2 = create_betting_market(market_group.id, {{"en", "M. Cilic defeats R. Federer2"}});
+        const auto& market_group = create_betting_market_group({{"en", "market group 1"}}, event_1.id, betting_market_rules.id, asset_id_type(), false, 0);
+        const auto& market_1 = create_betting_market(market_group.id, {{"en", "market 1"}});
+        const auto& market_2 = create_betting_market(market_group.id, {{"en", "market 2"}});
         
         delete_event_group(nhl.id);
         

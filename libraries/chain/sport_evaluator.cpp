@@ -23,6 +23,7 @@
  */
 #include <graphene/chain/sport_evaluator.hpp>
 #include <graphene/chain/sport_object.hpp>
+#include <graphene/chain/event_group_object.hpp>
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/exceptions.hpp>
@@ -80,7 +81,21 @@ void_result sport_delete_evaluator::do_evaluate( const sport_delete_operation& o
 void_result sport_delete_evaluator::do_apply( const sport_delete_operation& op )
 { try {
    database& _db = db();
+    
+   const auto& event_group_by_sport_id = _db.get_index_type<event_group_object_index>().indices().get<by_sport_id>();
+   auto event_group_it = event_group_by_sport_id.lower_bound(op.sport_id);
+   auto event_group_end_it = event_group_by_sport_id.upper_bound(op.sport_id);
+   for (; event_group_it != event_group_end_it; ++event_group_it)
+   {
+      _db.modify(*event_group_it, [&](event_group_object& event_group) {
+          event_group.cancel_events(_db);
+      });
+      
+      _db.remove(*event_group_it);
+   }
+    
    _db.remove(_db.get(op.sport_id));
+    
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
