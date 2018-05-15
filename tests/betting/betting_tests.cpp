@@ -1533,13 +1533,17 @@ BOOST_AUTO_TEST_CASE(sport_delete_test)
     {
         CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
         
+        const auto& event_group_1 = create_event_group({{"en", "group1"}}, ice_hockey.id);
+        const auto& event_group_2 = create_event_group({{"en", "group2"}}, ice_hockey.id);
+        
         delete_sport(ice_hockey.id);
         
         const auto& sport_by_id = db.get_index_type<sport_object_index>().indices().get<by_id>();
-        const auto& event_group_by_id = db.get_index_type<event_group_object_index>().indices().get<by_id>();
-        
         BOOST_CHECK(sport_by_id.end() == sport_by_id.find(ice_hockey.id));
-        BOOST_CHECK(event_group_by_id.end() == event_group_by_id.find(nhl.id));
+        
+        const auto& event_group_by_id = db.get_index_type<event_group_object_index>().indices().get<by_id>();
+        BOOST_CHECK(event_group_by_id.end() == event_group_by_id.find(event_group_1.id));
+        BOOST_CHECK(event_group_by_id.end() == event_group_by_id.find(event_group_2.id));
     } FC_LOG_AND_RETHROW()
 }
 
