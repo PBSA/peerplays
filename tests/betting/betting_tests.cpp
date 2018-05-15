@@ -1591,7 +1591,14 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test)
 {
     try
     {
+        ACTORS( (alice)(bob) )
         CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
+        
+        const int initialAccountAsset = 10000000;
+        const int betAsset = 1000000;
+        
+        transfer(account_id_type(), alice_id, asset(initialAccountAsset));
+        transfer(account_id_type(), bob_id, asset(initialAccountAsset));
         
         const auto& event_1 = create_event({{"en", "event 1"}}, {{"en", "2016-17"}}, nhl.id);
         const auto& event_2 = create_event({{"en", "event 2"}}, {{"en", "2016-17"}}, nhl.id);
@@ -1600,6 +1607,16 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test)
         const auto& market_group = create_betting_market_group({{"en", "market group 1"}}, event_1.id, betting_market_rules.id, asset_id_type(), false, 0);
         const auto& market_1 = create_betting_market(market_group.id, {{"en", "market 1"}});
         const auto& market_2 = create_betting_market(market_group.id, {{"en", "market 2"}});
+        
+        //to make bets be not removed immediately
+        update_betting_market_group_impl(market_group.id,
+                                         fc::optional<internationalized_string_type>(),
+                                         fc::optional<object_id_type>(),
+                                         betting_market_group_status::in_play,
+                                         false);
+        
+        const auto& bet_1_id = place_bet(alice_id, market_1.id, bet_type::back, asset(betAsset, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+        const auto& bet_2_id = place_bet(bob_id, market_1.id, bet_type::lay, asset(betAsset, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
         
         delete_event_group(nhl.id);
         
@@ -1614,6 +1631,14 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test)
         
         BOOST_CHECK(betting_market_status::canceled == market_1.get_status());
         BOOST_CHECK(betting_market_status::canceled == market_2.get_status());
+        
+        //check canceled bets and reverted balance changes
+        const auto& bet_by_id = db.get_index_type<bet_object_index>().indices().get<by_id>();
+        BOOST_CHECK(bet_by_id.end() == bet_by_id.find(bet_1_id));
+        BOOST_CHECK(bet_by_id.end() == bet_by_id.find(bet_2_id));
+        
+        BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), initialAccountAsset);
+        BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), initialAccountAsset);
     } FC_LOG_AND_RETHROW()
 }
 

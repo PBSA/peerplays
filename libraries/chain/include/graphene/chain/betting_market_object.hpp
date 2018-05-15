@@ -154,6 +154,7 @@ class betting_market_object : public graphene::db::abstract_object< betting_mark
       betting_market_status get_status() const;
 
       void cancel_all_unmatched_bets(database& db) const;
+      void cancel_all_bets(database& db) const;
 
       // serialization functions:
       // for serializing to raw, go through a temporary sstream object to avoid
@@ -585,12 +586,14 @@ struct compare_bet_by_bettor_then_odds {
 };
 
 struct by_odds {};
+struct by_betting_market_id {};
 struct by_bettor_and_odds {};
 typedef multi_index_container<
    bet_object,
    indexed_by<
       ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
       ordered_unique< tag<by_odds>, identity<bet_object>, compare_bet_by_odds >,
+      ordered_non_unique< tag<by_betting_market_id>, member<bet_object, betting_market_id_type, &bet_object::betting_market_id> >,
       ordered_unique< tag<by_bettor_and_odds>, identity<bet_object>, compare_bet_by_bettor_then_odds > > > bet_object_multi_index_type;
 typedef generic_index<bet_object, bet_object_multi_index_type> bet_object_index;
 

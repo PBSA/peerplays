@@ -195,6 +195,7 @@ namespace
          void on_entry(const canceled_event& event, betting_market_state_machine_& fsm) {
             dlog("betting market ${id} -> canceled", ("id", fsm.betting_market_obj->id));
             fsm.betting_market_obj->resolution = betting_market_resolution_type::cancel;
+            fsm.betting_market_obj->cancel_all_bets(event.db);
          }
       };
 
@@ -374,6 +375,18 @@ void betting_market_object::cancel_all_unmatched_bets(database& db) const
       if (old_book_itr->betting_market_id == id)
          db.cancel_bet(*old_book_itr, true);
    }
+}
+    
+void betting_market_object::cancel_all_bets(database& db) const
+{
+    const auto& bets_by_market_id = db.get_index_type<bet_object_index>().indices().get<by_betting_market_id>();
+    
+    auto bet_it = bets_by_market_id.lower_bound(id);
+    auto bet_it_end = bets_by_market_id.upper_bound(id);
+    for (; bet_it != bet_it_end; ++bet_it)
+    {
+        db.cancel_bet(*bet_it, true);
+    }
 }
 
 void betting_market_object::pack_impl(std::ostream& stream) const
