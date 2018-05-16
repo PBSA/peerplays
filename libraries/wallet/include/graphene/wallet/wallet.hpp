@@ -2021,6 +2021,8 @@ FC_API( graphene::wallet::wallet_api,
         (propose_update_event)
         (propose_update_betting_market_group)
         (propose_update_betting_market)
+        (propose_delete_sport)
+        (propose_delete_event_group)
         (place_bet)
         (cancel_bet)
         (propose_resolve_betting_market_group)
