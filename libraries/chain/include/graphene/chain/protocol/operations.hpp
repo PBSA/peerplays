@@ -106,10 +106,8 @@ namespace graphene { namespace chain {
             tournament_leave_operation,
             sport_create_operation,
             sport_update_operation,
-            sport_delete_operation,
             event_group_create_operation,
             event_group_update_operation,
-            event_group_delete_operation,
             event_create_operation,
             event_update_operation,
             betting_market_rules_create_operation,
@@ -126,7 +124,9 @@ namespace graphene { namespace chain {
             bet_canceled_operation, // VIRTUAL
             betting_market_group_update_operation,
             betting_market_update_operation,
-            event_update_status_operation
+            event_update_status_operation,
+            sport_delete_operation,
+            event_group_delete_operation
          > operation;
 
    /// @} // operations group

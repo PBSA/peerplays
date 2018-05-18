@@ -100,6 +100,7 @@ add_library( graphene_chain
              sport_evaluator.cpp
              protocol/event_group.cpp
              event_group_evaluator.cpp
+             event_group_object.cpp
              protocol/event.cpp
              event_evaluator.cpp
              event_object.cpp

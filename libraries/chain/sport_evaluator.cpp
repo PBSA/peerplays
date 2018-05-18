@@ -81,17 +81,22 @@ void_result sport_delete_evaluator::do_evaluate( const sport_delete_operation& o
 void_result sport_delete_evaluator::do_apply( const sport_delete_operation& op )
 { try {
    database& _db = db();
+   
+   std::vector<const event_group_object*> event_groups_to_remove;
     
    const auto& event_group_by_sport_id = _db.get_index_type<event_group_object_index>().indices().get<by_sport_id>();
    auto event_group_it = event_group_by_sport_id.lower_bound(op.sport_id);
    auto event_group_end_it = event_group_by_sport_id.upper_bound(op.sport_id);
    for (; event_group_it != event_group_end_it; ++event_group_it)
    {
-      _db.modify(*event_group_it, [&](event_group_object& event_group) {
-          event_group.cancel_events(_db);
-      });
+      event_group_it->cancel_events(_db);
+      event_groups_to_remove.push_back(&*event_group_it);
       
-      _db.remove(*event_group_it);
+   }
+   
+   for (auto event_group: event_groups_to_remove)
+   {
+      _db.remove(*event_group);
    }
     
    _db.remove(_db.get(op.sport_id));

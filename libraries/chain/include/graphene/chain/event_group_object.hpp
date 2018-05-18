@@ -42,7 +42,7 @@ class event_group_object : public graphene::db::abstract_object< event_group_obj
       internationalized_string_type name;
       sport_id_type sport_id;
     
-      void cancel_events(database& db);
+      void cancel_events(database& db) const;
 };
 
 typedef multi_index_container<

@@ -6,7 +6,7 @@
 
 namespace graphene { namespace chain {
     
-void event_group_object::cancel_events(database& db)
+void event_group_object::cancel_events(database& db) const
 {
     const auto& events_for_group = db.get_index_type<event_object_index>().indices().get<by_event_group_id>();
     auto event_it = events_for_group.lower_bound(id);

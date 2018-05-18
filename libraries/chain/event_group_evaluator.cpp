@@ -109,9 +109,7 @@ void_result event_group_delete_evaluator::do_apply(const event_group_delete_oper
     database& _db = db();
     
     const auto& event_group = _db.get(op.event_group_id);
-    _db.modify(event_group, [&](event_group_object& mutable_event_group) {
-        mutable_event_group.cancel_events(_db);
-    });
+    event_group.cancel_events(_db);
     
     _db.remove(event_group);
     return void_result();
