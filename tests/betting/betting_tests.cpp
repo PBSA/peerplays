@@ -1547,6 +1547,19 @@ BOOST_AUTO_TEST_CASE(sport_delete_test)
     } FC_LOG_AND_RETHROW()
 }
 
+BOOST_AUTO_TEST_CASE(sport_delete_test_not_proposal)
+{
+    try
+    {
+        CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
+        
+        sport_delete_operation sport_delete_op;
+        sport_delete_op.sport_id = ice_hockey.id;
+        
+        BOOST_CHECK_THROW(force_operation_by_witnesses(sport_delete_op), fc::exception);
+    } FC_LOG_AND_RETHROW()
+}
+
 BOOST_AUTO_TEST_CASE(event_group_update_test)
 {
    try
@@ -1643,6 +1656,20 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test)
         
         BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), initialAccountAsset);
         BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), initialAccountAsset);
+    } FC_LOG_AND_RETHROW()
+}
+
+
+BOOST_AUTO_TEST_CASE(event_group_delete_test_not_proposal)
+{
+    try
+    {
+        CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
+        
+        event_group_delete_operation event_group_delete_op;
+        event_group_delete_op.event_group_id = nhl.id;
+        
+        BOOST_CHECK_THROW(force_operation_by_witnesses(event_group_delete_op), fc::exception);
     } FC_LOG_AND_RETHROW()
 }
 

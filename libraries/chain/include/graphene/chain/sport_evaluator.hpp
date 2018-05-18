@@ -29,6 +29,8 @@
 
 namespace graphene { namespace chain {
 
+   class sport_object;
+    
    class sport_create_evaluator : public evaluator<sport_create_evaluator>
    {
       public:
@@ -54,6 +56,9 @@ namespace graphene { namespace chain {
        
        void_result do_evaluate( const sport_delete_operation& o );
        void_result do_apply( const sport_delete_operation& o );
+       
+   private:
+       const sport_object* _sport = nullptr;
    };
     
 } } // graphene::chain

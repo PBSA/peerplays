@@ -75,6 +75,10 @@ void_result sport_update_evaluator::do_apply(const sport_update_operation& op)
 void_result sport_delete_evaluator::do_evaluate( const sport_delete_operation& op )
 { try {
    FC_ASSERT(trx_state->_is_proposed_trx);
+    
+   //check for sport existence
+   _sport = &op.sport_id(db());
+    
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
     
@@ -91,7 +95,6 @@ void_result sport_delete_evaluator::do_apply( const sport_delete_operation& op )
    {
       event_group_it->cancel_events(_db);
       event_groups_to_remove.push_back(&*event_group_it);
-      
    }
    
    for (auto event_group: event_groups_to_remove)
@@ -99,7 +102,7 @@ void_result sport_delete_evaluator::do_apply( const sport_delete_operation& op )
       _db.remove(*event_group);
    }
     
-   _db.remove(_db.get(op.sport_id));
+   _db.remove(*_sport);
     
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
