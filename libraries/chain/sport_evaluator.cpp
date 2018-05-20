@@ -74,6 +74,7 @@ void_result sport_update_evaluator::do_apply(const sport_update_operation& op)
     
 void_result sport_delete_evaluator::do_evaluate( const sport_delete_operation& op )
 { try {
+   FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
     
    //check for sport existence

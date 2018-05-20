@@ -100,6 +100,7 @@ void_result event_group_update_evaluator::do_apply(const event_group_update_oper
     
 void_result event_group_delete_evaluator::do_evaluate(const event_group_delete_operation& op)
 { try {
+    FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
     FC_ASSERT(trx_state->_is_proposed_trx);
     
     //check for event group existence
