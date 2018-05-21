@@ -390,9 +390,11 @@ void betting_market_object::cancel_all_bets(database& db) const
     
     auto bet_it = bets_by_market_id.lower_bound(id);
     auto bet_it_end = bets_by_market_id.upper_bound(id);
-    for (; bet_it != bet_it_end; ++bet_it)
+    while (bet_it != bet_it_end)
     {
-        db.cancel_bet(*bet_it, true);
+        auto old_bet_it = bet_it;
+        ++bet_it;
+        db.cancel_bet(*old_bet_it, true);
     }
 }
 
