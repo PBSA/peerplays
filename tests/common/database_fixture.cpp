@@ -1150,6 +1150,45 @@ void database_fixture::process_operation_by_witnesses(operation op)
    }
 }
 
+void database_fixture::process_operation_by_committee(operation op)
+{
+   const vector<committee_member_id_type>& active_committee_members = db.get_global_properties().active_committee_members;
+
+   proposal_create_operation proposal_op;
+   proposal_op.fee_paying_account = (*active_committee_members.begin())(db).committee_member_account;
+   proposal_op.proposed_ops.emplace_back(op);
+   proposal_op.expiration_time =  db.head_block_time() + fc::days(1);
+
+   signed_transaction tx;
+   tx.operations.push_back(proposal_op);
+   set_expiration(db, tx);
+   sign(tx, init_account_priv_key);
+
+   processed_transaction processed_tx = db.push_transaction(tx);
+   proposal_id_type proposal_id = processed_tx.operation_results[0].get<object_id_type>();
+
+   for (const committee_member_id_type& committee_member_id : active_committee_members)
+   {
+      const committee_member_object& committee_member = committee_member_id(db);
+      const account_object& committee_member_account = committee_member.committee_member_account(db);
+
+      proposal_update_operation pup;
+      pup.proposal = proposal_id;
+      pup.fee_paying_account = committee_member_account.id;
+      pup.active_approvals_to_add.insert(committee_member_account.id);
+
+      signed_transaction tx;
+      tx.operations.push_back( pup );
+      set_expiration( db, tx );
+      sign(tx, init_account_priv_key);
+
+      db.push_transaction(tx, ~0);
+      const auto& proposal_idx = db.get_index_type<proposal_index>().indices().get<by_id>();
+      if (proposal_idx.find(proposal_id) == proposal_idx.end())
+         break;
+   }
+}
+
 void database_fixture::force_operation_by_witnesses(operation op)
 {
    const chain_parameters& params = db.get_global_properties().parameters;

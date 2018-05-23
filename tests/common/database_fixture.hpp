@@ -299,6 +299,7 @@ struct database_fixture {
                                                asset_id_type dividend_payout_asset_type) const;
    vector< operation_history_object > get_operation_history( account_id_type account_id )const;
    void  process_operation_by_witnesses(operation op);
+   void  process_operation_by_committee(operation op);
    void  force_operation_by_witnesses(operation op);
    void  set_is_proposed_trx(operation op);
    const sport_object& create_sport(internationalized_string_type name);

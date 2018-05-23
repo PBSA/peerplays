@@ -373,10 +373,13 @@ namespace {
             // this is an approximate test, the state name provided by typeinfo will be mangled, but should
             // at least contain the string we're looking for
             const char* fc_reflected_value_name = fc::reflector<betting_market_group_state>::to_string((betting_market_group_state)i);
-            if (!strcmp(fc_reflected_value_name, filled_state_names[i]))
+            if (!strstr(filled_state_names[i], fc_reflected_value_name))
+            {
                fc_elog(fc::logger::get("default"),
                        "Error, state string mismatch between fc and boost::msm for int value ${int_value}: boost::msm -> ${boost_string}, fc::reflect -> ${fc_string}",
                        ("int_value", i)("boost_string", filled_state_names[i])("fc_string", fc_reflected_value_name));
+               ++error_count;
+            }
          }
          catch (const fc::bad_cast_exception&)
          {
@@ -386,7 +389,10 @@ namespace {
             ++error_count;
          }
       }
-      dlog("Done checking constants");
+      if (error_count == 0)
+         dlog("Betting market group status constants are correct");
+      else
+         wlog("There were ${count} errors in the betting market group status constants", ("count", error_count));
 
       return error_count == 0;
    }
