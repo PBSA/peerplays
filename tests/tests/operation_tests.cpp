@@ -1401,7 +1401,8 @@ BOOST_AUTO_TEST_CASE( test_basic_dividend_distribution )
          const operation_history_object& history_object = std::prev(account_history_range.second)->operation_id(db);
          const asset_dividend_distribution_operation& distribution_operation = history_object.op.get<asset_dividend_distribution_operation>();
          BOOST_CHECK(distribution_operation.account_id == destination_account.id);
-         BOOST_CHECK(distribution_operation.amounts.find(expected_payout) != distribution_operation.amounts.end());
+         BOOST_CHECK(std::find(distribution_operation.amounts.begin(), distribution_operation.amounts.end(), expected_payout) 
+            != distribution_operation.amounts.end());
       };
 
       BOOST_TEST_MESSAGE("Verifying the payouts");
@@ -1567,7 +1568,8 @@ BOOST_AUTO_TEST_CASE( test_basic_dividend_distribution_to_core_asset )
          const operation_history_object& history_object = std::prev(account_history_range.second)->operation_id(db);
          const asset_dividend_distribution_operation& distribution_operation = history_object.op.get<asset_dividend_distribution_operation>();
          BOOST_CHECK(distribution_operation.account_id == destination_account.id);
-         BOOST_CHECK(distribution_operation.amounts.find(expected_payout) != distribution_operation.amounts.end());
+         BOOST_CHECK(std::find(distribution_operation.amounts.begin(), distribution_operation.amounts.end(), expected_payout) 
+            != distribution_operation.amounts.end());
       };
 
       BOOST_TEST_MESSAGE("Verifying the payouts");
