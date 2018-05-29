@@ -508,32 +508,40 @@ BOOST_AUTO_TEST_CASE(match_using_takers_expected_amounts)
 
       // lay 46 at 1.94 odds (50:47) -- this is too small to be placed on the books and there's
       // nothing for it to match, so it should be canceled
+      BOOST_TEST_MESSAGE("lay 46 at 1.94 odds (50:47) -- this is too small to be placed on the books and there's nothing for it to match, so it should be canceled");
       place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(46, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
+      BOOST_TEST_MESSAGE("alice's balance should be " << alice_expected_balance.value);
       BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
-
+ilog("message");
       // lay 47 at 1.94 odds (50:47) -- this is an exact amount, nothing surprising should happen here
+      BOOST_TEST_MESSAGE("alice lays 470 at 1.94 odds (50:47) -- this is an exact amount, nothing surprising should happen here");
       place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(47, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
       alice_expected_balance -= 47;
+      BOOST_TEST_MESSAGE("alice's balance should be " << alice_expected_balance.value);
       BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
 
       // lay 100 at 1.91 odds (100:91) -- this is an inexact match, we should get refunded 9 and leave a bet for 91 on the books
       place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 191 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
       alice_expected_balance -= 91;
+      BOOST_TEST_MESSAGE("alice's balance should be " << alice_expected_balance.value);
       BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
 
 
       transfer(account_id_type(), bob_id, asset(10000000));
       share_type bob_expected_balance = 10000000;
+      BOOST_TEST_MESSAGE("bob's balance should be " << bob_expected_balance.value);
       BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
 
       // now have bob match it with a back of 300 at 1.5
       // This should: 
-      //   match the full 47 @ 1.94 with 50, and be refunded 44 (leaving 206 left in the bet)
-      //   match the full 91 @ 1.91 with 100, and be refunded 82 (leaving 24 in the bet)
-      //   bob's balance goes down by 300 - 44 - 82 = 124
-      //   leaves a back bet of 24 @ 1.5 on the books
+      //   match the full 47 @ 1.94 with 50
+      //   match the full 91 @ 1.91 with 100
+      //   bob's balance goes down by 300 (150 is matched, 150 is still on the books)
+      //   leaves a back bet of 150 @ 1.5 on the books
+      BOOST_TEST_MESSAGE("now have bob match it with a back of 300 at 1.5");
       place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(300, asset_id_type()), 15 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
-      bob_expected_balance -= 300 - 44 - 82;
+      bob_expected_balance -= 300;
+      BOOST_TEST_MESSAGE("bob's balance should be " << bob_expected_balance.value);
       BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
    }
    FC_LOG_AND_RETHROW()
@@ -552,8 +560,10 @@ BOOST_AUTO_TEST_CASE(match_using_takers_expected_amounts2)
       BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
 
       // lay 470 at 1.94 odds (50:47) -- this is an exact amount, nothing surprising should happen here
+      BOOST_TEST_MESSAGE("alice lays 470 at 1.94 odds (50:47) -- this is an exact amount, nothing surprising should happen here");
       place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(470, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
       alice_expected_balance -= 470;
+      BOOST_TEST_MESSAGE("alice's balance should be " << alice_expected_balance.value);
       BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
 
       transfer(account_id_type(), bob_id, asset(10000000));
@@ -562,13 +572,14 @@ BOOST_AUTO_TEST_CASE(match_using_takers_expected_amounts2)
 
       // now have bob match it with a back of 900 at 1.5
       // This should: 
-      //   match 423 out of the 470 @ 1.94 with 450, and be refunded 396 (leaving 54 left in the bet)
-      //   this is as close as bob can get without getting of a position than he planned, so the remainder
-      //   of bob's bet is canceled (refunding the remaining 54)
-      //   bob's balance goes down by the 450 he paid matching the bet.
-      //   alice's bet remains on the books as a lay of 47 @ 1.94
+      //   match all 500 of bob's bet, and leave 400 @ 1.5 on the books
+      //   bob's balance goes down by the 900 he paid (500 matched, 400 unmatched)
+      //   alice's bet is completely removed from the books.
+      BOOST_TEST_MESSAGE("now have bob match it with a back of 900 at 1.5");
       place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(900, asset_id_type()), 15 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
-      bob_expected_balance -= 900 - 396 - 54;
+      bob_expected_balance -= 900;
+
+      BOOST_TEST_MESSAGE("bob's balance should be " << bob_expected_balance.value);
       BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
    }
    FC_LOG_AND_RETHROW()
@@ -597,11 +608,11 @@ BOOST_AUTO_TEST_CASE(match_using_takers_expected_amounts3)
 
       // now have bob match it with a back of 1000 at 1.5
       // This should: 
-      //   match all of the 470 @ 1.94 with 500, and be refunded 440 (leaving 60 left in the bet)
-      //   bob's balance goes down by the 500 he paid matching the bet and the 60 that is left.
+      //   match all of the 470 @ 1.94 with 500, and leave 500 left on the books
+      //   bob's balance goes down by the 1000 he paid, 500 matching, 500 unmatching
       //   alice's bet is removed from the books
       place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(1000, asset_id_type()), 15 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
-      bob_expected_balance -= 1000 - 440;
+      bob_expected_balance -= 1000;
       BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
    }
    FC_LOG_AND_RETHROW()

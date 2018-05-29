@@ -398,6 +398,7 @@ bool bet_was_matched(database& db, const bet_object& bet,
  */
 int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker_bet )
 {
+   //fc_idump(fc::logger::get("betting"), (taker_bet)(maker_bet));
    assert(taker_bet.amount_to_bet.asset_id == maker_bet.amount_to_bet.asset_id);
    assert(taker_bet.amount_to_bet.amount > 0 && maker_bet.amount_to_bet.amount > 0);
    assert(taker_bet.back_or_lay == bet_type::back ? taker_bet.backer_multiplier <= maker_bet.backer_multiplier : 
@@ -427,16 +428,16 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
    // now figure out how much of the maker bet we'll consume.  We don't yet know whether the maker or taker
    // will be the limiting factor.
    share_type maximum_factor_taker_is_willing_to_pay = taker_bet.amount_to_bet.amount / taker_odds_ratio;
-   share_type maximum_factor_taker_is_willing_to_receive = taker_bet.get_exact_matching_amount() / maker_odds_ratio;
 
-   share_type maximum_taker_factor;
-   bool taker_was_limited_by_matching_amount = maximum_factor_taker_is_willing_to_receive < maximum_factor_taker_is_willing_to_pay;
-   if (taker_was_limited_by_matching_amount)
-      maximum_taker_factor = maximum_factor_taker_is_willing_to_receive;
-   else
-      maximum_taker_factor = maximum_factor_taker_is_willing_to_pay;
-
-   fc_idump(fc::logger::get("betting"), (maximum_factor_taker_is_willing_to_pay)(maximum_factor_taker_is_willing_to_receive)(maximum_taker_factor));
+   share_type maximum_taker_factor = maximum_factor_taker_is_willing_to_pay;
+   if (taker_bet.back_or_lay == bet_type::lay) {
+      share_type maximum_factor_taker_is_willing_to_receive = taker_bet.get_exact_matching_amount() / maker_odds_ratio;
+      //fc_idump(fc::logger::get("betting"), (maximum_factor_taker_is_willing_to_pay));
+      bool taker_was_limited_by_matching_amount = maximum_factor_taker_is_willing_to_receive < maximum_factor_taker_is_willing_to_pay;
+      if (taker_was_limited_by_matching_amount)
+         maximum_taker_factor = maximum_factor_taker_is_willing_to_receive;
+   }
+   //fc_idump(fc::logger::get("betting"), (maximum_factor_taker_is_willing_to_pay)(maximum_taker_factor));
 
    share_type maximum_maker_factor = maker_bet.amount_to_bet.amount / maker_odds_ratio;
    share_type maximum_factor = std::min(maximum_taker_factor, maximum_maker_factor);
@@ -480,15 +481,35 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
       std::tie(takers_odds_back_odds_ratio, takers_odds_lay_odds_ratio) = taker_bet.get_ratio();
       const share_type& takers_odds_taker_odds_ratio = taker_bet.back_or_lay == bet_type::back ? takers_odds_back_odds_ratio : takers_odds_lay_odds_ratio;
       const share_type& takers_odds_maker_odds_ratio = taker_bet.back_or_lay == bet_type::back ? takers_odds_lay_odds_ratio : takers_odds_back_odds_ratio;
+      share_type taker_refund_amount;
 
-      share_type unrounded_taker_remaining_amount_to_match = taker_bet.get_exact_matching_amount() - maker_amount_to_match;
-      // because we matched at the maker's odds and not the taker's odds, the remaining amount to match
-      // may not be an even multiple of the taker's odds; round it down.
-      share_type taker_remaining_factor = unrounded_taker_remaining_amount_to_match / takers_odds_maker_odds_ratio;
-      share_type taker_remaining_maker_amount_to_match = taker_remaining_factor * takers_odds_maker_odds_ratio;
-      share_type taker_remaining_bet_amount = taker_remaining_factor * takers_odds_taker_odds_ratio;
+      if (taker_bet.back_or_lay == bet_type::back)
+      {
+         // because we matched at the maker's odds and not the taker's odds, the remaining amount to match
+         // may not be an even multiple of the taker's odds; round it down.
+         share_type taker_remaining_factor = (taker_bet.amount_to_bet.amount - taker_amount_to_match) / takers_odds_taker_odds_ratio;
+         share_type taker_remaining_bet_amount = taker_remaining_factor * takers_odds_taker_odds_ratio;
+         taker_refund_amount = taker_bet.amount_to_bet.amount - taker_amount_to_match - taker_remaining_bet_amount;
+         //idump((taker_remaining_factor)(taker_remaining_bet_amount)(taker_refund_amount));
+      }
+      else
+      {
+         // the taker bet is a lay bet.  because we matched at the maker's odds and not the taker's odds, 
+         // there are two things we need to take into account.  First, we may have achieved more of a position
+         // than we expected had we matched at our taker odds.  If so, we can refund the unused stake.
+         // Second, the remaining amount to match may not be an even multiple of the taker's odds; round it down.
+         share_type unrounded_taker_remaining_amount_to_match = taker_bet.get_exact_matching_amount() - maker_amount_to_match;
+         //idump((unrounded_taker_remaining_amount_to_match));
 
-      share_type taker_refund_amount = taker_bet.amount_to_bet.amount - taker_amount_to_match - taker_remaining_bet_amount;
+         // because we matched at the maker's odds and not the taker's odds, the remaining amount to match
+         // may not be an even multiple of the taker's odds; round it down.
+         share_type taker_remaining_factor = unrounded_taker_remaining_amount_to_match / takers_odds_maker_odds_ratio;
+         share_type taker_remaining_maker_amount_to_match = taker_remaining_factor * takers_odds_maker_odds_ratio;
+         share_type taker_remaining_bet_amount = taker_remaining_factor * takers_odds_taker_odds_ratio;
+
+         taker_refund_amount = taker_bet.amount_to_bet.amount - taker_amount_to_match - taker_remaining_bet_amount;
+         //idump((taker_remaining_factor)(taker_remaining_maker_amount_to_match)(taker_remaining_bet_amount)(taker_refund_amount));
+      }
 
       if (taker_refund_amount > share_type())
       {
@@ -496,10 +517,10 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
                       taker_bet_object.amount_to_bet.amount -= taker_refund_amount;
                    });
          fc_dlog(fc::logger::get("betting"), "Refunding ${taker_refund_amount} to taker because we matched at the maker's odds of "
-              "${maker_odds} instead of the taker's odds ${taker_odds}",
-              ("taker_refund_amount", taker_refund_amount)
-              ("maker_odds", maker_bet.backer_multiplier)
-              ("taker_odds", taker_bet.backer_multiplier));
+                 "${maker_odds} instead of the taker's odds ${taker_odds}",
+                 ("taker_refund_amount", taker_refund_amount)
+                 ("maker_odds", maker_bet.backer_multiplier)
+                 ("taker_odds", taker_bet.backer_multiplier));
          fc_ddump(fc::logger::get("betting"), (taker_bet));
 
          db.adjust_balance(taker_bet.bettor_id, asset(taker_refund_amount, taker_bet.amount_to_bet.asset_id));
