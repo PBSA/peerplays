@@ -1629,11 +1629,48 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test)
         transfer(account_id_type(), alice_id, asset(initialAccountAsset));
         transfer(account_id_type(), bob_id, asset(initialAccountAsset));
         
-        const auto& event_1 = create_event({{"en", "event 1"}}, {{"en", "2016-17"}}, nhl.id);
-        const auto& event_2 = create_event({{"en", "event 2"}}, {{"en", "2016-17"}}, nhl.id);
-        const auto& event_3 = create_event({{"en", "event 3"}}, {{"en", "2016-17"}}, nhl.id);
+        const auto& event_upcoming = create_event({{"en", "event upcoming"}}, {{"en", "2016-17"}}, nhl.id);
+        const auto& event_in_progress = create_event({{"en", "event in_progress"}}, {{"en", "2016-17"}}, nhl.id);
+        db.modify(event_in_progress, [&](event_object& event)
+                  {
+                      event.on_in_progress_event(db);
+                  });
         
-        const auto& market_group = create_betting_market_group({{"en", "market group 1"}}, event_1.id, betting_market_rules.id, asset_id_type(), false, 0);
+        const auto& event_frozen_upcoming = create_event({{"en", "event frozen_upcoming"}}, {{"en", "2016-17"}}, nhl.id);
+        db.modify(event_frozen_upcoming, [&](event_object& event)
+                  {
+                      event.on_frozen_event(db);
+                  });
+        
+        const auto& event_frozen_in_progress = create_event({{"en", "event frozen_in_progress"}}, {{"en", "2016-17"}}, nhl.id);
+        db.modify(event_frozen_in_progress, [&](event_object& event)
+                  {
+                      event.on_in_progress_event(db);
+                      event.on_frozen_event(db);
+                  });
+        
+        const auto& event_finished = create_event({{"en", "event finished"}}, {{"en", "2016-17"}}, nhl.id);
+        db.modify(event_finished, [&](event_object& event)
+                  {
+                      event.on_frozen_event(db);
+                      event.on_finished_event(db);
+                  });
+        
+        const auto& event_canceled = create_event({{"en", "event canceled"}}, {{"en", "2016-17"}}, nhl.id);
+        db.modify(event_canceled, [&](event_object& event)
+                  {
+                      event.on_canceled_event(db);
+                  });
+        
+        
+        const auto& event_settled = create_event({{"en", "event settled"}}, {{"en", "2016-17"}}, nhl.id);
+        db.modify(event_settled, [&](event_object& event)
+                  {
+                      event.on_finished_event(db);
+                      event.on_betting_market_group_resolved(db, betting_market_group_id_type(), false);
+                  });
+        
+        const auto& market_group = create_betting_market_group({{"en", "market group 1"}}, event_upcoming.id, betting_market_rules.id, asset_id_type(), false, 0);
         //to make bets be not removed immediately
         update_betting_market_group_impl(market_group.id,
                                          fc::optional<internationalized_string_type>(),
@@ -1683,9 +1720,13 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test)
         const auto& event_group_by_id = db.get_index_type<event_group_object_index>().indices().get<by_id>();
         BOOST_CHECK(event_group_by_id.end() == event_group_by_id.find(nhl.id));
         
-        BOOST_CHECK(event_status::canceled == event_1.get_status());
-        BOOST_CHECK(event_status::canceled == event_2.get_status());
-        BOOST_CHECK(event_status::canceled == event_3.get_status());
+        BOOST_CHECK(event_status::canceled == event_upcoming.get_status());
+        BOOST_CHECK(event_status::canceled == event_in_progress.get_status());
+        BOOST_CHECK(event_status::canceled == event_frozen_in_progress.get_status());
+        BOOST_CHECK(event_status::canceled == event_frozen_upcoming.get_status());
+        BOOST_CHECK(event_status::canceled == event_finished.get_status());
+        BOOST_CHECK(event_status::canceled == event_canceled.get_status());
+        BOOST_CHECK(event_status::settled == event_settled.get_status());
         
         BOOST_CHECK(betting_market_group_status::canceled == market_group.get_status());
         
