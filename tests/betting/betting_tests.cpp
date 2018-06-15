@@ -1678,6 +1678,53 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test)
                                          betting_market_group_status::in_play,
                                          false);
         
+        const auto& market_group_upcoming = create_betting_market_group({{"en", "market group upcoming"}}, event_upcoming.id, betting_market_rules.id, asset_id_type(), false, 0);
+        const auto& market_group_frozen_upcoming = create_betting_market_group({{"en", "market group frozen_upcoming"}}, event_upcoming.id, betting_market_rules.id, asset_id_type(), false, 0);
+        db.modify(market_group_frozen_upcoming, [&](betting_market_group_object& market_group)
+                  {
+                      market_group.on_frozen_event(db);
+                  });
+        
+        const auto& market_group_in_play = create_betting_market_group({{"en", "market group in_play"}}, event_upcoming.id, betting_market_rules.id, asset_id_type(), false, 0);
+        db.modify(market_group_in_play, [&](betting_market_group_object& market_group)
+                  {
+                      market_group.on_in_play_event(db);
+                  });
+        
+        const auto& market_group_frozen_in_play = create_betting_market_group({{"en", "market group frozen_in_play"}}, event_upcoming.id, betting_market_rules.id, asset_id_type(), false, 0);
+        db.modify(market_group_frozen_in_play, [&](betting_market_group_object& market_group)
+                  {
+                      market_group.on_in_play_event(db);
+                      market_group.on_frozen_event(db);
+                  });
+        
+        const auto& market_group_closed = create_betting_market_group({{"en", "market group closed"}}, event_upcoming.id, betting_market_rules.id, asset_id_type(), false, 0);
+        db.modify(market_group_closed, [&](betting_market_group_object& market_group)
+                  {
+                      market_group.on_closed_event(db, true);
+                  });
+        
+        const auto& market_group_graded = create_betting_market_group({{"en", "market group graded"}}, event_upcoming.id, betting_market_rules.id, asset_id_type(), false, 0);
+        db.modify(market_group_graded, [&](betting_market_group_object& market_group)
+                  {
+                      market_group.on_closed_event(db, true);
+                      market_group.on_graded_event(db);
+                  });
+        
+        const auto& market_group_canceled = create_betting_market_group({{"en", "market group canceled"}}, event_upcoming.id, betting_market_rules.id, asset_id_type(), false, 0);
+        db.modify(market_group_canceled, [&](betting_market_group_object& market_group)
+                  {
+                      market_group.on_canceled_event(db, true);
+                  });
+        
+        const auto& market_group_settled = create_betting_market_group({{"en", "market group settled"}}, event_upcoming.id, betting_market_rules.id, asset_id_type(), false, 0);
+        db.modify(market_group_settled, [&](betting_market_group_object& market_group)
+                  {
+                      market_group.on_closed_event(db, true);
+                      market_group.on_graded_event(db);
+                      market_group.on_settled_event(db);
+                  });
+        
         const auto& market_unresolved = create_betting_market(market_group.id, {{"en", "market unresolved"}});
         const auto& market_frozen = create_betting_market(market_group.id, {{"en", "market frozen"}});
         db.modify(market_frozen, [&](betting_market_object& market)
@@ -1729,6 +1776,15 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test)
         BOOST_CHECK(event_status::settled == event_settled.get_status());
         
         BOOST_CHECK(betting_market_group_status::canceled == market_group.get_status());
+        
+        BOOST_CHECK(betting_market_group_status::canceled == market_group_upcoming.get_status());
+        BOOST_CHECK(betting_market_group_status::canceled == market_group_frozen_upcoming.get_status());
+        BOOST_CHECK(betting_market_group_status::canceled == market_group_in_play.get_status());
+        BOOST_CHECK(betting_market_group_status::canceled == market_group_frozen_in_play.get_status());
+        BOOST_CHECK(betting_market_group_status::canceled == market_group_closed.get_status());
+        BOOST_CHECK(betting_market_group_status::canceled == market_group_graded.get_status());
+        BOOST_CHECK(betting_market_group_status::canceled == market_group_canceled.get_status());
+        BOOST_CHECK(betting_market_group_status::settled == market_group_settled.get_status());
         
         BOOST_CHECK(betting_market_status::canceled == market_unresolved.get_status());
         BOOST_CHECK(betting_market_status::canceled == market_frozen.get_status());
