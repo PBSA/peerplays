@@ -1560,6 +1560,18 @@ BOOST_AUTO_TEST_CASE(sport_delete_test_not_proposal)
     } FC_LOG_AND_RETHROW()
 }
 
+BOOST_AUTO_TEST_CASE(sport_delete_test_not_existed_sport)
+{
+    try
+    {
+        CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
+        
+        delete_sport(ice_hockey.id);
+        
+        BOOST_CHECK_THROW(delete_sport(ice_hockey.id), fc::exception);
+    } FC_LOG_AND_RETHROW()
+}
+
 BOOST_AUTO_TEST_CASE(event_group_update_test)
 {
    try
@@ -1705,6 +1717,18 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test_not_proposal)
         event_group_delete_op.event_group_id = nhl.id;
         
         BOOST_CHECK_THROW(force_operation_by_witnesses(event_group_delete_op), fc::exception);
+    } FC_LOG_AND_RETHROW()
+}
+
+BOOST_AUTO_TEST_CASE(event_group_delete_test_not_existed_event_group)
+{
+    try
+    {
+        CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
+        
+        delete_event_group(nhl.id);
+        
+        BOOST_CHECK_THROW(delete_event_group(nhl.id), fc::exception);
     } FC_LOG_AND_RETHROW()
 }
 
