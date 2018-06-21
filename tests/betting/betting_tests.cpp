@@ -1856,6 +1856,40 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test)
     } FC_LOG_AND_RETHROW()
 }
 
+BOOST_AUTO_TEST_CASE(event_group_delete_test_with_matched_bets)
+{
+    try
+    {
+        ACTORS( (alice)(bob) )
+        CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
+        
+        const int initialAccountAsset = 10000000;
+        const int betAsset = 100000;
+        
+        transfer(account_id_type(), alice_id, asset(initialAccountAsset));
+        transfer(account_id_type(), bob_id, asset(initialAccountAsset));
+        generate_blocks(1);
+        
+        const auto& event = create_event({{"en", "event"}}, {{"en", "2016-17"}}, nhl.id);
+        generate_blocks(1);
+        
+        const auto& market_group = create_betting_market_group({{"en", "market group"}}, event.id, betting_market_rules.id, asset_id_type(), false, 0);
+        generate_blocks(1);
+        
+        const auto& market = create_betting_market(market_group.id, {{"en", "market"}});
+        generate_blocks(1);
+        
+        place_bet(alice_id, market.id, bet_type::back, asset(betAsset, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+        place_bet(bob_id, market.id, bet_type::lay, asset(betAsset, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+        generate_blocks(1);
+        
+        delete_event_group(nhl.id);
+        generate_blocks(1);
+        
+        BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), initialAccountAsset);
+        BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), initialAccountAsset);
+    } FC_LOG_AND_RETHROW()
+}
 
 BOOST_AUTO_TEST_CASE(event_group_delete_test_not_proposal)
 {
