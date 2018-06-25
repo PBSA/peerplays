@@ -61,8 +61,6 @@ binned_order_book bookie_api_impl::get_binned_order_book(graphene::chain::bettin
     binned_order_book result; 
 
     // use a bet_object here for convenience. we really only use it to track the amount, odds, and back_or_lay
-    // note, the current bin is accumulating the matching bets, so it will be of type 'lay' when we're 
-    // binning 'back' bets, and vice versa
     fc::optional<bet_object> current_bin;
 
     auto flush_current_bin = [&current_bin, &result]()
@@ -72,9 +70,9 @@ binned_order_book bookie_api_impl::get_binned_order_book(graphene::chain::bettin
             order_bin current_order_bin;
 
             current_order_bin.backer_multiplier = current_bin->backer_multiplier;
-            current_order_bin.amount_to_bet = current_bin->get_approximate_matching_amount(true /* round up */);
+            current_order_bin.amount_to_bet = current_bin->amount_to_bet.amount;
             //idump((*current_bin)(current_order_bin));
-            if (current_bin->back_or_lay == bet_type::lay)
+            if (current_bin->back_or_lay == bet_type::back)
                 result.aggregated_back_bets.emplace_back(std::move(current_order_bin));
             else // current_bin is aggregating back positions
                 result.aggregated_lay_bets.emplace_back(std::move(current_order_bin));
@@ -89,7 +87,7 @@ binned_order_book bookie_api_impl::get_binned_order_book(graphene::chain::bettin
          ++bet_odds_iter)
     {
         if (current_bin && 
-            (bet_odds_iter->back_or_lay == current_bin->back_or_lay /* we have switched from back to lay bets */ ||
+            (bet_odds_iter->back_or_lay != current_bin->back_or_lay /* we have switched from back to lay bets */ ||
              (bet_odds_iter->back_or_lay == bet_type::back ? bet_odds_iter->backer_multiplier > current_bin->backer_multiplier :
                                                              bet_odds_iter->backer_multiplier < current_bin->backer_multiplier)))
             flush_current_bin();
@@ -105,19 +103,19 @@ binned_order_book bookie_api_impl::get_binned_order_book(graphene::chain::bettin
             {
                current_bin->backer_multiplier = (bet_odds_iter->backer_multiplier + bin_size - 1) / bin_size * bin_size;
                current_bin->backer_multiplier = std::min<graphene::chain::bet_multiplier_type>(current_bin->backer_multiplier, current_params.max_bet_multiplier);
-               current_bin->back_or_lay = bet_type::lay;
+               current_bin->back_or_lay = bet_type::back;
             }
             else
             {
                current_bin->backer_multiplier = bet_odds_iter->backer_multiplier / bin_size * bin_size;
                current_bin->backer_multiplier = std::max<graphene::chain::bet_multiplier_type>(current_bin->backer_multiplier, current_params.min_bet_multiplier);
-               current_bin->back_or_lay = bet_type::back;
+               current_bin->back_or_lay = bet_type::lay;
             }
 
             current_bin->amount_to_bet.amount = 0;
         }
 
-        current_bin->amount_to_bet.amount += bet_odds_iter->get_exact_matching_amount();
+        current_bin->amount_to_bet.amount += bet_odds_iter->amount_to_bet.amount;
     }
     if (current_bin)
         flush_current_bin();

@@ -160,10 +160,14 @@ namespace detail {
          }
          else
          {
-            // https://bitsharestalk.org/index.php/topic,23715.0.html
+            // t.me/peerplays #seednodes
             vector<string> seeds = {
-               "peerplays-dev.blocktrades.info:2776"
+               "31.171.246.247:6666",              // taconator
+               "seed.ppytest.com:7777",
+               "seed.ppytest.blckchnd.com:7778",   // blckchnd
+               "seed.peerplaysnodes.com:9778"      // wackou
             };
+
             for( const string& endpoint_string : seeds )
             {
                try {
