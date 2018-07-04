@@ -24,55 +24,17 @@
  * THE SOFTWARE.
  */
 
-#include <graphene/chain/hardfork.hpp>
+#include <boost/test/unit_test.hpp>
 
 #include <graphene/chain/exceptions.hpp>
-#include <graphene/app/api.hpp>
-
+#include <graphene/chain/protocol/proposal.hpp>
+#include <graphene/chain/proposal_object.hpp>
 #include <fc/crypto/digest.hpp>
-
-#include <boost/test/unit_test.hpp>
 
 #include "../common/database_fixture.hpp"
 
 using namespace graphene::chain;
 using namespace graphene::chain::test;
-
-//void database_fixture::transfer(
-//                                account_id_type from,
-//                                account_id_type to,
-//                                const asset& amount,
-//                                const asset& fee /* = asset() */
-//)
-//{
-//    transfer(from(db), to(db), amount, fee);
-//}
-//
-//void database_fixture::transfer(
-//                                const account_object& from,
-//                                const account_object& to,
-//                                const asset& amount,
-//                                const asset& fee /* = asset() */ )
-//{
-//    try
-//    {
-//        set_expiration( db, trx );
-//        transfer_operation trans;
-//        trans.from = from.id;
-//        trans.to   = to.id;
-//        trans.amount = amount;
-//        trx.operations.push_back(trans);
-//        
-//        if( fee == asset() )
-//        {
-//            for( auto& op : trx.operations ) db.current_fee_schedule().set_fee(op);
-//        }
-//        trx.validate();
-//        db.push_transaction(trx, ~0);
-//        verify_asset_supplies(db);
-//        trx.operations.clear();
-//    } FC_CAPTURE_AND_RETHROW( (from.id)(to.id)(amount)(fee) )
-//}
 
 namespace
 {
@@ -139,18 +101,18 @@ namespace
         
         for (auto& digest: digest_accumulator.proposed_operations_digests)
         {
-            FC_ASSERT(existed_operations_digests.count(digest) == 0, "Proposed operation already pending for approval.");
+            FC_ASSERT(existed_operations_digests.count(digest) == 0, "Proposed operation is already pending for approval.");
         }
     }
 }
 
-BOOST_FIXTURE_TEST_SUITE( check_transactions_duplicates, database_fixture )
+BOOST_FIXTURE_TEST_SUITE( check_transactions_duplicates_tests, database_fixture )
 
 BOOST_AUTO_TEST_CASE( test_exception_throwing_for_the_same_operation_proposed_twice )
 {
     try
     {
-        ACTORS((alice)(bob))
+        ACTORS((alice))
         
         ::propose_operation(*this, make_transfer_operation(account_id_type(), alice_id, asset(500)));
         
@@ -162,6 +124,52 @@ BOOST_AUTO_TEST_CASE( test_exception_throwing_for_the_same_operation_proposed_tw
         trx.operations = {operation_proposal};
         
         BOOST_CHECK_THROW(check_transactions_duplicates(db, trx), fc::exception);
+    }
+    catch( const fc::exception& e )
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+BOOST_AUTO_TEST_CASE( test_check_passes_without_duplication )
+{
+    try
+    {
+        ACTORS((alice))
+        
+        proposal_create_operation operation_proposal;
+        operation_proposal.proposed_ops = {op_wrapper(make_transfer_operation(account_id_type(), alice_id, asset(500)))};
+        
+        signed_transaction trx;
+        set_expiration( db, trx );
+        trx.operations = {operation_proposal};
+        
+        BOOST_CHECK_NO_THROW(check_transactions_duplicates(db, trx));
+    }
+    catch( const fc::exception& e )
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+BOOST_AUTO_TEST_CASE( test_exception_throwing_for_the_same_operation_with_different_assets )
+{
+    try
+    {
+        ACTORS((alice))
+        
+        ::propose_operation(*this, make_transfer_operation(account_id_type(), alice_id, asset(500)));
+        
+        proposal_create_operation operation_proposal;
+        operation_proposal.proposed_ops = {op_wrapper(make_transfer_operation(account_id_type(), alice_id, asset(501)))};
+        
+        signed_transaction trx;
+        set_expiration( db, trx );
+        trx.operations = {operation_proposal};
+        
+        BOOST_CHECK_NO_THROW(check_transactions_duplicates(db, trx));
     }
     catch( const fc::exception& e )
     {
