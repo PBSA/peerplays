@@ -1,5 +1,3 @@
-
-
 /*
  * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
@@ -61,48 +59,16 @@ namespace
         });
     }
     
-    struct proposed_operations_digest_accumulator
+    signed_transaction make_signed_transaction_with_proposed_operation(database_fixture& fixture, const operation& op)
     {
-        typedef void result_type;
+        proposal_create_operation operation_proposal;
+        operation_proposal.proposed_ops = {op_wrapper(op)};
         
-        template<class T>
-        void operator()(const T&) const
-        {}
+        signed_transaction transaction;
+        set_expiration( fixture.db, transaction );
+        transaction.operations = {operation_proposal};
         
-        void operator()(const proposal_create_operation& proposal) const
-        {
-            for (auto& operation: proposal.proposed_ops)
-            {
-                proposed_operations_digests.push_back(fc::digest(operation.op));
-            }
-        }
-        
-        mutable std::vector<fc::sha256> proposed_operations_digests;
-    };
-    
-    void check_transactions_duplicates(database& db, const signed_transaction& transaction)
-    {
-        const auto& proposal_index = db.get_index<proposal_object>();
-        std::set<fc::sha256> existed_operations_digests;
-        
-        proposal_index.inspect_all_objects( [&](const object& obj){
-            const proposal_object& proposal = static_cast<const proposal_object&>(obj);
-            for (auto& operation: proposal.proposed_transaction.operations)
-            {
-                existed_operations_digests.insert(fc::digest(operation));
-            }
-        });
-        
-        proposed_operations_digest_accumulator digest_accumulator;
-        for (auto& operation: transaction.operations)
-        {
-            operation.visit(digest_accumulator);
-        }
-        
-        for (auto& digest: digest_accumulator.proposed_operations_digests)
-        {
-            FC_ASSERT(existed_operations_digests.count(digest) == 0, "Proposed operation is already pending for approval.");
-        }
+        return transaction;
     }
 }
 
@@ -116,14 +82,8 @@ BOOST_AUTO_TEST_CASE( test_exception_throwing_for_the_same_operation_proposed_tw
         
         ::propose_operation(*this, make_transfer_operation(account_id_type(), alice_id, asset(500)));
         
-        proposal_create_operation operation_proposal;
-        operation_proposal.proposed_ops = {op_wrapper(make_transfer_operation(account_id_type(), alice_id, asset(500)))};
-        
-        signed_transaction trx;
-        set_expiration( db, trx );
-        trx.operations = {operation_proposal};
-        
-        BOOST_CHECK_THROW(check_transactions_duplicates(db, trx), fc::exception);
+        auto trx = make_signed_transaction_with_proposed_operation(*this, make_transfer_operation(account_id_type(), alice_id, asset(500)));
+        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -138,14 +98,8 @@ BOOST_AUTO_TEST_CASE( test_check_passes_without_duplication )
     {
         ACTORS((alice))
         
-        proposal_create_operation operation_proposal;
-        operation_proposal.proposed_ops = {op_wrapper(make_transfer_operation(account_id_type(), alice_id, asset(500)))};
-        
-        signed_transaction trx;
-        set_expiration( db, trx );
-        trx.operations = {operation_proposal};
-        
-        BOOST_CHECK_NO_THROW(check_transactions_duplicates(db, trx));
+        auto trx = make_signed_transaction_with_proposed_operation(*this, make_transfer_operation(account_id_type(), alice_id, asset(500)));
+        BOOST_CHECK_NO_THROW(db.check_tansaction_for_duplicated_operations(trx));
     }
     catch( const fc::exception& e )
     {
@@ -162,14 +116,8 @@ BOOST_AUTO_TEST_CASE( test_exception_throwing_for_the_same_operation_with_differ
         
         ::propose_operation(*this, make_transfer_operation(account_id_type(), alice_id, asset(500)));
         
-        proposal_create_operation operation_proposal;
-        operation_proposal.proposed_ops = {op_wrapper(make_transfer_operation(account_id_type(), alice_id, asset(501)))};
-        
-        signed_transaction trx;
-        set_expiration( db, trx );
-        trx.operations = {operation_proposal};
-        
-        BOOST_CHECK_NO_THROW(check_transactions_duplicates(db, trx));
+        auto trx = make_signed_transaction_with_proposed_operation(*this, make_transfer_operation(account_id_type(), alice_id, asset(501)));
+        BOOST_CHECK_NO_THROW(db.check_tansaction_for_duplicated_operations(trx));
     }
     catch( const fc::exception& e )
     {
