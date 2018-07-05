@@ -65,7 +65,7 @@ namespace
         
         for (auto& operation: operations)
         {
-            operation_proposal.proposed_ops = {op_wrapper(operation)};
+            operation_proposal.proposed_ops.push_back(op_wrapper(operation));
         }
         
         signed_transaction transaction;

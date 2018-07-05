@@ -141,14 +141,6 @@ void database::check_tansaction_for_duplicated_operations(const signed_transacti
       }
    });
    
-   for (auto& pending_transaction: _pending_tx)
-   {
-      for (auto& operation: pending_transaction.operations)
-      {
-         existed_operations_digests.insert(fc::digest(operation));
-      }
-   }
-   
    proposed_operations_digest_accumulator digest_accumulator;
    for (auto& operation: trx.operations)
    {
