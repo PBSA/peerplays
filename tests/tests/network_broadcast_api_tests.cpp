@@ -222,8 +222,6 @@ BOOST_AUTO_TEST_CASE( check_fails_for_same_member_create_operations )
 {
     try
     {
-        ACTORS((alice))
-        
         create_proposal(*this, {make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
         
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
@@ -240,12 +238,34 @@ BOOST_AUTO_TEST_CASE( check_passes_for_different_member_create_operations )
 {
     try
     {
-        ACTORS((alice))
-        
         create_proposal(*this, {make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
         
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_committee_member_create_operation(asset(1001), account_id_type(), "test url")});
         BOOST_CHECK_NO_THROW(db.check_tansaction_for_duplicated_operations(trx));
+    }
+    catch( const fc::exception& e )
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+BOOST_AUTO_TEST_CASE( check_failes_for_several_operations_of_mixed_type )
+{
+    try
+    {
+        ACTORS((alice))
+        
+        create_proposal(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500)),
+                                make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
+        
+        create_proposal(*this, {make_transfer_operation(account_id_type(), alice_id, asset(501)), //duplicate
+                                make_committee_member_create_operation(asset(1001), account_id_type(), "test url")});
+        
+        auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(501)), //duplicate
+                                                                           make_committee_member_create_operation(asset(1002), account_id_type(), "test url")});
+        
+        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
