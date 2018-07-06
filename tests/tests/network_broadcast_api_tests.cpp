@@ -27,6 +27,8 @@
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/protocol/proposal.hpp>
 #include <graphene/chain/proposal_object.hpp>
+#include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/protocol/committee_member.hpp>
 #include <fc/crypto/digest.hpp>
 
 #include "../common/database_fixture.hpp"
@@ -44,6 +46,16 @@ namespace
         transfer.amount = amount;
         
         return transfer;
+    }
+    
+    committee_member_create_operation make_committee_member_create_operation(const asset& fee, const account_id_type& member, const string& url)
+    {
+        committee_member_create_operation member_create_operation;
+        member_create_operation.fee = fee;
+        member_create_operation.committee_member_account = member;
+        member_create_operation.url = url;
+        
+        return member_create_operation;
     }
     
     void create_proposal(database_fixture& fixture, const std::vector<operation>& operations)
@@ -180,6 +192,60 @@ BOOST_AUTO_TEST_CASE( check_fails_for_duplicated_operation_in_existed_proposal_w
         
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))}); //duplicated one
         BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+    }
+    catch( const fc::exception& e )
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+BOOST_AUTO_TEST_CASE( check_passes_for_different_operations_types )
+{
+    try
+    {
+        ACTORS((alice))
+        
+        create_proposal(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))});
+        
+        auto trx = make_signed_transaction_with_proposed_operation(*this, {make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
+        BOOST_CHECK_NO_THROW(db.check_tansaction_for_duplicated_operations(trx));
+    }
+    catch( const fc::exception& e )
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+BOOST_AUTO_TEST_CASE( check_fails_for_same_member_create_operations )
+{
+    try
+    {
+        ACTORS((alice))
+        
+        create_proposal(*this, {make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
+        
+        auto trx = make_signed_transaction_with_proposed_operation(*this, {make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
+        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+    }
+    catch( const fc::exception& e )
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+BOOST_AUTO_TEST_CASE( check_passes_for_different_member_create_operations )
+{
+    try
+    {
+        ACTORS((alice))
+        
+        create_proposal(*this, {make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
+        
+        auto trx = make_signed_transaction_with_proposed_operation(*this, {make_committee_member_create_operation(asset(1001), account_id_type(), "test url")});
+        BOOST_CHECK_NO_THROW(db.check_tansaction_for_duplicated_operations(trx));
     }
     catch( const fc::exception& e )
     {

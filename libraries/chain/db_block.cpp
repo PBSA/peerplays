@@ -42,24 +42,26 @@
 
 namespace {
     
-    struct proposed_operations_digest_accumulator
-    {
-        typedef void result_type;
-        
-        template<class T>
-        void operator()(const T&) 
-        {}
-        
-        void operator()(const graphene::chain::proposal_create_operation& proposal)
-        {
-            for (auto& operation: proposal.proposed_ops)
-            {
-                proposed_operations_digests.push_back(fc::digest(operation.op));
-            }
-        }
-        
-        std::vector<fc::sha256> proposed_operations_digests;
-    };
+   struct proposed_operations_digest_accumulator
+   {
+      typedef void result_type;
+      
+      void operator()(const graphene::chain::proposal_create_operation& proposal)
+      {
+         for (auto& operation: proposal.proposed_ops)
+         {
+            proposed_operations_digests.push_back(fc::digest(operation.op));
+         }
+      }
+       
+      //empty template method is needed for all other operation types
+      //we can ignore them, we are interested in only proposal_create_operation
+      template<class T>
+      void operator()(const T&) 
+      {}
+      
+      std::vector<fc::sha256> proposed_operations_digests;
+   };
 }
 
 namespace graphene { namespace chain {
