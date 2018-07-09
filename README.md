@@ -29,6 +29,12 @@ Start the witness back up
 
     ./programs/witness_node/witness_node
 
+Upgrading A Peerplays Node
+-----------------
+To minimize downtime of your peerplays node when upgrading, one upgrade idea was written in this steemit article: https://steemit.com/peerplays/@joseph/peerplays-update-setting-a-backup-witness-server-switching-servers
+
+Wallet Setup
+-----------------
 Then, in a separate terminal window, start the command-line wallet `cli_wallet`:
 
     ./programs/cli_wallet/cli_wallet
@@ -37,7 +43,6 @@ To set your initial password to 'password' use:
 
     >>> set_password password
     >>> unlock password
-
 
 A list of CLI wallet commands is available
 [here](https://github.com/PBSA/peerplays/blob/master/libraries/wallet/include/graphene/wallet/wallet.hpp).
