@@ -86,6 +86,26 @@ namespace
         
         return transaction;
     }
+    
+    void push_proposal(database_fixture& fixture, const account_object& fee_payer, const std::vector<operation>& operations)
+    {
+        proposal_create_operation operation_proposal;
+        operation_proposal.fee_paying_account = fee_payer.id;
+        
+        for (auto& operation: operations)
+        {
+            operation_proposal.proposed_ops.push_back(op_wrapper(operation));
+        }
+        
+        operation_proposal.expiration_time = fixture.db.head_block_time() + fc::days(1);
+        
+        signed_transaction transaction;
+        transaction.operations.push_back(operation_proposal);
+        set_expiration( fixture.db, transaction );
+        
+        fixture.sign( transaction,  fixture.init_account_priv_key  );
+        PUSH_TX( fixture.db, transaction );
+    }
 }
 
 BOOST_FIXTURE_TEST_SUITE( check_tansaction_for_duplicated_operations, database_fixture )
@@ -265,6 +285,85 @@ BOOST_AUTO_TEST_CASE( check_failes_for_several_operations_of_mixed_type )
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(501)), //duplicate
                                                                            make_committee_member_create_operation(asset(1002), account_id_type(), "test url")});
         
+        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+    }
+    catch( const fc::exception& e )
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+BOOST_AUTO_TEST_CASE( check_failes_for_duplicates_in_pending_transactions_list )
+{
+    try
+    {
+        ACTORS((alice))
+        
+        fc::ecc::private_key committee_key = init_account_priv_key;
+        
+        const account_object& moneyman = create_account("moneyman", init_account_pub_key);
+        const asset_object& core = asset_id_type()(db);
+        
+        transfer(account_id_type()(db), moneyman, core.amount(1000000));
+        
+        auto duplicate = make_transfer_operation(alice.id, moneyman.get_id(), asset(100));
+        push_proposal(*this, moneyman, {duplicate});
+        
+        auto trx = make_signed_transaction_with_proposed_operation(*this, {duplicate});
+        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+    }
+    catch( const fc::exception& e )
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+BOOST_AUTO_TEST_CASE( check_passes_for_no_duplicates_in_pending_transactions_list )
+{
+    try
+    {
+        ACTORS((alice))
+        
+        fc::ecc::private_key committee_key = init_account_priv_key;
+        
+        const account_object& moneyman = create_account("moneyman", init_account_pub_key);
+        const asset_object& core = asset_id_type()(db);
+        
+        transfer(account_id_type()(db), moneyman, core.amount(1000000));
+        
+        push_proposal(*this, moneyman, {make_transfer_operation(alice.id, moneyman.get_id(), asset(100))});
+        
+        auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(alice.id, moneyman.get_id(), asset(101))});
+        BOOST_CHECK_NO_THROW(db.check_tansaction_for_duplicated_operations(trx));
+    }
+    catch( const fc::exception& e )
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+BOOST_AUTO_TEST_CASE( check_fails_for_several_trаnsactions_with_duplicates_in_pending_list )
+{
+    try
+    {
+        ACTORS((alice))
+        
+        fc::ecc::private_key committee_key = init_account_priv_key;
+        
+        const account_object& moneyman = create_account("moneyman", init_account_pub_key);
+        const asset_object& core = asset_id_type()(db);
+        
+        transfer(account_id_type()(db), moneyman, core.amount(1000000));
+        
+        auto duplicate = make_transfer_operation(alice.id, moneyman.get_id(), asset(100));
+        push_proposal(*this, moneyman, {make_transfer_operation(alice.id, moneyman.get_id(), asset(101)),
+                                        duplicate});
+        
+        auto trx = make_signed_transaction_with_proposed_operation(*this, {duplicate,
+                                                                           make_transfer_operation(alice.id, moneyman.get_id(), asset(102))});
         BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )

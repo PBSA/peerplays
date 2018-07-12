@@ -143,12 +143,23 @@ void database::check_tansaction_for_duplicated_operations(const signed_transacti
       }
    });
    
+   for (auto& pending_transaction: _pending_tx)
+   {
+      proposed_operations_digest_accumulator digest_accumulator;
+      for (auto& operation: pending_transaction.operations)
+      {
+         operation.visit(digest_accumulator);
+      }
+       
+      existed_operations_digests.insert(digest_accumulator.proposed_operations_digests.begin(), digest_accumulator.proposed_operations_digests.end());
+   }
+    
    proposed_operations_digest_accumulator digest_accumulator;
    for (auto& operation: trx.operations)
    {
       operation.visit(digest_accumulator);
    }
-   
+    
    for (auto& digest: digest_accumulator.proposed_operations_digests)
    {
       FC_ASSERT(existed_operations_digests.count(digest) == 0, "Proposed operation is already pending for approval.");
