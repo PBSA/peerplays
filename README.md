@@ -169,7 +169,7 @@ Save this file in your peerplays directory. `vi /home/ubuntu/peerplays/start.sh`
 #!/bin/bash
 
 cd /home/ubuntu/peerplays
-./programs/witness_node/witness_node &> /var/log/peerplays.log
+./programs/witness_node/witness_node &>> /var/log/peerplays.log
 ```
 Make it executable
 ```bash
@@ -204,7 +204,20 @@ Check your logfile for entries
 ```bash
 tail -f /var/log/peerplays.log
 ```
+Add log rotation for peerplays.log:
+Create this file: `sudo nano /etc/logrotate.d/peerplays`
+```
+/var/log/peerplays.log {
+   
+    size 2M
 
+    copytruncate
+
+    rotate 7
+    
+}
+```
+This file will rotate when it reaches 2MB and will keep the last 7 logs. You can modify as required. 
 
 Running specific tests
 ----------------------
