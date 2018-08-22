@@ -506,6 +506,7 @@ namespace detail {
                }
             }
 
+            _chain_db->push_transaction( signed_transaction( transaction_message.trx, get_chain_id() ) );
             return result;
          } catch ( const graphene::chain::unlinkable_block_exception& e ) {
             // translate to a graphene::net exception

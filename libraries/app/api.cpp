@@ -169,9 +169,11 @@ namespace graphene { namespace app {
     void network_broadcast_api::broadcast_transaction(const signed_transaction& trx)
     {
        trx.validate();
-       _app.chain_database()->check_tansaction_for_duplicated_operations(trx);
-       _app.chain_database()->push_transaction(trx);
-       _app.p2p_node()->broadcast_transaction(trx);
+       const auto& chain_db = _app.chain_database();
+       chain_db->check_tansaction_for_duplicated_operations(trx);
+       chain_db->push_transaction( signed_transaction( trx, chain_db->get_chain_id() ) );
+       if( _app.p2p_node() != nullptr )
+          _app.p2p_node()->broadcast_transaction(trx);
     }
 
     fc::variant network_broadcast_api::broadcast_transaction_synchronous(const signed_transaction& trx)
@@ -196,8 +198,10 @@ namespace graphene { namespace app {
     {
        trx.validate();
        _callbacks[trx.id()] = cb;
-       _app.chain_database()->push_transaction(trx);
-       _app.p2p_node()->broadcast_transaction(trx);
+       const auto& chain_db = _app.chain_database();
+       chain_db->push_transaction( signed_transaction( trx, chain_db->get_chain_id() ) );
+       if( _app.p2p_node() != nullptr )
+          _app.p2p_node()->broadcast_transaction(trx);
     }
 
     network_node_api::network_node_api( application& a ) : _app( a )
