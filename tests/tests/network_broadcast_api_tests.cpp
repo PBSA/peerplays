@@ -398,6 +398,8 @@ BOOST_AUTO_TEST_CASE( check_passes_for_duplicated_betting_market_or_group )
 
         proposal_create_operation pcop2 = pcop1;
 
+        trx.clear();
+
         pcop1.proposed_ops.emplace_back( evcop1 );
         pcop1.proposed_ops.emplace_back( bmgcop );
         pcop1.proposed_ops.emplace_back( bmcop  );

@@ -169,9 +169,12 @@ namespace graphene { namespace app {
     void network_broadcast_api::broadcast_transaction(const signed_transaction& trx)
     {
        trx.validate();
-       const auto& chain_db = *_app.chain_database();
+
+       auto& chain_db = *_app.chain_database();
        chain_db.check_tansaction_for_duplicated_operations(trx);
-       chain_db.push_transaction( signed_transaction( trx, chain_db.get_chain_id() ) );
+       trx.get_signature_keys( chain_db.get_chain_id() ); // Extract public keys from signatures
+       chain_db.push_transaction( trx );
+
        if( _app.p2p_node() != nullptr )
           _app.p2p_node()->broadcast_transaction(trx);
     }
@@ -198,8 +201,11 @@ namespace graphene { namespace app {
     {
        trx.validate();
        _callbacks[trx.id()] = cb;
+
        auto& chain_db = *_app.chain_database();
-       chain_db.push_transaction( signed_transaction( trx, chain_db.get_chain_id() ) );
+       trx.get_signature_keys( chain_db.get_chain_id() ); // Extract public keys from signatures
+       chain_db.push_transaction( trx );
+
        if( _app.p2p_node() != nullptr )
           _app.p2p_node()->broadcast_transaction(trx);
     }

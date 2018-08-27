@@ -506,7 +506,9 @@ namespace detail {
                }
             }
 
-            _chain_db->push_transaction( signed_transaction( transaction_message.trx, get_chain_id() ) );
+            transaction_message.trx.get_signature_keys( get_chain_id() ); // Extract public keys from signatures
+
+            _chain_db->push_transaction( transaction_message.trx );
             return result;
          } catch ( const graphene::chain::unlinkable_block_exception& e ) {
             // translate to a graphene::net exception
