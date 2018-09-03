@@ -201,7 +201,7 @@ block_production_condition::block_production_condition_enum witness_plugin::bloc
          ilog("Not producing block because it isn't my turn");
          break;
       case block_production_condition::not_time_yet:
-         ilog("Not producing block because slot has not yet arrived");
+         dlog("Not producing block because slot has not yet arrived");
          break;
       case block_production_condition::no_private_key:
          ilog("Not producing block because I don't have the private key for ${scheduled_key}", (capture) );
@@ -228,9 +228,7 @@ block_production_condition::block_production_condition_enum witness_plugin::mayb
 {
    chain::database& db = database();
    fc::time_point now_fine = graphene::time::now();
-   fc::time_point_sec now = now_fine;
-   if (db.get_global_properties().parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SHUFFLED_ALGORITHM)
-     now += fc::microseconds( 500000 );
+   fc::time_point_sec now = now_fine + fc::microseconds( 500000 );
 
    // If the next block production opportunity is in the present or future, we're synced.
    if( !_production_enabled )

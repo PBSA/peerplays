@@ -1803,7 +1803,7 @@ vector<tournament_object> database_api_impl::get_tournaments(tournament_id_type 
 {
    vector<tournament_object> result;
    const auto& tournament_idx = _db.get_index_type<tournament_index>().indices().get<by_id>();
-   for ( auto elem : boost::make_iterator_range(tournament_idx.rbegin(), tournament_idx.rend())) {
+   for (auto elem: tournament_idx) {
       if( result.size() >= limit ) break;
       if( ( (elem.get_id().instance.value <= start.instance.value) || start == tournament_id_type()) &&
           ( (elem.get_id().instance.value >=  stop.instance.value) || stop == tournament_id_type()))
@@ -1829,7 +1829,7 @@ vector<tournament_object> database_api_impl::get_tournaments_by_state(tournament
 {   
    vector<tournament_object> result;
    const auto& tournament_idx = _db.get_index_type<tournament_index>().indices().get<by_id>();
-   for ( auto elem : boost::make_iterator_range(tournament_idx.rbegin(), tournament_idx.rend())) {
+   for (auto elem: tournament_idx) {
       if( result.size() >= limit ) break;
       if( ( (elem.get_id().instance.value <= start.instance.value) || start == tournament_id_type()) &&
           ( (elem.get_id().instance.value >=  stop.instance.value) || stop ==  tournament_id_type()) &&

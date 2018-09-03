@@ -451,6 +451,20 @@ private:
             {
             //   idump((e));
             }
+            try
+            {
+               object_id_type id = changed_object_variant["id"].as<account_id_type>();
+               if (_wallet.my_accounts.find(id) != _wallet.my_accounts.end())
+               {
+                  account_object account = changed_object_variant.as<account_object>();
+                  _wallet.update_account(account);
+               }
+               continue;
+            }
+            catch (const fc::exception& e)
+            {
+            //   idump((e));
+            }
          }
       }
    }
@@ -1753,6 +1767,7 @@ public:
       fc::raw::pack(enc, secret_hash_type());
       witness_create_op.initial_secret = secret_hash_type::hash(enc.result());
 
+
       if (_remote_db->get_witness_by_account(witness_create_op.witness_account))
          FC_THROW("Account ${owner_account} is already a witness", ("owner_account", owner_account));
 
@@ -1780,8 +1795,10 @@ public:
       witness_update_op.witness_account = witness_account.id;
       if( url != "" )
          witness_update_op.new_url = url;
-      if( block_signing_key != "" )
+      if( block_signing_key != "" ) {
          witness_update_op.new_signing_key = public_key_type( block_signing_key );
+         witness_update_op.new_initial_secret = secret_hash_type::hash(secret_hash_type());
+      }
 
       signed_transaction tx;
       tx.operations.push_back( witness_update_op );
@@ -2001,9 +2018,9 @@ public:
    } FC_CAPTURE_AND_RETHROW( (voting_account)(committee_member)(approve)(broadcast) ) }
 
    signed_transaction vote_for_witness(string voting_account,
-                                        string witness,
-                                        bool approve,
-                                        bool broadcast /* = false */)
+                                       string witness,
+                                       bool approve,
+                                       bool broadcast /* = false */)
    { try {
       account_object voting_account_object = get_account(voting_account);
       account_id_type witness_owner_account_id = get_account_id(witness);
@@ -2033,6 +2050,47 @@ public:
 
       return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (voting_account)(witness)(approve)(broadcast) ) }
+
+   signed_transaction update_witness_votes(string voting_account,
+                                           std::vector<std::string> witnesses_to_approve,
+                                           std::vector<std::string> witnesses_to_reject,
+                                           uint16_t desired_number_of_witnesses,
+                                           bool broadcast /* = false */)
+   { try {
+      account_object voting_account_object = get_account(voting_account);
+      for (const std::string& witness : witnesses_to_approve)
+      {
+         account_id_type witness_owner_account_id = get_account_id(witness);
+         fc::optional<witness_object> witness_obj = _remote_db->get_witness_by_account(witness_owner_account_id);
+         if (!witness_obj)
+            FC_THROW("Account ${witness} is not registered as a witness", ("witness", witness));
+         auto insert_result = voting_account_object.options.votes.insert(witness_obj->vote_id);
+         if (!insert_result.second)
+            FC_THROW("Account ${account} was already voting for witness ${witness}", ("account", voting_account)("witness", witness));
+      }
+      for (const std::string& witness : witnesses_to_reject)
+      {
+         account_id_type witness_owner_account_id = get_account_id(witness);
+         fc::optional<witness_object> witness_obj = _remote_db->get_witness_by_account(witness_owner_account_id);
+         if (!witness_obj)
+            FC_THROW("Account ${witness} is not registered as a witness", ("witness", witness));
+         unsigned votes_removed = voting_account_object.options.votes.erase(witness_obj->vote_id);
+         if (!votes_removed)
+            FC_THROW("Account ${account} is already not voting for witness ${witness}", ("account", voting_account)("witness", witness));
+      }
+      voting_account_object.options.num_witness = desired_number_of_witnesses;
+
+      account_update_operation account_update_op;
+      account_update_op.account = voting_account_object.id;
+      account_update_op.new_options = voting_account_object.options;
+
+      signed_transaction tx;
+      tx.operations.push_back( account_update_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (voting_account)(witnesses_to_approve)(witnesses_to_reject)(desired_number_of_witnesses)(broadcast) ) }
 
    signed_transaction set_voting_proxy(string account_to_modify,
                                        optional<string> voting_account,
@@ -3379,6 +3437,14 @@ brain_key_info wallet_api::suggest_brain_key()const
    return result;
 }
 
+pair<public_key_type,string> wallet_api::get_private_key_from_password( string account, string role, string password )const {
+   auto seed = password + account + role;
+   FC_ASSERT( seed.size() );
+   auto secret = fc::sha256::hash( seed.c_str(), seed.size() );
+   auto priv = fc::ecc::private_key::regenerate( secret );
+   return std::make_pair( public_key_type( priv.get_public_key() ), key_to_wif( priv ) );
+}
+
 string wallet_api::serialize_transaction( signed_transaction tx )const
 {
    return fc::to_hex(fc::raw::pack(tx));
@@ -3843,6 +3909,15 @@ signed_transaction wallet_api::vote_for_witness(string voting_account,
                                                 bool broadcast /* = false */)
 {
    return my->vote_for_witness(voting_account, witness, approve, broadcast);
+}
+
+signed_transaction wallet_api::update_witness_votes(string voting_account,
+                                                    std::vector<std::string> witnesses_to_approve,
+                                                    std::vector<std::string> witnesses_to_reject,
+                                                    uint16_t desired_number_of_witnesses,
+                                                    bool broadcast /* = false */)
+{
+   return my->update_witness_votes(voting_account, witnesses_to_approve, witnesses_to_reject, desired_number_of_witnesses, broadcast);
 }
 
 signed_transaction wallet_api::set_voting_proxy(string account_to_modify,

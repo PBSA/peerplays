@@ -59,6 +59,24 @@ struct genesis_state_type {
          flat_map<public_key_type, weight_type> key_auths;
          flat_map<address, weight_type>         address_auths;
       };
+      struct initial_cdd_vesting_policy {
+         uint32_t vesting_seconds;
+         fc::uint128_t coin_seconds_earned;
+         fc::time_point_sec start_claim;
+         fc::time_point_sec coin_seconds_earned_last_update;
+      };
+      struct initial_linear_vesting_policy {
+         fc::time_point_sec begin_timestamp;
+         uint32_t vesting_cliff_seconds;
+         uint32_t vesting_duration_seconds;
+         share_type begin_balance;
+      };
+      struct initial_vesting_balance {
+         string asset_symbol;
+         share_type amount;
+         std::string policy_type;  // either "linear" or "cdd"
+         fc::variant policy; // either an initial_cdd_vesting_policy or initial_linear_vesting_policy
+      };
       initial_bts_account_type(const string& name = string(),
                                const initial_authority& owner_authority = initial_authority(),
                                const initial_authority& active_authority = initial_authority(),
@@ -72,6 +90,7 @@ struct genesis_state_type {
       initial_authority owner_authority;
       initial_authority active_authority;
       share_type core_balance;
+      fc::optional<std::vector<initial_vesting_balance> > vesting_balances;
    };
    struct initial_asset_type {
       struct initial_collateral_position {
@@ -102,6 +121,7 @@ struct genesis_state_type {
       string asset_symbol;
       share_type amount;
       time_point_sec begin_timestamp;
+      fc::optional<uint32_t> vesting_cliff_seconds;
       uint32_t vesting_duration_seconds = 0;
       share_type begin_balance;
    };
@@ -161,7 +181,7 @@ FC_REFLECT(graphene::chain::genesis_state_type::initial_balance_type,
            (owner)(asset_symbol)(amount))
 
 FC_REFLECT(graphene::chain::genesis_state_type::initial_vesting_balance_type,
-           (owner)(asset_symbol)(amount)(begin_timestamp)(vesting_duration_seconds)(begin_balance))
+           (owner)(asset_symbol)(amount)(begin_timestamp)(vesting_cliff_seconds)(vesting_duration_seconds)(begin_balance))
 
 FC_REFLECT(graphene::chain::genesis_state_type::initial_witness_type, (owner_name)(block_signing_key))
 
@@ -174,12 +194,27 @@ FC_REFLECT(graphene::chain::genesis_state_type::initial_bts_account_type::initia
            (account_auths)
            (key_auths)
            (address_auths))
-
+FC_REFLECT(graphene::chain::genesis_state_type::initial_bts_account_type::initial_cdd_vesting_policy,
+           (vesting_seconds)
+           (coin_seconds_earned)
+           (start_claim)
+           (coin_seconds_earned_last_update))
+FC_REFLECT(graphene::chain::genesis_state_type::initial_bts_account_type::initial_linear_vesting_policy,
+           (begin_timestamp)
+           (vesting_cliff_seconds)
+           (vesting_duration_seconds)
+           (begin_balance))
+FC_REFLECT(graphene::chain::genesis_state_type::initial_bts_account_type::initial_vesting_balance,
+           (asset_symbol)
+           (amount)
+           (policy_type)
+           (policy))
 FC_REFLECT(graphene::chain::genesis_state_type::initial_bts_account_type,
            (name)
            (owner_authority)
            (active_authority)
-           (core_balance))
+           (core_balance)
+           (vesting_balances))
 
 FC_REFLECT(graphene::chain::genesis_state_type,
            (initial_timestamp)(max_core_supply)(initial_parameters)(initial_bts_accounts)(initial_accounts)(initial_assets)(initial_balances)
