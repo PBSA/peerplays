@@ -163,23 +163,40 @@ namespace detail {
          {
             // t.me/peerplays #seednodes
             vector<string> seeds = {
-               "seed.ppy.blckchnd.com:6112",       // blckchnd 
-               "ppy.esteem.ws:7777",               // good-karma
-               "peerplays.bitcoiner.me:9777",      // bitcoiner
-               "peerplays.roelandp.nl:9777",       // roelandp
-               "78.46.95.153:7777",                // theprophet0 
-               "ppyseed.bacchist.me:42420",        // bacchist-witness
-               "5.9.18.213:18828",                 // pfunk
-               "31.171.244.121:7777",              // taconator
-               "seed.peerplaysdb.com:9777",        // jesta
-               "ppy-seed.xeldal.com:19777",        // xeldal
-               "peerplays-seed.altcap.io:61388",   // winner.winner.chicken.dinner
-               "seed.peerplaysnodes.com:9777",     // wackou
-               "peerplays-seed.privex.io:7777",    // someguy123/privex
-               "51.15.78.16:9777",	               // agoric.systems
-               "212.71.253.163:9777",	            // xtar
-               "51.15.35.96:9777",	               // lafona
-               "anyx.ca:9777"                      // anyx
+               "seed.ppy.blckchnd.com:6112",           // blckchnd
+               "ppy.esteem.ws:7777",                   // good-karma
+               "peerplays.bitcoiner.me:9777",          // bitcoiner
+               "peerplays.roelandp.nl:9777",           // roelandp
+               "ppyseed.bacchist.me:42420",            // bacchist-witness
+               "5.9.18.213:18828",                     // pfunk
+               "31.171.244.121:7777",                  // taconator
+               "seed.peerplaysdb.com:9777",            // jesta
+               "ppy-seed.xeldal.com:19777",            // xeldal
+               "seed.ppy.altcap.io:61388",             // winner.winner.chicken.dinner
+               "seed.peerplaysnodes.com:9777",         // wackou
+               "peerplays-seed.privex.io:7777",        // someguy123/privex
+               "51.15.78.16:9777",                     // agoric.systems
+               "212.71.253.163:9777",                  // xtar
+               "51.15.35.96:9777",                     // lafona
+               "anyx.ca:9777",                         // anyx
+               "82.223.108.91:7777",                   // hiltos-witness
+               "seed.ppy.nuevax.com:19777",            // nuevax
+               "peerplays.butler.net:9777",            // billbutler-witness
+               "peerplays.bitcoiner.me:9777",          // bitcoiner
+               "ppyseed.bacchist.me:42420",            // bacchist-witness
+               "peerplays.bhuz.info:9777",             // bhuz
+               "node.peerblock.trade:9777",            // bitcoinsig
+               "peerplays.crypto.fans:9777",           // sc-steemit
+               "54.38.193.20:9777",                    // royal-flush
+               "ppy001.bts-nodes.net:7777",            // baxters-sports-witness
+               "ppy002.bts-nodes.net:7777",            // baxters-sports-witness
+               "ppy003.bts-nodes.net:7777",            // baxters-sports-witness
+               "ppy004.bts-nodes.net:7777",            // baxters-sports-witness
+               "ppy.proxyhosts.info:7777",             // baxters-sports-witness
+               "ppyseed.spacemx.tech:9777",            // spacecrypt-witness
+               "peerplaysblockchain.net:9777",         // houdini-witness
+               "54.37.235.164:7777",                   // melea-trust
+               "peerplays-seed.lukestokes.info:7777"   // lukestokes-witness
             };
             for( const string& endpoint_string : seeds )
             {
@@ -525,6 +542,7 @@ namespace detail {
       { try {
 
          auto latency = graphene::time::now() - blk_msg.block.timestamp;
+         FC_ASSERT( (latency.count()/1000) > -5000, "Rejecting block with timestamp in the future" );
          if (!sync_mode || blk_msg.block.block_num() % 10000 == 0)
          {
             const auto& witness = blk_msg.block.witness(*_chain_db);
