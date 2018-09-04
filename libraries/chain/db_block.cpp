@@ -29,6 +29,7 @@
 #include <graphene/chain/block_summary_object.hpp>
 #include <graphene/chain/global_property_object.hpp>
 #include <graphene/chain/operation_history_object.hpp>
+
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/transaction_object.hpp>
 #include <graphene/chain/witness_object.hpp>
@@ -241,7 +242,7 @@ processed_transaction database::_push_transaction( const signed_transaction& trx
    auto processed_trx = _apply_transaction( trx );
    _pending_tx.push_back(processed_trx);
 
-   notify_changed_objects();
+   // notify_changed_objects();
    // The transaction applied successfully. Merge its changes into the pending block session.
    temp_session.merge();
 
@@ -285,13 +286,13 @@ processed_transaction database::push_proposal(const proposal_object& proposal)
       {
          _applied_ops.resize( old_applied_ops_size );
       }
-      elog( "e", ("e",e.to_detail_string() ) );
+      edump((e));
       throw;
    }
 
    ptrx.operation_results = std::move(eval_state.operation_results);
    return ptrx;
-} FC_CAPTURE_AND_RETHROW( (proposal) ) }
+} FC_CAPTURE_AND_RETHROW() }
 
 signed_block database::generate_block(
    fc::time_point_sec when,
@@ -478,6 +479,10 @@ const vector<optional< operation_history_object > >& database::get_applied_opera
    return _applied_ops;
 }
 
+vector<optional< operation_history_object > >& database::get_applied_operations()
+{
+   return _applied_ops;
+}
 //////////////////// private methods ////////////////////
 
 void database::apply_block( const signed_block& next_block, uint32_t skip )
@@ -539,12 +544,14 @@ void database::_apply_block( const signed_block& next_block )
       perform_chain_maintenance(next_block, global_props);
 
    create_block_summary(next_block);
+   place_delayed_bets(); // must happen after update_global_dynamic_data() updates the time
    clear_expired_transactions();
    clear_expired_proposals();
    clear_expired_orders();
    update_expired_feeds();
    update_withdraw_permissions();
    update_tournaments();
+   update_betting_markets(next_block.timestamp);
 
    // n.b., update_maintenance_flag() happens this late
    // because get_slot_time() / get_slot_at_time() is needed above
@@ -562,27 +569,9 @@ void database::_apply_block( const signed_block& next_block )
    _applied_ops.clear();
 
    notify_changed_objects();
-
 } FC_CAPTURE_AND_RETHROW( (next_block.block_num()) )  }
 
-void database::notify_changed_objects()
-{ try {
-   if( _undo_db.enabled() ) 
-   {
-      const auto& head_undo = _undo_db.head();
-      vector<object_id_type> changed_ids;  changed_ids.reserve(head_undo.old_values.size());
-      for( const auto& item : head_undo.old_values ) changed_ids.push_back(item.first);
-      for( const auto& item : head_undo.new_ids ) changed_ids.push_back(item);
-      vector<const object*> removed;
-      removed.reserve( head_undo.removed.size() );
-      for( const auto& item : head_undo.removed )
-      {
-         changed_ids.push_back( item.first );
-         removed.emplace_back( item.second.get() );
-      }
-      changed_objects(changed_ids);
-   }
-} FC_CAPTURE_AND_RETHROW() }
+
 
 processed_transaction database::apply_transaction(const signed_transaction& trx, uint32_t skip)
 {

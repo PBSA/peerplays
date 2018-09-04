@@ -134,6 +134,13 @@ namespace graphene { namespace chain {
       vesting_balance_object_type,
       worker_object_type,
       balance_object_type,
+      sport_object_type,
+      event_group_object_type,
+      event_object_type,
+      betting_market_rules_object_type,
+      betting_market_group_object_type,
+      betting_market_object_type,
+      bet_object_type,
       tournament_object_type,
       tournament_details_object_type,
       match_object_type,
@@ -160,6 +167,8 @@ namespace graphene { namespace chain {
       impl_special_authority_object_type,
       impl_buyback_object_type,
       impl_fba_accumulator_object_type,
+      impl_betting_market_position_object_type,
+      impl_global_betting_statistics_object_type,
       impl_asset_dividend_data_type,
       impl_pending_dividend_payout_balance_for_holder_object_type,
       impl_distributed_dividend_balance_data_type
@@ -182,6 +191,13 @@ namespace graphene { namespace chain {
    class worker_object;
    class balance_object;
    class blinded_balance_object;
+   class sport_object;
+   class event_group_object;
+   class event_object;
+   class betting_market_rules_object;
+   class betting_market_group_object;
+   class betting_market_object;
+   class bet_object;
    class tournament_object;
    class tournament_details_object;
    class match_object;
@@ -201,6 +217,13 @@ namespace graphene { namespace chain {
    typedef object_id< protocol_ids, vesting_balance_object_type,    vesting_balance_object>       vesting_balance_id_type;
    typedef object_id< protocol_ids, worker_object_type,             worker_object>                worker_id_type;
    typedef object_id< protocol_ids, balance_object_type,            balance_object>               balance_id_type;
+   typedef object_id< protocol_ids, sport_object_type,              sport_object>                 sport_id_type;
+   typedef object_id< protocol_ids, event_group_object_type,        event_group_object>           event_group_id_type;
+   typedef object_id< protocol_ids, event_object_type,              event_object>                 event_id_type;
+   typedef object_id< protocol_ids, betting_market_rules_object_type, betting_market_rules_object> betting_market_rules_id_type;
+   typedef object_id< protocol_ids, betting_market_group_object_type, betting_market_group_object> betting_market_group_id_type;
+   typedef object_id< protocol_ids, betting_market_object_type,     betting_market_object>        betting_market_id_type;
+   typedef object_id< protocol_ids, bet_object_type,                bet_object>                   bet_id_type;
    typedef object_id< protocol_ids, tournament_object_type,         tournament_object>            tournament_id_type;
    typedef object_id< protocol_ids, tournament_details_object_type, tournament_details_object>    tournament_details_id_type;
    typedef object_id< protocol_ids, match_object_type,              match_object>                 match_id_type;
@@ -222,6 +245,8 @@ namespace graphene { namespace chain {
    class special_authority_object;
    class buyback_object;
    class fba_accumulator_object;
+   class betting_market_position_object;
+   class global_betting_statistics_object;
    class tournament_details_object;
    class asset_dividend_data_object;
    class pending_dividend_payout_balance_for_holder_object;
@@ -247,6 +272,8 @@ namespace graphene { namespace chain {
    typedef object_id< implementation_ids, impl_special_authority_object_type, special_authority_object >                special_authority_id_type;
    typedef object_id< implementation_ids, impl_buyback_object_type, buyback_object >                                    buyback_id_type;
    typedef object_id< implementation_ids, impl_fba_accumulator_object_type, fba_accumulator_object >                    fba_accumulator_id_type;
+   typedef object_id< implementation_ids, impl_betting_market_position_object_type, betting_market_position_object >    betting_market_position_id_type;
+   typedef object_id< implementation_ids, impl_global_betting_statistics_object_type, global_betting_statistics_object > global_betting_statistics_id_type;
 
    typedef fc::array<char, GRAPHENE_MAX_ASSET_SYMBOL_LENGTH>    symbol_type;
    typedef fc::ripemd160                                        block_id_type;
@@ -325,6 +352,10 @@ namespace graphene { namespace chain {
       friend bool operator == ( const extended_private_key_type& p1, const extended_private_key_type& p2);
       friend bool operator != ( const extended_private_key_type& p1, const extended_private_key_type& p2);
    };
+
+   typedef flat_map<std::string, std::string> internationalized_string_type;
+
+   typedef uint32_t bet_multiplier_type;
 } }  // graphene::chain
 
 namespace fc
@@ -361,6 +392,13 @@ FC_REFLECT_ENUM( graphene::chain::object_type,
                  (vesting_balance_object_type)
                  (worker_object_type)
                  (balance_object_type)
+                 (sport_object_type)
+                 (event_group_object_type)
+                 (event_object_type)
+                 (betting_market_rules_object_type)
+                 (betting_market_group_object_type)
+                 (betting_market_object_type)
+                 (bet_object_type)
                  (tournament_object_type)
                  (tournament_details_object_type)
                  (match_object_type)
@@ -385,6 +423,8 @@ FC_REFLECT_ENUM( graphene::chain::impl_object_type,
                  (impl_special_authority_object_type)
                  (impl_buyback_object_type)
                  (impl_fba_accumulator_object_type)
+                 (impl_betting_market_position_object_type)
+                 (impl_global_betting_statistics_object_type)
                  (impl_asset_dividend_data_type)
                  (impl_pending_dividend_payout_balance_for_holder_object_type)
                  (impl_distributed_dividend_balance_data_type)
@@ -406,6 +446,13 @@ FC_REFLECT_TYPENAME( graphene::chain::withdraw_permission_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::vesting_balance_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::worker_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::balance_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::sport_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::event_group_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::event_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::betting_market_rules_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::betting_market_group_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::betting_market_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::bet_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::tournament_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::global_property_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::dynamic_global_property_id_type )
@@ -420,6 +467,8 @@ FC_REFLECT_TYPENAME( graphene::chain::budget_record_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::special_authority_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::buyback_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::fba_accumulator_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::betting_market_position_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::global_betting_statistics_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::tournament_details_id_type )
 
 FC_REFLECT( graphene::chain::void_t, )

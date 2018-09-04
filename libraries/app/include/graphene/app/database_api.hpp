@@ -38,6 +38,12 @@
 #include <graphene/chain/market_object.hpp>
 #include <graphene/chain/operation_history_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
+#include <graphene/chain/sport_object.hpp>
+#include <graphene/chain/event_group_object.hpp>
+#include <graphene/chain/event_object.hpp>
+#include <graphene/chain/betting_market_object.hpp>
+#include <graphene/chain/global_betting_statistics_object.hpp>
+
 #include <graphene/chain/worker_object.hpp>
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/tournament_object.hpp>
@@ -160,6 +166,14 @@ class database_api
       optional<block_header> get_block_header(uint32_t block_num)const;
 
       /**
+      * @brief Retrieve multiple block header by block numbers
+      * @param block_num vector containing heights of the block whose header should be returned
+      * @return array of headers of the referenced blocks, or null if no matching block was found
+      */
+      map<uint32_t, optional<block_header>> get_block_header_batch(const vector<uint32_t> block_nums)const;
+
+
+      /**
        * @brief Retrieve a full, signed block
        * @param block_num Height of the block to be returned
        * @return the referenced block, or null if no matching block was found
@@ -212,6 +226,15 @@ class database_api
       //////////
 
       vector<vector<account_id_type>> get_key_references( vector<public_key_type> key )const;
+
+     /**
+      * Determine whether a textual representation of a public key
+      * (in Base-58 format) is *currently* linked
+      * to any *registered* (i.e. non-stealth) account on the blockchain
+      * @param public_key Public key
+      * @return Whether a public key is known
+      */
+     bool is_public_key_registered(string public_key) const;
 
       //////////////
       // Accounts //
@@ -319,6 +342,50 @@ class database_api
        * This function has semantics identical to @ref get_objects
        */
       vector<optional<asset_object>> lookup_asset_symbols(const vector<string>& symbols_or_ids)const;
+
+      /////////////////////
+      // Peerplays       //
+      /////////////////////
+
+      /**
+       * @brief Get global betting statistics
+       */
+      global_betting_statistics_object get_global_betting_statistics() const;
+
+      /**
+       * @brief Get a list of all sports
+       */
+      vector<sport_object> list_sports() const;
+
+      /**
+       * @brief Return a list of all event groups for a sport (e.g. all soccer leagues in soccer)
+       */
+      vector<event_group_object> list_event_groups(sport_id_type sport_id) const;
+
+      /**
+       * @brief Return a list of all events in an event group
+       */
+      vector<event_object> list_events_in_group(event_group_id_type event_group_id) const;
+
+      /**
+       * @brief Return a list of all betting market groups for an event
+       */
+      vector<betting_market_group_object> list_betting_market_groups(event_id_type) const;
+
+      /**
+       * @brief Return a list of all betting markets for a betting market group
+       */
+      vector<betting_market_object> list_betting_markets(betting_market_group_id_type) const;
+
+      /**
+       * @brief Return a list of all unmatched bets for a given account on a specific betting market
+       */
+      vector<bet_object> get_unmatched_bets_for_bettor(betting_market_id_type, account_id_type) const;
+
+      /**
+       * @brief Return a list of all unmatched bets for a given account (includes bets on all markets)
+       */
+      vector<bet_object> get_all_unmatched_bets_for_bettor(account_id_type) const;
 
       /////////////////////
       // Markets / feeds //
@@ -602,6 +669,7 @@ FC_API(graphene::app::database_api,
 
    // Blocks and transactions
    (get_block_header)
+   (get_block_header_batch)
    (get_block)
    (get_transaction)
    (get_recent_transaction_by_id)
@@ -615,6 +683,7 @@ FC_API(graphene::app::database_api,
 
    // Keys
    (get_key_references)
+   (is_public_key_registered)
 
    // Accounts
    (get_accounts)
@@ -636,6 +705,16 @@ FC_API(graphene::app::database_api,
    (get_assets)
    (list_assets)
    (lookup_asset_symbols)
+
+   // Peerplays
+   (list_sports)
+   (get_global_betting_statistics)
+   (list_event_groups)
+   (list_events_in_group)
+   (list_betting_market_groups)
+   (list_betting_markets)
+   (get_unmatched_bets_for_bettor)
+   (get_all_unmatched_bets_for_bettor)
 
    // Markets / feeds
    (get_order_book)

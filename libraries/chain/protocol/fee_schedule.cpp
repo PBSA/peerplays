@@ -189,6 +189,11 @@ namespace graphene { namespace chain {
       FC_ASSERT( maximum_proposal_lifetime - committee_proposal_review_period > block_interval,
                  "Committee proposal review period must be less than the maximum proposal lifetime" );
 
+      FC_ASSERT( min_bet_multiplier >= GRAPHENE_BETTING_MIN_MULTIPLIER &&
+                 min_bet_multiplier <= GRAPHENE_BETTING_MAX_MULTIPLIER );
+      FC_ASSERT( max_bet_multiplier >= GRAPHENE_BETTING_MIN_MULTIPLIER &&
+                 max_bet_multiplier <= GRAPHENE_BETTING_MAX_MULTIPLIER );
+      FC_ASSERT( min_bet_multiplier < max_bet_multiplier );
       FC_ASSERT( rake_fee_percentage >= TOURNAMENT_MINIMAL_RAKE_FEE_PERCENTAGE,
                  "Rake fee percentage must not be less than ${min}", ("min",TOURNAMENT_MINIMAL_RAKE_FEE_PERCENTAGE));
       FC_ASSERT( rake_fee_percentage <= TOURNAMENT_MAXIMAL_RAKE_FEE_PERCENTAGE,

@@ -21,10 +21,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <graphene/p2p/peer_connection.hpp>
+#include <graphene/chain/protocol/competitor.hpp>
 
-namespace graphene { namespace p2p {
+namespace graphene { namespace chain {
 
-} } //graphene::p2p
+void competitor_create_operation::validate() const
+{
+   FC_ASSERT( fee.amount >= 0 );
+}
 
+
+} } // graphene::chain
 

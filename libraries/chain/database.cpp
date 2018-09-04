@@ -23,6 +23,7 @@
  */
 #include <fc/smart_ref_impl.hpp>
 #include "db_balance.cpp"
+#include "db_bet.cpp"
 #include "db_block.cpp"
 #include "db_debug.cpp"
 #include "db_getter.cpp"
@@ -32,3 +33,4 @@
 #include "db_market.cpp"
 #include "db_update.cpp"
 #include "db_witness_schedule.cpp"
+#include "db_notify.cpp"

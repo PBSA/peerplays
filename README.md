@@ -210,6 +210,3 @@ Running specific tests
 ----------------------
 
 - `tests/chain_tests -t block_tests/name_of_test`
-
-
- 

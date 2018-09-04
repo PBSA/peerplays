@@ -50,6 +50,13 @@
 #include <graphene/chain/match_object.hpp>
 #include <graphene/chain/game_object.hpp>
 
+
+#include <graphene/chain/sport_object.hpp>
+#include <graphene/chain/event_group_object.hpp>
+#include <graphene/chain/event_object.hpp>
+#include <graphene/chain/betting_market_object.hpp>
+#include <graphene/chain/global_betting_statistics_object.hpp>
+
 #include <graphene/chain/account_evaluator.hpp>
 #include <graphene/chain/asset_evaluator.hpp>
 #include <graphene/chain/assert_evaluator.hpp>
@@ -64,6 +71,10 @@
 #include <graphene/chain/withdraw_permission_evaluator.hpp>
 #include <graphene/chain/witness_evaluator.hpp>
 #include <graphene/chain/worker_evaluator.hpp>
+#include <graphene/chain/sport_evaluator.hpp>
+#include <graphene/chain/event_group_evaluator.hpp>
+#include <graphene/chain/event_evaluator.hpp>
+#include <graphene/chain/betting_market_evaluator.hpp>
 #include <graphene/chain/tournament_evaluator.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
@@ -130,6 +141,33 @@ const uint8_t witness_object::type_id;
 const uint8_t worker_object::space_id;
 const uint8_t worker_object::type_id;
 
+const uint8_t sport_object::space_id;
+const uint8_t sport_object::type_id;
+
+const uint8_t event_group_object::space_id;
+const uint8_t event_group_object::type_id;
+
+const uint8_t event_object::space_id;
+const uint8_t event_object::type_id;
+
+const uint8_t betting_market_rules_object::space_id;
+const uint8_t betting_market_rules_object::type_id;
+
+const uint8_t betting_market_group_object::space_id;
+const uint8_t betting_market_group_object::type_id;
+
+const uint8_t betting_market_object::space_id;
+const uint8_t betting_market_object::type_id;
+
+const uint8_t bet_object::space_id;
+const uint8_t bet_object::type_id;
+
+const uint8_t betting_market_position_object::space_id;
+const uint8_t betting_market_position_object::type_id;
+
+const uint8_t global_betting_statistics_object::space_id;
+const uint8_t global_betting_statistics_object::type_id;
+
 
 void database::initialize_evaluators()
 {
@@ -176,6 +214,23 @@ void database::initialize_evaluators()
    register_evaluator<transfer_from_blind_evaluator>();
    register_evaluator<blind_transfer_evaluator>();
    register_evaluator<asset_claim_fees_evaluator>();
+   register_evaluator<sport_create_evaluator>();
+   register_evaluator<sport_update_evaluator>();
+   register_evaluator<event_group_create_evaluator>();
+   register_evaluator<event_group_update_evaluator>();
+   register_evaluator<event_create_evaluator>();
+   register_evaluator<event_update_evaluator>();
+   register_evaluator<event_update_status_evaluator>();
+   register_evaluator<betting_market_rules_create_evaluator>();
+   register_evaluator<betting_market_rules_update_evaluator>();
+   register_evaluator<betting_market_group_create_evaluator>();
+   register_evaluator<betting_market_group_update_evaluator>();
+   register_evaluator<betting_market_create_evaluator>();
+   register_evaluator<betting_market_update_evaluator>();
+   register_evaluator<bet_place_evaluator>();
+   register_evaluator<bet_cancel_evaluator>();
+   register_evaluator<betting_market_group_resolve_evaluator>();
+   register_evaluator<betting_market_group_cancel_unmatched_bets_evaluator>();
    register_evaluator<tournament_create_evaluator>();
    register_evaluator<tournament_join_evaluator>();
    register_evaluator<game_move_evaluator>();
@@ -208,6 +263,13 @@ void database::initialize_indexes()
    add_index< primary_index<worker_index> >();
    add_index< primary_index<balance_index> >();
    add_index< primary_index<blinded_balance_index> >();
+   add_index< primary_index<sport_object_index > >();
+   add_index< primary_index<event_group_object_index > >();
+   add_index< primary_index<event_object_index > >();
+   add_index< primary_index<betting_market_rules_object_index > >();
+   add_index< primary_index<betting_market_group_object_index > >();
+   add_index< primary_index<betting_market_object_index > >();
+   add_index< primary_index<bet_object_index > >();
 
    add_index< primary_index<tournament_index> >();
    auto tournament_details_idx = add_index< primary_index<tournament_details_index> >();
@@ -230,8 +292,11 @@ void database::initialize_indexes()
    add_index< primary_index<simple_index<budget_record_object           > > >();
    add_index< primary_index< special_authority_index                      > >();
    add_index< primary_index< buyback_index                                > >();
-
    add_index< primary_index< simple_index< fba_accumulator_object       > > >();
+   add_index< primary_index< betting_market_position_index > >();
+   add_index< primary_index< global_betting_statistics_object_index > >();
+   //add_index< primary_index<pending_dividend_payout_balance_object_index > >();
+   //add_index< primary_index<distributed_dividend_balance_object_index > >();
    add_index< primary_index<pending_dividend_payout_balance_for_holder_object_index > >();
    add_index< primary_index<total_distributed_dividend_balance_object_index > >();
 }
@@ -329,7 +394,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
        a.lifetime_referrer_fee_percentage = GRAPHENE_100_PERCENT;
    }).get_id() == GRAPHENE_PROXY_TO_SELF_ACCOUNT);
    FC_ASSERT(create<account_object>([this](account_object& a) {
-       a.name = "test-dividend-distribution";
+       a.name = "default-dividend-distribution";
        a.statistics = create<account_statistics_object>([&](account_statistics_object& s){s.owner = a.id;}).id;
        a.owner.weight_threshold = 1;
        a.active.weight_threshold = 1;
@@ -337,7 +402,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
        a.membership_expiration_date = time_point_sec::maximum();
        a.network_fee_percentage = 0;
        a.lifetime_referrer_fee_percentage = GRAPHENE_100_PERCENT;
-   }).get_id() == TOURNAMENT_RAKE_FEE_ACCOUNT_ID);
+   }).get_id() == GRAPHENE_RAKE_FEE_ACCOUNT_ID);
    // Create more special accounts
    while( true )
    {
@@ -368,9 +433,11 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       create<asset_dividend_data_object>([&](asset_dividend_data_object& a) {
            a.options.minimum_distribution_interval = 3*24*60*60;
            a.options.minimum_fee_percentage = 10*GRAPHENE_1_PERCENT;
-           a.options.next_payout_time = genesis_state.initial_timestamp + fc::days(1);
-           a.options.payout_interval = 30*24*60*60;
-           a.dividend_distribution_account = TOURNAMENT_RAKE_FEE_ACCOUNT_ID;
+           a.options.next_payout_time = genesis_state.initial_timestamp + fc::hours(1);
+           a.options.payout_interval = 7*24*60*60;
+           a.dividend_distribution_account = GRAPHENE_RAKE_FEE_ACCOUNT_ID;
+           //a.options.next_payout_time = genesis_state.initial_timestamp + fc::days(1);
+           //a.options.payout_interval = 30*24*60*60;
       });
 
    const asset_object& core_asset =
@@ -387,7 +454,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
          a.options.core_exchange_rate.quote.asset_id = asset_id_type(0);
          a.dynamic_asset_data_id = dyn_asset.id;
          a.dividend_data_id = div_asset.id;
-});
+   });
    assert( asset_id_type(core_asset.id) == asset().asset_id );
    assert( get_balance(account_id_type(), asset_id_type()) == asset(dyn_asset.current_supply) );
 
@@ -403,18 +470,18 @@ void database::init_genesis(const genesis_state_type& genesis_state)
            a.options.minimum_fee_percentage = 10*GRAPHENE_1_PERCENT;
            a.options.next_payout_time = genesis_state.initial_timestamp + fc::hours(1);
            a.options.payout_interval = 7*24*60*60;
-           a.dividend_distribution_account = TOURNAMENT_RAKE_FEE_ACCOUNT_ID;
+           a.dividend_distribution_account = GRAPHENE_RAKE_FEE_ACCOUNT_ID;
       });
 
    const asset_object& default_asset =
      create<asset_object>( [&]( asset_object& a ) {
-         a.symbol = "DEFAULT";
+         a.symbol = "DEF";
          a.options.max_market_fee =
          a.options.max_supply = genesis_state.max_core_supply;
          a.precision = GRAPHENE_BLOCKCHAIN_PRECISION_DIGITS;
          a.options.flags = 0;
          a.options.issuer_permissions = 79;
-         a.issuer = TOURNAMENT_RAKE_FEE_ACCOUNT_ID;
+         a.issuer = GRAPHENE_RAKE_FEE_ACCOUNT_ID;
          a.options.core_exchange_rate.base.amount = 1;
          a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
          a.options.core_exchange_rate.quote.amount = 1;
@@ -424,6 +491,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       });
    assert( default_asset.id == asset_id_type(1) );
 #endif
+
    // Create more special assets
    while( true )
    {
@@ -466,6 +534,9 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       p.dynamic_flags = 0;
       p.witness_budget = 0;
       p.recent_slots_filled = fc::uint128::max_value();
+   });
+   create<global_betting_statistics_object>([&](global_betting_statistics_object& betting_statistics) {
+      betting_statistics.number_of_active_events = 0;
    });
 
    FC_ASSERT( (genesis_state.immutable_parameters.min_witness_count & 1) == 1, "min_witness_count must be odd" );

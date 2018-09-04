@@ -94,7 +94,7 @@ namespace graphene { namespace chain {
 
 FC_REFLECT( graphene::chain::rock_paper_scissors_game_options, (insurance_enabled)(time_per_commit_move)(time_per_reveal_move)(number_of_gestures) )
 
-FC_REFLECT_TYPENAME( graphene::chain::rock_paper_scissors_gesture)
+// FC_REFLECT_TYPENAME( graphene::chain::rock_paper_scissors_gesture)
 FC_REFLECT_ENUM( graphene::chain::rock_paper_scissors_gesture,
                  (rock)
                  (paper)

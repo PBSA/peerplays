@@ -28,14 +28,11 @@
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <graphene/chain/protocol/types.hpp>
-#include <graphene/time/time.hpp>
 
 #include <graphene/egenesis/egenesis.hpp>
 
 #include <graphene/net/core_messages.hpp>
 #include <graphene/net/exceptions.hpp>
-
-#include <graphene/time/time.hpp>
 
 #include <graphene/utilities/key_conversion.hpp>
 #include <graphene/chain/worker_evaluator.hpp>
@@ -46,10 +43,12 @@
 #include <fc/rpc/api_connection.hpp>
 #include <fc/rpc/websocket_api.hpp>
 #include <fc/network/resolve.hpp>
+#include <fc/crypto/base64.hpp>
 
 #include <boost/filesystem/path.hpp>
 #include <boost/signals2.hpp>
 #include <boost/range/algorithm/reverse.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include <iostream>
 
@@ -198,6 +197,7 @@ namespace detail {
                "54.37.235.164:7777",                   // melea-trust
                "peerplays-seed.lukestokes.info:7777"   // lukestokes-witness
             };
+
             for( const string& endpoint_string : seeds )
             {
                try {
@@ -254,23 +254,49 @@ namespace detail {
          FC_CAPTURE_AND_RETHROW((endpoint_string))
       }
 
+      void new_connection( const fc::http::websocket_connection_ptr& c )
+      {
+         auto wsc = std::make_shared<fc::rpc::websocket_api_connection>(*c);
+         auto login = std::make_shared<graphene::app::login_api>( std::ref(*_self) );
+         login->enable_api("database_api");
+
+         wsc->register_api(login->database());
+         wsc->register_api(fc::api<graphene::app::login_api>(login));
+
+         wsc->register_api(fc::api<graphene::app::login_api>(login));
+
+         c->set_session_data( wsc );
+
+         std::string username = "*";
+         std::string password = "*";
+
+          // Try to extract login information from "Authorization" header if present
+         std::string auth = c->get_request_header("Authorization");
+         if( boost::starts_with(auth, "Basic ") ) {
+
+            FC_ASSERT( auth.size() > 6 );
+            auto user_pass = fc::base64_decode(auth.substr(6));
+
+            std::vector<std::string> parts;
+            boost::split( parts, user_pass, boost::is_any_of(":") );
+
+            FC_ASSERT(parts.size() == 2);
+
+            username = parts[0];
+            password = parts[1];
+         }
+
+         login->login(username, password);
+      }
+
       void reset_websocket_server()
       { try {
          if( !_options->count("rpc-endpoint") )
             return;
 
-         bool enable_deflate_compression = _options->count("enable-permessage-deflate") != 0;
+         _websocket_server = std::make_shared<fc::http::websocket_server>();
+         _websocket_server->on_connection( std::bind(&application_impl::new_connection, this, std::placeholders::_1) );
 
-         _websocket_server = std::make_shared<fc::http::websocket_server>(enable_deflate_compression);
-
-         _websocket_server->on_connection([&]( const fc::http::websocket_connection_ptr& c ){
-            auto wsc = std::make_shared<fc::rpc::websocket_api_connection>(*c);
-            auto login = std::make_shared<graphene::app::login_api>( std::ref(*_self) );
-            auto db_api = std::make_shared<graphene::app::database_api>( std::ref(*_self->chain_database()) );
-            wsc->register_api(fc::api<graphene::app::database_api>(db_api));
-            wsc->register_api(fc::api<graphene::app::login_api>(login));
-            c->set_session_data( wsc );
-         });
          ilog("Configured websocket rpc to listen on ${ip}", ("ip",_options->at("rpc-endpoint").as<string>()));
          _websocket_server->listen( fc::ip::endpoint::from_string(_options->at("rpc-endpoint").as<string>()) );
          _websocket_server->start_accept();
@@ -288,17 +314,9 @@ namespace detail {
          }
 
          string password = _options->count("server-pem-password") ? _options->at("server-pem-password").as<string>() : "";
-         bool enable_deflate_compression = _options->count("enable-permessage-deflate") != 0;
-         _websocket_tls_server = std::make_shared<fc::http::websocket_tls_server>( _options->at("server-pem").as<string>(), password, enable_deflate_compression );
+         _websocket_tls_server = std::make_shared<fc::http::websocket_tls_server>( _options->at("server-pem").as<string>(), password );
+         _websocket_tls_server->on_connection( std::bind(&application_impl::new_connection, this, std::placeholders::_1) );
 
-         _websocket_tls_server->on_connection([&]( const fc::http::websocket_connection_ptr& c ){
-            auto wsc = std::make_shared<fc::rpc::websocket_api_connection>(*c);
-            auto login = std::make_shared<graphene::app::login_api>( std::ref(*_self) );
-            auto db_api = std::make_shared<graphene::app::database_api>( std::ref(*_self->chain_database()) );
-            wsc->register_api(fc::api<graphene::app::database_api>(db_api));
-            wsc->register_api(fc::api<graphene::app::login_api>(login));
-            c->set_session_data( wsc );
-         });
          ilog("Configured websocket TLS rpc to listen on ${ip}", ("ip",_options->at("rpc-tls-endpoint").as<string>()));
          _websocket_tls_server->listen( fc::ip::endpoint::from_string(_options->at("rpc-tls-endpoint").as<string>()) );
          _websocket_tls_server->start_accept();
@@ -339,7 +357,7 @@ namespace detail {
                bool modified_genesis = false;
                if( _options->count("genesis-timestamp") )
                {
-                  genesis.initial_timestamp = fc::time_point_sec( graphene::time::now() ) + genesis.initial_parameters.block_interval + _options->at("genesis-timestamp").as<uint32_t>();
+                  genesis.initial_timestamp = fc::time_point_sec( fc::time_point::now() ) + genesis.initial_parameters.block_interval + _options->at("genesis-timestamp").as<uint32_t>();
                   genesis.initial_timestamp -= genesis.initial_timestamp.sec_since_epoch() % genesis.initial_parameters.block_interval;
                   modified_genesis = true;
                   std::cerr << "Used genesis timestamp:  " << genesis.initial_timestamp.to_iso_string() << " (PLEASE RECORD THIS)\n";
@@ -390,79 +408,67 @@ namespace detail {
          }
          _chain_db->add_checkpoints( loaded_checkpoints );
 
-         if( _options->count("replay-blockchain") )
+         bool replay = false;
+         std::string replay_reason = "reason not provided";
+
+         // never replay if data dir is empty
+         if( fc::exists( _data_dir ) && fc::directory_iterator( _data_dir ) != fc::directory_iterator() )
          {
-            ilog("Replaying blockchain on user request.");
-            _chain_db->reindex(_data_dir/"blockchain", initial_state());
-         } else if( clean ) {
-
-            auto is_new = [&]() -> bool
+            if( _options->count("replay-blockchain") )
             {
-               // directory doesn't exist
-               if( !fc::exists( _data_dir ) )
-                  return true;
-               // if directory exists but is empty, return true; else false.
-               return ( fc::directory_iterator( _data_dir ) == fc::directory_iterator() );
-            };
-
-            auto is_outdated = [&]() -> bool
+               replay = true;
+               replay_reason = "replay-blockchain argument specified";
+            }
+            else if( !clean )
             {
-               if( !fc::exists( _data_dir / "db_version" ) )
-                  return true;
-               std::string version_str;
-               fc::read_file_contents( _data_dir / "db_version", version_str );
-               return (version_str != GRAPHENE_CURRENT_DB_VERSION);
-            };
-
-            bool need_reindex = (!is_new() && is_outdated());
-            std::string reindex_reason = "version upgrade";
-
-            if( !need_reindex )
+               replay = true;
+               replay_reason = "unclean shutdown detected";
+            }
+            else if( !fc::exists( _data_dir / "db_version" ) )
             {
-               try
+               replay = true;
+               replay_reason = "db_version file not found";
+            }
+            else
+            {
+               std::string version_string;
+               fc::read_file_contents( _data_dir / "db_version", version_string );
+
+               if( version_string != GRAPHENE_CURRENT_DB_VERSION )
                {
-                  _chain_db->open(_data_dir / "blockchain", initial_state);
-               }
-               catch( const fc::exception& e )
-               {
-                  ilog( "caught exception ${e} in open()", ("e", e.to_detail_string()) );
-                  need_reindex = true;
-                  reindex_reason = "exception in open()";
+                   replay = true;
+                   replay_reason = "db_version file content mismatch";
                }
             }
-
-            if( need_reindex )
-            {
-               ilog("Replaying blockchain due to ${reason}", ("reason", reindex_reason) );
-
-               fc::remove_all( _data_dir / "db_version" );
-               _chain_db->reindex(_data_dir / "blockchain", initial_state());
-
-               // doing this down here helps ensure that DB will be wiped
-               // if any of the above steps were interrupted on a previous run
-               if( !fc::exists( _data_dir / "db_version" ) )
-               {
-                  std::ofstream db_version(
-                     (_data_dir / "db_version").generic_string().c_str(),
-                     std::ios::out | std::ios::binary | std::ios::trunc );
-                  std::string version_string = GRAPHENE_CURRENT_DB_VERSION;
-                  db_version.write( version_string.c_str(), version_string.size() );
-                  db_version.close();
-               }
-            }
-         } else {
-            wlog("Detected unclean shutdown. Replaying blockchain...");
-            _chain_db->reindex(_data_dir / "blockchain", initial_state());
          }
 
-         if (!_options->count("genesis-json") &&
-             _chain_db->get_chain_id() != graphene::egenesis::get_egenesis_chain_id()) {
-            elog("Detected old database. Nuking and starting over.");
-            _chain_db->wipe(_data_dir / "blockchain", true);
-            _chain_db.reset();
-            _chain_db = std::make_shared<chain::database>();
-            _chain_db->add_checkpoints(loaded_checkpoints);
-            _chain_db->open(_data_dir / "blockchain", initial_state);
+         if( !replay )
+         {
+            try
+            {
+               _chain_db->open( _data_dir / "blockchain", initial_state );
+            }
+            catch( const fc::exception& e )
+            {
+               ilog( "Caught exception ${e} in open()", ("e", e.to_detail_string()) );
+
+               replay = true;
+               replay_reason = "exception in open()";
+            }
+         }
+
+         if( replay )
+         {
+            ilog( "Replaying blockchain due to: ${reason}", ("reason", replay_reason) );
+
+            fc::remove_all( _data_dir / "db_version" );
+            _chain_db->reindex( _data_dir / "blockchain", initial_state() );
+
+            const auto mode = std::ios::out | std::ios::binary | std::ios::trunc;
+            std::ofstream db_version( (_data_dir / "db_version").generic_string().c_str(), mode );
+            std::string version_string = GRAPHENE_CURRENT_DB_VERSION;
+            db_version.write( version_string.c_str(), version_string.size() );
+            db_version.close();
          }
 
          if( _options->count("force-validate") )
@@ -470,8 +476,6 @@ namespace detail {
             ilog( "All transaction signatures will be validated" );
             _force_validate = true;
          }
-
-         graphene::time::now();
 
          if( _options->count("api-access") )
             _apiaccess = fc::json::from_file( _options->at("api-access").as<boost::filesystem::path>() )
@@ -488,6 +492,7 @@ namespace detail {
             wild_access.allowed_apis.push_back( "network_broadcast_api" );
             wild_access.allowed_apis.push_back( "history_api" );
             wild_access.allowed_apis.push_back( "crypto_api" );
+            wild_access.allowed_apis.push_back( "bookie_api" );
             _apiaccess.permission_map["*"] = wild_access;
          }
 
@@ -495,6 +500,7 @@ namespace detail {
          reset_websocket_server();
          reset_websocket_tls_server();
       } FC_LOG_AND_RETHROW() }
+
 
       optional< api_access_info > get_api_access_info(const string& username)const
       {
@@ -540,21 +546,21 @@ namespace detail {
       virtual bool handle_block(const graphene::net::block_message& blk_msg, bool sync_mode,
                                 std::vector<fc::uint160_t>& contained_transaction_message_ids) override
       { try {
-
-         auto latency = graphene::time::now() - blk_msg.block.timestamp;
+         auto latency = fc::time_point::now() - blk_msg.block.timestamp;
          FC_ASSERT( (latency.count()/1000) > -5000, "Rejecting block with timestamp in the future" );
          if (!sync_mode || blk_msg.block.block_num() % 10000 == 0)
          {
             const auto& witness = blk_msg.block.witness(*_chain_db);
             const auto& witness_account = witness.witness_account(*_chain_db);
             auto last_irr = _chain_db->get_dynamic_global_properties().last_irreversible_block_num;
-            ilog("Got block: #${n} time: ${t} latency: ${l} ms from: ${w}  irreversible: ${i} (-${d})", 
+            ilog("Got block: #${n} time: ${t} latency: ${l} ms from: ${w}  irreversible: ${i} (-${d})",
                  ("t",blk_msg.block.timestamp)
                  ("n", blk_msg.block.block_num())
                  ("l", (latency.count()/1000))
                  ("w",witness_account.name)
                  ("i",last_irr)("d",blk_msg.block.block_num()-last_irr) );
          }
+         FC_ASSERT( (latency.count()/1000) > -5000, "Rejecting block with timestamp in the future" );
 
          try {
             // TODO: in the case where this block is valid but on a fork that's too old for us to switch to,
@@ -643,7 +649,7 @@ namespace detail {
 
          result.reserve(limit);
          block_id_type last_known_block_id;
-         
+
          if (blockchain_synopsis.empty() ||
              (blockchain_synopsis.size() == 1 && blockchain_synopsis[0] == block_id_type()))
          {
@@ -704,13 +710,13 @@ namespace detail {
       }
 
       /**
-       * Returns a synopsis of the blockchain used for syncing.  This consists of a list of 
+       * Returns a synopsis of the blockchain used for syncing.  This consists of a list of
        * block hashes at intervals exponentially increasing towards the genesis block.
        * When syncing to a peer, the peer uses this data to determine if we're on the same
        * fork as they are, and if not, what blocks they need to send us to get us on their
        * fork.
        *
-       * In the over-simplified case, this is a straighforward synopsis of our current 
+       * In the over-simplified case, this is a straighforward synopsis of our current
        * preferred blockchain; when we first connect up to a peer, this is what we will be sending.
        * It looks like this:
        *   If the blockchain is empty, it will return the empty list.
@@ -726,7 +732,7 @@ namespace detail {
        *     the last item in the list will be the hash of the most recent block on our preferred chain
        * so if the blockchain had 26 blocks labeled a - z, the synopsis would be:
        *    a n u x z
-       * the idea being that by sending a small (<30) number of block ids, we can summarize a huge 
+       * the idea being that by sending a small (<30) number of block ids, we can summarize a huge
        * blockchain.  The block ids are more dense near the end of the chain where because we are
        * more likely to be almost in sync when we first connect, and forks are likely to be short.
        * If the peer we're syncing with in our example is on a fork that started at block 'v',
@@ -741,27 +747,27 @@ namespace detail {
        * no reason to fetch the blocks.
        *
        * Second, when a peer replies to our initial synopsis and gives us a list of the blocks they think
-       * we are missing, they only send a chunk of a few thousand blocks at once.  After we get those 
+       * we are missing, they only send a chunk of a few thousand blocks at once.  After we get those
        * block ids, we need to request more blocks by sending another synopsis (we can't just say "send me
        * the next 2000 ids" because they may have switched forks themselves and they don't track what
        * they've sent us).  For faster performance, we want to get a fairly long list of block ids first,
        * then start downloading the blocks.
        * The peer doesn't handle these follow-up block id requests any different from the initial request;
        * it treats the synopsis we send as our blockchain and bases its response entirely off that.  So to
-       * get the response we want (the next chunk of block ids following the last one they sent us, or, 
+       * get the response we want (the next chunk of block ids following the last one they sent us, or,
        * failing that, the shortest fork off of the last list of block ids they sent), we need to construct
        * a synopsis as if our blockchain was made up of:
        *    1. the blocks in our block chain up to the fork point (if there is a fork) or the head block (if no fork)
        *    2. the blocks we've already pushed from their fork (if there's a fork)
        *    3. the block ids they've previously sent us
-       * Segment 3 is handled in the p2p code, it just tells us the number of blocks it has (in 
+       * Segment 3 is handled in the p2p code, it just tells us the number of blocks it has (in
        * number_of_blocks_after_reference_point) so we can leave space in the synopsis for them.
        * We're responsible for constructing the synopsis of Segments 1 and 2 from our active blockchain and
        * fork database.  The reference_point parameter is the last block from that peer that has been
        * successfully pushed to the blockchain, so that tells us whether the peer is on a fork or on
        * the main chain.
        */
-      virtual std::vector<item_hash_t> get_blockchain_synopsis(const item_hash_t& reference_point, 
+      virtual std::vector<item_hash_t> get_blockchain_synopsis(const item_hash_t& reference_point,
                                                                uint32_t number_of_blocks_after_reference_point) override
       { try {
           std::vector<item_hash_t> synopsis;
@@ -786,13 +792,13 @@ namespace detail {
 
               if (reference_point_block_num < low_block_num)
               {
-                // we're on the same fork (at least as far as reference_point) but we've passed 
-                // reference point and could no longer undo that far if we diverged after that 
+                // we're on the same fork (at least as far as reference_point) but we've passed
+                // reference point and could no longer undo that far if we diverged after that
                 // block.  This should probably only happen due to a race condition where
-                // the network thread calls this function, and then immediately pushes a bunch of blocks, 
+                // the network thread calls this function, and then immediately pushes a bunch of blocks,
                 // then the main thread finally processes this function.
                 // with the current framework, there's not much we can do to tell the network
-                // thread what our current head block is, so we'll just pretend that 
+                // thread what our current head block is, so we'll just pretend that
                 // our head is actually the reference point.
                 // this *may* enable us to fetch blocks that we're unable to push, but that should
                 // be a rare case (and correctly handled)
@@ -836,7 +842,7 @@ namespace detail {
               if (non_fork_high_block_num < low_block_num)
               {
                 wlog("Unable to generate a usable synopsis because the peer we're generating it for forked too long ago "
-                     "(our chains diverge after block #${non_fork_high_block_num} but only undoable to block #${low_block_num})", 
+                     "(our chains diverge after block #${non_fork_high_block_num} but only undoable to block #${low_block_num})",
                      ("low_block_num", low_block_num)
                      ("non_fork_high_block_num", non_fork_high_block_num));
                 FC_THROW_EXCEPTION(graphene::net::block_older_than_undo_history, "Peer is are on a fork I'm unable to switch to");
@@ -856,11 +862,11 @@ namespace detail {
              low_block_num = 1;
 
           // at this point:
-          // low_block_num is the block before the first block we can undo, 
+          // low_block_num is the block before the first block we can undo,
           // non_fork_high_block_num is the block before the fork (if the peer is on a fork, or otherwise it is the same as high_block_num)
           // high_block_num is the block number of the reference block, or the end of the chain if no reference provided
 
-          // true_high_block_num is the ending block number after the network code appends any item ids it 
+          // true_high_block_num is the ending block number after the network code appends any item ids it
           // knows about that we don't
           uint32_t true_high_block_num = high_block_num + number_of_blocks_after_reference_point;
           do
@@ -915,12 +921,6 @@ namespace detail {
          if( opt_block.valid() ) return opt_block->timestamp;
          return fc::time_point_sec::min();
       } FC_CAPTURE_AND_RETHROW( (block_id) ) }
-
-      /** returns graphene::time::now() */
-      virtual fc::time_point_sec get_blockchain_now() override
-      {
-         return graphene::time::now();
-      }
 
       virtual item_hash_t get_head_block_id() const override
       {
@@ -987,8 +987,6 @@ void application::set_program_options(boost::program_options::options_descriptio
          ("checkpoint,c", bpo::value<vector<string>>()->composing(), "Pairs of [BLOCK_NUM,BLOCK_ID] that should be enforced as checkpoints.")
          ("rpc-endpoint", bpo::value<string>()->implicit_value("127.0.0.1:8090"), "Endpoint for websocket RPC to listen on")
          ("rpc-tls-endpoint", bpo::value<string>()->implicit_value("127.0.0.1:8089"), "Endpoint for TLS websocket RPC to listen on")
-         ("enable-permessage-deflate", "Enable support for per-message deflate compression in the websocket servers "
-                                       "(--rpc-endpoint and --rpc-tls-endpoint), disabled by default")
          ("server-pem,p", bpo::value<string>()->implicit_value("server.pem"), "The TLS certificate file for this server")
          ("server-pem-password,P", bpo::value<string>()->implicit_value(""), "Password for this certificate")
          ("genesis-json", bpo::value<boost::filesystem::path>(), "File to read Genesis State from")

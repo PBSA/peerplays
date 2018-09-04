@@ -38,6 +38,10 @@
 #include <graphene/chain/protocol/withdraw_permission.hpp>
 #include <graphene/chain/protocol/witness.hpp>
 #include <graphene/chain/protocol/worker.hpp>
+#include <graphene/chain/protocol/sport.hpp>
+#include <graphene/chain/protocol/event_group.hpp>
+#include <graphene/chain/protocol/event.hpp>
+#include <graphene/chain/protocol/betting_market.hpp>
 #include <graphene/chain/protocol/tournament.hpp>
 
 namespace graphene { namespace chain {
@@ -92,14 +96,35 @@ namespace graphene { namespace chain {
             transfer_from_blind_operation,
             asset_settle_cancel_operation,  // VIRTUAL
             asset_claim_fees_operation,
-            fba_distribute_operation,       // VIRTUAL
+            fba_distribute_operation,        // VIRTUAL
             tournament_create_operation,
             tournament_join_operation,
             game_move_operation,
             asset_update_dividend_operation,
             asset_dividend_distribution_operation, // VIRTUAL
             tournament_payout_operation, // VIRTUAL
-            tournament_leave_operation
+            tournament_leave_operation,
+            sport_create_operation,
+            sport_update_operation,
+            event_group_create_operation,
+            event_group_update_operation,
+            event_create_operation,
+            event_update_operation,
+            betting_market_rules_create_operation,
+            betting_market_rules_update_operation,
+            betting_market_group_create_operation,
+            betting_market_create_operation,
+            bet_place_operation,
+            betting_market_group_resolve_operation,
+            betting_market_group_resolved_operation, // VIRTUAL
+            bet_adjusted_operation, // VIRTUAL
+            betting_market_group_cancel_unmatched_bets_operation,
+            bet_matched_operation, // VIRTUAL
+            bet_cancel_operation,
+            bet_canceled_operation, // VIRTUAL
+            betting_market_group_update_operation,
+            betting_market_update_operation,
+            event_update_status_operation
          > operation;
 
    /// @} // operations group

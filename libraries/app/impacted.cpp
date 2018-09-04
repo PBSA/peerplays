@@ -208,6 +208,48 @@ struct get_impacted_account_visitor
    {
       _impacted.insert( op.account_id );
    }
+
+   void operator()( const sport_create_operation& op ) {}
+   void operator()( const sport_update_operation& op ) {}
+   void operator()( const event_group_create_operation& op ) {}
+   void operator()( const event_group_update_operation& op ) {}
+   void operator()( const event_create_operation& op ) {}
+   void operator()( const event_update_operation& op ) {}
+   void operator()( const event_update_status_operation& op ) {}
+   void operator()( const betting_market_rules_create_operation& op ) {}
+   void operator()( const betting_market_rules_update_operation& op ) {}
+   void operator()( const betting_market_group_create_operation& op ) {}
+   void operator()( const betting_market_group_update_operation& op ) {}
+   void operator()( const betting_market_create_operation& op ) {}
+   void operator()( const betting_market_update_operation& op ) {}
+   void operator()( const betting_market_group_resolve_operation& op ) {}
+   void operator()( const betting_market_group_cancel_unmatched_bets_operation& op ) {}
+
+   void operator()( const bet_place_operation& op )
+   {
+      _impacted.insert( op.bettor_id );
+   }
+   void operator()( const bet_cancel_operation& op )
+   {
+      _impacted.insert( op.bettor_id );
+   }
+   void operator()( const bet_canceled_operation& op )
+   {
+      _impacted.insert( op.bettor_id );
+   }
+   void operator()( const bet_adjusted_operation& op )
+   {
+      _impacted.insert( op.bettor_id );
+   }
+   void operator()( const bet_matched_operation& op )
+   {
+      _impacted.insert( op.bettor_id );
+   }
+   void operator()( const betting_market_group_resolved_operation& op )
+   {
+      _impacted.insert( op.bettor_id );
+   }
+
    void operator()( const tournament_create_operation& op )
    {
       _impacted.insert( op.creator );

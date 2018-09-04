@@ -1,0 +1,161 @@
+
+
+### PRE...
+
+import_key init0 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3
+import_key init1 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3
+import_key init2 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3
+import_key init3 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3
+import_key init4 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3
+import_key init5 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3
+import_key init6 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3
+import_key init7 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3
+import_key init8 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3
+import_key init9 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3
+import_key init10 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3
+
+#upgrade_account nathan 1
+import_balance nathan [5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3] 1
+
+
+
+transfer nathan init0 125 PPY "" true
+transfer nathan init1 125 PPY "" true
+#transfer nathan init2 125 PPY "" true
+#transfer nathan init3 125 PPY "" true
+#transfer nathan init4 125 PPY "" true
+#transfer nathan init5 125 PPY "" true
+#transfer nathan init6 125 PPY "" true
+#transfer nathan init7 125 PPY "" true
+#transfer nathan init8 125 PPY "" true
+#transfer nathan init9 125 PPY "" true
+#transfer nathan init10 125 PPY "" true
+
+transfer nathan 1.2.0 1250 PPY "" true
+transfer nathan 1.2.1 1250 PPY "" true
+
+transfer nathan 1.2.5 1250 PPY "" true
+
+vote_for_witness nathan  init0 1 1
+vote_for_witness nathan  init1 1 1
+
+whitelist_account init0 1.2.1 1 1
+whitelist_account init1 1.2.1 1 1
+#whitelist_account init2 1.2.1 1 1
+#whitelist_account init2 1.2.1 1 1
+#whitelist_account init3 1.2.1 1 1
+#whitelist_account init4 1.2.1 1 1
+#whitelist_account init5 1.2.1 1 1
+#whitelist_account init6 1.2.1 1 1
+#whitelist_account init7 1.2.1 1 1
+#whitelist_account init8 1.2.1 1 1
+#whitelist_account init9 1.2.1 1 1
+#whitelist_account init10 1.2.1 1 1
+
+
+# ALICE & BOB
+
+register_account alice PPY4zSJHx7D84T1j6HQ7keXWdtabBBWJxvfJw72XmEyqmgdoo1njF PPY4zSJHx7D84T1j6HQ7keXWdtabBBWJxvfJw72XmEyqmgdoo1njF nathan nathan 0 true
+register_account bob PPY4zSJHx7D84T1j6HQ7keXWdtabBBWJxvfJw72XmEyqmgdoo1njF PPY4zSJHx7D84T1j6HQ7keXWdtabBBWJxvfJw72XmEyqmgdoo1njF nathan nathan 0 true
+
+transfer nathan alice 1250 PPY "" true
+transfer nathan bob 1250 PPY "" true
+
+import_key alice 5HuCDiMeESd86xrRvTbexLjkVg2BEoKrb7BAA5RLgXizkgV3shs
+import_key bob 5HuCDiMeESd86xrRvTbexLjkVg2BEoKrb7BAA5RLgXizkgV3shs
+
+
+### SPORT
+
+propose_create_sport  nathan  "2017-05-16-T07:46:03"  [["en","Ice Hockey"],["zh_Hans","冰球"],["ja","アイスホッケー"]]  1
+propose_create_sport  nathan  "2017-05-16-T07:47:01"  [["en","spce balls"], ["pl","gra w kulki"]]  1
+
+// proposal
+#get_object 1.10.0
+#get_object 1.10.1
+
+#approve_proposal  nathan 1.10.0 { "active_approvals_to_add" :  [ "init0", "init1","init2", "init3", "init4", "init5", "init6", "init7", "init8", "init9", "init10"]  } 1
+approve_proposal  nathan 1.10.0 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+approve_proposal  nathan 1.10.12 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+
+#get_object 1.16.0
+#get_object 1.16.1
+
+
+### EVENT GROUOP
+
+propose_create_event_group  nathan  "2017-05-16-T08:45:01"  [ ["en", "NHL"], ["zh_Hans", "國家冰球聯盟"], ["ja", "ナショナルホッケーリーグ"]  ] "1.16.0"  1
+approve_proposal  nathan 1.10.2 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+
+//get_object 1.17.0
+
+
+### EVENT 
+
+propose_create_event  nathan  "2017-08-07-T11:25:01"  [["en", "Washington Capitals/Chicago Blackhawks"], ["zh_Hans", "華盛頓首都隊/芝加哥黑鷹"], ["ja", "ワシントン・キャピタルズ/シカゴ・ブラックホークス"]]  [["en","2016-17"]]  "2018-09-16-T07:47:01"  "1.17.0" 1
+
+propose_create_event  nathan  "2017-08-07-T11:25:01"  [["en", "Washington Capitals/Chicago Blackhawks"], ["zh_Hans", "華盛頓首都隊/芝加哥黑鷹"], ["ja", "ワシントン・キャピタルズ/シカゴ・ブラックホークス"]]  [["en","2017-18"]]  "2018-09-16-T07:47:01"  "1.17.0" 1
+
+//propose_update_event  nathan  "2017-08-07-T11:25:01" "1.18.0" "1.17.0" [["en", "Washington Capitals/Chicago Blackhawks"], ["zh_Hans", "華盛頓首都隊/芝加哥黑鷹"], ["ja", "ワシントン・キャピタルズ/シカゴ・ブラックホークス"]]  [["en","2016-17"]]  "2018-09-16-T07:47:01"   1
+
+approve_proposal  nathan 1.10.3 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+
+//get_object 1.18.0
+
+
+# RULES
+
+propose_create_betting_market_rules nathan  "2017-08-31-T10:35:01" [["en","NHL Rules v1.0"]] [["en", "The winner will be the team with the most points at the end of the game.  The team with fewer points will not be the winner."]]   1
+
+approve_proposal  nathan 1.10.8 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+
+//get_object 1.19.0
+
+
+### BETTING_MARKET GROUP
+
+propose_create_betting_market_group nathan  "2017-08-31-T10:39:01" [["en", "Moneyline"]] "1.18.0" "1.19.0" "1.3.0" 1
+propose_create_betting_market_group nathan  "2017-08-25-T11:10:01" [["en", "Moneyline NHL"]] "1.18.1" "1.19.1" "1.3.0" 1
+
+approve_proposal  nathan 1.10.9 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+
+//get_object 1.20.0 
+
+
+### BETTING_MARKET
+
+propose_create_betting_market nathan  "2017-08-31-T10:42:01" "1.20.0" [["en","Washington Capitals win"]] []  1
+propose_create_betting_market nathan  "2017-08-31-T10:42:01" "1.20.0" [["en","Chicago Blackhawks win"]]  [] 1
+
+approve_proposal  nathan 1.10.10 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+approve_proposal  nathan 1.10.11 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+
+//get_object 1.21.0 
+//get_object 1.21.1 
+
+//list_betting_markets 1.20.0
+
+
+# PLACE_BET
+
+//place_bet  bob "1.21.0" 1  { "amount" : 100 }  20000  20000 true
+//place_bet  alice "1.21.0" 0  { "amount" : 100 }  20000  20000 true
+
+place_bet  alice  "1.21.0"  1  "123" "PPY"  200 true
+//place_bet  bob  "1.21.0"  0  "123" "PPY"  200 true
+
+
+place_bet  carol  "1.21.1"  0  "123" "PPY"  200 true
+cancel_bet carol 1.22.2 1
+
+get_unmatched_bets_for_bettor 1.21.1 1.2.22
+
+
+# RESOLVE
+
+propose_resolve_betting_market_group nathan  "2017-08-16-T17:50:01" "1.20.0" [ [ "1.21.0" , 0]  [ "1.21.1" , 1] ]  1
+
+approve_proposal  nathan 1.10.9 { "active_approvals_to_add" :  [ "init0", "init1"]  } 1
+
+
+
