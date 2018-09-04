@@ -1,0 +1,42 @@
+After these steps
+- merge initial github commit 342e6d with cd67d72 from bitbucket
+- merge github tags 0.1.8, 0.1.10
+- merge baxter branch bde81b from bitbucket, manually resolving conflicts
+
+these (potential) problems were discovered:
+- need to merge fc as well
+- rake account renamed
+- asset_dividend_data_object init parameters changed
+- chain_parameters added:
+             (max_authority_depth)
++            (min_bet_multiplier)
++            (max_bet_multiplier)
++            (betting_rake_fee_percentage)
++            (permitted_betting_odds_increments)
+             (witness_schedule_algorithm)
++            (live_betting_delay_time)
+             (min_round_delay)
+- object types added:
+       balance_object_type,
++      sport_object_type,
++      event_group_object_type,
++      event_object_type,
++      betting_market_rules_object_type,
++      betting_market_group_object_type,
++      betting_market_object_type,
++      bet_object_type,
+       tournament_object_type,
+...
+       impl_fba_accumulator_object_type,
++      impl_betting_market_position_object_type,
++      impl_global_betting_statistics_object_type,
+       impl_asset_dividend_data_type,
+- fee schedule validation changed:
+ 
++      FC_ASSERT( min_bet_multiplier >= GRAPHENE_BETTING_MIN_MULTIPLIER &&
++                 min_bet_multiplier <= GRAPHENE_BETTING_MAX_MULTIPLIER );
++      FC_ASSERT( max_bet_multiplier >= GRAPHENE_BETTING_MIN_MULTIPLIER &&
++                 max_bet_multiplier <= GRAPHENE_BETTING_MAX_MULTIPLIER );
++      FC_ASSERT( min_bet_multiplier < max_bet_multiplier );
+       FC_ASSERT( rake_fee_percentage >= TOURNAMENT_MINIMAL_RAKE_FEE_PERCENTAGE,
+
