@@ -1371,6 +1371,16 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
 
       if( p.pending_parameters )
       {
+         if( !p.pending_parameters->extensions.value.min_bet_multiplier.valid() )
+            p.pending_parameters->extensions.value.min_bet_multiplier = p.parameters.extensions.value.min_bet_multiplier;
+         if( !p.pending_parameters->extensions.value.max_bet_multiplier.valid() )
+            p.pending_parameters->extensions.value.max_bet_multiplier = p.parameters.extensions.value.max_bet_multiplier;
+         if( !p.pending_parameters->extensions.value.betting_rake_fee_percentage.valid() )
+            p.pending_parameters->extensions.value.betting_rake_fee_percentage = p.parameters.extensions.value.betting_rake_fee_percentage;
+         if( !p.pending_parameters->extensions.value.permitted_betting_odds_increments.valid() )
+            p.pending_parameters->extensions.value.permitted_betting_odds_increments = p.parameters.extensions.value.permitted_betting_odds_increments;
+         if( !p.pending_parameters->extensions.value.live_betting_delay_time.valid() )
+            p.pending_parameters->extensions.value.live_betting_delay_time = p.parameters.extensions.value.live_betting_delay_time;
          p.parameters = std::move(*p.pending_parameters);
          p.pending_parameters.reset();
       }

@@ -102,13 +102,13 @@ binned_order_book bookie_api_impl::get_binned_order_book(graphene::chain::bettin
             if (bet_odds_iter->back_or_lay == bet_type::back)
             {
                current_bin->backer_multiplier = (bet_odds_iter->backer_multiplier + bin_size - 1) / bin_size * bin_size;
-               current_bin->backer_multiplier = std::min<graphene::chain::bet_multiplier_type>(current_bin->backer_multiplier, current_params.max_bet_multiplier);
+               current_bin->backer_multiplier = std::min<graphene::chain::bet_multiplier_type>(current_bin->backer_multiplier, current_params.max_bet_multiplier());
                current_bin->back_or_lay = bet_type::back;
             }
             else
             {
                current_bin->backer_multiplier = bet_odds_iter->backer_multiplier / bin_size * bin_size;
-               current_bin->backer_multiplier = std::max<graphene::chain::bet_multiplier_type>(current_bin->backer_multiplier, current_params.min_bet_multiplier);
+               current_bin->backer_multiplier = std::max<graphene::chain::bet_multiplier_type>(current_bin->backer_multiplier, current_params.min_bet_multiplier());
                current_bin->back_or_lay = bet_type::lay;
             }
 

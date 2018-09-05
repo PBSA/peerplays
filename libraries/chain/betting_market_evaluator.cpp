@@ -292,15 +292,15 @@ void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
    _current_params = &d.get_global_properties().parameters;
 
    // are their odds valid
-   FC_ASSERT( op.backer_multiplier >= _current_params->min_bet_multiplier &&
-              op.backer_multiplier <= _current_params->max_bet_multiplier, 
+   FC_ASSERT( op.backer_multiplier >= _current_params->min_bet_multiplier() &&
+              op.backer_multiplier <= _current_params->max_bet_multiplier(),
               "Bet odds are outside the blockchain's limits" );
-   if (!_current_params->permitted_betting_odds_increments.empty())
+   if (!_current_params->permitted_betting_odds_increments().empty())
    {
       bet_multiplier_type allowed_increment;
-      const auto iter = _current_params->permitted_betting_odds_increments.upper_bound(op.backer_multiplier);
-      if (iter == _current_params->permitted_betting_odds_increments.end())
-         allowed_increment = std::prev(_current_params->permitted_betting_odds_increments.end())->second;
+      const auto iter = _current_params->permitted_betting_odds_increments().upper_bound(op.backer_multiplier);
+      if (iter == _current_params->permitted_betting_odds_increments().end())
+         allowed_increment = std::prev(_current_params->permitted_betting_odds_increments().end())->second;
       else
          allowed_increment = iter->second;
       FC_ASSERT(op.backer_multiplier % allowed_increment == 0, "Bet odds must be a multiple of ${allowed_increment}", ("allowed_increment", allowed_increment));
@@ -324,15 +324,15 @@ object_id_type bet_place_evaluator::do_apply(const bet_place_operation& op)
          if (_betting_market_group->bets_are_delayed()) {
             // the bet will be included in the block at time `head_block_time() + block_interval`, so make the delay relative 
             // to the time it's included in a block
-            bet_obj.end_of_delay = d.head_block_time() + _current_params->block_interval + _current_params->live_betting_delay_time;
+            bet_obj.end_of_delay = d.head_block_time() + _current_params->block_interval + _current_params->live_betting_delay_time();
          }
       });
 
    bet_id_type new_bet_id = new_bet.id; // save the bet id here, new_bet may be deleted during place_bet()
 
    // place the bet, this may return guaranteed winnings
-   ddump((_betting_market_group->bets_are_delayed())(_current_params->live_betting_delay_time));
-   if (!_betting_market_group->bets_are_delayed() || _current_params->live_betting_delay_time <= 0)
+   ddump((_betting_market_group->bets_are_delayed())(_current_params->live_betting_delay_time()));
+   if (!_betting_market_group->bets_are_delayed() || _current_params->live_betting_delay_time() <= 0)
       d.place_bet(new_bet);
 
    // now that their guaranteed winnings have been returned, check whether they have enough in their account to place the bet

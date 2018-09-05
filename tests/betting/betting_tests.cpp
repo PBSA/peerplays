@@ -454,7 +454,7 @@ BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
 
       generate_blocks(1);
 
-      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage();
       uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
       BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
       BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 + 2000000 - rake_value);
@@ -1430,7 +1430,7 @@ BOOST_AUTO_TEST_CASE( win )
       GET_ACTOR(alice);
       GET_ACTOR(bob);
 
-      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage();
       uint32_t rake_value;
       //rake_value = (-100 + 1100 - 1100) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
       // alice starts with 10000, pays 100 (bet), wins 1100, then pays 1100 (bet), wins 0
@@ -1456,7 +1456,7 @@ BOOST_AUTO_TEST_CASE( not_win )
       GET_ACTOR(alice);
       GET_ACTOR(bob);
 
-      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage();
       uint32_t rake_value = (-100 - 1100 + 2200) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
       // alice starts with 10000, pays 100 (bet), wins 0, then pays 1100 (bet), wins 2200
       BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
@@ -1573,7 +1573,7 @@ BOOST_AUTO_TEST_CASE(event_group_update_test)
       generate_blocks(1);
  
  
-      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage();
       uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
       BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
       BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 + 2000000 - rake_value);
@@ -1621,7 +1621,7 @@ BOOST_AUTO_TEST_CASE(event_update_test)
       generate_blocks(1);
 
 
-      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage();
       uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
       BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
       BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 + 2000000 - rake_value);
@@ -1685,7 +1685,7 @@ BOOST_AUTO_TEST_CASE(betting_market_group_update_test)
       generate_blocks(1);
 
 
-      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage();
       uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
       BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
       BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 + 2000000 - rake_value);
@@ -1722,7 +1722,7 @@ BOOST_AUTO_TEST_CASE(betting_market_update_test)
                                     {blackhawks_win_market.id, betting_market_resolution_type::not_win}});
       generate_blocks(1);
 
-      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage();
       uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
       BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
       BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 + 2000000 - rake_value);
@@ -2504,7 +2504,7 @@ BOOST_FIXTURE_TEST_CASE( another_event_group_update_test, database_fixture)
                                    {blackhawks_win_market.id, betting_market_resolution_type::not_win}});
       generate_blocks(1);
  
-      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage();
       uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
       BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
       BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 + 2000000 - rake_value);
@@ -2524,7 +2524,7 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_sf_test )
       CREATE_TENNIS_BETTING_MARKET();
       generate_blocks(1);
 
-      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage();
 
       transfer(account_id_type(), alice_id, asset(10000000));
       transfer(account_id_type(), bob_id, asset(10000000));
@@ -2585,7 +2585,7 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_final_test )
       ACTORS( (alice)(bob) );
       CREATE_TENNIS_BETTING_MARKET();
 
-      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+      uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage();
 
       transfer(account_id_type(), alice_id, asset(10000000));
       transfer(account_id_type(), bob_id, asset(10000000));

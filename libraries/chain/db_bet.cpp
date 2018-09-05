@@ -179,7 +179,7 @@ void database::settle_betting_market_group(const betting_market_group_object& be
    // walking through bettors' positions and collecting winings and fees respecting asset_id
    for (const auto& bettor_positions_pair: bettor_positions_map)
    {
-      uint16_t rake_fee_percentage = get_global_properties().parameters.betting_rake_fee_percentage;
+      uint16_t rake_fee_percentage = get_global_properties().parameters.betting_rake_fee_percentage();
       share_type net_profits;
       share_type payout_amounts;
       account_id_type bettor_id = bettor_positions_pair.first;

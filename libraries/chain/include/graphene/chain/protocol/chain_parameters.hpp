@@ -23,20 +23,22 @@
  */
 #pragma once
 #include <graphene/chain/protocol/base.hpp>
+#include <graphene/chain/protocol/ext.hpp>
 #include <graphene/chain/protocol/types.hpp>
 #include <fc/smart_ref_fwd.hpp>
 
 namespace graphene { namespace chain { struct fee_schedule; } }
-/*
-namespace fc {
-   template<typename Stream, typename T> inline void pack( Stream& s, const graphene::chain::fee_schedule& value );
-   template<typename Stream, typename T> inline void unpack( Stream& s, graphene::chain::fee_schedule& value );
-} // namespace fc
-*/
 
 namespace graphene { namespace chain {
+   struct parameter_extension
+   {
+      optional< bet_multiplier_type > min_bet_multiplier;
+      optional< bet_multiplier_type > max_bet_multiplier;
+      optional< uint16_t >            betting_rake_fee_percentage;
+      optional< flat_map<bet_multiplier_type, bet_multiplier_type> > permitted_betting_odds_increments;
+      optional< uint16_t >            live_betting_delay_time;
+   };
 
-   typedef static_variant<>  parameter_extension; 
    struct chain_parameters
    {
       /** using a smart ref breaks the circular dependency created between operations and the fee schedule */
@@ -69,12 +71,6 @@ namespace graphene { namespace chain {
       uint16_t                accounts_per_fee_scale              = GRAPHENE_DEFAULT_ACCOUNTS_PER_FEE_SCALE; ///< number of accounts between fee scalings
       uint8_t                 account_fee_scale_bitshifts         = GRAPHENE_DEFAULT_ACCOUNT_FEE_SCALE_BITSHIFTS; ///< number of times to left bitshift account registration fee at each scaling
       uint8_t                 max_authority_depth                 = GRAPHENE_MAX_SIG_CHECK_DEPTH;
-      uint16_t                betting_rake_fee_percentage         = GRAPHENE_DEFAULT_RAKE_FEE_PERCENTAGE; ///< part of prize paid into the dividend account for the core token holders
-      bet_multiplier_type     min_bet_multiplier                  = GRAPHENE_DEFAULT_MIN_BET_MULTIPLIER;
-      bet_multiplier_type     max_bet_multiplier                  = GRAPHENE_DEFAULT_MAX_BET_MULTIPLIER;
-      flat_map<bet_multiplier_type, bet_multiplier_type> permitted_betting_odds_increments = GRAPHENE_DEFAULT_PERMITTED_BETTING_ODDS_INCREMENTS;
-      uint16_t                live_betting_delay_time             = GRAPHENE_DEFAULT_LIVE_BETTING_DELAY_TIME; ///< delayed bets
-       //uint8_t                 witness_schedule_algorithm          = GRAPHENE_WITNESS_SHUFFLED_ALGORITHM; ///< 0 shuffled, 1 scheduled
       uint8_t                 witness_schedule_algorithm          = GRAPHENE_WITNESS_SCHEDULED_ALGORITHM; ///< 0 shuffled, 1 scheduled
       /* rps tournament parameters constraints */
       uint32_t                min_round_delay                     = TOURNAMENT_MIN_ROUND_DELAY; ///< miniaml delay between games
@@ -90,13 +86,37 @@ namespace graphene { namespace chain {
       uint32_t                maximum_tournament_start_time_in_future = TOURNAMENT_MAX_START_TIME_IN_FUTURE;
       uint32_t                maximum_tournament_start_delay      = TOURNAMENT_MAX_START_DELAY;
       uint16_t                maximum_tournament_number_of_wins   = TOURNAMENT_MAX_NUMBER_OF_WINS;
-      extensions_type         extensions;
+      extension<parameter_extension> extensions;
 
       /** defined in fee_schedule.cpp */
       void validate()const;
+      inline bet_multiplier_type min_bet_multiplier()const {
+         return extensions.value.min_bet_multiplier.valid() ? *extensions.value.min_bet_multiplier : GRAPHENE_DEFAULT_MIN_BET_MULTIPLIER;
+      }
+      inline bet_multiplier_type max_bet_multiplier()const {
+         return extensions.value.max_bet_multiplier.valid() ? *extensions.value.max_bet_multiplier : GRAPHENE_DEFAULT_MAX_BET_MULTIPLIER;
+      }
+      inline uint16_t betting_rake_fee_percentage()const {
+         return extensions.value.betting_rake_fee_percentage.valid() ? *extensions.value.betting_rake_fee_percentage : GRAPHENE_DEFAULT_RAKE_FEE_PERCENTAGE;
+      }
+      inline const flat_map<bet_multiplier_type, bet_multiplier_type>& permitted_betting_odds_increments()const {
+         static const flat_map<bet_multiplier_type, bet_multiplier_type> _default = GRAPHENE_DEFAULT_PERMITTED_BETTING_ODDS_INCREMENTS;
+         return extensions.value.permitted_betting_odds_increments.valid() ? *extensions.value.permitted_betting_odds_increments : _default;
+      }
+      inline uint16_t live_betting_delay_time()const {
+         return extensions.value.live_betting_delay_time.valid() ? *extensions.value.live_betting_delay_time : GRAPHENE_DEFAULT_LIVE_BETTING_DELAY_TIME;
+      }
    };
 
 } }  // graphene::chain
+
+FC_REFLECT( graphene::chain::parameter_extension,
+   (min_bet_multiplier)
+   (max_bet_multiplier)
+   (betting_rake_fee_percentage)
+   (permitted_betting_odds_increments)
+   (live_betting_delay_time)
+)
 
 FC_REFLECT( graphene::chain::chain_parameters,
             (current_fees)
@@ -127,12 +147,7 @@ FC_REFLECT( graphene::chain::chain_parameters,
             (accounts_per_fee_scale)
             (account_fee_scale_bitshifts)
             (max_authority_depth)
-            (min_bet_multiplier)
-            (max_bet_multiplier)
-            (betting_rake_fee_percentage)
-            (permitted_betting_odds_increments)
             (witness_schedule_algorithm)
-            (live_betting_delay_time)
             (min_round_delay)
             (max_round_delay)
             (min_time_per_commit_move)

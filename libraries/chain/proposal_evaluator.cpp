@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <graphene/chain/hardfork.hpp>
 #include <graphene/chain/proposal_evaluator.hpp>
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/account_object.hpp>
@@ -31,9 +32,40 @@
 
 namespace graphene { namespace chain {
 
+struct proposal_operation_hardfork_visitor
+{
+   typedef void result_type;
+   const fc::time_point_sec block_time;
+
+   proposal_operation_hardfork_visitor( const fc::time_point_sec bt ) : block_time(bt) {}
+
+   template<typename T>
+   void operator()(const T &v) const {}
+
+   void operator()(const graphene::chain::committee_member_update_global_parameters_operation &op) const {
+      if( block_time < HARDFORK_1000_TIME ) // TODO: remove after hf
+         FC_ASSERT( !op.new_parameters.extensions.value.min_bet_multiplier.valid()
+                    && !op.new_parameters.extensions.value.max_bet_multiplier.valid()
+                    && !op.new_parameters.extensions.value.betting_rake_fee_percentage.valid()
+                    && !op.new_parameters.extensions.value.permitted_betting_odds_increments.valid()
+                    && !op.new_parameters.extensions.value.live_betting_delay_time.valid(),
+                    "Parameter extensions are not allowed yet!" );
+   }
+
+   // loop and self visit in proposals
+   void operator()(const proposal_create_operation &v) const {
+      for (const op_wrapper &op : v.proposed_ops)
+         op.op.visit(*this);
+   }
+};
+
 void_result proposal_create_evaluator::do_evaluate(const proposal_create_operation& o)
 { try {
    const database& d = db();
+
+   proposal_operation_hardfork_visitor vtor( d.head_block_time() );
+   vtor( o );
+
    const auto& global_parameters = d.get_global_properties().parameters;
 
    FC_ASSERT( o.expiration_time > d.head_block_time(), "Proposal has already expired on creation." );
