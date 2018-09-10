@@ -4,5 +4,5 @@
     ignore = dirty
 [submodule "libraries/fc"]
     path = libraries/fc
-    url = https://github.com/PBSA/peerplays-0.1-fc.git
+    url = https://bitbucket.org/peerplaysblockchain/peerplays-fc.git
     ignore = dirty
