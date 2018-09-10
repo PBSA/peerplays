@@ -42,7 +42,7 @@ struct proposal_operation_hardfork_visitor
    template<typename T>
    void operator()(const T &v) const {}
 
-   void operator()(const graphene::chain::committee_member_update_global_parameters_operation &op) const {
+   void operator()(const committee_member_update_global_parameters_operation &op) const {
       if( block_time < HARDFORK_1000_TIME ) // TODO: remove after hf
          FC_ASSERT( !op.new_parameters.extensions.value.min_bet_multiplier.valid()
                     && !op.new_parameters.extensions.value.max_bet_multiplier.valid()
@@ -50,6 +50,74 @@ struct proposal_operation_hardfork_visitor
                     && !op.new_parameters.extensions.value.permitted_betting_odds_increments.valid()
                     && !op.new_parameters.extensions.value.live_betting_delay_time.valid(),
                     "Parameter extensions are not allowed yet!" );
+   }
+
+   void operator()(const sport_create_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "sport_create_operation not allowed yet!" );
+   }
+
+   void operator()(const sport_update_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "sport_update_operation not allowed yet!" );
+   }
+
+   void operator()(const event_group_create_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "event_group_create_operation not allowed yet!" );
+   }
+
+   void operator()(const event_group_update_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "event_group_update_operation not allowed yet!" );
+   }
+
+   void operator()(const event_create_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "event_create_operation not allowed yet!" );
+   }
+
+   void operator()(const event_update_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "event_update_operation not allowed yet!" );
+   }
+
+   void operator()(const betting_market_rules_create_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "betting_market_rules_create_operation not allowed yet!" );
+   }
+
+   void operator()(const betting_market_rules_update_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "betting_market_rules_update_operation not allowed yet!" );
+   }
+
+   void operator()(const betting_market_group_create_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "betting_market_group_create_operation not allowed yet!" );
+   }
+
+   void operator()(const betting_market_create_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "betting_market_create_operation not allowed yet!" );
+   }
+
+   void operator()(const bet_place_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "bet_place_operation not allowed yet!" );
+   }
+
+   void operator()(const betting_market_group_resolve_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "betting_market_group_resolve_operation not allowed yet!" );
+   }
+
+   void operator()(const betting_market_group_cancel_unmatched_bets_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "betting_market_group_cancel_unmatched_bets_operation not allowed yet!" );
+   }
+
+   void operator()(const bet_cancel_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "betting_market_group_resolve_operation not allowed yet!" );
+   }
+
+   void operator()(const betting_market_group_update_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "betting_market_group_update_operation not allowed yet!" );
+   }
+
+   void operator()(const betting_market_update_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "betting_market_update_operation not allowed yet!" );
+   }
+
+   void operator()(const event_update_status_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "event_update_status_operation not allowed yet!" );
    }
 
    // loop and self visit in proposals
