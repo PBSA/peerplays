@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Peerplays Blockchain Standards Association, and contributors.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
  * The MIT License
  *
