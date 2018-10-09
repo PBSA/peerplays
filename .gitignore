@@ -39,3 +39,5 @@ object_database/*
 
 *.pyc
 *.pyo
+.vscode
+.DS_Store
