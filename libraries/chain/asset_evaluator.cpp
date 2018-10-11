@@ -93,8 +93,6 @@ void_result asset_create_evaluator::do_evaluate( const asset_create_operation& o
           wlog( "Asset ${s} has a name which requires hardfork 385", ("s",op.symbol) );
    }
 
-   core_fee_paid -= core_fee_paid.value/2;
-
    if( op.bitasset_opts )
    {
       const asset_object& backing = op.bitasset_opts->short_backing_asset(d);
@@ -121,12 +119,19 @@ void_result asset_create_evaluator::do_evaluate( const asset_create_operation& o
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
+void asset_create_evaluator::pay_fee()
+{
+   fee_is_odd = core_fee_paid.value & 1;
+   core_fee_paid -= core_fee_paid.value/2;
+   generic_evaluator::pay_fee();
+}
+
 object_id_type asset_create_evaluator::do_apply( const asset_create_operation& op )
 { try {
    const asset_dynamic_data_object& dyn_asset =
       db().create<asset_dynamic_data_object>( [&]( asset_dynamic_data_object& a ) {
          a.current_supply = 0;
-         a.fee_pool = core_fee_paid; //op.calculate_fee(db().current_fee_schedule()).value / 2;
+         a.fee_pool = core_fee_paid - (fee_is_odd ? 1 : 0);
       });
 
    asset_bitasset_data_id_type bit_asset_id;
