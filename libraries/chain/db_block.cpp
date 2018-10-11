@@ -36,8 +36,44 @@
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/evaluator.hpp>
+#include <fc/crypto/digest.hpp>
 
 #include <fc/smart_ref_impl.hpp>
+
+namespace {
+    
+   struct proposed_operations_digest_accumulator
+   {
+      typedef void result_type;
+      
+      void operator()(const graphene::chain::proposal_create_operation& proposal)
+      {
+         for (auto& operation: proposal.proposed_ops)
+         {
+            proposed_operations_digests.push_back(fc::digest(operation.op));
+         }
+      }
+       
+      //empty template method is needed for all other operation types
+      //we can ignore them, we are interested in only proposal_create_operation
+      template<class T>
+      void operator()(const T&) 
+      {}
+      
+      std::vector<fc::sha256> proposed_operations_digests;
+   };
+   
+   std::vector<fc::sha256> gather_proposed_operations_digests(const graphene::chain::transaction& trx)
+   {
+      proposed_operations_digest_accumulator digest_accumulator;
+      for (auto& operation: trx.operations)
+      {
+         operation.visit(digest_accumulator);
+      }
+       
+      return digest_accumulator.proposed_operations_digests;
+   }
+}
 
 namespace graphene { namespace chain {
 
@@ -103,6 +139,32 @@ std::vector<block_id_type> database::get_block_ids_on_fork(block_id_type head_of
     result.emplace_back(fork_block->id);
   result.emplace_back(branches.first.back()->previous_id());
   return result;
+}
+    
+void database::check_tansaction_for_duplicated_operations(const signed_transaction& trx)
+{
+   const auto& proposal_index = get_index<proposal_object>();
+   std::set<fc::sha256> existed_operations_digests;
+   
+   proposal_index.inspect_all_objects( [&](const object& obj){
+      const proposal_object& proposal = static_cast<const proposal_object&>(obj);
+      for (auto& operation: proposal.proposed_transaction.operations)
+      {
+         existed_operations_digests.insert(fc::digest(operation));
+      }
+   });
+   
+   for (auto& pending_transaction: _pending_tx)
+   {
+      auto proposed_operations_digests = gather_proposed_operations_digests(pending_transaction);
+      existed_operations_digests.insert(proposed_operations_digests.begin(), proposed_operations_digests.end());
+   }
+    
+   auto proposed_operations_digests = gather_proposed_operations_digests(trx);
+   for (auto& digest: proposed_operations_digests)
+   {
+      FC_ASSERT(existed_operations_digests.count(digest) == 0, "Proposed operation is already pending for approval.");
+   }
 }
 
 /**
