@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
+ * Copyright (c) 2018 Peerplays Blockchain Standards Association, and contributors.
  *
  * The MIT License
  *
@@ -36,6 +36,7 @@ namespace graphene { namespace chain {
 
 void_result betting_market_rules_create_evaluator::do_evaluate(const betting_market_rules_create_operation& op)
 { try {
+   FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -52,6 +53,7 @@ object_id_type betting_market_rules_create_evaluator::do_apply(const betting_mar
 
 void_result betting_market_rules_update_evaluator::do_evaluate(const betting_market_rules_update_operation& op)
 { try {
+   FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
    _rules = &op.betting_market_rules_id(db());
    FC_ASSERT(op.new_name.valid() || op.new_description.valid(), "nothing to update");
@@ -72,6 +74,7 @@ void_result betting_market_rules_update_evaluator::do_apply(const betting_market
 void_result betting_market_group_create_evaluator::do_evaluate(const betting_market_group_create_operation& op)
 { try {
    database& d = db();
+   FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
 
    // the event_id in the operation can be a relative id.  If it is,
@@ -119,6 +122,7 @@ object_id_type betting_market_group_create_evaluator::do_apply(const betting_mar
 void_result betting_market_group_update_evaluator::do_evaluate(const betting_market_group_update_operation& op)
 { try {
    database& d = db();
+   FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
    _betting_market_group = &op.betting_market_group_id(d);
 
@@ -192,6 +196,7 @@ void_result betting_market_group_update_evaluator::do_apply(const betting_market
 
 void_result betting_market_create_evaluator::do_evaluate(const betting_market_create_operation& op)
 { try {
+   FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
 
    // the betting_market_group_id in the operation can be a relative id.  If it is,
@@ -223,6 +228,7 @@ object_id_type betting_market_create_evaluator::do_apply(const betting_market_cr
 void_result betting_market_update_evaluator::do_evaluate(const betting_market_update_operation& op)
 { try {
    database& d = db();
+   FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
    _betting_market = &op.betting_market_id(d);
    FC_ASSERT(op.new_group_id.valid() || op.new_description.valid() || op.new_payout_condition.valid(), "nothing to change");
@@ -261,7 +267,7 @@ void_result betting_market_update_evaluator::do_apply(const betting_market_updat
 void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
 { try {
    const database& d = db();
-
+   FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
    _betting_market = &op.betting_market_id(d);
    _betting_market_group = &_betting_market->group_id(d);
 
@@ -271,6 +277,14 @@ void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
    ddump((_betting_market_group->get_status()));
    FC_ASSERT( _betting_market_group->get_status() != betting_market_group_status::frozen, 
               "Unable to place bets while the market is frozen" );
+   FC_ASSERT( _betting_market_group->get_status() != betting_market_group_status::closed, 
+              "Unable to place bets while the market is closed" );
+   FC_ASSERT( _betting_market_group->get_status() != betting_market_group_status::graded, 
+              "Unable to place bets while the market is graded" );
+   FC_ASSERT( _betting_market_group->get_status() != betting_market_group_status::re_grading, 
+              "Unable to place bets while the market is re-grading" );
+   FC_ASSERT( _betting_market_group->get_status() != betting_market_group_status::settled, 
+              "Unable to place bets while the market is settled" );
 
    _asset = &_betting_market_group->asset_id(d);
    FC_ASSERT( is_authorized_asset( d, *fee_paying_account, *_asset ) );
@@ -278,25 +292,21 @@ void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
    _current_params = &d.get_global_properties().parameters;
 
    // are their odds valid
-   FC_ASSERT( op.backer_multiplier >= _current_params->min_bet_multiplier &&
-              op.backer_multiplier <= _current_params->max_bet_multiplier, 
+   FC_ASSERT( op.backer_multiplier >= _current_params->min_bet_multiplier() &&
+              op.backer_multiplier <= _current_params->max_bet_multiplier(),
               "Bet odds are outside the blockchain's limits" );
-   if (!_current_params->permitted_betting_odds_increments.empty())
+   if (!_current_params->permitted_betting_odds_increments().empty())
    {
       bet_multiplier_type allowed_increment;
-      const auto iter = _current_params->permitted_betting_odds_increments.upper_bound(op.backer_multiplier);
-      if (iter == _current_params->permitted_betting_odds_increments.end())
-         allowed_increment = std::prev(_current_params->permitted_betting_odds_increments.end())->second;
+      const auto iter = _current_params->permitted_betting_odds_increments().upper_bound(op.backer_multiplier);
+      if (iter == _current_params->permitted_betting_odds_increments().end())
+         allowed_increment = std::prev(_current_params->permitted_betting_odds_increments().end())->second;
       else
          allowed_increment = iter->second;
       FC_ASSERT(op.backer_multiplier % allowed_increment == 0, "Bet odds must be a multiple of ${allowed_increment}", ("allowed_increment", allowed_increment));
    }
 
    FC_ASSERT(op.amount_to_bet.amount > share_type(), "Cannot place a bet with zero amount");
-
-   // do they have enough in their account to place the bet
-   FC_ASSERT( d.get_balance( *fee_paying_account, *_asset ).amount  >= op.amount_to_bet.amount, "insufficient balance",
-              ("balance", d.get_balance(*fee_paying_account, *_asset))("amount_to_bet", op.amount_to_bet.amount)  );
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -314,17 +324,23 @@ object_id_type bet_place_evaluator::do_apply(const bet_place_operation& op)
          if (_betting_market_group->bets_are_delayed()) {
             // the bet will be included in the block at time `head_block_time() + block_interval`, so make the delay relative 
             // to the time it's included in a block
-            bet_obj.end_of_delay = d.head_block_time() + _current_params->block_interval + _current_params->live_betting_delay_time;
+            bet_obj.end_of_delay = d.head_block_time() + _current_params->block_interval + _current_params->live_betting_delay_time();
          }
       });
 
    bet_id_type new_bet_id = new_bet.id; // save the bet id here, new_bet may be deleted during place_bet()
 
-   d.adjust_balance(fee_paying_account->id, -op.amount_to_bet);
-
-   ddump((_betting_market_group->bets_are_delayed())(_current_params->live_betting_delay_time));
-   if (!_betting_market_group->bets_are_delayed() || _current_params->live_betting_delay_time <= 0)
+   // place the bet, this may return guaranteed winnings
+   ddump((_betting_market_group->bets_are_delayed())(_current_params->live_betting_delay_time()));
+   if (!_betting_market_group->bets_are_delayed() || _current_params->live_betting_delay_time() <= 0)
       d.place_bet(new_bet);
+
+   // now that their guaranteed winnings have been returned, check whether they have enough in their account to place the bet
+   FC_ASSERT( d.get_balance( *fee_paying_account, *_asset ).amount  >= op.amount_to_bet.amount, "insufficient balance",
+              ("balance", d.get_balance(*fee_paying_account, *_asset))("amount_to_bet", op.amount_to_bet.amount)  );
+
+   // pay for it
+   d.adjust_balance(fee_paying_account->id, -op.amount_to_bet);
 
    return new_bet_id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -332,6 +348,7 @@ object_id_type bet_place_evaluator::do_apply(const bet_place_operation& op)
 void_result bet_cancel_evaluator::do_evaluate(const bet_cancel_operation& op)
 { try {
    const database& d = db();
+   FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
    _bet_to_cancel = &op.bet_to_cancel(d);
    FC_ASSERT( op.bettor_id == _bet_to_cancel->bettor_id, "You can only cancel your own bets" );
 
@@ -347,6 +364,7 @@ void_result bet_cancel_evaluator::do_apply(const bet_cancel_operation& op)
 void_result betting_market_group_resolve_evaluator::do_evaluate(const betting_market_group_resolve_operation& op)
 { try {
    database& d = db();
+   FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
    _betting_market_group = &op.betting_market_group_id(d);
    d.validate_betting_market_group_resolutions(*_betting_market_group, op.resolutions);
    return void_result();
@@ -360,6 +378,7 @@ void_result betting_market_group_resolve_evaluator::do_apply(const betting_marke
 
 void_result betting_market_group_cancel_unmatched_bets_evaluator::do_evaluate(const betting_market_group_cancel_unmatched_bets_operation& op)
 { try {
+   FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
    _betting_market_group = &op.betting_market_group_id(db());
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }

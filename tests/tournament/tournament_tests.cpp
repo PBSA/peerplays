@@ -1998,7 +1998,7 @@ BOOST_FIXTURE_TEST_CASE( simple, database_fixture )
 #endif
 
                 auto n = db.get_balance(nathan_id, asset_id_type()); wdump(("# nathan's balance") (n));
-                auto r = db.get_balance(TOURNAMENT_RAKE_FEE_ACCOUNT_ID, asset_id_type()); wdump(("# rake's balance") (r));
+                auto r = db.get_balance(GRAPHENE_RAKE_FEE_ACCOUNT_ID, asset_id_type()); wdump(("# rake's balance") (r));
 #endif
             };
 

@@ -395,7 +395,6 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    }).get_id() == GRAPHENE_PROXY_TO_SELF_ACCOUNT);
    FC_ASSERT(create<account_object>([this](account_object& a) {
        a.name = "default-dividend-distribution";
-       //a.name = "test-dividend-distribution";
        a.statistics = create<account_statistics_object>([&](account_statistics_object& s){s.owner = a.id;}).id;
        a.owner.weight_threshold = 1;
        a.active.weight_threshold = 1;
@@ -404,7 +403,6 @@ void database::init_genesis(const genesis_state_type& genesis_state)
        a.network_fee_percentage = 0;
        a.lifetime_referrer_fee_percentage = GRAPHENE_100_PERCENT;
    }).get_id() == GRAPHENE_RAKE_FEE_ACCOUNT_ID);
-   //}).get_id() == TOURNAMENT_RAKE_FEE_ACCOUNT_ID);
    // Create more special accounts
    while( true )
    {
@@ -435,12 +433,9 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       create<asset_dividend_data_object>([&](asset_dividend_data_object& a) {
            a.options.minimum_distribution_interval = 3*24*60*60;
            a.options.minimum_fee_percentage = 10*GRAPHENE_1_PERCENT;
-           a.options.next_payout_time = genesis_state.initial_timestamp + fc::hours(1);
-           a.options.payout_interval = 7*24*60*60;
+           a.options.next_payout_time = genesis_state.initial_timestamp + fc::days(1);
+           a.options.payout_interval = 30*24*60*60;
            a.dividend_distribution_account = GRAPHENE_RAKE_FEE_ACCOUNT_ID;
-           //a.options.next_payout_time = genesis_state.initial_timestamp + fc::days(1);
-           //a.options.payout_interval = 30*24*60*60;
-           //a.dividend_distribution_account = TOURNAMENT_RAKE_FEE_ACCOUNT_ID;
       });
 
    const asset_object& core_asset =
@@ -474,20 +469,17 @@ void database::init_genesis(const genesis_state_type& genesis_state)
            a.options.next_payout_time = genesis_state.initial_timestamp + fc::hours(1);
            a.options.payout_interval = 7*24*60*60;
            a.dividend_distribution_account = GRAPHENE_RAKE_FEE_ACCOUNT_ID;
-           //a.dividend_distribution_account = TOURNAMENT_RAKE_FEE_ACCOUNT_ID;
       });
 
    const asset_object& default_asset =
      create<asset_object>( [&]( asset_object& a ) {
          a.symbol = "DEF";
-         //a.symbol = "DEFAULT";
          a.options.max_market_fee =
          a.options.max_supply = genesis_state.max_core_supply;
          a.precision = GRAPHENE_BLOCKCHAIN_PRECISION_DIGITS;
          a.options.flags = 0;
          a.options.issuer_permissions = 79;
          a.issuer = GRAPHENE_RAKE_FEE_ACCOUNT_ID;
-         //a.issuer = TOURNAMENT_RAKE_FEE_ACCOUNT_ID;
          a.options.core_exchange_rate.base.amount = 1;
          a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
          a.options.core_exchange_rate.quote.amount = 1;
@@ -831,7 +823,10 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       }
       ++it;
    }
+// @romek
+#if 0
    FC_ASSERT( !has_imbalanced_assets );
+#endif
 
    // Save tallied supplies
    for( const auto& item : total_supplies )

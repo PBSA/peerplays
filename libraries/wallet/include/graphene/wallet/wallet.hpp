@@ -632,6 +632,7 @@ class wallet_api
       * @return Whether a public key is known
       */
      bool is_public_key_registered(string public_key) const;
+
       /**
        *  @param role - active | owner | memo
        */

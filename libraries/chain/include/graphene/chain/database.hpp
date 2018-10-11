@@ -396,6 +396,7 @@ namespace graphene { namespace chain {
          void resolve_betting_market_group(const betting_market_group_object& betting_market_group,
                                            const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions);
          void settle_betting_market_group(const betting_market_group_object& betting_market_group);
+         void remove_completed_events();
          /**
           * @brief Process a new bet
           * @param new_bet_object The new bet to process

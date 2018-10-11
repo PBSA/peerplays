@@ -151,7 +151,7 @@
 #define GRAPHENE_RECENTLY_MISSED_COUNT_INCREMENT             4
 #define GRAPHENE_RECENTLY_MISSED_COUNT_DECREMENT             3
 
-#define GRAPHENE_CURRENT_DB_VERSION                          "BTS2.9"
+#define GRAPHENE_CURRENT_DB_VERSION                          "PPY1.11"
 
 #define GRAPHENE_IRREVERSIBLE_THRESHOLD                      (70 * GRAPHENE_1_PERCENT)
 
@@ -173,7 +173,6 @@
 #define GRAPHENE_PROXY_TO_SELF_ACCOUNT (graphene::chain::account_id_type(5))
 ///
 #define GRAPHENE_RAKE_FEE_ACCOUNT_ID (graphene::chain::account_id_type(6))
-#define TOURNAMENT_RAKE_FEE_ACCOUNT_ID (graphene::chain::account_id_type(6))
 /// Sentinel value used in the scheduler.
 #define GRAPHENE_NULL_WITNESS (graphene::chain::witness_id_type(0))
 ///@}

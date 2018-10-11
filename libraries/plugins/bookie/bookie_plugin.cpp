@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
+ * Copyright (c) 2018 Peerplays Blockchain Standards Association, and contributors.
  *
  * The MIT License
  *
@@ -21,7 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-
 #include <graphene/bookie/bookie_plugin.hpp>
 #include <graphene/bookie/bookie_objects.hpp>
 

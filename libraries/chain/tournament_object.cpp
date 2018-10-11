@@ -304,53 +304,51 @@ namespace graphene { namespace chain {
                const tournament_details_object& details = tournament_obj.tournament_details_id(event.db);
                share_type total_prize = 0;
                for (const auto& payer_pair : details.payers)
-               {
-                    total_prize += payer_pair.second;
-               }
+                  total_prize += payer_pair.second;
                assert(total_prize == tournament_obj.prize_pool);
 #endif
                assert(event.match.match_winners.size() ==  1);
                const account_id_type& winner = *event.match.match_winners.begin();
                uint16_t rake_fee_percentage = event.db.get_global_properties().parameters.rake_fee_percentage;
+
+               // check whether the core asset pays dividends.  If so, we transfer the rake fee 
+               // to the core asset's dividend account
+               const asset_object& core_asset_obj = asset_id_type()(event.db);
+               optional<asset_dividend_data_id_type> dividend_id = core_asset_obj.dividend_data_id;
+
                share_type rake_amount = 0;
-
-               const asset_object & asset_obj = tournament_obj.options.buy_in.asset_id(event.db);
-               optional<asset_dividend_data_id_type> dividend_id = asset_obj.dividend_data_id;
-
-               if (dividend_id.valid())
-               {
-                    rake_amount = (fc::uint128_t(tournament_obj.prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
-               }
+               if (dividend_id)
+                  rake_amount = (fc::uint128_t(tournament_obj.prize_pool.value) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100).to_uint64();
                asset won_prize(tournament_obj.prize_pool - rake_amount, tournament_obj.options.buy_in.asset_id);
                tournament_payout_operation op;
 
                if (won_prize.amount.value)
                {
-                   // Adjusting balance of winner
-                   event.db.adjust_balance(winner, won_prize);
+                  // Adjusting balance of winner
+                  event.db.adjust_balance(winner, won_prize);
 
-                   // Generating a virtual operation that shows the payment
-                   op.tournament_id = tournament_obj.id;
-                   op.payout_amount = won_prize;
-                   op.payout_account_id = winner;
-                   op.type = payout_type::prize_award;
-                   event.db.push_applied_operation(op);
+                  // Generating a virtual operation that shows the payment
+                  op.tournament_id = tournament_obj.id;
+                  op.payout_amount = won_prize;
+                  op.payout_account_id = winner;
+                  op.type = payout_type::prize_award;
+                  event.db.push_applied_operation(op);
                }
 
-               if (dividend_id.valid() && rake_amount.value)
+               if (dividend_id && rake_amount.value)
                {
-                   // Adjusting balance of dividend_distribution_account
-                   const asset_dividend_data_id_type& asset_dividend_data_id_= *dividend_id;
-                   const asset_dividend_data_object& dividend_obj = asset_dividend_data_id_(event.db);
-                   const account_id_type& rake_account_id = dividend_obj.dividend_distribution_account;
-                   asset rake(rake_amount, tournament_obj.options.buy_in.asset_id);
-                   event.db.adjust_balance(rake_account_id, rake);
+                  // Adjusting balance of dividend_distribution_account
+                  const asset_dividend_data_id_type& asset_dividend_data_id_= *dividend_id;
+                  const asset_dividend_data_object& dividend_obj = asset_dividend_data_id_(event.db);
+                  const account_id_type& rake_account_id = dividend_obj.dividend_distribution_account;
+                  asset rake(rake_amount, tournament_obj.options.buy_in.asset_id);
+                  event.db.adjust_balance(rake_account_id, rake);
 
-                   // Generating a virtual operation that shows the payment
-                   op.payout_amount = rake;
-                   op.payout_account_id = rake_account_id;
-                   op.type = payout_type::rake_fee;
-                   event.db.push_applied_operation(op);
+                  // Generating a virtual operation that shows the payment
+                  op.payout_amount = rake;
+                  op.payout_account_id = rake_account_id;
+                  op.type = payout_type::rake_fee;
+                  event.db.push_applied_operation(op);
                }
             }
          };

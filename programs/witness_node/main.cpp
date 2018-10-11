@@ -31,6 +31,7 @@
 //#include <graphene/generate_uia_sharedrop_genesis/generate_uia_sharedrop_genesis.hpp>
 #include <graphene/bookie/bookie_plugin.hpp>
 #include <graphene/utilities/git_revision.hpp>
+#include <graphene/snapshot/snapshot.hpp>
 
 #include <fc/exception/exception.hpp>
 #include <fc/thread/thread.hpp>
@@ -84,6 +85,7 @@ int main(int argc, char** argv) {
       //auto generate_uia_sharedrop_genesis_plug = node->register_plugin<generate_uia_sharedrop_genesis::generate_uia_sharedrop_genesis_plugin>();
       auto list_plug = node->register_plugin<accounts_list::accounts_list_plugin>();
       auto bookie_plug = node->register_plugin<bookie::bookie_plugin>();
+      auto snapshot_plug = node->register_plugin<snapshot_plugin::snapshot_plugin>();
 
       try
       {

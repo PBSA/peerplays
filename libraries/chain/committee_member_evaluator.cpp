@@ -25,6 +25,7 @@
 #include <graphene/chain/committee_member_object.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/account_object.hpp>
+#include <graphene/chain/hardfork.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <graphene/chain/protocol/vote.hpp>
 #include <graphene/chain/transaction_evaluation_state.hpp>
@@ -77,12 +78,28 @@ void_result committee_member_update_global_parameters_evaluator::do_evaluate(con
 { try {
    FC_ASSERT(trx_state->_is_proposed_trx);
 
+   if( db().head_block_time() < HARDFORK_1000_TIME ) // TODO: remove after hf
+      FC_ASSERT( !o.new_parameters.extensions.value.min_bet_multiplier.valid()
+                 && !o.new_parameters.extensions.value.max_bet_multiplier.valid()
+                 && !o.new_parameters.extensions.value.betting_rake_fee_percentage.valid()
+                 && !o.new_parameters.extensions.value.permitted_betting_odds_increments.valid()
+                 && !o.new_parameters.extensions.value.live_betting_delay_time.valid(),
+                 "Parameter extensions are not allowed yet!" );
+
+   dgpo = &db().get_global_properties();
+   if( o.new_parameters.extensions.value.min_bet_multiplier.valid()
+        && !o.new_parameters.extensions.value.max_bet_multiplier.valid() )
+       FC_ASSERT( *o.new_parameters.extensions.value.min_bet_multiplier < dgpo->parameters.max_bet_multiplier() );
+   if( !o.new_parameters.extensions.value.min_bet_multiplier.valid()
+        && o.new_parameters.extensions.value.max_bet_multiplier.valid() )
+       FC_ASSERT( dgpo->parameters.min_bet_multiplier() < *o.new_parameters.extensions.value.max_bet_multiplier );
+
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (o) ) }
 
 void_result committee_member_update_global_parameters_evaluator::do_apply(const committee_member_update_global_parameters_operation& o)
 { try {
-   db().modify(db().get_global_properties(), [&o](global_property_object& p) {
+   db().modify(*dgpo, [&o](global_property_object& p) {
       p.pending_parameters = o.new_parameters;
    });
 

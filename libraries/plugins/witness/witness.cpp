@@ -198,7 +198,6 @@ block_production_condition::block_production_condition_enum witness_plugin::bloc
          //ilog("Not producing block because it isn't my turn");
          break;
       case block_production_condition::not_time_yet:
-         //ilog("Not producing block because slot has not yet arrived");
          dlog("Not producing block because slot has not yet arrived");
          break;
       case block_production_condition::no_private_key:

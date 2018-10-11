@@ -33,6 +33,7 @@ namespace graphene { namespace chain {
 
 void_result sport_create_evaluator::do_evaluate(const sport_create_operation& op)
 { try {
+   FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
 
    return void_result();
@@ -50,6 +51,7 @@ object_id_type sport_create_evaluator::do_apply(const sport_create_operation& op
 
 void_result sport_update_evaluator::do_evaluate(const sport_update_operation& op)
 { try {
+   FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
    FC_ASSERT(op.new_name.valid());
    return void_result();

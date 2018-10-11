@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) 2018 Peerplays Blockchain Standards Association, and contributors.
+ *
+ * The MIT License
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
 #define DEFAULT_LOGGER "betting"
 #define BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS
 #define BOOST_MPL_LIMIT_VECTOR_SIZE 30
@@ -392,10 +416,13 @@ namespace graphene { namespace chain {
                // this is an approximate test, the state name provided by typeinfo will be mangled, but should
                // at least contain the string we're looking for
                const char* fc_reflected_value_name = fc::reflector<event_state>::to_string((event_state)i);
-               if (!strcmp(fc_reflected_value_name, filled_state_names[i]))
+               if (!strstr(filled_state_names[i], fc_reflected_value_name))
+               {
                   fc_elog(fc::logger::get("default"),
                           "Error, state string mismatch between fc and boost::msm for int value ${int_value}: boost::msm -> ${boost_string}, fc::reflect -> ${fc_string}",
                           ("int_value", i)("boost_string", filled_state_names[i])("fc_string", fc_reflected_value_name));
+                  ++error_count;
+               }
             }
             catch (const fc::bad_cast_exception&)
             {
@@ -405,7 +432,10 @@ namespace graphene { namespace chain {
                ++error_count;
             }
          }
-         dlog("Done checking constants");
+         if (error_count == 0)
+            dlog("Event status constants are correct");
+         else
+            wlog("There were ${count} errors in the event status constants", ("count", error_count));
    
          return error_count == 0;
       }

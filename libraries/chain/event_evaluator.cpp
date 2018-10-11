@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
+ * Copyright (c) 2018 Peerplays Blockchain Standards Association, and contributors.
  *
  * The MIT License
  *
@@ -34,6 +34,7 @@ namespace graphene { namespace chain {
 
 void_result event_create_evaluator::do_evaluate(const event_create_operation& op)
 { try {
+   FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
 
    //database& d = db();
@@ -72,6 +73,7 @@ object_id_type event_create_evaluator::do_apply(const event_create_operation& op
 
 void_result event_update_evaluator::do_evaluate(const event_update_operation& op)
 { try {
+   FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
    FC_ASSERT(op.new_event_group_id || op.new_name || op.new_season ||
              op.new_start_time || op.new_status, "nothing to change");
@@ -115,6 +117,7 @@ void_result event_update_status_evaluator::do_evaluate(const event_update_status
    FC_ASSERT(trx_state->_is_proposed_trx);
 
    database& d = db();
+   FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
    //check that the event to update exists
    _event_to_update = &op.event_id(d);
 

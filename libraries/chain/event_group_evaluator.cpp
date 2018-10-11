@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
+ * Copyright (c) 2018 Peerplays Blockchain Standards Association, and contributors.
  *
  * The MIT License
  *
@@ -33,6 +33,7 @@ namespace graphene { namespace chain {
 
 void_result event_group_create_evaluator::do_evaluate(const event_group_create_operation& op)
 { try {
+   FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
 
    // the sport id in the operation can be a relative id.  If it is,
@@ -62,6 +63,7 @@ object_id_type event_group_create_evaluator::do_apply(const event_group_create_o
 
 void_result event_group_update_evaluator::do_evaluate(const event_group_update_operation& op)
 { try {
+   FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
    FC_ASSERT(op.new_sport_id.valid() || op.new_name.valid(), "nothing to change");
    if( op.new_sport_id.valid() )

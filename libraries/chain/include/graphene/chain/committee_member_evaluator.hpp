@@ -50,6 +50,8 @@ namespace graphene { namespace chain {
       public:
          typedef committee_member_update_global_parameters_operation operation_type;
 
+         const global_property_object* dgpo;
+
          void_result do_evaluate( const committee_member_update_global_parameters_operation& o );
          void_result do_apply( const committee_member_update_global_parameters_operation& o );
    };

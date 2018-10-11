@@ -1,231 +1,212 @@
-BitShares Core
-==============
-* [Getting Started](#getting-started)
-* [Support](#support)
-* [Using the API](#using-the-api)
-* [Accessing restricted API's](#accessing-restricted-apis)
-* [FAQ](#faq)
-* [License](#license)
+Intro for new developers and witnesses
+------------------------
 
-BitShares Core is the BitShares blockchain implementation and command-line interface.
-The web wallet is [BitShares UI](https://github.com/bitshares/bitshares-ui).
+This is a quick introduction to get new developers and witnesses up to speed on Peerplays blockchain. It is intended for witnesses plannig to join a live, already deployed blockchain.
 
-Visit [BitShares.org](https://bitshares.org/) to learn about BitShares and join the community at [BitSharesTalk.org](https://bitsharestalk.org/).
+Starting A Peerplays Node
+-----------------
 
-**NOTE:** The official BitShares git repository location, default branch, and submodule remotes were recently changed. Existing
-repositories can be updated with the following steps:
+For Ubuntu 14.04 LTS and up users, see this link first:
+    https://github.com/cryptonomex/graphene/wiki/build-ubuntu
 
-    git remote set-url origin https://github.com/bitshares/bitshares-core.git
-    git checkout master
-    git remote set-head origin --auto
-    git pull
-    git submodule sync --recursive
+and then proceed with:
+
+    git clone https://github.com/pbsa/peerplays.git
+    cd peerplays
     git submodule update --init --recursive
-
-Getting Started
----------------
-Build instructions and additional documentation are available in the
-[wiki](https://github.com/bitshares/bitshares-core/wiki).
-
-We recommend building on Ubuntu 16.04 LTS, and the build dependencies may be installed with:
-
-    sudo apt-get update
-    sudo apt-get install autoconf cmake git libboost-all-dev libssl-dev
-
-To build after all dependencies are installed:
-
-    git clone https://github.com/bitshares/bitshares-core.git
-    cd bitshares-core
-    git checkout <LATEST_RELEASE_TAG>
-    git submodule update --init --recursive
-    cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo .
+    cmake -DBOOST_ROOT="$BOOST_ROOT" -DCMAKE_BUILD_TYPE=Release .
     make
+    ./programs/witness_node/witness_node
+    
+Launching the witness creates required directories. Next, **stop the witness** and continue.
 
-**NOTE:** BitShares requires an [OpenSSL](https://www.openssl.org/) version in the 1.0.x series. OpenSSL 1.1.0 and newer are NOT supported. If your system OpenSSL version is newer, then you will need to manually provide an older version of OpenSSL and specify it to CMake using `-DOPENSSL_INCLUDE_DIR`, `-DOPENSSL_SSL_LIBRARY`, and `-DOPENSSL_CRYPTO_LIBRARY`.
-
-**NOTE:** BitShares requires a [Boost](http://www.boost.org/) version in the range [1.57, 1.60]. Versions earlier than
-1.57 or newer than 1.60 are NOT supported. If your system Boost version is newer, then you will need to manually build
-an older version of Boost and specify it to CMake using `DBOOST_ROOT`.
-
-After building, the witness node can be launched with:
+    vi witness_node_data_dir/config.ini
+    p2p-endpoint = 0.0.0.0:9777
+    rpc-endpoint = 127.0.0.1:8090
+    seed-node = 213.184.225.234:59500
+    
+Start the witness back up
 
     ./programs/witness_node/witness_node
 
-The node will automatically create a data directory including a config file. It may take several hours to fully synchronize
-the blockchain. After syncing, you can exit the node using Ctrl+C and setup the command-line wallet by editing
-`witness_node_data_dir/config.ini` as follows:
+Upgrading A Peerplays Node
+-----------------
+To minimize downtime of your peerplays node when upgrading, one upgrade idea was written in this steemit article: https://steemit.com/peerplays/@joseph/peerplays-update-setting-a-backup-witness-server-switching-servers
 
-    rpc-endpoint = 127.0.0.1:8090
-
-After starting the witness node again, in a separate terminal you can run:
+Wallet Setup
+-----------------
+Then, in a separate terminal window, start the command-line wallet `cli_wallet`:
 
     ./programs/cli_wallet/cli_wallet
 
-Set your inital password:
+To set your initial password to 'password' use:
 
-    >>> set_password <PASSWORD>
-    >>> unlock <PASSWORD>
+    >>> set_password password
+    >>> unlock password
 
-To import your initial balance:
+A list of CLI wallet commands is available
+[here](https://github.com/PBSA/peerplays/blob/master/libraries/wallet/include/graphene/wallet/wallet.hpp).
 
-    >>> import_balance <ACCOUNT NAME> [<WIF_KEY>] true
 
-If you send private keys over this connection, `rpc-endpoint` should be bound to localhost for security.
+Testnet
+----------------------
+- chain-id - 5b37954aa0d33a8e0d57b084995c262a7c13dbc0693d3e96654e63ff45a9ceec
 
-Use `help` to see all available wallet commands. Source definition and listing of all commands is available
-[here](https://github.com/bitshares/bitshares-core/blob/master/libraries/wallet/include/graphene/wallet/wallet.hpp).
+Register your username at the faucet address
+---------------------------
+https://595-dev.pixelplex.by/
 
-Support
--------
-Technical support is available in the [BitSharesTalk technical support subforum](https://bitsharestalk.org/index.php?board=45.0).
 
-BitShares Core bugs can be reported directly to the [issue tracker](https://github.com/bitshares/bitshares-core/issues).
+Use the get_private_key_from_password command
+---------------------------------
+You will to generate owner and active keys
 
-BitShares UI bugs should be reported to the [UI issue tracker](https://github.com/bitshares/bitshares-ui/issues)
+```
+get_private_key_from_password your_witness_username active the_key_you_received_from_the_faucet
+```
+This will reveal an array for your active key `["PPYxxx", "xxxx"]`
 
-Using the API
--------------
+import_keys into your cli_wallet
+-------------------------------
+- use the second value in the array returned from the previous step for the private key
+- be sure to wrap your username in quotes
+- import the key with this command
+```
+import_key "your_witness_username" xxxx
+```
 
-We provide several different API's.  Each API has its own ID.
-When running `witness_node`, initially two API's are available:
-API 0 provides read-only access to the database, while API 1 is
-used to login and gain access to additional, restricted API's.
+Upgrade your account to lifetime membership
+--------------------------------
+```
+upgrade_account your_witness_username true
+```
 
-Here is an example using `wscat` package from `npm` for websockets:
+Create your witness (substitute the url for your witness information)
+-------------------------------
+- place quotes around url
+```
+create_witness your_witness_username "url" true
+```
+**Be sure to take note of the block_signing_key** 
 
-    $ npm install -g wscat
-    $ wscat -c ws://127.0.0.1:8090
-    > {"id":1, "method":"call", "params":[0,"get_accounts",[["1.2.0"]]]}
-    < {"id":1,"result":[{"id":"1.2.0","annotations":[],"membership_expiration_date":"1969-12-31T23:59:59","registrar":"1.2.0","referrer":"1.2.0","lifetime_referrer":"1.2.0","network_fee_percentage":2000,"lifetime_referrer_fee_percentage":8000,"referrer_rewards_percentage":0,"name":"committee-account","owner":{"weight_threshold":1,"account_auths":[],"key_auths":[],"address_auths":[]},"active":{"weight_threshold":6,"account_auths":[["1.2.5",1],["1.2.6",1],["1.2.7",1],["1.2.8",1],["1.2.9",1],["1.2.10",1],["1.2.11",1],["1.2.12",1],["1.2.13",1],["1.2.14",1]],"key_auths":[],"address_auths":[]},"options":{"memo_key":"GPH1111111111111111111111111111111114T1Anm","voting_account":"1.2.0","num_witness":0,"num_committee":0,"votes":[],"extensions":[]},"statistics":"2.7.0","whitelisting_accounts":[],"blacklisting_accounts":[]}]}
+IMPORTANT (issue below command using block_signing_key just obtained)
+```
+get_private_key block_signing_key
+```
+Compare this result to
 
-We can do the same thing using an HTTP client such as `curl` for API's which do not require login or other session state:
+```
+dump_private_keys
+```
+You should see 3 pairs of keys. One of the pairs should match your block_signing_key and this is the one you will use in the next step!
 
-    $ curl --data '{"jsonrpc": "2.0", "method": "call", "params": [0, "get_accounts", [["1.2.0"]]], "id": 1}' http://127.0.0.1:8090/rpc
-    {"id":1,"result":[{"id":"1.2.0","annotations":[],"membership_expiration_date":"1969-12-31T23:59:59","registrar":"1.2.0","referrer":"1.2.0","lifetime_referrer":"1.2.0","network_fee_percentage":2000,"lifetime_referrer_fee_percentage":8000,"referrer_rewards_percentage":0,"name":"committee-account","owner":{"weight_threshold":1,"account_auths":[],"key_auths":[],"address_auths":[]},"active":{"weight_threshold":6,"account_auths":[["1.2.5",1],["1.2.6",1],["1.2.7",1],["1.2.8",1],["1.2.9",1],["1.2.10",1],["1.2.11",1],["1.2.12",1],["1.2.13",1],["1.2.14",1]],"key_auths":[],"address_auths":[]},"options":{"memo_key":"GPH1111111111111111111111111111111114T1Anm","voting_account":"1.2.0","num_witness":0,"num_committee":0,"votes":[],"extensions":[]},"statistics":"2.7.0","whitelisting_accounts":[],"blacklisting_accounts":[]}]}
+Get your witness id
+-----------------
+```
+get_witness username (note the "id" for your config)
+```
 
-API 0 is accessible using regular JSON-RPC:
+Modify your witness_node config.ini to include **your** witness id and private key pair.
+-------------------------
+Comment out the existing private-key before adding yours
+```
+vim witness_node_data_dir/config.ini
 
-    $ curl --data '{"jsonrpc": "2.0", "method": "get_accounts", "params": [["1.2.0"]], "id": 1}' http://127.0.0.1:8090/rpc
+witness-id = "1.6.x"
+private-key = ["block_signing_key","private_key_for_your_block_signing_key"]
+```
 
-Accessing restricted API's
---------------------------
+start your witness back up
+------------------
+```
+./programs/witness_node/witness_node
+```
 
-You can restrict API's to particular users by specifying an `apiaccess` file in `config.ini`.  Here is an example `apiaccess` file which allows
-user `bytemaster` with password `supersecret` to access four different API's, while allowing any other user to access the three public API's
-necessary to use the wallet:
+If it fails to start, try with these flags (not for permanent use)
 
-    {
-       "permission_map" :
-       [
-          [
-             "bytemaster",
-             {
-                "password_hash_b64" : "9e9GF7ooXVb9k4BoSfNIPTelXeGOZ5DrgOYMj94elaY=",
-                "password_salt_b64" : "INDdM6iCi/8=",
-                "allowed_apis" : ["database_api", "network_broadcast_api", "history_api", "network_node_api"]
-             }
-          ],
-          [
-             "*",
-             {
-                "password_hash_b64" : "*",
-                "password_salt_b64" : "*",
-                "allowed_apis" : ["database_api", "network_broadcast_api", "history_api"]
-             }
-          ]
-       ]
-    }
+```
+./programs/witness_node/witness_node --resync --replay
+```
 
-Passwords are stored in `base64` as salted `sha256` hashes.  A simple Python script, `saltpass.py` is avaliable to obtain hash and salt values from a password.
-A single asterisk `"*"` may be specified as username or password hash to accept any value.
+Vote for yourself
+--------------
+```
+vote_for_witness your_witness_account your_witness_account true true
+```
 
-With the above configuration, here is an example of how to call `add_node` from the `network_node` API:
+Ask to be voted in!
+--------------
 
-    {"id":1, "method":"call", "params":[1,"login",["bytemaster", "supersecret"]]}
-    {"id":2, "method":"call", "params":[1,"network_node",[]]}
-    {"id":3, "method":"call", "params":[2,"add_node",["127.0.0.1:9090"]]}
+Join @Peerplays Telegram group to find information about the witness group.
+http://t.me/@peerplayswitness
 
-Note, the call to `network_node` is necessary to obtain the correct API identifier for the network API.  It is not guaranteed that the network API identifier will always be `2`.
+You will get logs that look like this:
 
-Since the `network_node` API requires login, it is only accessible over the websocket RPC.  Our `doxygen` documentation contains the most up-to-date information
-about API's for the [witness node](https://bitshares.github.io/doxygen/namespacegraphene_1_1app.html) and the
-[wallet](https://bitshares.github.io/doxygen/classgraphene_1_1wallet_1_1wallet__api.html).
-If you want information which is not available from an API, it might be available
-from the [database](https://bitshares.github.io/doxygen/classgraphene_1_1chain_1_1database.html);
-it is fairly simple to write API methods to expose database methods.
+```
+2070264ms th_a       application.cpp:506           handle_block         ] Got block: #87913 time: 2017-05-27T16:34:30 latency: 264 ms from: bhuz-witness  irreversible: 87903 (-10)
+2071000ms th_a       witness.cpp:204               block_production_loo ] Not producing block because slot has not yet arrived
+2072000ms th_a       witness.cpp:204               block_production_loo ] Not producing block because slot has not yet arrived
+2073000ms th_a       witness.cpp:201               block_production_loo ] Not producing block because it isn't my turn
+```
 
-FAQ
----
+Assuming you've received votes, you will start producing as a witness at the next maintenance interval (once per hour). You can check your votes with.
 
-- Is there a way to generate help with parameter names and method descriptions?
+```
+get_witness your_witness_account
+```
 
-    Yes. Documentation of the code base, including APIs, can be generated using Doxygen. Simply run `doxygen` in this directory.
+systemd
+----------------
+It's important for your witness to start when your system boots up. The filepaths here assume that you installed your witness into `/home/ubuntu/peerplays`
 
-    If both Doxygen and perl are available in your build environment, the CLI wallet's `help` and `gethelp`
-    commands will display help generated from the doxygen documentation.
+Create a logfile to hold your stdout/err logging
+```bash
+sudo touch /var/log/peerplays.log
+```
 
-    If your CLI wallet's `help` command displays descriptions without parameter names like
-        `signed_transaction transfer(string, string, string, string, string, bool)`
-    it means CMake was unable to find Doxygen or perl during configuration.  If found, the
-    output should look like this:
-        `signed_transaction transfer(string from, string to, string amount, string asset_symbol, string memo, bool broadcast)`
+Save this file in your peerplays directory. `vi /home/ubuntu/peerplays/start.sh`
+```bash
+#!/bin/bash
 
-- Is there a way to allow external program to drive `cli_wallet` via websocket, JSONRPC, or HTTP?
+cd /home/ubuntu/peerplays
+./programs/witness_node/witness_node &> /var/log/peerplays.log
+```
+Make it executable
+```bash
+chmod 744 /home/ubuntu/peerplays/start.sh
+```
+Create this file: `sudo vi /etc/systemd/system/peerplays.service`
+Note the path for start.sh. Change it to match where your start.sh file is if necessary.
+```
+[Unit]
+Description=Peerplays Witness
+After=network.target
 
-    Yes. External programs may connect to the CLI wallet and make its calls over a websockets API. To do this, run the wallet in
-    server mode, i.e. `cli_wallet -s "127.0.0.1:9999"` and then have the external program connect to it over the specified port
-    (in this example, port 9999).
+[Service]
+ExecStart=/home/ubuntu/peerplays/start.sh
 
-- Is there a way to access methods which require login over HTTP?
+[Install]
+WantedBy = multi-user.target
+```
+Enable the service
+```bash
+sudo systemctl enable peerplays.service
+```
+Make sure you don't get any errors
+```bash
+sudo systemctl status peerplays.service
+```
+Stop your witness if it is currently running from previous steps, then start it with the service.
+```bash
+sudo systemctl start peerplays.service
+```
+Check your logfile for entries
+```bash
+tail -f /var/log/peerplays.log
+```
 
-    No.  Login is inherently a stateful process (logging in changes what the server will do for certain requests, that's kind
-    of the point of having it).  If you need to track state across HTTP RPC calls, you must maintain a session across multiple
-    connections.  This is a famous source of security vulnerabilities for HTTP applications.  Additionally, HTTP is not really
-    designed for "server push" notifications, and we would have to figure out a way to queue notifications for a polling client.
 
-    Websockets solves all these problems.  If you need to access Graphene's stateful methods, you need to use Websockets.
+Running specific tests
+----------------------
 
-- What is the meaning of `a.b.c` numbers?
-
-    The first number specifies the *space*.  Space 1 is for protocol objects, 2 is for implementation objects.
-    Protocol space objects can appear on the wire, for example in the binary form of transactions.
-    Implementation space objects cannot appear on the wire and solely exist for implementation
-    purposes, such as optimization or internal bookkeeping.
-
-    The second number specifies the *type*.  The type of the object determines what fields it has.  For a
-    complete list of type ID's, see `enum object_type` and `enum impl_object_type` in
-    [types.hpp](https://github.com/bitshares/bitshares-2/blob/bitshares/libraries/chain/include/graphene/chain/protocol/types.hpp).
-
-    The third number specifies the *instance*.  The instance of the object is different for each individual
-    object.
-
-- The answer to the previous question was really confusing.  Can you make it clearer?
-
-    All account ID's are of the form `1.2.x`.  If you were the 9735th account to be registered,
-    your account's ID will be `1.2.9735`.  Account `0` is special (it's the "committee account,"
-    which is controlled by the committee members and has a few abilities and restrictions other accounts
-    do not).
-
-    All asset ID's are of the form `1.3.x`.  If you were the 29th asset to be registered,
-    your asset's ID will be `1.3.29`.  Asset `0` is special (it's BTS, which is considered the "core asset").
-
-    The first and second number together identify the kind of thing you're talking about (`1.2` for accounts,
-    `1.3` for assets).  The third number identifies the particular thing.
-
-- How do I get the `network_add_nodes` command to work?  Why is it so complicated?
-
-    You need to follow the instructions in the "Accessing restricted API's" section to
-    allow a username/password access to the `network_node` API.  Then you need
-    to pass the username/password to the `cli_wallet` on the command line or in a config file.
-
-    It's set up this way so that the default configuration is secure even if the RPC port is
-    publicly accessible.  It's fine if your `witness_node` allows the general public to query
-    the database or broadcast transactions (in fact, this is how the hosted web UI works).  It's
-    less fine if your `witness_node` allows the general public to control which p2p nodes it's
-    connecting to.  Therefore the API to add p2p connections needs to be set up with proper access
-    controls.
- 
-License
--------
-BitShares Core is under the MIT license. See [LICENSE](https://github.com/bitshares/bitshares-core/blob/master/LICENSE.txt)
-for more information.
+- `tests/chain_tests -t block_tests/name_of_test`
