@@ -219,6 +219,7 @@ namespace
          void on_entry(const canceled_event& event, betting_market_state_machine_& fsm) {
             dlog("betting market ${id} -> canceled", ("id", fsm.betting_market_obj->id));
             fsm.betting_market_obj->resolution = betting_market_resolution_type::cancel;
+            fsm.betting_market_obj->cancel_all_bets(event.db);
          }
       };
 
@@ -246,10 +247,17 @@ namespace
       //  +---------------------------+-----------------------------+----------------------------+---------------------+----------------------+
       > {};
 
-      template <class Fsm,class Event>
+      template <class Fsm, class Event>
       void no_transition(Event const& e, Fsm& ,int state)
       {
          FC_THROW_EXCEPTION(graphene::chain::no_transition, "No transition");
+      }
+       
+      template <class Fsm>
+      void no_transition(canceled_event const& e, Fsm&, int state)
+      {
+         //ignore transitions from settled to canceled state
+         //and from canceled to canceled state
       }
 
       betting_market_object* betting_market_obj;
@@ -398,6 +406,20 @@ void betting_market_object::cancel_all_unmatched_bets(database& db) const
       if (old_book_itr->betting_market_id == id)
          db.cancel_bet(*old_book_itr, true);
    }
+}
+    
+void betting_market_object::cancel_all_bets(database& db) const
+{
+    const auto& bets_by_market_id = db.get_index_type<bet_object_index>().indices().get<by_betting_market_id>();
+    
+    auto bet_it = bets_by_market_id.lower_bound(id);
+    auto bet_it_end = bets_by_market_id.upper_bound(id);
+    while (bet_it != bet_it_end)
+    {
+        auto old_bet_it = bet_it;
+        ++bet_it;
+        db.cancel_bet(*old_bet_it, true);
+    }
 }
 
 void betting_market_object::pack_impl(std::ostream& stream) const

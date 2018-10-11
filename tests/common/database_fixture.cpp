@@ -1305,6 +1305,13 @@ void database_fixture::update_sport(sport_id_type sport_id, internationalized_st
    process_operation_by_witnesses(sport_update_op);
 } FC_CAPTURE_AND_RETHROW( (sport_id)(name) ) }
 
+void database_fixture::delete_sport(sport_id_type sport_id)
+{ try {
+    sport_delete_operation sport_delete_op;
+    sport_delete_op.sport_id = sport_id;
+    process_operation_by_witnesses(sport_delete_op);
+} FC_CAPTURE_AND_RETHROW( (sport_id) ) }
+    
 const event_group_object& database_fixture::create_event_group(internationalized_string_type name, sport_id_type sport_id)
 { try {
    event_group_create_operation event_group_create_op;
@@ -1314,7 +1321,6 @@ const event_group_object& database_fixture::create_event_group(internationalized
    const auto& event_group_index = db.get_index_type<event_group_object_index>().indices().get<by_id>();
    return *event_group_index.rbegin();
 } FC_CAPTURE_AND_RETHROW( (name) ) }
-
 
 void database_fixture::update_event_group(event_group_id_type event_group_id,
                                           fc::optional<object_id_type> sport_id,
@@ -1328,6 +1334,14 @@ void database_fixture::update_event_group(event_group_id_type event_group_id,
 } FC_CAPTURE_AND_RETHROW( (name) )
 }
 
+void database_fixture::delete_event_group(event_group_id_type event_group_id)
+{ try {
+    event_group_delete_operation event_group_delete_op;
+    event_group_delete_op.event_group_id = event_group_id;
+    process_operation_by_witnesses(event_group_delete_op);
+} FC_CAPTURE_AND_RETHROW( (event_group_id) )
+}
+    
 void database_fixture::try_update_event_group(event_group_id_type event_group_id,
                                               fc::optional<object_id_type> sport_id,
                                               fc::optional<internationalized_string_type> name,

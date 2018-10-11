@@ -28,6 +28,8 @@
 #include <graphene/chain/database.hpp>
 
 namespace graphene { namespace chain {
+    
+   class event_group_object;
 
    class event_group_create_evaluator : public evaluator<event_group_create_evaluator>
    {
@@ -51,5 +53,17 @@ namespace graphene { namespace chain {
 
       private:
          sport_id_type sport_id;
+   };
+    
+   class event_group_delete_evaluator : public evaluator<event_group_delete_evaluator>
+   {
+   public:
+       typedef event_group_delete_operation operation_type;
+       
+       void_result do_evaluate( const event_group_delete_operation& o );
+       void_result do_apply( const event_group_delete_operation& o );
+       
+   private:
+       const event_group_object* _event_group = nullptr;
    };
 } } // graphene::chain

@@ -340,9 +340,16 @@ namespace graphene { namespace chain {
          > {};
 
          template <class Fsm,class Event>
-         void no_transition(Event const& e, Fsm& ,int state)
+         void no_transition(Event const& e, Fsm&, int state)
          {
             FC_THROW_EXCEPTION(graphene::chain::no_transition, "No transition");
+         }
+          
+         template <class Fsm>
+         void no_transition(canceled_event const& e, Fsm&, int state)
+         {
+            //ignore transitions from settled to canceled state
+            //and from canceled to canceled state
          }
 
          event_object* event_obj;

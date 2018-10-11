@@ -126,6 +126,8 @@ namespace graphene { namespace chain {
             betting_market_group_update_operation,
             betting_market_update_operation,
             event_update_status_operation,
+            sport_delete_operation,
+            event_group_delete_operation,
             affiliate_payout_operation, // VIRTUAL
             affiliate_referral_payout_operation // VIRTUAL
          > operation;

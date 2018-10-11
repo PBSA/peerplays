@@ -23,6 +23,7 @@
  */
 #include <graphene/chain/sport_evaluator.hpp>
 #include <graphene/chain/sport_object.hpp>
+#include <graphene/chain/event_group_object.hpp>
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/exceptions.hpp>
@@ -57,7 +58,7 @@ void_result sport_update_evaluator::do_evaluate(const sport_update_operation& op
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
- void_result sport_update_evaluator::do_apply(const sport_update_operation& op)
+void_result sport_update_evaluator::do_apply(const sport_update_operation& op)
 { try {
    database& _db = db();
    _db.modify(
@@ -70,5 +71,41 @@ void_result sport_update_evaluator::do_evaluate(const sport_update_operation& op
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
+    
+void_result sport_delete_evaluator::do_evaluate( const sport_delete_operation& op )
+{ try {
+   FC_ASSERT(db().head_block_time() >= HARDFORK_1001_TIME);
+   FC_ASSERT(trx_state->_is_proposed_trx);
+    
+   //check for sport existence
+   _sport = &op.sport_id(db());
+    
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+    
+void_result sport_delete_evaluator::do_apply( const sport_delete_operation& op )
+{ try {
+   database& _db = db();
+   
+   std::vector<const event_group_object*> event_groups_to_remove;
+    
+   const auto& event_group_by_sport_id = _db.get_index_type<event_group_object_index>().indices().get<by_sport_id>();
+   auto event_group_it = event_group_by_sport_id.lower_bound(op.sport_id);
+   auto event_group_end_it = event_group_by_sport_id.upper_bound(op.sport_id);
+   for (; event_group_it != event_group_end_it; ++event_group_it)
+   {
+      event_group_it->cancel_events(_db);
+      event_groups_to_remove.push_back(&*event_group_it);
+   }
+   
+   for (auto event_group: event_groups_to_remove)
+   {
+      _db.remove(*event_group);
+   }
+    
+   _db.remove(*_sport);
+    
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
 
 } } // graphene::chain

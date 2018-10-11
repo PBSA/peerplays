@@ -23,6 +23,7 @@
  */
 #include <graphene/chain/event_group_evaluator.hpp>
 #include <graphene/chain/event_group_object.hpp>
+#include <graphene/chain/event_object.hpp>
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/exceptions.hpp>
@@ -96,5 +97,25 @@ void_result event_group_update_evaluator::do_apply(const event_group_update_oper
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
+    
+void_result event_group_delete_evaluator::do_evaluate(const event_group_delete_operation& op)
+{ try {
+    FC_ASSERT(db().head_block_time() >= HARDFORK_1001_TIME);
+    FC_ASSERT(trx_state->_is_proposed_trx);
+    
+    //check for event group existence
+    _event_group = &op.event_group_id(db());
+    
+    return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
 
+void_result event_group_delete_evaluator::do_apply(const event_group_delete_operation& op)
+{ try {
+    database& _db = db();
+    
+    _event_group->cancel_events(_db);
+    _db.remove(*_event_group);
+    return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+    
 } } // graphene::chain

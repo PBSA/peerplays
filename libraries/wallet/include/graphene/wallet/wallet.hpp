@@ -1606,6 +1606,12 @@ class wallet_api
               sport_id_type sport_id,
               fc::optional<internationalized_string_type> name,
               bool broadcast = false);
+    
+      signed_transaction propose_delete_sport(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              sport_id_type sport_id,
+              bool broadcast = false);
 
       signed_transaction propose_create_event_group(
               const string& proposing_account,
@@ -1622,6 +1628,12 @@ class wallet_api
               fc::optional<internationalized_string_type> name,
               bool broadcast = false);
 
+      signed_transaction propose_delete_event_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              event_group_id_type event_group,
+              bool broadcast = false);
+    
       signed_transaction propose_create_event(
               const string& proposing_account,
               fc::time_point_sec expiration_time,
@@ -2010,6 +2022,8 @@ FC_API( graphene::wallet::wallet_api,
         (propose_update_event)
         (propose_update_betting_market_group)
         (propose_update_betting_market)
+        (propose_delete_sport)
+        (propose_delete_event_group)
         (place_bet)
         (cancel_bet)
         (propose_resolve_betting_market_group)
