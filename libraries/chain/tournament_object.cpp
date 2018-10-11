@@ -24,6 +24,7 @@
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/match_object.hpp>
+#include <graphene/chain/affiliate_payout.hpp>
 
 #include <boost/msm/back/state_machine.hpp>
 #include <boost/msm/front/state_machine_def.hpp>
@@ -311,10 +312,8 @@ namespace graphene { namespace chain {
                const account_id_type& winner = *event.match.match_winners.begin();
                uint16_t rake_fee_percentage = event.db.get_global_properties().parameters.rake_fee_percentage;
 
-               // check whether the core asset pays dividends.  If so, we transfer the rake fee 
-               // to the core asset's dividend account
-               const asset_object& core_asset_obj = asset_id_type()(event.db);
-               optional<asset_dividend_data_id_type> dividend_id = core_asset_obj.dividend_data_id;
+               const asset_object & asset_obj = asset_id_type(0)(event.db);
+               optional<asset_dividend_data_id_type> dividend_id = asset_obj.dividend_data_id;
 
                share_type rake_amount = 0;
                if (dividend_id)
@@ -335,7 +334,15 @@ namespace graphene { namespace chain {
                   event.db.push_applied_operation(op);
                }
 
-               if (dividend_id && rake_amount.value)
+               if (rake_amount.value)
+               {
+                  affiliate_payout_helper payout_helper( event.db, tournament_obj );
+                  rake_amount -= payout_helper.payout( winner, rake_amount );
+                  payout_helper.commit();
+                  FC_ASSERT( rake_amount.value >= 0 );
+               }
+
+               if (rake_amount.value)
                {
                   // Adjusting balance of dividend_distribution_account
                   const asset_dividend_data_id_type& asset_dividend_data_id_= *dividend_id;

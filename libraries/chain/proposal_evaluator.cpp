@@ -25,8 +25,11 @@
 #include <graphene/chain/proposal_evaluator.hpp>
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/account_object.hpp>
+#include <graphene/chain/protocol/account.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
+#include <graphene/chain/protocol/tournament.hpp>
 #include <graphene/chain/exceptions.hpp>
+#include <graphene/chain/hardfork.hpp>
 
 #include <fc/smart_ref_impl.hpp>
 
@@ -52,8 +55,20 @@ struct proposal_operation_hardfork_visitor
                     "Parameter extensions are not allowed yet!" );
    }
 
-   void operator()(const sport_create_operation &v) const {
-       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "sport_create_operation not allowed yet!" );
+   void operator()(const graphene::chain::tournament_payout_operation &o) const {
+      // TODO: move check into tournament_payout_operation::validate after HARDFORK_999_TIME
+      FC_ASSERT( block_time < HARDFORK_999_TIME, "Not allowed!" );
+   }
+
+   void operator()(const graphene::chain::asset_settle_cancel_operation &o) const {
+      // TODO: move check into asset_settle_cancel_operation::validate after HARDFORK_999_TIME
+      FC_ASSERT( block_time < HARDFORK_999_TIME, "Not allowed!" );
+   }
+
+   void operator()(const graphene::chain::account_create_operation &aco) const {
+      // TODO: remove after HARDFORK_999_TIME
+      if (block_time < HARDFORK_999_TIME)
+         FC_ASSERT( !aco.extensions.value.affiliate_distributions.valid(), "Affiliate reward distributions not allowed yet" );
    }
 
    void operator()(const sport_update_operation &v) const {

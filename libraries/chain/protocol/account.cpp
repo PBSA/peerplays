@@ -182,6 +182,27 @@ void account_options::validate() const
               "May not specify fewer witnesses or committee members than the number voted for.");
 }
 
+void affiliate_reward_distribution::validate() const
+{
+   // sum of weights must equal 100%
+   uint32_t sum = 0;
+   for( const auto& share : _dist )
+   {
+      FC_ASSERT( share.second > 0, "Must leave out affilates who receive 0%!" );
+      FC_ASSERT( share.second <= GRAPHENE_100_PERCENT, "Can't pay out more than 100% per affiliate!" );
+      sum += share.second;
+      FC_ASSERT( sum <= GRAPHENE_100_PERCENT, "Can't pay out more than 100% total!" );
+   }
+   FC_ASSERT( sum == GRAPHENE_100_PERCENT, "Total affiliate distributions must cover 100%!" );
+}
+
+void affiliate_reward_distributions::validate() const
+{
+   FC_ASSERT( !_dists.empty(), "Empty affiliate reward distributions not allowed!" );
+   for( const auto& dist: _dists )
+      dist.second.validate();
+}
+
 share_type account_create_operation::calculate_fee( const fee_parameters_type& k )const
 {
    auto core_fee_required = k.basic_fee;
@@ -226,6 +247,8 @@ void account_create_operation::validate()const
          FC_ASSERT( m != extensions.value.buyback_options->asset_to_buy );
       }
    }
+   if( extensions.value.affiliate_distributions.valid() )
+      extensions.value.affiliate_distributions->validate();
 }
 
 

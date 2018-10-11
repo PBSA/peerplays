@@ -24,6 +24,7 @@
 #pragma once
 #include <graphene/chain/protocol/base.hpp>
 #include <graphene/chain/protocol/account.hpp>
+#include <graphene/chain/protocol/affiliate.hpp>
 #include <graphene/chain/protocol/assert.hpp>
 #include <graphene/chain/protocol/asset_ops.hpp>
 #include <graphene/chain/protocol/balance.hpp>
@@ -124,7 +125,9 @@ namespace graphene { namespace chain {
             bet_canceled_operation, // VIRTUAL
             betting_market_group_update_operation,
             betting_market_update_operation,
-            event_update_status_operation
+            event_update_status_operation,
+            affiliate_payout_operation, // VIRTUAL
+            affiliate_referral_payout_operation // VIRTUAL
          > operation;
 
    /// @} // operations group
