@@ -265,8 +265,28 @@ namespace graphene { namespace app {
           */
          std::vector<net::potential_peer_record> get_potential_peers() const;
 
+         /**
+          * @brief Return list of pending transactions.
+          */
+         map<transaction_id_type, signed_transaction> list_pending_transactions() const;
+
+         /**
+          * @brief Subscribes caller for notifications about pending transactions.
+          * @param callback a functional object which will be called when new transaction is created. 
+          */
+         void subscribe_to_pending_transactions(std::function<void(const variant&)> callback);
+
+         /**
+          * @brief Unsubscribes caller from notifications about pending transactions.
+          */
+         void unsubscribe_from_pending_transactions();
+
       private:
          application& _app;
+         map<transaction_id_type, signed_transaction> _pending_transactions;
+         boost::signals2::scoped_connection _pending_trx_connection;
+         boost::signals2::scoped_connection _applied_block_connection;
+         std::function<void(const variant&)> _on_pending_transaction;
    };
    
    class crypto_api
@@ -422,6 +442,9 @@ FC_API(graphene::app::network_node_api,
        (get_potential_peers)
        (get_advanced_node_parameters)
        (set_advanced_node_parameters)
+       (list_pending_transactions)
+       (subscribe_to_pending_transactions)
+       (unsubscribe_from_pending_transactions)
      )
 FC_API(graphene::app::crypto_api,
        (blind_sign)

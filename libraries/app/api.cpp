@@ -202,6 +202,45 @@ namespace graphene { namespace app {
 
     network_node_api::network_node_api( application& a ) : _app( a )
     {
+        _pending_trx_connection = _app.chain_database()->on_pending_transaction.connect([this]( const signed_transaction& transaction ){
+
+            auto transaction_it = _pending_transactions.find(transaction.id());
+            if (_pending_transactions.end() == transaction_it)
+            {
+                _pending_transactions[transaction.id()] = transaction;
+            }
+
+            if (_on_pending_transaction)
+            {
+                _on_pending_transaction(fc::variant(transaction));
+            }
+        });
+
+        _applied_block_connection = _app.chain_database()->applied_block.connect([this]( const signed_block& block ){
+            for (const auto& transaction: block.transactions)
+            {
+                auto transaction_it = _pending_transactions.find(transaction.id());
+                if (_pending_transactions.end() != transaction_it)
+                {
+                    _pending_transactions.erase(transaction_it);
+                }
+            }
+
+            /*
+             * Remove expired transactions from pending_transactions
+             */
+            for (const auto& transaction: _pending_transactions)
+            {
+               if (transaction.second.expiration < block.timestamp)
+               {
+                  auto transaction_it = _pending_transactions.find(transaction.second.id());
+                  if (_pending_transactions.end() != transaction_it)
+                  {
+                     _pending_transactions.erase(transaction_it);
+                  }
+               }
+            }
+        });
     }
 
     fc::variant_object network_node_api::get_info() const
@@ -234,6 +273,21 @@ namespace graphene { namespace app {
     void network_node_api::set_advanced_node_parameters(const fc::variant_object& params)
     {
        return _app.p2p_node()->set_advanced_node_parameters(params);
+    }
+
+    map<transaction_id_type, signed_transaction> network_node_api::list_pending_transactions() const
+    {
+        return _pending_transactions;
+    }
+
+    void network_node_api::subscribe_to_pending_transactions( std::function<void(const variant&)> callback )
+    {
+        _on_pending_transaction = callback;
+    }
+
+    void network_node_api::unsubscribe_from_pending_transactions()
+    {
+        _on_pending_transaction = std::function<void(const variant&)>();
     }
 
     fc::api<network_broadcast_api> login_api::network_broadcast()const
