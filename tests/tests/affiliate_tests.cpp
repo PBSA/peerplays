@@ -537,7 +537,7 @@ BOOST_AUTO_TEST_CASE( bookie_payout_test )
                                  {blackhawks_win_market.id, betting_market_resolution_type::not_win}});
    generate_block();
 
-   uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage;
+   uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage();
    BOOST_CHECK_EQUAL( 3 * GRAPHENE_1_PERCENT, rake_fee_percentage );
    uint32_t rake_value;
    // rake_value = (-10000 + 110000 - 110000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;

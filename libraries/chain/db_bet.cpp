@@ -307,6 +307,8 @@ void database::settle_betting_market_group(const betting_market_group_object& be
 
    fc_dlog(fc::logger::get("betting"), "removing betting market group ${id}", ("id", betting_market_group.id));
    remove(betting_market_group);
+
+   payout_helper.commit();
 }
 
 void database::remove_completed_events()
@@ -330,8 +332,6 @@ void database::remove_completed_events()
       fc_dlog(fc::logger::get("betting"), "removing settled event ${id}", ("id", event.id));
       remove(event);
    }
-
-   payout_helper.commit();
 }
 
 share_type adjust_betting_position(database& db, 

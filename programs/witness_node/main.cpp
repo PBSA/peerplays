@@ -32,7 +32,7 @@
 #include <graphene/affiliate_stats/affiliate_stats_plugin.hpp>
 #include <graphene/bookie/bookie_plugin.hpp>
 #include <graphene/utilities/git_revision.hpp>
-#include <graphene/snapshot/snapshot.hpp>
+//#include <graphene/snapshot/snapshot.hpp>
 
 #include <fc/exception/exception.hpp>
 #include <fc/thread/thread.hpp>
@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
       auto list_plug = node->register_plugin<accounts_list::accounts_list_plugin>();
       auto affiliate_stats_plug = node->register_plugin<affiliate_stats::affiliate_stats_plugin>();
       auto bookie_plug = node->register_plugin<bookie::bookie_plugin>();
-      auto snapshot_plug = node->register_plugin<snapshot_plugin::snapshot_plugin>();
+//      auto snapshot_plug = node->register_plugin<snapshot_plugin::snapshot_plugin>();
 
       try
       {
