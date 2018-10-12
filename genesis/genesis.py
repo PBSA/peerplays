@@ -5,7 +5,11 @@ from peerplaysbase.account import BrainKey, Address
 
 
 def pubkey():
-    return format(next(key).get_public_key(), "TEST")
+    k = next(key)
+    pub = format(k.get_public_key(), "TEST")
+    pri = str(k.get_private_key())
+    print("[\"{}\", \"{}\"]".format(pub, pri))
+    return pub
 
 
 def address():
@@ -64,9 +68,9 @@ for i, _ in enumerate(genesis["initial_balances"]):
 # Let's distribute extra stake for sake of governance
 sum_distributed = sum([int(x["amount"]) for x in genesis["initial_balances"]])
 # 34% of supply are left for witnesses etc
-initial_pbsa = str(int(genesis["max_core_supply"]) * 0.66 - sum_distributed)
+initial_pbsa = str(int(int(genesis["max_core_supply"]) * 0.66 - sum_distributed))
 genesis["initial_balances"].append(dict(
-    amount=int(initial_pbsa),
+    amount=initial_pbsa,
     asset_symbol="TEST",
     owner=address()
 ))
