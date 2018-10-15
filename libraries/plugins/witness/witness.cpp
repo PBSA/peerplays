@@ -200,7 +200,7 @@ block_production_condition::block_production_condition_enum witness_plugin::bloc
          //ilog("Not producing block because it isn't my turn");
          break;
       case block_production_condition::not_time_yet:
-         dlog("Not producing block because slot has not yet arrived");
+         //dlog("Not producing block because slot has not yet arrived");
          break;
       case block_production_condition::no_private_key:
          ilog("Not producing block because I don't have the private key for ${scheduled_key}", 
@@ -298,7 +298,7 @@ block_production_condition::block_production_condition_enum witness_plugin::mayb
    }
 
    //if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
-   ilog("Witness ${id} production slot has arrived; generating a block now...", ("id", scheduled_witness));
+   //ilog("Witness ${id} production slot has arrived; generating a block now...", ("id", scheduled_witness));
 
    auto block = db.generate_block(
       scheduled_time,
