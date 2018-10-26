@@ -35,6 +35,11 @@
 #include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/withdraw_permission_object.hpp>
 #include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/proposal_object.hpp>
+#include <graphene/chain/sport_object.hpp>
+#include <graphene/chain/event_group_object.hpp>
+#include <graphene/chain/event_object.hpp>
+#include <graphene/chain/protocol/event.hpp>
 #include <graphene/account_history/account_history_plugin.hpp>
 
 #include <fc/crypto/digest.hpp>
@@ -2442,6 +2447,258 @@ BOOST_AUTO_TEST_CASE( vesting_balance_withdraw_test )
    }
    // TODO:  Test with non-core asset and Bob account
 } FC_LOG_AND_RETHROW() }
+
+
+BOOST_AUTO_TEST_CASE( manager_test )
+{ 
+    #define EDUMP( MSG ) edump( ( MSG ) )
+    
+    ACTORS( (alice)(bob)(charlie)(daniel) );
+
+    transfer( committee_account, alice_id,   asset(10000) );
+    transfer( committee_account, bob_id,     asset(10000) );
+    transfer( committee_account, charlie_id, asset(10000) );
+
+    generate_blocks( HARDFORK_1000_TIME );
+    generate_block();
+
+    sport_id_type       test_sport_id;
+    event_group_id_type test_event_group_id;
+    event_id_type       test_event_id;
+
+
+    EDUMP( "create a sport with alice as manager" );
+    {
+        internationalized_string_type name_test_sport = { { "TS", "TEST_SPORT" } };
+
+        sport_create_operation scop;
+        scop.name = name_test_sport;
+        scop.extensions.value.manager = alice_id;
+
+        process_operation_by_witnesses( scop );
+    
+        const sport_object& sport_obj = *db.get_index_type<sport_object_index>().indices().get<by_id>().begin();
+        test_sport_id = sport_obj.id;
+
+        BOOST_CHECK( sport_obj.name    == name_test_sport );
+        BOOST_CHECK( sport_obj.manager == alice_id        );
+    }
+    
+    EDUMP( "modify the sport" );
+    {
+        // modify with the wrong manager
+        internationalized_string_type name_by_bob = { { "BB", "BY_BOB" } };
+
+        sport_update_operation suop;
+        suop.sport_id = test_sport_id;
+        suop.new_name = name_by_bob;
+        suop.extensions.value.fee_paying_account = bob_id;
+
+        signed_transaction trx;
+        set_expiration( db, trx ); 
+        trx.operations.push_back( suop );
+
+        GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, ~0 ), fc::assert_exception );
+
+
+        // modify with the right manager
+        internationalized_string_type name_by_alice = { { "BA", "BY_ALICE" } };
+
+        suop = sport_update_operation();
+        suop.sport_id = test_sport_id;
+        suop.new_name = name_by_alice;
+        suop.extensions.value.fee_paying_account = alice_id;
+
+        trx = signed_transaction();
+        set_expiration( db, trx );
+        trx.operations.push_back( suop );
+        PUSH_TX( db, trx, ~0 );
+
+        BOOST_CHECK( test_sport_id(db).name == name_by_alice );
+    }
+
+    EDUMP( "create an event_group with alice and make bob manager" );
+    {
+        internationalized_string_type name = { { "EG", "TEST_EG" } };
+
+        event_group_create_operation egcop;
+        egcop.sport_id = test_sport_id;
+        egcop.name     = name;
+        egcop.extensions.value.new_manager = bob_id;
+        egcop.extensions.value.fee_paying_account = alice_id;
+
+        signed_transaction trx;
+        set_expiration( db, trx );
+        trx.operations.push_back( egcop );
+        PUSH_TX( db, trx, ~0 );
+
+        const event_group_object& evgrp_obj = *db.get_index_type<event_group_object_index>().indices().get<by_id>().begin();
+        test_event_group_id = evgrp_obj.id;
+
+        BOOST_CHECK( evgrp_obj.name    == name   );
+        BOOST_CHECK( evgrp_obj.manager == bob_id );
+    }
+
+    EDUMP( "modify event_group_object with alice then with bob" );
+    {
+        // alice is manager of sports so it should work
+        internationalized_string_type name_by_alice = { { "BA", "BY_ALICE" } };
+        
+        event_group_update_operation eguop;
+        eguop.event_group_id = test_event_group_id;
+        eguop.new_name       = name_by_alice;
+        eguop.extensions.value.fee_paying_account = alice_id;
+
+        signed_transaction trx;
+        set_expiration( db, trx );
+        trx.operations.push_back( eguop );
+        PUSH_TX( db, trx, ~0 );
+
+        BOOST_CHECK( test_event_group_id(db).name == name_by_alice );
+
+
+        // bob is manager of this event_group, should also work
+        internationalized_string_type name_by_bob = { { "BB", "BY_BOB" } };
+
+        eguop = event_group_update_operation();
+        eguop.event_group_id = test_event_group_id; 
+        eguop.new_name       = name_by_bob;
+        eguop.extensions.value.fee_paying_account = bob_id;
+
+        trx = signed_transaction();
+        set_expiration( db, trx );
+        trx.operations.push_back( eguop );
+        PUSH_TX( db, trx, ~0 );
+
+        BOOST_CHECK( test_event_group_id(db).name == name_by_bob );
+    }
+
+    EDUMP( "create an event as bob and set charlie as manager" );
+    {
+        internationalized_string_type name   = { { "EN", "EVENT_NAME"  } };
+        internationalized_string_type season = { { "SN", "SEASON_NAME" } };
+
+        event_create_operation ecop;
+        ecop.event_group_id  = test_event_group_id;
+        ecop.name            = name;
+        ecop.season          = season;
+        ecop.extensions.value.new_manager        = charlie_id;
+        ecop.extensions.value.fee_paying_account = bob_id;
+
+        signed_transaction trx;
+        set_expiration( db, trx );
+        trx.operations.push_back( ecop );
+        PUSH_TX( db, trx, ~0 ); 
+
+        const event_object& event_obj = *db.get_index_type<event_object_index>().indices().get<by_id>().begin();
+        test_event_id = event_obj.id;
+
+        BOOST_CHECK( event_obj.manager == charlie_id );
+    }
+
+    EDUMP( "change event status with charlie" );
+    {
+        event_update_status_operation eusop;
+        eusop.event_id = test_event_id;
+        eusop.status   = event_status::in_progress;
+        eusop.extensions.value.fee_paying_account = charlie_id;
+
+        signed_transaction trx;
+        set_expiration( db, trx );
+        trx.operations.push_back( eusop );
+        PUSH_TX( db, trx, ~0 );
+
+        BOOST_CHECK( test_event_id(db).get_status() == event_status::in_progress );
+    }
+
+    EDUMP( "change all managers" );
+    {
+        // sport from alice to bob
+        sport_update_operation suop;
+        suop.sport_id = test_sport_id;
+        suop.extensions.value.new_manager = bob_id;
+        suop.extensions.value.fee_paying_account = alice_id;
+
+        signed_transaction trx;
+        set_expiration( db, trx );
+        trx.operations.push_back( suop );
+        PUSH_TX( db, trx, ~0 );
+
+        BOOST_CHECK( test_sport_id(db).manager == bob_id );
+
+
+        // event_group from bob to charlie
+        event_group_update_operation eguop;
+        eguop.event_group_id = test_event_group_id;
+        eguop.extensions.value.new_manager = charlie_id;
+        eguop.extensions.value.fee_paying_account = bob_id;
+
+        trx = signed_transaction();
+        set_expiration( db, trx );
+        trx.operations.push_back( eguop );
+        PUSH_TX( db, trx, ~0 );
+
+        BOOST_CHECK( test_event_group_id(db).manager == charlie_id );
+
+
+        // event from charlie to alice
+        event_update_operation euop;
+        euop.event_id = test_event_id;
+        euop.extensions.value.new_manager = alice_id; 
+        euop.extensions.value.fee_paying_account = bob_id;
+
+        trx = signed_transaction();
+        set_expiration( db, trx );
+        trx.operations.push_back( euop );
+        PUSH_TX( db, trx, ~0 );
+
+        BOOST_CHECK( test_event_id(db).manager == alice_id );
+    }
+
+    EDUMP( "deleting event_group and sport" );
+    {
+        // trying to delete event_group with the wrong manager
+        event_group_delete_operation egdop;
+        egdop.event_group_id = test_event_group_id;
+        egdop.extensions.value.fee_paying_account = alice_id;
+
+        signed_transaction trx;
+        set_expiration( db, trx );
+        trx.operations.push_back( egdop );
+        GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, ~0 ), fc::assert_exception );
+
+
+        // deleting test_event_group
+        egdop.extensions.value.fee_paying_account = charlie_id;
+        
+        trx = signed_transaction();
+        set_expiration( db, trx );
+        trx.operations.push_back( egdop );
+        PUSH_TX( db, trx, ~0 );
+        GRAPHENE_REQUIRE_THROW( test_event_group_id(db), fc::assert_exception );
+
+
+        // trying to delete sport with the wrong manager 
+        sport_delete_operation sdop;
+        sdop.sport_id = test_sport_id;
+        sdop.extensions.value.fee_paying_account = alice_id;
+
+        trx = signed_transaction();
+        set_expiration( db, trx );
+        trx.operations.push_back( sdop );
+        GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, ~0 ), fc::assert_exception );
+
+
+        // deleting test_sport
+        sdop.extensions.value.fee_paying_account = bob_id;
+
+        trx = signed_transaction();
+        set_expiration( db, trx );
+        trx.operations.push_back( sdop );
+        PUSH_TX( db, trx, ~0 );
+        GRAPHENE_REQUIRE_THROW( test_sport_id(db), fc::assert_exception );
+    }     
+}
 
 // TODO:  Write linear VBO tests
 

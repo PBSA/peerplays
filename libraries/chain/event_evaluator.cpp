@@ -24,6 +24,7 @@
 #include <graphene/chain/event_evaluator.hpp>
 #include <graphene/chain/event_object.hpp>
 #include <graphene/chain/event_group_object.hpp>
+#include <graphene/chain/sport_object.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/hardfork.hpp>
@@ -32,10 +33,38 @@
 
 namespace graphene { namespace chain {
 
+namespace 
+{
+   /// searches for the manager in event => event_group => sport
+   bool is_manager( const database& db, const event_id_type& event_id, const account_id_type& manager_id )
+   {
+      const event_object& event_obj = event_id(db);
+      if( event_obj.manager == manager_id ) 
+         return true;
+
+      const event_group_object& event_group_obj = event_obj.event_group_id(db);
+      if( event_group_obj.manager == manager_id )
+         return true;
+
+      const sport_object& sport_obj = event_group_obj.sport_id(db);
+      return sport_obj.manager == manager_id;
+   }
+
+   /// searches for the manager in event_group => sport
+   bool is_manager( const database& db, const event_group_id_type& event_group_id, const account_id_type& manager_id )
+   {
+      const event_group_object& event_group_obj = ( (event_group_id_type)event_group_id )(db);
+      if( event_group_obj.manager == manager_id ) 
+         return true;
+
+      const sport_object& sport_obj = event_group_obj.sport_id(db);
+      return sport_obj.manager == manager_id;
+   } 
+} // graphene::chain::anon
+
 void_result event_create_evaluator::do_evaluate(const event_create_operation& op)
 { try {
    FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
-   FC_ASSERT(trx_state->_is_proposed_trx);
 
    //database& d = db();
    // the event_group_id in the operation can be a relative id.  If it is,
@@ -50,6 +79,10 @@ void_result event_create_evaluator::do_evaluate(const event_create_operation& op
    event_group_id = resolved_event_group_id;
    //const event_group_object& event_group = event_group_id(d);
 
+   FC_ASSERT(trx_state->_is_proposed_trx
+      || op.extensions.value.fee_paying_account ? is_manager( db(), event_group_id, *op.extensions.value.fee_paying_account ) : false,
+      "trx is not proposed and fee_payer is not the manager of this object" );
+
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -62,7 +95,17 @@ object_id_type event_create_evaluator::do_apply(const event_create_operation& op
          event_obj.season = op.season;
          event_obj.start_time = op.start_time;
          event_obj.event_group_id = event_group_id;
+         //if( op.extensions.value.new_manager ) { // NORMALLY SET MANAGER HERE BUT DOESNT WORK
+         //   event_obj.manager = *op.extensions.value.new_manager;
+         //}
      });
+   // the manager is set separately through an update because it cannot be set through the create above (???)
+   if( op.extensions.value.new_manager ) { 
+      d.modify( new_event, [&](event_object& event_obj ) {
+         event_obj.manager = *op.extensions.value.new_manager;
+      });
+   }
+   
    //increment number of active events in global betting statistics object
    const global_betting_statistics_object& betting_statistics = global_betting_statistics_id_type()(d);
    d.modify( betting_statistics, [&](global_betting_statistics_object& bso) {
@@ -74,10 +117,13 @@ object_id_type event_create_evaluator::do_apply(const event_create_operation& op
 void_result event_update_evaluator::do_evaluate(const event_update_operation& op)
 { try {
    FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
-   FC_ASSERT(trx_state->_is_proposed_trx);
-   FC_ASSERT(op.new_event_group_id || op.new_name || op.new_season ||
-             op.new_start_time || op.new_status, "nothing to change");
-
+   FC_ASSERT(trx_state->_is_proposed_trx
+      || op.extensions.value.fee_paying_account ? is_manager( db(), op.event_id, *op.extensions.value.fee_paying_account ) : false,
+      "trx is not proposed and fee_payer is not the manager of this object" );
+   // TODO: this could be moved to validate()
+   FC_ASSERT(op.new_event_group_id || op.new_name || op.new_season || 
+             op.new_start_time || op.new_status || op.extensions.value.new_manager, "nothing to change"); 
+   
    if (op.new_event_group_id)
    {
       object_id_type resolved_event_group_id = *op.new_event_group_id;
@@ -88,6 +134,10 @@ void_result event_update_evaluator::do_evaluate(const event_update_operation& op
                 resolved_event_group_id.type() == event_group_id_type::type_id,
                 "event_group_id must refer to a event_group_id_type");
       event_group_id = resolved_event_group_id;
+
+      if( op.extensions.value.fee_paying_account ) 
+         FC_ASSERT( is_manager( db(), event_group_id, *op.extensions.value.fee_paying_account ),
+            "no manager permission for the new_event_group_id" );
    }
 
    return void_result();
@@ -108,14 +158,17 @@ void_result event_update_evaluator::do_apply(const event_update_operation& op)
                     eo.event_group_id = event_group_id;
                  if( op.new_status )
                     eo.dispatch_new_status(_db, *op.new_status);
+                 if( op.extensions.value.new_manager )
+                    eo.manager = *op.extensions.value.new_manager;
               });
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
 void_result event_update_status_evaluator::do_evaluate(const event_update_status_operation& op)
 { try {
-   FC_ASSERT(trx_state->_is_proposed_trx);
-
+    FC_ASSERT(trx_state->_is_proposed_trx
+      || op.extensions.value.fee_paying_account ? is_manager( db(), op.event_id, *op.extensions.value.fee_paying_account ) : false,
+      "trx is not proposed and fee_payer is not the manager of this object" );
    database& d = db();
    FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
    //check that the event to update exists

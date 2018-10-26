@@ -25,11 +25,18 @@
 
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/chain/protocol/base.hpp>
+#include <graphene/chain/protocol/ext.hpp>
 
 namespace graphene { namespace chain {
 
 struct event_create_operation : public base_operation
 {
+   struct ext
+   {
+      optional< account_id_type > fee_paying_account; // manager of sport || event_group
+      optional< account_id_type > new_manager;        // new manager to set
+   };
+
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
    asset             fee;
 
@@ -48,9 +55,11 @@ struct event_create_operation : public base_operation
     */
    object_id_type event_group_id;
 
-   extensions_type   extensions;
+   extension< ext > extensions;
 
-   account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
+   account_id_type fee_payer()const { 
+       return extensions.value.fee_paying_account ? *extensions.value.fee_paying_account : GRAPHENE_WITNESS_ACCOUNT; 
+   }
    void            validate()const;
 };
 
@@ -76,6 +85,12 @@ enum class event_status
 
 struct event_update_operation : public base_operation
 {
+   struct ext
+   {
+      optional< account_id_type > fee_paying_account; // manager of sport || event_group || event
+      optional< account_id_type > new_manager;        // new manager to set
+   };
+
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
    asset             fee;
 
@@ -91,9 +106,11 @@ struct event_update_operation : public base_operation
 
    optional<event_status> new_status;
 
-   extensions_type   extensions;
+   extension< ext > extensions;
 
-   account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
+   account_id_type fee_payer()const { 
+       return extensions.value.fee_paying_account ? *extensions.value.fee_paying_account : GRAPHENE_WITNESS_ACCOUNT; 
+   }
    void            validate()const;
 };
 
@@ -107,6 +124,11 @@ struct event_update_operation : public base_operation
  */
 struct event_update_status_operation : public base_operation
 {
+   struct ext
+   {
+      optional< account_id_type > fee_paying_account; // manager of sport || event_group || event
+   };
+
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
    asset             fee;
 
@@ -124,24 +146,29 @@ struct event_update_status_operation : public base_operation
     */
    vector<string> scores;
 
-   extensions_type   extensions;
+   extension< ext > extensions;
 
-   account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
+   account_id_type fee_payer()const { 
+       return extensions.value.fee_paying_account ? *extensions.value.fee_paying_account : GRAPHENE_WITNESS_ACCOUNT; 
+   }
    void            validate()const;
 };
 
 } }
 
 FC_REFLECT( graphene::chain::event_create_operation::fee_parameters_type, (fee) )
+FC_REFLECT( graphene::chain::event_create_operation::ext, (fee_paying_account)(new_manager) )
 FC_REFLECT( graphene::chain::event_create_operation, 
             (fee)(name)(season)(start_time)(event_group_id)(extensions) )
 
 FC_REFLECT( graphene::chain::event_update_operation::fee_parameters_type, (fee) )
+FC_REFLECT( graphene::chain::event_update_operation::ext, (fee_paying_account)(new_manager) )
 FC_REFLECT( graphene::chain::event_update_operation,
             (fee)(event_id)(new_event_group_id)(new_name)(new_season)(new_start_time)(new_status)(extensions) )
 
 FC_REFLECT_ENUM( graphene::chain::event_status, (upcoming)(in_progress)(frozen)(finished)(canceled)(settled)(STATUS_COUNT) )
 FC_REFLECT( graphene::chain::event_update_status_operation::fee_parameters_type, (fee) )
+FC_REFLECT( graphene::chain::event_update_status_operation::ext, (fee_paying_account) )
 FC_REFLECT( graphene::chain::event_update_status_operation, 
             (fee)(event_id)(status)(scores)(extensions) )
 
