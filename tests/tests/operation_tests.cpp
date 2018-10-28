@@ -1818,81 +1818,155 @@ BOOST_AUTO_TEST_CASE( vesting_balance_withdraw_test )
 
 
 BOOST_AUTO_TEST_CASE( manager_test )
-{ try {
+{ 
   #define PUSH_TX_D( TRX )               \
     processed_transaction ptrx;          \
     try {                                \
-      PUSH_TX( db, TRX, ~0);             \       
+      ptx = PUSH_TX( db, TRX, ~0);       \      
     } catch (fc::exception &e ) {        \ 
       edump( ( e.to_detail_string() ) ); \
     }             
                            
   #define EDUMP( MSG ) edump( ( MSG ) )
 
-  ACTOR( alice );
-  database& db = db();
-
-  sport_id_type sport_id;
-
-  EDUMP( "1. create a sport with alice as manager" );
+  try
   {
-    sport_create_operation scop;
-    scop.name = "TEST_SPORT";
-    scop.extensions.value.manager = alice_id;
-    // fee_paying_account is allways WITNESS_ACC
+    ACTOR( alice );
+    database& db = db();
+    transfer( committee_account, alice_id, asset(10000) );
 
-    proposal_create_operation pcop = proposal_create_operation::commitee_proposal( 
-      db.get_global_properties(),
-      db.head_block_time()
-    );
-    pcop.fee = asset(0);
-    pcop.fee_paying_account = alice_id;
-    pcop.review_period_seconds.reset();
-    fc::time_point_sec exp_time = db.head_block_time() + fc::seconds(10);
-    pcop.expiration_time = exp_time;
-    pcop.proposed_ops.push_back( scop );
+    sport_id_type sport_id;
 
-    signed_transaction trx;
-    set_expiration( db, trx );
-    trx.operations.push_back( pcop );
-    PUSH_TX_D( trx );
-
-    EDUMP( "1.1 Wait till proposal is executed" );
+    EDUMP( "1. create a sport with alice as manager" );
     {
-      while( exp + fc::seconds(5) > db.head_block_time() )
+      sport_create_operation scop;
+      scop.name = "TEST_SPORT";
+      scop.extensions.value.manager = alice_id;
+      // fee_paying_account is allways WITNESS_ACC
+
+      proposal_create_operation pcop = proposal_create_operation::commitee_proposal( 
+        db.get_global_properties(),
+        db.head_block_time()
+      );
+      pcop.fee = asset(0);
+      pcop.fee_paying_account = alice_id;
+      pcop.review_period_seconds.reset();
+      fc::time_point_sec exp_time = db.head_block_time() + fc::seconds(10);
+      pcop.expiration_time = exp_time;
+      pcop.proposed_ops.push_back( scop );
+
+      signed_transaction trx;
+      set_expiration( db, trx );
+      trx.operations.push_back( pcop );
+      PUSH_TX_D( trx );
+
+      EDUMP( "1.1 Wait till proposal is executed" );
       {
+        // TODO MAYBE THIS DOESNT WORK
+        // MAYBE 0
+        const auto proposal_id = ptrx.operation_results[1];
 
+        while( exp_time + fc::seconds(5) > db.head_block_time() ) {
+            const proposal_object& proposal_obj = db.get( proposal_id );
+            if( proposal_obj.is_authorized_to_execute(db) )
+              EDUMP( "READY TO EXECUTE" );
+            generate_blocks();
+        }
+
+        const auto& idx = db.get_index_type<sport_index>();
+            idx.inspect_all_objects( [&](const object& obj){
+              const sport_object& so = static_cast<const sport_obj&>(obj);
+              if(so.name == "TEST_SPORT"){
+                  sport_id = so.id;
+              }
+        } );
       }
-      
-      const auto& idx = db.get_index_type<sport_index>();
-          idx.inspect_all_objects( [&](const object& obj){
-            const sport_object& so = static_cast<const sport_obj&>(obj);
-            if(so.name == "TEST_SPORT"){
-                sport_id = so.id;
-            }
-      } );
     }
-  }
 
-  
+    EDUMP( "2. modify the sport with WITNESS_ACCOUNT" );
+    {
+      sport_update_operation suop;
+      suop.new_name = "NEW_NAME";
 
-  EDUMP( "2. modify the sport with WITNESS_ACCOUNT" );
-  {
+      proposal_create_operation pcop = proposal_create_operation::commitee_proposal( 
+        db.get_global_properties(),
+        db.head_block_time()
+      );
+      pcop.fee = asset(0);
+      pcop.fee_paying_account = alice_id;
+      pcop.review_period_seconds.reset();
+      fc::time_point_sec exp_time = db.head_block_time() + fc::seconds(10);
+      pcop.expiration_time = exp_time;
+      pcop.proposed_ops.push_back( scop );
 
-  }
+      signed_transaction trx;
+      set_expiration( db, trx );
+      trx.operations.push_back( pcop );
+      PUSH_TX_D( trx );
 
-  EDUMP( "3. modify the sport with alice_acc" );
-  {
+      EDUMP( "2.1 Wait till proposal is executed" );
+      {
+        while( exp_time + fc::seconds(5) > db.head_block_time() ) {
+            generate_blocks();
+        }
+      }
 
-  }
+      sport_object sport_obj = db.get( sport_id );
+      BOOST_CHECK( sport_obj.name == "NEW_NAME");
+    }
 
-  EDUMP( "4. modify with a proposal but with manager set" );
-  {
+    // maybe every account can be passed when validating the transaction
+    // but should normally not be 
+    EDUMP( "3. modify the sport with alice_acc" );
+    {
+      sport_update_operation suop;
+      suop.new_name = "BY_ALICE";
+      suop.extensions.value.manager = alice_id;
 
-  }
-  
+      signed_transaction trx;
+      set_expiration( db, trx );
+      trx.operations.push_back( trx );
+      PUSH_TX_D( trx );
+
+      sport_object sport_obj = db.get( sport_id );
+      BOOST_CHECK( sport_obj.name == "BY_ALICE" );
+    }
+
+    EDUMP( "4. modify with a proposal but with manager set" );
+    {
+      sport_update_operation suop;
+      suop.new_name = "WITH_MAN";
+      suop.extensions.value.manager = alice_id;
+
+      proposal_create_operation pcop = proposal_create_operation::commitee_proposal( 
+        db.get_global_properties(),
+        db.head_block_time()
+      );
+      pcop.fee = asset(0);
+      pcop.fee_paying_account = alice_id;
+      pcop.review_period_seconds.reset();
+      fc::time_point_sec exp_time = db.head_block_time() + fc::seconds(10);
+      pcop.expiration_time = exp_time;
+      pcop.proposed_ops.push_back( scop );
+
+      signed_transaction trx;
+      set_expiration( db, trx );
+      trx.operations.push_back( pcop );
+      PUSH_TX_D( trx );
+
+      EDUMP( "4.1 Wait till proposal is executed" );
+      {
+        while( exp_time + fc::seconds(5) > db.head_block_time() ) {
+            generate_blocks();
+        }
+      }
+
+      sport_object sport_obj = db.get( sport_id );
+      BOOST_CHECK( sport_obj.name == "WITH_MAN");
+    }
+
   } catch( fc::exception &e ) { 
-    edump( (e.to_detail_string() ) );
+    EDUMP( e.to_detail_string() );
   }
 }
 
