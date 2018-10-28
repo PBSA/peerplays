@@ -32,6 +32,11 @@
 
 namespace graphene { namespace chain {
 
+bool is_manager( const sport_id_type sport_id, const account_id_type manager_id )
+{
+    return db().get(sport_id).manager == manager_id;
+}
+
 void_result sport_create_evaluator::do_evaluate(const sport_create_operation& op)
 { try {
    FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
@@ -45,6 +50,8 @@ object_id_type sport_create_evaluator::do_apply(const sport_create_operation& op
    const sport_object& new_sport =
      db().create<sport_object>( [&]( sport_object& sport_obj ) {
          sport_obj.name = op.name;
+         if( op.extensions.value.manager.valid() )
+            sport_obj.manager = *op.extesions.value.manager;
      });
    return new_sport.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -53,7 +60,9 @@ object_id_type sport_create_evaluator::do_apply(const sport_create_operation& op
 void_result sport_update_evaluator::do_evaluate(const sport_update_operation& op)
 { try {
    FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
-   FC_ASSERT(trx_state->_is_proposed_trx);
+   FC_ASSERT(trx_state->_is_proposed_trx 
+       || op.extensions.value.manager.valid() ? is_manager( op.sport_id, *op.extensions.value.manager ) : false );
+       
    FC_ASSERT(op.new_name.valid());
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
