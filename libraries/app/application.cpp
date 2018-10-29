@@ -162,7 +162,7 @@ namespace detail {
          {
             // t.me/peerplays #seednodes
             vector<string> seeds = {
-               "localhost:1667",           // blckchnd
+               "ppy-beatrice-seed.blckchnd.com:6666",           // blckchnd
             };
 
             for( const string& endpoint_string : seeds )
