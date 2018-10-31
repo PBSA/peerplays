@@ -25,6 +25,7 @@
 
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/chain/protocol/base.hpp>
+#include <graphene/chain/protocol/ext.hpp>
 
 namespace graphene { namespace chain {
 
