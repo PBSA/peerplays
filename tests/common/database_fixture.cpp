@@ -227,16 +227,10 @@ void database_fixture::verify_asset_supplies( const database& db )
    for( const fba_accumulator_object& fba : db.get_index_type< simple_index< fba_accumulator_object > >() )
       total_balances[ asset_id_type() ] += fba.accumulated_fba_fees;
 
-   for (const bet_object& o : db.get_index_type<bet_object_index>().indices())
+   for (const betting_market_group_position_object& o : db.get_index_type<betting_market_group_position_index>().indices())
    {
-      total_balances[o.amount_to_bet.asset_id] += o.amount_to_bet.amount;
-   }
-   for (const betting_market_position_object& o : db.get_index_type<betting_market_position_index>().indices())
-   {
-      const betting_market_object& betting_market = o.betting_market_id(db);
-      const betting_market_group_object& betting_market_group = betting_market.group_id(db);
+      const betting_market_group_object& betting_market_group = o.betting_market_group_id(db);
       total_balances[betting_market_group.asset_id] += o.pay_if_canceled;
-      total_balances[betting_market_group.asset_id] += o.fees_collected;
    }
 
    total_balances[asset_id_type()] += db.get_dynamic_global_properties().witness_budget;
@@ -1423,7 +1417,8 @@ const betting_market_group_object& database_fixture::create_betting_market_group
                                                                                  betting_market_rules_id_type rules_id, 
                                                                                  asset_id_type asset_id,
                                                                                  bool never_in_play,
-                                                                                 uint32_t delay_before_settling)
+                                                                                 uint32_t delay_before_settling,
+                                                                                 bool exactly_one_winner)
 { try {
    betting_market_group_create_operation betting_market_group_create_op;
    betting_market_group_create_op.description = description;
@@ -1432,6 +1427,7 @@ const betting_market_group_object& database_fixture::create_betting_market_group
    betting_market_group_create_op.asset_id = asset_id;
    betting_market_group_create_op.never_in_play = never_in_play;
    betting_market_group_create_op.delay_before_settling = delay_before_settling;
+   betting_market_group_create_op.resolution_constraint = exactly_one_winner ? betting_market_resolution_constraint::exactly_one_winner : betting_market_resolution_constraint::at_most_one_winner;
 
    process_operation_by_witnesses(betting_market_group_create_op);
    const auto& betting_market_group_index = db.get_index_type<betting_market_group_object_index>().indices().get<by_id>();

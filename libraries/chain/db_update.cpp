@@ -201,8 +201,8 @@ void database::place_delayed_bets()
 
    // we use an awkward looping mechanism here because there's a case where we are processing the
    // last delayed bet before the "real" order book starts and `iter` was pointing at the first 
-   // real order.  The place_bet() call can cause the that real order to be deleted, so we need
-   // to decide whether this is the last delayed bet before `place_bet` is called.
+   // real order.  The try_to_match_bet() call can cause the that real order to be deleted, so we need
+   // to decide whether this is the last delayed bet before `try_to_match_bet` is called.
    bool last = iter == bet_odds_idx.end() || 
                !iter->end_of_delay ||
                *iter->end_of_delay > head_block_time();
@@ -230,7 +230,7 @@ void database::place_delayed_bets()
             bet_obj.end_of_delay.reset();
          });
 
-         place_bet(bet_to_place);
+         try_to_match_bet(bet_to_place);
       }
    }
 } FC_CAPTURE_AND_RETHROW() }

@@ -30,7 +30,7 @@
 
 using namespace graphene::chain;
 
-#define CREATE_ICE_HOCKEY_BETTING_MARKET(never_in_play, delay_before_settling) \
+#define CREATE_ICE_HOCKEY_BETTING_MARKET(never_in_play, delay_before_settling, allow_a_draw) \
   create_sport({{"en", "Ice Hockey"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}}); \
   generate_blocks(1); \
   const sport_object& ice_hockey = *db.get_index_type<sport_object_index>().indices().get<by_id>().rbegin(); \
@@ -43,7 +43,7 @@ using namespace graphene::chain;
   create_betting_market_rules({{"en", "NHL Rules v1.0"}}, {{"en", "The winner will be the team with the most points at the end of the game.  The team with fewer points will not be the winner."}}); \
   generate_blocks(1); \
   const betting_market_rules_object& betting_market_rules = *db.get_index_type<betting_market_rules_object_index>().indices().get<by_id>().rbegin(); \
-  create_betting_market_group({{"en", "Moneyline"}}, capitals_vs_blackhawks.id, betting_market_rules.id, asset_id_type(), never_in_play, delay_before_settling); \
+  create_betting_market_group({{"en", "Moneyline"}}, capitals_vs_blackhawks.id, betting_market_rules.id, asset_id_type(), never_in_play, delay_before_settling, !allow_a_draw); \
   generate_blocks(1); \
   const betting_market_group_object& moneyline_betting_markets = *db.get_index_type<betting_market_group_object_index>().indices().get<by_id>().rbegin(); \
   create_betting_market(moneyline_betting_markets.id, {{"en", "Washington Capitals win"}}); \
@@ -56,8 +56,8 @@ using namespace graphene::chain;
 
 // create the basic betting market, plus groups for the first, second, and third period results
 #define CREATE_EXTENDED_ICE_HOCKEY_BETTING_MARKET(never_in_play, delay_before_settling) \
-  CREATE_ICE_HOCKEY_BETTING_MARKET(never_in_play, delay_before_settling) \
-  create_betting_market_group({{"en", "First Period Result"}}, capitals_vs_blackhawks.id, betting_market_rules.id, asset_id_type(), never_in_play, delay_before_settling); \
+  CREATE_ICE_HOCKEY_BETTING_MARKET(never_in_play, delay_before_settling, false) \
+  create_betting_market_group({{"en", "First Period Result"}}, capitals_vs_blackhawks.id, betting_market_rules.id, asset_id_type(), never_in_play, delay_before_settling, true); \
   generate_blocks(1); \
   const betting_market_group_object& first_period_result_betting_markets = *db.get_index_type<betting_market_group_object_index>().indices().get<by_id>().rbegin(); \
   create_betting_market(first_period_result_betting_markets.id, {{"en", "Washington Capitals win"}}); \
@@ -68,7 +68,7 @@ using namespace graphene::chain;
   const betting_market_object& first_period_blackhawks_win_market = *db.get_index_type<betting_market_object_index>().indices().get<by_id>().rbegin(); \
   (void)first_period_capitals_win_market; (void)first_period_blackhawks_win_market; \
   \
-  create_betting_market_group({{"en", "Second Period Result"}}, capitals_vs_blackhawks.id, betting_market_rules.id, asset_id_type(), never_in_play, delay_before_settling); \
+  create_betting_market_group({{"en", "Second Period Result"}}, capitals_vs_blackhawks.id, betting_market_rules.id, asset_id_type(), never_in_play, delay_before_settling, true); \
   generate_blocks(1); \
   const betting_market_group_object& second_period_result_betting_markets = *db.get_index_type<betting_market_group_object_index>().indices().get<by_id>().rbegin(); \
   create_betting_market(second_period_result_betting_markets.id, {{"en", "Washington Capitals win"}}); \
@@ -79,7 +79,7 @@ using namespace graphene::chain;
   const betting_market_object& second_period_blackhawks_win_market = *db.get_index_type<betting_market_object_index>().indices().get<by_id>().rbegin(); \
   (void)second_period_capitals_win_market; (void)second_period_blackhawks_win_market; \
   \
-  create_betting_market_group({{"en", "Third Period Result"}}, capitals_vs_blackhawks.id, betting_market_rules.id, asset_id_type(), never_in_play, delay_before_settling); \
+  create_betting_market_group({{"en", "Third Period Result"}}, capitals_vs_blackhawks.id, betting_market_rules.id, asset_id_type(), never_in_play, delay_before_settling, true); \
   generate_blocks(1); \
   const betting_market_group_object& third_period_result_betting_markets = *db.get_index_type<betting_market_group_object_index>().indices().get<by_id>().rbegin(); \
   create_betting_market(third_period_result_betting_markets.id, {{"en", "Washington Capitals win"}}); \
@@ -106,10 +106,10 @@ using namespace graphene::chain;
   create_event({{"en", "M. Cilic/S. Querrye"}}, {{"en", "2017"}}, wimbledon.id); \
   generate_blocks(1); \
   const event_object& cilic_vs_querrey = *db.get_index_type<event_object_index>().indices().get<by_id>().rbegin(); \
-  create_betting_market_group({{"en", "Moneyline 1st sf"}}, berdych_vs_federer.id, tennis_rules.id, asset_id_type(), false, 0); \
+  create_betting_market_group({{"en", "Moneyline 1st sf"}}, berdych_vs_federer.id, tennis_rules.id, asset_id_type(), false, 0, true); \
   generate_blocks(1); \
   const betting_market_group_object& moneyline_berdych_vs_federer = *db.get_index_type<betting_market_group_object_index>().indices().get<by_id>().rbegin(); \
-  create_betting_market_group({{"en", "Moneyline 2nd sf"}}, cilic_vs_querrey.id, tennis_rules.id, asset_id_type(), false, 0); \
+  create_betting_market_group({{"en", "Moneyline 2nd sf"}}, cilic_vs_querrey.id, tennis_rules.id, asset_id_type(), false, 0, true); \
   generate_blocks(1); \
   const betting_market_group_object& moneyline_cilic_vs_querrey = *db.get_index_type<betting_market_group_object_index>().indices().get<by_id>().rbegin(); \
   create_betting_market(moneyline_berdych_vs_federer.id, {{"en", "T. Berdych defeats R. Federer"}}); \
@@ -127,7 +127,7 @@ using namespace graphene::chain;
   create_event({{"en", "R. Federer/M. Cilic"}}, {{"en", "2017"}}, wimbledon.id); \
   generate_blocks(1); \
   const event_object& cilic_vs_federer = *db.get_index_type<event_object_index>().indices().get<by_id>().rbegin(); \
-  create_betting_market_group({{"en", "Moneyline final"}}, cilic_vs_federer.id, tennis_rules.id, asset_id_type(), false, 0); \
+  create_betting_market_group({{"en", "Moneyline final"}}, cilic_vs_federer.id, tennis_rules.id, asset_id_type(), false, 0, true); \
   generate_blocks(1); \
   const betting_market_group_object& moneyline_cilic_vs_federer = *db.get_index_type<betting_market_group_object_index>().indices().get<by_id>().rbegin(); \
   create_betting_market(moneyline_cilic_vs_federer.id, {{"en", "R. Federer defeats M. Cilic"}}); \
@@ -148,7 +148,7 @@ struct simple_bet_test_fixture : database_fixture {
    simple_bet_test_fixture()
    {
       ACTORS( (alice)(bob) );
-      CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
+      CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0, false);
 
       // give alice and bob 10k each
       transfer(account_id_type(), alice_id, asset(10000));

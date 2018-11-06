@@ -162,8 +162,8 @@ const uint8_t betting_market_object::type_id;
 const uint8_t bet_object::space_id;
 const uint8_t bet_object::type_id;
 
-const uint8_t betting_market_position_object::space_id;
-const uint8_t betting_market_position_object::type_id;
+const uint8_t betting_market_group_position_object::space_id;
+const uint8_t betting_market_group_position_object::type_id;
 
 const uint8_t global_betting_statistics_object::space_id;
 const uint8_t global_betting_statistics_object::type_id;
@@ -295,7 +295,7 @@ void database::initialize_indexes()
    add_index< primary_index< special_authority_index                      > >();
    add_index< primary_index< buyback_index                                > >();
    add_index< primary_index< simple_index< fba_accumulator_object       > > >();
-   add_index< primary_index< betting_market_position_index > >();
+   add_index< primary_index< betting_market_group_position_index > >();
    add_index< primary_index< global_betting_statistics_object_index > >();
    //add_index< primary_index<pending_dividend_payout_balance_object_index > >();
    //add_index< primary_index<distributed_dividend_balance_object_index > >();

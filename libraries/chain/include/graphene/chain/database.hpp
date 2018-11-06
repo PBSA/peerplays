@@ -391,7 +391,6 @@ namespace graphene { namespace chain {
 
          /// @{ @group Betting Market Helpers
          void cancel_bet(const bet_object& bet, bool create_virtual_op = true);
-         void cancel_all_unmatched_bets_on_betting_market(const betting_market_object& betting_market);
          void cancel_all_unmatched_bets_on_betting_market_group(const betting_market_group_object& betting_market_group);
          void validate_betting_market_group_resolutions(const betting_market_group_object& betting_market_group,
                                                         const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions);
@@ -402,12 +401,24 @@ namespace graphene { namespace chain {
          /**
           * @brief Process a new bet
           * @param new_bet_object The new bet to process
-          * @return true if order was completely filled; false otherwise
           *
-          * This function takes a new bet and attempts to match it with existing
-          * bets already on the books.
+          * This function takes a new bet and adjusts the bettor's market positions,
+          * and pays for the bet out of the bettor's balance if needed.
+          *
+          * @return true if the bet was removed from the order books
           */
          bool place_bet(const bet_object& new_bet_object);
+         /** 
+          * @brief Matches a bet, if possible
+          * @param bet_object the bet to attempt to match
+          * 
+          * This attempts to match it with existing bets already on the books.  It is called
+          * immediately after the bet is placed, or if live betting is on, immediately after
+          * the delay expires and the bet becomes matchable.
+          *
+          * @return true if the bet was fully matched and removed from the order books
+          */
+         bool try_to_match_bet(const bet_object& bet_object);
          ///@}
 
          /**

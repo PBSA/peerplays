@@ -5389,6 +5389,7 @@ signed_transaction wallet_api::propose_create_betting_market_group(
         event_id_type event_id,
         betting_market_rules_id_type rules_id,
         asset_id_type asset_id,
+        betting_market_resolution_constraint constraint,
         bool broadcast /*= false*/)
 {
     FC_ASSERT( !is_locked() );
@@ -5399,6 +5400,7 @@ signed_transaction wallet_api::propose_create_betting_market_group(
     betting_market_group_create_op.event_id = event_id;
     betting_market_group_create_op.rules_id = rules_id;
     betting_market_group_create_op.asset_id = asset_id;
+    betting_market_group_create_op.resolution_constraint = constraint;
 
     proposal_create_operation prop_op;
     prop_op.expiration_time = expiration_time;

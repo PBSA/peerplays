@@ -40,6 +40,11 @@
 #include <graphene/bookie/bookie_plugin.hpp>
 #include <graphene/bookie/bookie_objects.hpp>
 
+#ifdef DEFAULT_LOGGER
+# undef DEFAULT_LOGGER
+#endif
+#define DEFAULT_LOGGER "bookie_plugin"
+
 namespace graphene { namespace bookie {
 
 namespace detail {

@@ -358,6 +358,7 @@ betting_market_group_object::betting_market_group_object(const betting_market_gr
    total_matched_bets_amount(rhs.total_matched_bets_amount),
    never_in_play(rhs.never_in_play),
    delay_before_settling(rhs.delay_before_settling),
+   resolution_constraint(rhs.resolution_constraint),
    settling_time(rhs.settling_time),
    my(new impl(this))
 {
@@ -376,6 +377,7 @@ betting_market_group_object& betting_market_group_object::operator=(const bettin
    total_matched_bets_amount = rhs.total_matched_bets_amount;
    never_in_play = rhs.never_in_play;
    delay_before_settling = rhs.delay_before_settling;
+   resolution_constraint = rhs.resolution_constraint;
    settling_time = rhs.settling_time;
 
    my->state_machine = rhs.my->state_machine;
@@ -435,7 +437,7 @@ betting_market_group_status betting_market_group_object::get_status() const
    (void)&state_constants_are_correct;
    betting_market_group_state state = (betting_market_group_state)my->state_machine.current_state()[0];
    
-   ddump((state));
+   // ddump((state));
 
    switch (state)
    {
@@ -539,6 +541,16 @@ void betting_market_group_object::dispatch_new_status(database& db, betting_mark
 }
 
 
+bool betting_market_group_position_object::is_empty() const
+{
+   for (const betting_market_position& market_position : market_positions)
+      if (market_position.pay_if_payout_condition != 0 ||
+          market_position.pay_required_by_unmatched_bets != 0)
+         return false;
+   return pay_if_canceled == 0;
+}
+
+
 } } // graphene::chain
 
 namespace fc { 
@@ -554,6 +566,7 @@ namespace fc {
        ("total_matched_bets_amount", betting_market_group_obj.total_matched_bets_amount)
        ("never_in_play", betting_market_group_obj.never_in_play)
        ("delay_before_settling", betting_market_group_obj.delay_before_settling)
+       ("resolution_constraint", betting_market_group_obj.resolution_constraint)
        ("settling_time", betting_market_group_obj.settling_time)
        ("status", betting_market_group_obj.get_status());
 
@@ -570,6 +583,7 @@ namespace fc {
       betting_market_group_obj.total_matched_bets_amount = v["total_matched_bets_amount"].as<graphene::chain::share_type>();
       betting_market_group_obj.never_in_play = v["never_in_play"].as<bool>();
       betting_market_group_obj.delay_before_settling = v["delay_before_settling"].as<uint32_t>();
+      betting_market_group_obj.resolution_constraint = v["resolution_constraint"].as<graphene::chain::betting_market_resolution_constraint>();
       betting_market_group_obj.settling_time = v["settling_time"].as<fc::optional<fc::time_point_sec>>();
       graphene::chain::betting_market_group_status status = v["status"].as<graphene::chain::betting_market_group_status>();
       const_cast<int*>(betting_market_group_obj.my->state_machine.current_state())[0] = (int)status;
