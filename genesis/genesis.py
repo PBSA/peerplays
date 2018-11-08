@@ -13,7 +13,13 @@ def pubkey():
 
 
 def address():
-    pub = next(key).get_public_key()
+    brain = next(key)
+    pri = brain.get_private_key()
+    pub = brain.get_public_key()
+    print(
+        "[\"{}\", \"{}\"]".format(
+        format(pub, "TEST"), str(pri))
+    )
     return format(Address.from_pubkey(pub), "TEST")
 
 
