@@ -2968,6 +2968,96 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_final_test )
 
 BOOST_AUTO_TEST_SUITE_END()
 
+//
+
+BOOST_FIXTURE_TEST_SUITE( multimarket_tests, database_fixture )
+
+BOOST_AUTO_TEST_CASE(create_invalid_market_group)
+{
+   try
+   {
+      ACTORS( (alice)(bob) )
+
+      const int initialAccountAsset = 10000000;
+
+      transfer(account_id_type(), alice_id, asset(initialAccountAsset));
+      transfer(account_id_type(), bob_id, asset(initialAccountAsset));
+      generate_blocks(1);
+
+      create_sport({{"en", "Ice Hockey"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}});
+      generate_blocks(1); 
+      const sport_object& ice_hockey = *db.get_index_type<sport_object_index>().indices().get<by_id>().rbegin(); 
+
+      create_event_group({{"en", "NHL"}, {"zh_Hans", "國家冰球聯盟"}, {"ja", "ナショナルホッケーリーグ"}}, ice_hockey.id); 
+      generate_blocks(1); 
+      const event_group_object& nhl = *db.get_index_type<event_group_object_index>().indices().get<by_id>().rbegin(); 
+
+      create_event({{"en", "Washington Capitals/Chicago Blackhawks"}, {"zh_Hans", "華盛頓首都隊/芝加哥黑鷹"}, {"ja", "ワシントン・キャピタルズ/シカゴ・ブラックホークス"}}, {{"en", "2016-17"}}, nhl.id); 
+      generate_blocks(1); 
+      const event_object& capitals_vs_blackhawks = *db.get_index_type<event_object_index>().indices().get<by_id>().rbegin(); 
+
+      create_betting_market_rules({{"en", "NHL Rules v1.0"}}, {{"en", "The winner will be the team with the most points at the end of the game.  The team with fewer points will not be the winner."}}); 
+      generate_blocks(1); 
+      const betting_market_rules_object& betting_market_rules = *db.get_index_type<betting_market_rules_object_index>().indices().get<by_id>().rbegin(); 
+
+      BOOST_TEST_MESSAGE("create a betting market group with exactly one winner");
+      create_betting_market_group({{"en", "Moneyline"}}, capitals_vs_blackhawks.id, betting_market_rules.id, asset_id_type(), false, 0, true); 
+      generate_blocks(1);
+      const betting_market_group_object& moneyline_betting_markets = *db.get_index_type<betting_market_group_object_index>().indices().get<by_id>().rbegin();
+
+      BOOST_TEST_MESSAGE("create one betting market in it");
+      create_betting_market(moneyline_betting_markets.id, {{"en", "Washington Capitals win"}});
+      generate_blocks(1);
+      const betting_market_object& capitals_win_market = *db.get_index_type<betting_market_object_index>().indices().get<by_id>().rbegin();
+
+      BOOST_TEST_MESSAGE("When alice places the first bet, we should reject it because the market is invalid "
+                         "(a market with one market and one guaranteed winner doesn't make sense)");
+      BOOST_CHECK_THROW( place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION), fc::exception);
+
+      BOOST_TEST_MESSAGE("We can fix it by adding a second market");
+      create_betting_market(moneyline_betting_markets.id, {{"en", "Chicago Blackhawks win"}});
+      generate_blocks(1);
+      const betting_market_object& blackhawks_win_market = *db.get_index_type<betting_market_object_index>().indices().get<by_id>().rbegin();
+
+      BOOST_TEST_MESSAGE("This bet should now succeed");
+      BOOST_CHECK_NO_THROW(place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION));
+
+      BOOST_TEST_MESSAGE("create a different betting market group.  This one will not have the exactly_one_winner restriction.");
+      create_betting_market_group({{"en", "Unused"}}, capitals_vs_blackhawks.id, betting_market_rules.id, asset_id_type(), false, 0, false); 
+      generate_blocks(1);
+      const betting_market_group_object& unused_betting_markets = *db.get_index_type<betting_market_group_object_index>().indices().get<by_id>().rbegin();
+
+      BOOST_TEST_MESSAGE("Try to move one of the betting markets into the new group, this should fail");
+      // This will fail, but since it's processed as a proposal, the blockchain will keep retrying until it
+      // expires.  So instead, check whether it worked.
+      update_betting_market(blackhawks_win_market.id, unused_betting_markets.id, fc::optional<internationalized_string_type>());
+      generate_blocks(1);
+      BOOST_CHECK(blackhawks_win_market.group_id == moneyline_betting_markets.id);
+
+      BOOST_TEST_MESSAGE("Canceling bets so we can do the move");
+      cancel_unmatched_bets(moneyline_betting_markets.id);
+      generate_blocks(1);
+
+      BOOST_TEST_MESSAGE("Try to move one of the betting markets into the new group, this should succeed");
+      update_betting_market(blackhawks_win_market.id, unused_betting_markets.id, fc::optional<internationalized_string_type>());
+      generate_blocks(1);
+      BOOST_CHECK(blackhawks_win_market.group_id == unused_betting_markets.id);
+
+      BOOST_TEST_MESSAGE("Try again to place a bet in the first market.  It should fail because there is only one market in the group.");
+      BOOST_CHECK_THROW( place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION), fc::exception);
+
+      BOOST_TEST_MESSAGE("But we should be able to place it in the second market.");
+      place_bet(alice_id, blackhawks_win_market.id, bet_type::back, asset(1000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
+      BOOST_CHECK_NO_THROW( place_bet(alice_id, blackhawks_win_market.id, bet_type::back, asset(1000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION));
+
+      BOOST_TEST_MESSAGE("Try to move the capitals win market into the new group, this should fail");
+      update_betting_market(capitals_win_market.id, unused_betting_markets.id, fc::optional<internationalized_string_type>());
+      generate_blocks(1);
+      BOOST_CHECK(capitals_win_market.group_id == moneyline_betting_markets.id);
+   } FC_LOG_AND_RETHROW()
+}
+
+BOOST_AUTO_TEST_SUITE_END()
 
 
 //#define BOOST_TEST_MODULE "C++ Unit Tests for Graphene Blockchain Database"
