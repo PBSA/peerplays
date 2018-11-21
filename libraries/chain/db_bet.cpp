@@ -822,7 +822,7 @@ bool database::place_bet(const bet_object& new_bet_object)
       position = &*position_itr;
       modify(*position, [&](betting_market_group_position_object& market_group_position) {
          assert(market_group_position.bettor_id == new_bet_object.bettor_id);
-         assert(market_group_position.betting_market_group_id == betting_mraket.group_id);
+         assert(market_group_position.betting_market_group_id == betting_market.group_id);
          assert(market_group_position.market_positions.size() == position_required.size());
 
          for (unsigned i = 0; i < position_required.size(); ++i)
