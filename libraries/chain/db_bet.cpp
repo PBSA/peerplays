@@ -776,7 +776,7 @@ bool database::place_bet(const bet_object& new_bet_object)
 
    fc_idump(fc::logger::get("betting"), (amount_to_pay_from_balance));
    if (amount_to_pay_from_balance > 0)
-      adjust_balance(new_bet_object.bettor_id, -amount_to_pay_from_balance);
+      adjust_balance(new_bet_object.bettor_id, asset(-amount_to_pay_from_balance, betting_market_group.asset_id));
 
    // still here? the bettor had enough funds to place the bet
    
