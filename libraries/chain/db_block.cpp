@@ -154,16 +154,8 @@ void database::check_tansaction_for_duplicated_operations(const signed_transacti
    const auto& proposal_index = get_index<proposal_object>();
    std::set<fc::sha256> existed_operations_digests;
    
-   //operation create_betting_market_group_op( create_betting_market_group_operation() );
-   //operation create_betting_market_op( create_betting_market_operation() );
-
    proposal_index.inspect_all_objects( [&](const object& obj){
       const proposal_object& proposal = static_cast<const proposal_object&>(obj);
-      //for (auto& operation: proposal.proposed_transaction.operations)
-      //{
-      //   if( !(operation == create_betting_market_group_op) && !(operation == create_betting_market_op) ) 
-      //      existed_operations_digests.insert(fc::digest(operation));
-      //}
       auto proposed_operations_digests = gather_proposed_operations_digests( proposal.proposed_transaction );
       existed_operations_digests.insert( proposed_operations_digests.begin(), proposed_operations_digests.end() );
    });
