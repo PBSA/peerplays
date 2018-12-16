@@ -25,11 +25,6 @@
 #include <boost/test/unit_test.hpp>
 
 #include <graphene/chain/database.hpp>
-#include <graphene/chain/exceptions.hpp>
-#include <graphene/chain/hardfork.hpp>
-
-#include <graphene/chain/account_object.hpp>
-#include <graphene/chain/asset_object.hpp>
 
 #include "../common/database_fixture.hpp"
 
