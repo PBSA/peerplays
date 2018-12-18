@@ -719,7 +719,7 @@ BOOST_FIXTURE_TEST_CASE( limit_order_expiration, database_fixture )
    //Get a sane head block time
    generate_block();
 
-   auto* test = &create_bitasset("TEST");
+   auto* test = &create_bitasset("TESTB");
    auto* core = &asset_id_type()(db);
    auto* nathan = &create_account("nathan");
    auto* committee = &account_id_type()(db);
@@ -748,7 +748,7 @@ BOOST_FIXTURE_TEST_CASE( limit_order_expiration, database_fixture )
    auto id = limit_itr->id;
 
    generate_blocks(op.expiration, false);
-   test = &get_asset("TEST");
+   test = &get_asset("TESTB");
    core = &asset_id_type()(db);
    nathan = &get_account("nathan");
    committee = &account_id_type()(db);
