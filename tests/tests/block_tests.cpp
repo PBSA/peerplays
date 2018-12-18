@@ -846,17 +846,17 @@ BOOST_FIXTURE_TEST_CASE( change_block_interval, database_fixture )
    }
    BOOST_TEST_MESSAGE( "Verifying that the interval didn't change immediately" );
 
-   BOOST_CHECK_EQUAL(db.get_global_properties().parameters.block_interval, 5);
+   BOOST_CHECK_EQUAL(db.get_global_properties().parameters.block_interval, 3);
    auto past_time = db.head_block_time().sec_since_epoch();
    generate_block();
-   BOOST_CHECK_EQUAL(db.head_block_time().sec_since_epoch() - past_time, 5);
+   BOOST_CHECK_EQUAL(db.head_block_time().sec_since_epoch() - past_time, 3);
    generate_block();
-   BOOST_CHECK_EQUAL(db.head_block_time().sec_since_epoch() - past_time, 10);
+   BOOST_CHECK_EQUAL(db.head_block_time().sec_since_epoch() - past_time, 6);
 
    BOOST_TEST_MESSAGE( "Generating blocks until proposal expires" );
    generate_blocks(proposal_id_type()(db).expiration_time + 5);
    BOOST_TEST_MESSAGE( "Verify that the block interval is still 5 seconds" );
-   BOOST_CHECK_EQUAL(db.get_global_properties().parameters.block_interval, 5);
+   BOOST_CHECK_EQUAL(db.get_global_properties().parameters.block_interval, 3);
 
    BOOST_TEST_MESSAGE( "Generating blocks until next maintenance interval" );
    generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
