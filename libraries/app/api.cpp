@@ -123,6 +123,8 @@ namespace graphene { namespace app {
           if( _app.get_plugin( "affiliate_stats" ) )
              _affiliate_stats_api = std::make_shared<graphene::affiliate_stats::affiliate_stats_api>(std::ref(_app));
        }
+       #include <graphene/utilities/generated_api_cpp_case_code.hpp>
+
        return;
     }
 
@@ -349,6 +351,7 @@ namespace graphene { namespace app {
        FC_ASSERT(_affiliate_stats_api);
        return *_affiliate_stats_api;
     }
+    #include <graphene/utilities/generated_api_cpp_login_api_code.hpp>
 
 #if 0
     vector<account_id_type> get_relevant_accounts( const object* obj )
