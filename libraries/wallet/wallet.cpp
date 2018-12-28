@@ -3147,6 +3147,43 @@ public:
 
    }
 
+////////////////////////////////////////////////////////////////////////////// // evm begin
+   signed_transaction create_contract(string registrar_account, string asset_type, string code, uint64_t value,
+                                      uint64_t gasPrice, uint64_t gas, bool broadcast = false, bool save_wallet = true)
+   { try {
+
+      account_object registrar_account_object = get_account( registrar_account );
+      account_id_type registrar_account_id = registrar_account_object.id;
+      contract_operation contract_create_op;
+      contract_create_op.registrar = registrar_account_id;
+      eth_op eth_create = eth_op{registrar_account_id, optional<contract_id_type>(),
+                                 get_asset_id(asset_type), value, gasPrice, gas, code};
+      contract_create_op.data = fc::raw::pack( eth_create );
+      // contract_create_op.code = code;
+//       struct eth_op {
+//         optional<contract_id_type> receiver;
+//         asset_id_type asset_id;
+//         uint64_t value;
+//         uint64_t gasPrice;
+//         uint64_t gas;
+//     };
+      // eth_op eth_call = eth_op{optional<contract_id_type>(), get_asset_id(asset_type), value, gasPrice, gas};
+      // std::stringstream ss;
+      // auto asd = fc::raw::pack( eth_call );
+
+      // eth_op unpacked = fc::raw::unpack<eth_op>(asd);
+      // contract_create_op.eth = unpacked;
+
+      // contract_create_op.eth = eth_op{optional<contract_id_type>(), get_asset_id(asset_type), value, gasPrice, gas};
+      signed_transaction tx;
+      tx.operations.push_back( contract_create_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
+      tx.validate();
+
+      return sign_transaction(tx, broadcast);
+   } FC_CAPTURE_AND_RETHROW( (registrar_account)(broadcast) ) }
+////////////////////////////////////////////////////////////////////////////// // evm end
+
    operation get_prototype_operation( string operation_name )
    {
       auto it = _prototype_ops.find( operation_name );
@@ -5755,6 +5792,13 @@ signed_transaction wallet_api::rps_throw(game_id_type game_id,
 
    return my->sign_transaction( tx, broadcast );
 }
+
+////////////////////////////////////////////////////////////////////////////// // evm begin
+signed_transaction wallet_api::create_contract(string registrar_account, string asset_type, string code, uint64_t value,
+                                               uint64_t gasPrice, uint64_t gas, bool broadcast, bool save_wallet){
+   return my->create_contract(registrar_account, asset_type, code, value, gasPrice, gas, broadcast, save_wallet);
+}
+////////////////////////////////////////////////////////////////////////////// // evm end
 
 // default ctor necessary for FC_REFLECT
 signed_block_with_info::signed_block_with_info()

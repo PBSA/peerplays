@@ -63,6 +63,7 @@ find_package(ethash CONFIG REQUIRED)
 #include( "${ETH_CMAKE_DIR}/EthExecutableHelper.cmake" )
 include( "${ETH_CMAKE_DIR}/ProjectLibFF.cmake" )
 include( "${ETH_CMAKE_DIR}/ProjectSecp256k1.cmake" )
+#include( "${ETH_CMAKE_DIR}/EthDependencies.cmake" )
 ########################################################## PP end
 
 set( CLI_CLIENT_EXECUTABLE_NAME graphene_client )

@@ -31,6 +31,9 @@
 #include <graphene/chain/genesis_state.hpp>
 #include <graphene/chain/evaluator.hpp>
 
+#include <graphene/chain/contract_object.hpp>
+#include <vm_executor.hpp>
+
 #include <graphene/db/object_database.hpp>
 #include <graphene/db/object.hpp>
 #include <graphene/db/simple_index.hpp>
@@ -308,8 +311,14 @@ namespace graphene { namespace chain {
           * @return owner's balance in asset
           */
          asset get_balance(account_id_type owner, asset_id_type asset_id)const;
+
+         asset get_balance(contract_id_type owner, asset_id_type asset_id) const;
          /// This is an overloaded method.
          asset get_balance(const account_object& owner, const asset_object& asset_obj)const;
+
+         asset get_balance(const contract_object& owner, const asset_object& asset_obj) const;
+
+         asset get_balance(const object_id_type& owner, const asset_id_type& asset_id) const;
 
          /**
           * @brief Adjust a particular account's balance in a given asset by a delta
@@ -317,6 +326,12 @@ namespace graphene { namespace chain {
           * @param delta Asset ID and amount to adjust balance by
           */
          void adjust_balance(account_id_type account, asset delta);
+
+         void adjust_balance(contract_id_type contract, asset delta );
+
+         void adjust_balance(object_id_type account, asset delta );
+
+         void publish_contract_transfer(contract_id_type from, object_id_type to, asset amount);
 
          /**
           * @brief Helper to make lazy deposit to CDD VBO.
@@ -437,6 +452,10 @@ namespace graphene { namespace chain {
          /** when popping a block, the transactions that were removed get cached here so they
           * can be reapplied at the proper time */
          std::deque< signed_transaction >       _popped_tx;
+
+         vms::base::vm_executor                 _executor;
+
+         bool                                   _evaluating_from_apply_block = false;
 
          /**
           * @}

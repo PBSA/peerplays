@@ -145,6 +145,8 @@ namespace graphene { namespace chain {
       betting_market_group_object_type,
       betting_market_object_type,
       bet_object_type,
+      contract_balance_object_type,
+      contract_object_type,
       OBJECT_TYPE_COUNT ///< Sentry value which contains the number of different object types
    };
 
@@ -172,6 +174,8 @@ namespace graphene { namespace chain {
       impl_distributed_dividend_balance_data_type,
       impl_betting_market_position_object_type,
       impl_global_betting_statistics_object_type
+      impl_contract_history_object_type,
+      impl_contract_statistics_object_type
    };
 
    //typedef fc::unsigned_int            object_id_type;
@@ -202,6 +206,8 @@ namespace graphene { namespace chain {
    class betting_market_group_object;
    class betting_market_object;
    class bet_object;
+   class contract_balance_object;
+   class contract_object;
 
    typedef object_id< protocol_ids, account_object_type,            account_object>               account_id_type;
    typedef object_id< protocol_ids, asset_object_type,              asset_object>                 asset_id_type;
@@ -228,6 +234,8 @@ namespace graphene { namespace chain {
    typedef object_id< protocol_ids, betting_market_group_object_type, betting_market_group_object> betting_market_group_id_type;
    typedef object_id< protocol_ids, betting_market_object_type,     betting_market_object>        betting_market_id_type;
    typedef object_id< protocol_ids, bet_object_type,                bet_object>                   bet_id_type;
+   typedef object_id< protocol_ids, contract_balance_object_type,   contract_balance_object>      contract_balance_id_type;
+   typedef object_id< protocol_ids, contract_object_type,           contract_object>              contract_id_type;
 
    // implementation types
    class global_property_object;
@@ -249,6 +257,8 @@ namespace graphene { namespace chain {
    class pending_dividend_payout_balance_for_holder_object;
    class betting_market_position_object;
    class global_betting_statistics_object;
+   class contract_history_object;
+   class contract_statistics_object;
 
    typedef object_id< implementation_ids, impl_global_property_object_type,  global_property_object>                    global_property_id_type;
    typedef object_id< implementation_ids, impl_dynamic_global_property_object_type,  dynamic_global_property_object>    dynamic_global_property_id_type;
@@ -273,6 +283,8 @@ namespace graphene { namespace chain {
    typedef object_id< implementation_ids, impl_fba_accumulator_object_type, fba_accumulator_object >                    fba_accumulator_id_type;
    typedef object_id< implementation_ids, impl_betting_market_position_object_type, betting_market_position_object >    betting_market_position_id_type;
    typedef object_id< implementation_ids, impl_global_betting_statistics_object_type, global_betting_statistics_object > global_betting_statistics_id_type;
+   typedef object_id< implementation_ids, impl_contract_history_object_type, contract_history_object>                   contract_history_id_type;
+   typedef object_id< implementation_ids, impl_contract_statistics_object_type,contract_statistics_object>              contract_statistics_id_type;
 
    typedef fc::array<char, GRAPHENE_MAX_ASSET_SYMBOL_LENGTH>    symbol_type;
    typedef fc::ripemd160                                        block_id_type;
@@ -402,6 +414,8 @@ FC_REFLECT_ENUM( graphene::chain::object_type,
                  (betting_market_group_object_type)
                  (betting_market_object_type)
                  (bet_object_type)
+                 (contract_balance_object_type)
+                 (contract_object_type)
                  (OBJECT_TYPE_COUNT)
                )
 FC_REFLECT_ENUM( graphene::chain::impl_object_type,
@@ -427,6 +441,8 @@ FC_REFLECT_ENUM( graphene::chain::impl_object_type,
                  (impl_distributed_dividend_balance_data_type)
                  (impl_betting_market_position_object_type)
                  (impl_global_betting_statistics_object_type)
+                 (impl_contract_history_object_type)
+                 (impl_contract_statistics_object_type)
                )
 
 FC_REFLECT_TYPENAME( graphene::chain::share_type )
@@ -469,6 +485,7 @@ FC_REFLECT_TYPENAME( graphene::chain::fba_accumulator_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::betting_market_position_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::global_betting_statistics_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::tournament_details_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::contract_statistics_id_type )
 
 FC_REFLECT( graphene::chain::void_t, )
 
