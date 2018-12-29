@@ -37,7 +37,7 @@ class pp_state : public State
 
 public:
 
-   pp_state( fs::path data_dir, vms::evm::evm_adapter& _adapter );
+   pp_state( fs::path data_dir, vms::evm::evm_adapter _adapter );
 
    u256 balance(Address const& _id) const override;
 
@@ -112,7 +112,7 @@ public:
 
 private:
 
-   vms::evm::evm_adapter& adapter;
+   vms::evm::evm_adapter adapter;
 
    std::unordered_map<Address, Account> result_accounts;
 
@@ -129,9 +129,9 @@ private:
 ///////////////////////////////////////////////////////////////////////////////////// // DB result;
    dev::OverlayDB db_res;
 
-	dev::eth::SecureTrieDB<h160, dev::OverlayDB> state_results;
+   dev::eth::SecureTrieDB<h160, dev::OverlayDB> state_results;
 
-	ExecResult cache_results;
+   ExecResult cache_results;
 
 };
 

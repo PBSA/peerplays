@@ -568,7 +568,9 @@ void database::apply_block( const signed_block& next_block, uint32_t skip )
 
    detail::with_skip_flags( *this, skip, [&]()
    {
+      _evaluating_from_apply_block = true;
       _apply_block( next_block );
+      _evaluating_from_apply_block = false;
    } );
    return;
 }

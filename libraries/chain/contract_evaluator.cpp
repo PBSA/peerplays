@@ -1,8 +1,6 @@
 #include <graphene/chain/contract_evaluator.hpp>
-// #include <graphene/chain/result_contract_object.hpp>
 #include <graphene/chain/database.hpp>
-// #include <fc/exception/exception.hpp>
-// #include <limits>
+#include <graphene/chain/result_contract_object.hpp>
 
 #include <fee_gas.hpp>
 
@@ -32,15 +30,13 @@ namespace graphene { namespace chain {
    object_id_type contract_evaluator::do_apply( const contract_operation& o )
    { try {
 
-      db()._executor.execute( o, true );
-        
-      //   result_contract_object result = db().create<result_contract_object>( [&]( result_contract_object& obj ){
-      //      obj.contracts_id = v_machine->get_attracted_contracts();
-      //   });
+      db()._executor->execute( o, true );
 
-        // db().get_key_value();
+      result_contract_object result = db().create<result_contract_object>( [&]( result_contract_object& obj ){
+         obj.contracts_id = db()._executor->get_attracted_contracts( o.version_vm );
+      });
         
-      //   return result.id;
+      return result.id;
    } FC_CAPTURE_AND_RETHROW((o)) }
 
 } } // graphene::chain

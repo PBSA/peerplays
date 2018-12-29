@@ -20,7 +20,7 @@ std::pair<uint64_t, uint64_t> address_to_id( const Address& addr )
 Address id_to_address( const uint64_t& id, const uint64_t& type )
 {
     // 0 - account, 1 - contract
-    assert( id == 0 || id == 1 );
+    assert( type == 0 || type == 1 );
 
     Address addr( id );
     addr[0] = type;
@@ -56,7 +56,7 @@ std::pair<bool, uint64_t> create_object_id_type(const std::string& location)
    return std::make_pair(false, 0);
 }
 
-pp_state::pp_state( fs::path data_dir, vms::evm::evm_adapter& _adapter ) : State(u256(0), State::openDB((data_dir / "eth_db").string(), sha3(dev::rlp("")))), adapter(_adapter)
+pp_state::pp_state( fs::path data_dir, vms::evm::evm_adapter _adapter ) : State(u256(0), State::openDB((data_dir / "eth_db").string(), sha3(dev::rlp("")))), adapter(_adapter)
 {
    setRoot(dev::sha3(dev::rlp("")));
    author = id_to_address(0, 1);

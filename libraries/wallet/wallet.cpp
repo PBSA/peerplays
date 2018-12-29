@@ -3159,6 +3159,7 @@ public:
       eth_op eth_create = eth_op{registrar_account_id, optional<contract_id_type>(),
                                  get_asset_id(asset_type), value, gasPrice, gas, code};
       contract_create_op.data = fc::raw::pack( eth_create );
+      contract_create_op.version_vm = 1;
       // contract_create_op.code = code;
 //       struct eth_op {
 //         optional<contract_id_type> receiver;

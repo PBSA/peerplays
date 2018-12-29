@@ -15,4 +15,9 @@ void vm_executor::execute( const contract_operation& o, const bool& commit )
    registered_vms.at( o.version_vm )->exec( o.data, commit );
 }
 
+std::vector< uint64_t > vm_executor::get_attracted_contracts( const uint64_t& version_vm ) const
+{
+   return registered_vms.at( version_vm )->get_attracted_contracts();
+}
+
 } }

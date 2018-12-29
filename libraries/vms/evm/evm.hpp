@@ -15,10 +15,14 @@ class evm : public vm_interface
 
 public:
 
-   evm( const std::string& path, adapters adapter ) : vm_interface( adapter ), state( fs::path( path ), adapter.get<evm_adapter>() ) {}
+   evm( const std::string& path, adapters adapter );
 
    bytes exec( const bytes& data, const bool commit ) override;
+
+   std::vector< uint64_t > get_attracted_contracts( ) const override { return attracted_contracts; };
+
    bytes get_execute_result(/*result_obj_id*/) override {}
+
    void roll_back_db(/*hash or number block*/) override {}
 
 private:
@@ -32,6 +36,12 @@ private:
    void transfer_suicide_balances(const std::vector< std::pair< Address, Address > >& suicide_transfer);
 
    void delete_balances( const std::unordered_map< Address, Account >& accounts );
+
+   std::vector< uint64_t > select_attracted_contracts( const std::unordered_map< Address, Account >& accounts );
+
+   std::vector< uint64_t > attracted_contracts;
+
+   std::unique_ptr< SealEngineFace > se;
 
    pp_state state;
 

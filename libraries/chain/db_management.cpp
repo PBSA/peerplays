@@ -36,7 +36,7 @@
 namespace graphene { namespace chain {
 
 database::database() :
-   _executor( *this ), _random_number_generator(fc::ripemd160().data())
+   _executor( new vms::base::vm_executor( *this ) ), _random_number_generator(fc::ripemd160().data())
 {
    initialize_indexes();
    initialize_evaluators();
@@ -60,6 +60,8 @@ void database::reindex(fc::path data_dir, const genesis_state_type& initial_allo
       edump((last_block));
       return;
    }
+
+   _evaluating_from_apply_block = true;
 
    const auto last_block_num = last_block->block_num();
 
@@ -110,8 +112,11 @@ void database::reindex(fc::path data_dir, const genesis_state_type& initial_allo
                              skip_witness_schedule_check |
                              skip_authority_check);
    }
+
+   _evaluating_from_apply_block = false;
    if (!_slow_replays)
      _undo_db.enable();
+
    auto end = fc::time_point::now();
    ilog( "Done reindexing, elapsed time: ${t} sec", ("t",double((end-start).count())/1000000.0 ) );
 } FC_CAPTURE_AND_RETHROW( (data_dir) ) }
@@ -151,7 +156,7 @@ void database::open(
          }
       }
 
-      _executor.init( data_dir.string() );
+      _executor->init( data_dir.string() );
 
    }
    FC_CAPTURE_LOG_AND_RETHROW( (data_dir) )

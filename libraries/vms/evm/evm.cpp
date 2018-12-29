@@ -4,8 +4,16 @@
 #include <aleth/libethcore/SealEngine.h>
 #include <aleth/libethereum/ChainParams.h>
 #include <aleth/libethashseal/GenesisInfo.h>
+#include <aleth/libethashseal/Ethash.h>
 
 namespace vms { namespace evm {
+
+evm::evm( const std::string& path, adapters adapter ) : vm_interface( adapter ),
+                                                        state( fs::path( path ), adapter.get<evm_adapter>() )
+{
+   dev::eth::Ethash::init();
+   se = std::unique_ptr< SealEngineFace >( dev::eth::ChainParams(dev::eth::genesisInfo(dev::eth::Network::ExeBlockNetwork)).createSealEngine() );
+}
 
 bytes evm::exec( const bytes& data, const bool commit )
 {
@@ -18,15 +26,12 @@ bytes evm::exec( const bytes& data, const bool commit )
    state.clearResultAccount();
 
    Transaction tx = create_eth_transaction( eth );
-   // std::unique_ptr< SealEngineFace > se( dev::eth::ChainParams(dev::eth::genesisInfo(dev::eth::Network::ExeBlockNetwork)).createSealEngine() );
-   std::unique_ptr< SealEngineFace > se( dev::eth::ChainParams(dev::eth::genesisInfo(dev::eth::Network::FrontierTest)).createSealEngine() );
    auto permanence = get_adapter().evaluating_from_apply_block() ? Permanence::Committed : Permanence::Reverted;
    std::pair< ExecutionResult, TransactionReceipt > res = state.execute(ei, *se.get(), tx, permanence, _onOp);
    state.db().commit();
    state.publishContractTransfers();
 
    account_id_type author( address_to_id( ei.author() ).second );
-   // db.adjust_balance(author, asset(-share_type(state.getFee()), asset_id_type( state.getAssetType() )));
    get_adapter().sub_account_balance( author.instance.value, state.getAssetType(), static_cast<int64_t>( state.getFee() ) );
 
    if(res.first.excepted != TransactionException::None){
@@ -36,7 +41,16 @@ bytes evm::exec( const bytes& data, const bool commit )
    std::unordered_map<Address, Account> attracted_contr_and_acc = state.getResultAccounts();
    transfer_suicide_balances(se->suicideTransfer);
    delete_balances( attracted_contr_and_acc );
-   // attracted_contracts = select_attracted_contracts(attracted_contr_and_acc);
+
+   attracted_contracts = select_attracted_contracts(attracted_contr_and_acc);
+
+   if( get_adapter().evaluating_from_apply_block() ){
+      state.addResult( get_adapter().get_next_result_id(), res);
+      state.commitResults();
+      state.dbResults().commit();
+   }
+
+
 
    // bring in vm_executor
 
@@ -128,6 +142,18 @@ void evm::delete_balances( const std::unordered_map< Address, Account >& account
          continue;
       }
    }
+}
+
+std::vector< uint64_t > evm::select_attracted_contracts( const std::unordered_map< Address, Account >& accounts ) {
+   std::vector< uint64_t > result;
+   for( auto& acc : accounts ){
+      auto contract = address_to_id( acc.first );
+      if( contract.first == 0 )
+         continue;
+
+      result.push_back( contract.second );
+   }
+   return std::move( result );
 }
 
 } }

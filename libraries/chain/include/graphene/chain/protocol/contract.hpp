@@ -68,7 +68,7 @@ namespace graphene { namespace chain {
 
 } } // graphene::chain
 
-FC_REFLECT( graphene::chain::eth_op, (registrar)(receiver)(asset_id)(value)(gasPrice)(gas) )
+FC_REFLECT( graphene::chain::eth_op, (registrar)(receiver)(asset_id)(value)(gasPrice)(gas)(code) )
 // FC_REFLECT( graphene::chain::wasm_op, (msg) )
 FC_REFLECT( graphene::chain::contract_operation::fee_parameters_type, (fee)(price_per_kbyte) )
 // FC_REFLECT( graphene::chain::contract_operation, (fee)(registrar)(code)(eth) )

@@ -1,5 +1,6 @@
 #include <evm_adapter.hpp>
 #include <graphene/chain/database.hpp>
+#include <graphene/chain/result_contract_object.hpp>
 
 namespace vms { namespace evm {
    
@@ -17,7 +18,7 @@ void evm_adapter::publish_contract_transfer( const contract_or_account_id& from_
 
 std::string evm_adapter::get_next_result_id() const
 {
-   // return std::string( db.get_index<result_contract_object>().get_next_id() );
+   return std::string( db.get_index<result_contract_object>().get_next_id() );
 }
 
 std::vector<std::pair<int64_t, uint64_t>> evm_adapter::get_contract_balances( const uint64_t& from ) const

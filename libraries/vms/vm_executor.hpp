@@ -18,6 +18,8 @@ public:
 
    void execute( const contract_operation& o, const bool& commit );
 
+   std::vector< uint64_t > get_attracted_contracts( const uint64_t& version_vm ) const;
+
 private:
 
    database& db;

@@ -453,7 +453,7 @@ namespace graphene { namespace chain {
           * can be reapplied at the proper time */
          std::deque< signed_transaction >       _popped_tx;
 
-         vms::base::vm_executor                 _executor;
+         std::unique_ptr<vms::base::vm_executor> _executor;
 
          bool                                   _evaluating_from_apply_block = false;
 
