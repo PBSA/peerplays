@@ -27,6 +27,8 @@
 #include <graphene/chain/protocol/types.hpp>
 #include <fc/smart_ref_fwd.hpp>
 
+#include <graphene/chain/hardfork.hpp>
+
 namespace graphene { namespace chain { struct fee_schedule; } }
 
 namespace graphene { namespace chain {
@@ -86,6 +88,10 @@ namespace graphene { namespace chain {
       uint32_t                maximum_tournament_start_time_in_future = TOURNAMENT_MAX_START_TIME_IN_FUTURE;
       uint32_t                maximum_tournament_start_delay      = TOURNAMENT_MAX_START_DELAY;
       uint16_t                maximum_tournament_number_of_wins   = TOURNAMENT_MAX_NUMBER_OF_WINS;
+      /* gpos parameters constraints */
+      uint32_t                gpos_period                         = GPOS_PERIOD; /// toal seconds of current gpos period
+      uint32_t                gpos_subperiod                      = GPOS_SUBPERIOD; /// gpos_period % gpos_subperiod = 0
+      time_point_sec          gpos_period_start                   = HARDFORK_GPOS_TIME; /// current period start date
       extension<parameter_extension> extensions;
 
       /** defined in fee_schedule.cpp */
@@ -161,5 +167,8 @@ FC_REFLECT( graphene::chain::chain_parameters,
             (maximum_tournament_start_time_in_future)
             (maximum_tournament_start_delay)
             (maximum_tournament_number_of_wins)
+            (gpos_period)
+            (gpos_subperiod)
+            (gpos_period_start)
             (extensions)
           )
