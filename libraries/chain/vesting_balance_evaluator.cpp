@@ -93,6 +93,7 @@ object_id_type vesting_balance_create_evaluator::do_apply( const vesting_balance
       obj.owner = op.owner;
       obj.balance = op.amount;
       op.policy.visit( init_policy_visitor( obj.policy, op.amount.amount, now ) );
+      obj.balance_type = op.balance_type;
    } );
 
 

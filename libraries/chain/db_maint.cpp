@@ -764,9 +764,9 @@ void schedule_pending_dividend_balances(database& db,
 #ifdef USE_VESTING_OBJECT_BY_ASSET_BALANCE_INDEX
    // get only once a collection of accounts that hold nonzero vesting balances of the dividend asset
    auto vesting_balances_begin =
-      vesting_index.indices().get<by_asset_balance>().lower_bound(boost::make_tuple(dividend_holder_asset_obj.id));
+      vesting_index.indices().get<by_asset_balance>().lower_bound(boost::make_tuple(dividend_holder_asset_obj.id, vesting_balance_type::unspecified));
    auto vesting_balances_end =
-      vesting_index.indices().get<by_asset_balance>().upper_bound(boost::make_tuple(dividend_holder_asset_obj.id, share_type()));
+      vesting_index.indices().get<by_asset_balance>().upper_bound(boost::make_tuple(dividend_holder_asset_obj.id, vesting_balance_type::unspecified, share_type()));
    for (const vesting_balance_object& vesting_balance_obj : boost::make_iterator_range(vesting_balances_begin, vesting_balances_end))
    {
         vesting_amounts[vesting_balance_obj.owner] += vesting_balance_obj.balance.amount;
@@ -1247,9 +1247,9 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
          const vesting_balance_index& vesting_index = d.get_index_type<vesting_balance_index>();
 #ifdef USE_VESTING_OBJECT_BY_ASSET_BALANCE_INDEX
          auto vesting_balances_begin =
-              vesting_index.indices().get<by_asset_balance>().lower_bound(boost::make_tuple(asset_id_type()));
+              vesting_index.indices().get<by_asset_balance>().lower_bound(boost::make_tuple(asset_id_type(), vesting_balance_type::unspecified));
          auto vesting_balances_end =
-              vesting_index.indices().get<by_asset_balance>().upper_bound(boost::make_tuple(asset_id_type(), share_type()));
+              vesting_index.indices().get<by_asset_balance>().upper_bound(boost::make_tuple(asset_id_type(), vesting_balance_type::unspecified, share_type()));
          for (const vesting_balance_object& vesting_balance_obj : boost::make_iterator_range(vesting_balances_begin, vesting_balances_end))
          {
             vesting_amounts[vesting_balance_obj.owner] += vesting_balance_obj.balance.amount;
