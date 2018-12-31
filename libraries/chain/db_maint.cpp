@@ -832,15 +832,15 @@ void rolling_period_start(database& db)
 {
    if(db.head_block_time() >= HARDFORK_GPOS_TIME)
    {
-      auto period_start = db.get_global_properties().parameters.period_start;
-      auto vesting_period = db.get_global_properties().parameters.vesting_period;
+      auto period_start = db.get_global_properties().parameters.gpos_period_start;
+      auto vesting_period = db.get_global_properties().parameters.gpos_period;
 
-      auto now = db.head_block_time().sec_since_epoch();
-      if(now > (period_start + vesting_period))
+      auto now = db.head_block_time();
+      if(now.sec_since_epoch() > (period_start.sec_since_epoch() + vesting_period))
       {
          // roll
          db.modify(db.get_global_properties(), [now](global_property_object& p) {
-            p.parameters.period_start =  now;
+            p.parameters.gpos_period_start =  now;
          });
       }
    }
@@ -1410,24 +1410,28 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
          d._committee_count_histogram_buffer.resize(props.parameters.maximum_committee_count / 2 + 1);
          d._total_voting_stake = 0;
 
+         auto balance_type = vesting_balance_type::unspecified;
+         if(d.head_block_time() >= HARDFORK_GPOS_TIME)
+            balance_type = vesting_balance_type::gpos;
+
          const vesting_balance_index& vesting_index = d.get_index_type<vesting_balance_index>();
 #ifdef USE_VESTING_OBJECT_BY_ASSET_BALANCE_INDEX
          auto vesting_balances_begin =
-              vesting_index.indices().get<by_asset_balance>().lower_bound(boost::make_tuple(asset_id_type(), vesting_balance_type::unspecified));
+              vesting_index.indices().get<by_asset_balance>().lower_bound(boost::make_tuple(asset_id_type(), balance_type));
          auto vesting_balances_end =
-              vesting_index.indices().get<by_asset_balance>().upper_bound(boost::make_tuple(asset_id_type(), vesting_balance_type::unspecified, share_type()));
+              vesting_index.indices().get<by_asset_balance>().upper_bound(boost::make_tuple(asset_id_type(), balance_type, share_type()));
          for (const vesting_balance_object& vesting_balance_obj : boost::make_iterator_range(vesting_balances_begin, vesting_balances_end))
          {
             vesting_amounts[vesting_balance_obj.owner] += vesting_balance_obj.balance.amount;
-            //dlog("Vesting balance for account: ${owner}, amount: ${amount}",
-            //     ("owner", vesting_balance_obj.owner(d).name)
-            //     ("amount", vesting_balance_obj.balance.amount));
+            dlog("Vesting balance for account: ${owner}, amount: ${amount}",
+                 ("owner", vesting_balance_obj.owner(d).name)
+                 ("amount", vesting_balance_obj.balance.amount));
          }
 #else
          const auto& vesting_balances = vesting_index.indices().get<by_id>();
          for (const vesting_balance_object& vesting_balance_obj : vesting_balances)
          {
-            if (vesting_balance_obj.balance.asset_id == asset_id_type() && vesting_balance_obj.balance.amount)
+            if (vesting_balance_obj.balance.asset_id == asset_id_type() && vesting_balance_obj.balance.amount && vesting_balance_obj.balance_type == balance_type)
             {
                 vesting_amounts[vesting_balance_obj.owner] += vesting_balance_obj.balance.amount;
                 dlog("Vesting balance for account: ${owner}, amount: ${amount}",
@@ -1455,13 +1459,28 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
             const account_object& opinion_account = *opinion_account_ptr;
 
             const auto& stats = stake_account.statistics(d);
-            uint64_t voting_stake = stats.total_core_in_orders.value
-                  + (stake_account.cashback_vb.valid() ? (*stake_account.cashback_vb)(d).balance.amount.value: 0)
-                  + d.get_balance(stake_account.get_id(), asset_id_type()).amount.value;
+            uint64_t voting_stake = 0;
 
             auto itr = vesting_amounts.find(stake_account.id);
             if (itr != vesting_amounts.end())
                 voting_stake += itr->second.value;
+
+            if(d.head_block_time() >= HARDFORK_GPOS_TIME)
+            {
+               if (itr == vesting_amounts.end())
+                  return;
+
+               auto vesting_factor = calculate_vesting_factor(d, stake_account);
+               voting_stake = (uint64_t)floor(voting_stake * vesting_factor);
+
+            }
+            else
+            {
+               voting_stake += stats.total_core_in_orders.value
+                               + (stake_account.cashback_vb.valid() ? (*stake_account.cashback_vb)(d).balance.amount.value : 0)
+                               + d.get_balance(stake_account.get_id(), asset_id_type()).amount.value;
+            }
+
             for( vote_id_type id : opinion_account.options.votes )
             {
                uint32_t offset = id.instance();
