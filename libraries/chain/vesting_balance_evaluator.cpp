@@ -92,7 +92,19 @@ object_id_type vesting_balance_create_evaluator::do_apply( const vesting_balance
       // If making changes to this logic, check if those changes should also be made there as well.
       obj.owner = op.owner;
       obj.balance = op.amount;
-      op.policy.visit( init_policy_visitor( obj.policy, op.amount.amount, now ) );
+      if(op.balance_type == vesting_balance_type::gpos)
+      {
+         const auto &gpo = d.get_global_properties();
+         // forcing gpos policy
+         linear_vesting_policy p;
+         p.begin_timestamp = now;
+         p.vesting_cliff_seconds = gpo.parameters.gpos_subperiod;
+         p.vesting_duration_seconds = gpo.parameters.gpos_subperiod;
+         obj.policy = p;
+      }
+      else {
+         op.policy.visit(init_policy_visitor(obj.policy, op.amount.amount, now));
+      }
       obj.balance_type = op.balance_type;
    } );
 
