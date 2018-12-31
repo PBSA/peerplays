@@ -828,6 +828,24 @@ share_type credit_account(database& db, const account_id_type owner_id, const st
    return remaining_amount_to_distribute;
 }
 
+void rolling_period_start(database& db)
+{
+   if(db.head_block_time() >= HARDFORK_GPOS_TIME)
+   {
+      auto period_start = db.get_global_properties().parameters.period_start;
+      auto vesting_period = db.get_global_properties().parameters.vesting_period;
+
+      auto now = db.head_block_time().sec_since_epoch();
+      if(now > (period_start + vesting_period))
+      {
+         // roll
+         db.modify(db.get_global_properties(), [now](global_property_object& p) {
+            p.parameters.period_start =  now;
+         });
+      }
+   }
+}
+
 // Schedules payouts from a dividend distribution account to the current holders of the
 // dividend-paying asset.  This takes any deposits made to the dividend distribution account
 // since the last time it was called, and distributes them to the current owners of the
@@ -1376,6 +1394,8 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
    create_buyback_orders(*this);
 
    process_dividend_assets(*this);
+
+   rolling_period_start(*this);
 
    struct vote_tally_helper {
       database& d;
