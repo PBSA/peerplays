@@ -735,7 +735,7 @@ double calculate_vesting_factor(const database& d, const account_object& stake_a
    const auto &gpo = d.get_global_properties();
    const auto vesting_period = gpo.parameters.gpos_period;
    const auto vesting_subperiod = gpo.parameters.gpos_subperiod;
-   const auto period_start = time_point_sec(gpo.parameters.gpos_period_start);
+   const auto period_start = gpo.parameters.gpos_period_start;
 
    //  variables needed
    const fc::time_point_sec period_end = period_start + vesting_period;
@@ -761,8 +761,6 @@ double calculate_vesting_factor(const database& d, const account_object& stake_a
 
    // coefficient calculation is: (n-1)/number_of_subperiods
    double n = number_of_subperiods + 1;
-   if (current_period > number_of_subperiods) // exception maybe?
-      return 0;
 
    auto period = std::find_if(period_list.begin(), period_list.end(),[&](uint32_t p) {
       return (p == current_period);
@@ -1393,9 +1391,9 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
    distribute_fba_balances(*this);
    create_buyback_orders(*this);
 
-   process_dividend_assets(*this);
-
    rolling_period_start(*this);
+
+   process_dividend_assets(*this);
 
    struct vote_tally_helper {
       database& d;
@@ -1472,7 +1470,6 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
 
                auto vesting_factor = calculate_vesting_factor(d, stake_account);
                voting_stake = (uint64_t)floor(voting_stake * vesting_factor);
-
             }
             else
             {
