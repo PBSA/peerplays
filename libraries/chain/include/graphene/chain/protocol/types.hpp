@@ -123,17 +123,17 @@ namespace graphene { namespace chain {
       account_object_type,
       asset_object_type,
       force_settlement_object_type,
-      committee_member_object_type,
+      committee_member_object_type,             // 5
       witness_object_type,
       limit_order_object_type,
       call_order_object_type,
       custom_object_type,
-      proposal_object_type,
+      proposal_object_type,                     // 10
       operation_history_object_type,
       withdraw_permission_object_type,
       vesting_balance_object_type,
       worker_object_type,
-      balance_object_type,
+      balance_object_type,                      // 15
       tournament_object_type,
       tournament_details_object_type,
       match_object_type,
@@ -146,6 +146,7 @@ namespace graphene { namespace chain {
       betting_market_object_type,
       bet_object_type,
       contract_balance_object_type,
+      contract_balance_object_type,             // 20
       contract_object_type,
       result_contract_object_type,
       OBJECT_TYPE_COUNT ///< Sentry value which contains the number of different object types

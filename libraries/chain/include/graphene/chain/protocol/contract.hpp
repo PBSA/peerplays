@@ -1,9 +1,6 @@
 #pragma once
 #include <graphene/chain/protocol/base.hpp>
 #include <graphene/chain/contract_object.hpp>
-// #include <libdevcore/Common.h>
-// #include <libethereum/Transaction.h>
-// #include <eosio/chain/transaction.hpp>
 
 namespace graphene { namespace chain {
 
@@ -17,10 +14,6 @@ namespace graphene { namespace chain {
         std::string code;
     };
 
-   //  struct wasm_op {
-   //      eosio::chain::action msg;
-   //  };
-
     struct contract_operation : public base_operation
     {
         struct fee_parameters_type{
@@ -33,11 +26,6 @@ namespace graphene { namespace chain {
 
         uint8_t             version_vm;
         std::vector<char>   data;
-
-        // string              code;
-
-        // optional<eth_op>    eth;
-        // optional<wasm_op>   wasm;
 
         account_id_type fee_payer()const { return registrar; }
         void            validate()const;
@@ -69,9 +57,7 @@ namespace graphene { namespace chain {
 } } // graphene::chain
 
 FC_REFLECT( graphene::chain::eth_op, (registrar)(receiver)(asset_id)(value)(gasPrice)(gas)(code) )
-// FC_REFLECT( graphene::chain::wasm_op, (msg) )
 FC_REFLECT( graphene::chain::contract_operation::fee_parameters_type, (fee)(price_per_kbyte) )
-// FC_REFLECT( graphene::chain::contract_operation, (fee)(registrar)(code)(eth) )
 FC_REFLECT( graphene::chain::contract_operation, (fee)(registrar)(version_vm)(data) )
 
 FC_REFLECT( graphene::chain::contract_transfer_operation::fee_parameters_type, (fee) )

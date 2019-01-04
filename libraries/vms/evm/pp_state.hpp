@@ -85,6 +85,8 @@ public:
 
    bool getObjectProperty(const std::string& location, dev::bytes& result) override;
 
+   void clear_temporary_variables();
+
 ///////////////////////////////////////////////////////////////////////////////////// // DB result;
    void setRootResults(dev::h256 const& _r) { cache_results.clear(); state_results.setRoot(_r); }
 

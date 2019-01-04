@@ -5,8 +5,6 @@ namespace graphene { namespace chain {
     share_type contract_operation::calculate_fee( const fee_parameters_type& schedule )const
     {
         share_type core_fee_required = schedule.fee;
-        // if( code.size() > 0 )
-        //     core_fee_required += calculate_data_fee( code.size(), schedule.price_per_kbyte );
         if( data.size() > 0 )
             core_fee_required += calculate_data_fee( data.size(), schedule.price_per_kbyte );
         return core_fee_required;

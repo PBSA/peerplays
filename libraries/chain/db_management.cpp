@@ -33,6 +33,9 @@
 #include <functional>
 #include <iostream>
 
+#include <aleth/libdevcore/SHA3.h>
+#include <aleth/libdevcore/RLP.h>
+
 namespace graphene { namespace chain {
 
 database::database() :
@@ -62,6 +65,7 @@ void database::reindex(fc::path data_dir, const genesis_state_type& initial_allo
    }
 
    _evaluating_from_apply_block = true;
+   _executor->set_state_root_evm( dev::sha3( dev::rlp("") ).hex() );
 
    const auto last_block_num = last_block->block_num();
 
@@ -140,6 +144,9 @@ void database::open(
 
       _block_id_to_block.open(data_dir / "database" / "block_num_to_block");
 
+      _executor->init( data_dir.string() );
+      _executor->set_state_root_evm( dev::sha3( dev::rlp("") ).hex() );
+
       if( !find(global_property_id_type()) )
          init_genesis(genesis_loader());
 
@@ -154,10 +161,10 @@ void database::open(
               FC_ASSERT( head_block_num() == 0, "last block ID does not match current chain state",
                          ("last_block->id", last_block->id())("head_block_num",head_block_num()) );
          }
+
+         _executor->set_state_root_evm( last_block->state_root_hash.str() );
+
       }
-
-      _executor->init( data_dir.string() );
-
    }
    FC_CAPTURE_LOG_AND_RETHROW( (data_dir) )
 }

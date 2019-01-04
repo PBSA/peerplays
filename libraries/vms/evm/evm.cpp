@@ -15,8 +15,10 @@ evm::evm( const std::string& path, adapters adapter ) : vm_interface( adapter ),
    se = std::unique_ptr< SealEngineFace >( dev::eth::ChainParams(dev::eth::genesisInfo(dev::eth::Network::ExeBlockNetwork)).createSealEngine() );
 }
 
-bytes evm::exec( const bytes& data, const bool commit )
+std::pair<uint64_t, bytes> evm::exec( const bytes& data, const bool commit )
 {
+   clear_temporary_variables();
+
    eth_op eth = fc::raw::unpack<eth_op>( data );
 
    OnOpFunc const& _onOp = OnOpFunc();
@@ -50,22 +52,17 @@ bytes evm::exec( const bytes& data, const bool commit )
       state.dbResults().commit();
    }
 
+   return std::make_pair( static_cast<uint64_t>( state.getFee() ), bytes() );
+}
 
+std::string evm::get_state_root() const
+{
+   return state.rootHash().hex();
+}
 
-   // bring in vm_executor
-
-   // if( eval_state ) {
-   //    if(db._evaluating_from_apply_block){
-   //       state->addResult(db.get_index<result_contract_object>().get_next_id(), res);
-   //       state->commitResults();
-   //       state->dbResults().commit();
-   //    }
-   //    fee_gas fee(db, *eval_state);
-   //    fee.process_fee(state->getFee(), c_o);
-   // }
-
-   // return res;
-   return bytes();
+void evm::set_state_root( const std::string& hash )
+{
+   state.setRoot( h256( hash ) );
 }
 
 Transaction evm::create_eth_transaction(const eth_op& eth) const
@@ -154,6 +151,12 @@ std::vector< uint64_t > evm::select_attracted_contracts( const std::unordered_ma
       result.push_back( contract.second );
    }
    return std::move( result );
+}
+
+void evm::clear_temporary_variables()
+{
+   se->suicideTransfer.clear();
+   state.clear_temporary_variables();
 }
 
 } }

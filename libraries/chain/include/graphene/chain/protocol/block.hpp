@@ -37,6 +37,8 @@ namespace graphene { namespace chain {
       secret_hash_type              previous_secret;
       checksum_type                 transaction_merkle_root;
       extensions_type               extensions;
+      fc::sha256                    state_root_hash;
+      fc::sha256                    result_root_hash;
 
       static uint32_t num_from_id(const block_id_type& id);
    };
@@ -66,6 +68,8 @@ FC_REFLECT( graphene::chain::block_header,
             (next_secret_hash)
             (previous_secret)
             (transaction_merkle_root)
-            (extensions) )
+            (extensions)
+            (state_root_hash)
+            (result_root_hash) )
 FC_REFLECT_DERIVED( graphene::chain::signed_block_header, (graphene::chain::block_header), (witness_signature) )
 FC_REFLECT_DERIVED( graphene::chain::signed_block, (graphene::chain::signed_block_header), (transactions) )

@@ -1,4 +1,5 @@
 #include "pp_state.hpp"
+#include <boost/optional.hpp>
 
 namespace vms { namespace evm {
 
@@ -38,8 +39,9 @@ std::vector<std::string> get_all_matches(const std::string& str, const std::rege
     return result;
 }
 
-std::pair<bool, uint64_t> create_object_id_type(const std::string& location)
+boost::optional<uint64_t> create_object_id_type(const std::string& location)
 {
+   boost::optional<uint64_t> value;
    std::regex regex_id("^([0-9]+\\.[0-9]+\\.[0-9]+)");
    std::smatch sm;
    if(std::regex_search(location, sm, regex_id)){
@@ -47,13 +49,14 @@ std::pair<bool, uint64_t> create_object_id_type(const std::string& location)
       std::string id = sm.str();
       std::vector<std::string> numbers_id = get_all_matches(id, regex_number);
       if(numbers_id.size() != 3) {
-         return std::make_pair(false, 0);
+         return value;
       }
 
       //   return object_id_type(string_to_uint64(numbers_id[0]), string_to_uint64(numbers_id[1]), string_to_uint64(numbers_id[2]));
-      return std::make_pair( true, std::stoll( numbers_id[2] ) );
+      value = std::stoll( numbers_id[2] );
+      return value;
    }
-   return std::make_pair(false, 0);
+   return value;
 }
 
 pp_state::pp_state( fs::path data_dir, vms::evm::evm_adapter _adapter ) : State(u256(0), State::openDB((data_dir / "eth_db").string(), sha3(dev::rlp("")))), adapter(_adapter)
@@ -79,7 +82,7 @@ u256 pp_state::balance(Address const& _id) const
 u256 pp_state::balance(Address const& _id, const std::string& _callIdAsset) const
 {
    auto idAssetTemp = create_object_id_type(_callIdAsset);
-   if( idAssetTemp.first ){
+   if( idAssetTemp ) {
       auto obj_id = address_to_id(_id);
       if( obj_id.first ) {
          return u256( adapter.get_contract_balance( obj_id.second, asset_id ) );
@@ -188,6 +191,18 @@ void pp_state::publishContractTransfers()
    }
 }
 
+void pp_state::clear_temporary_variables() {
+   stack_size = 0;
+   size_t size = transfers_stack.size();
+   for( size_t i = 0; i < size; i++ ) {
+      transfers_stack.pop();
+   }
+   fee = 0;
+   author = Address();
+   asset_id = 0;
+   result_accounts.clear();
+}
+
 /////////////////////////////////////////////////////////////////////////////
 void pp_state::addResult( const std::string& id, std::pair<dev::eth::ExecutionResult, dev::eth::TransactionReceipt>& res)
 {
@@ -196,7 +211,7 @@ void pp_state::addResult( const std::string& id, std::pair<dev::eth::ExecutionRe
 
 std::pair<ExecutionResult, TransactionReceipt> const* pp_state::getResult( const std::string& _id ) const
 {
-	return const_cast<pp_state*>(this)->getResult(right160(sha3(_id)), true);
+   return const_cast<pp_state*>(this)->getResult(right160(sha3(_id)), true);
 }
 
 std::pair<ExecutionResult, TransactionReceipt>* pp_state::getResult(h160 const& idResult, bool a)

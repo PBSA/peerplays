@@ -17,13 +17,17 @@ public:
 
    evm( const std::string& path, adapters adapter );
 
-   bytes exec( const bytes& data, const bool commit ) override;
+   std::pair<uint64_t, bytes> exec( const bytes& data, const bool commit ) override;
 
    std::vector< uint64_t > get_attracted_contracts( ) const override { return attracted_contracts; };
 
    bytes get_execute_result(/*result_obj_id*/) override {}
 
    void roll_back_db(/*hash or number block*/) override {}
+
+   std::string get_state_root() const override;
+
+   void set_state_root( const std::string& hash ) override;
 
 private:
 
@@ -38,6 +42,8 @@ private:
    void delete_balances( const std::unordered_map< Address, Account >& accounts );
 
    std::vector< uint64_t > select_attracted_contracts( const std::unordered_map< Address, Account >& accounts );
+
+   void clear_temporary_variables();
 
    std::vector< uint64_t > attracted_contracts;
 

@@ -1828,6 +1828,10 @@ class wallet_api
       signed_transaction create_contract(string registrar_account, string asset_type, string code, uint64_t value,
                                          uint64_t gasPrice, uint64_t gas, bool broadcast = false,
                                          bool save_wallet = true);
+
+      signed_transaction call_contract(string registrar_account, contract_id_type receiver,
+                                       string code, uint64_t value, uint64_t gasPrice, uint64_t gas,
+                                       bool broadcast = false, bool save_wallet = true);
 ////////////////////////////////////////////////////////////////////////////// // evm end
 };
 
@@ -2049,5 +2053,6 @@ FC_API( graphene::wallet::wallet_api,
         (get_all_matched_bets_for_bettor)
 ////////////////////////////////////////////////////////////////////////////// // evm begin
         (create_contract)
+        (call_contract)
 ////////////////////////////////////////////////////////////////////////////// // evm end
       )
