@@ -121,6 +121,19 @@ void witness_plugin::plugin_initialize(const boost::program_options::variables_m
          _private_keys[key_id_to_wif_pair.first] = *private_key;
       }
    }
+   if( options.count( "bitcoin-node-ip" ) && options.count( "bitcoin-node-zmq-port" ) && options.count( "bitcoin-node-rpc-port" )
+      && options.count( "bitcoin-node-rpc-user" ) && options.count( "bitcoin-node-rpc-password" ) )
+   {
+      const auto ip = options.at("bitcoin-node-ip").as<std::string>();
+      const auto zmq_port = options.at("bitcoin-node-zmq-port").as<uint32_t>();
+      const auto rpc_port = options.at("bitcoin-node-rpc-port").as<uint32_t>();
+      const auto rpc_user = options.at("bitcoin-node-rpc-user").as<std::string>();
+      const auto rpc_password = options.at("bitcoin-node-rpc-password").as<std::string>();
+      
+      bitcoin_manager.initialize_manager(&database(), ip, zmq_port, rpc_port, rpc_user, rpc_password);
+   } else {
+      wlog("Haven't set up sidechain parameters");
+   }
    ilog("witness plugin:  plugin_initialize() end");
 } FC_LOG_AND_RETHROW() }
 

@@ -963,6 +963,11 @@ void application::set_program_options(boost::program_options::options_descriptio
          ("genesis-json", bpo::value<boost::filesystem::path>(), "File to read Genesis State from")
          ("dbg-init-key", bpo::value<string>(), "Block signing key to use for init witnesses, overrides genesis file")
          ("api-access", bpo::value<boost::filesystem::path>(), "JSON file specifying API permissions")
+         ("bitcoin-node-ip", bpo::value<string>()->implicit_value("127.0.0.1"), "IP address of Bitcoin node")
+         ("bitcoin-node-zmq-port", bpo::value<uint32_t>()->implicit_value(28332), "ZMQ port of Bitcoin node")
+         ("bitcoin-node-rpc-port", bpo::value<uint32_t>()->implicit_value(18332), "RPC port of Bitcoin node")
+         ("bitcoin-node-rpc-user", bpo::value<string>(), "Bitcoin RPC user")
+         ("bitcoin-node-rpc-password", bpo::value<string>(), "Bitcoin RPC password")
          ;
    command_line_options.add(configuration_file_options);
    command_line_options.add_options()
