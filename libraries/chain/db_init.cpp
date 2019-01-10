@@ -85,6 +85,8 @@
 
 #include <boost/algorithm/string.hpp>
 
+#include <graphene/chain/info_for_vout_object.hpp>
+
 namespace graphene { namespace chain {
 
 // C++ requires that static class variables declared and initialized
@@ -301,6 +303,8 @@ void database::initialize_indexes()
    //add_index< primary_index<distributed_dividend_balance_object_index > >();
    add_index< primary_index<pending_dividend_payout_balance_for_holder_object_index > >();
    add_index< primary_index<total_distributed_dividend_balance_object_index > >();
+
+   add_index< primary_index<info_for_vout_index                           > >();
 }
 
 void database::init_genesis(const genesis_state_type& genesis_state)
