@@ -2,6 +2,7 @@
 
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/db/generic_index.hpp>
+#include <sidechain/types.hpp>
 
 namespace graphene { namespace chain {
 
@@ -21,10 +22,10 @@ class info_for_vout_object : public abstract_object<info_for_vout_object>
 
       info_for_vout_id_type get_id()const { return id; }
 
-      account_id_type   payer;
-      // btc::payment_type addr_type;
-      std::string       data;
-      uint64_t          amount;
+      account_id_type         payer;
+      sidechain::payment_type addr_type;
+      std::string             data;
+      uint64_t                amount;
 
       bool created = false;
 };
@@ -44,5 +45,5 @@ typedef generic_index<info_for_vout_object, info_for_vout_multi_index_container>
 
 } } // graphene::chain
 
-FC_REFLECT_DERIVED( graphene::chain::info_for_vout_object, (graphene::chain::object), (payer)(data)(amount)(created) )
+FC_REFLECT_DERIVED( graphene::chain::info_for_vout_object, (graphene::chain::object), (payer)(addr_type)(data)(amount)(created) )
 

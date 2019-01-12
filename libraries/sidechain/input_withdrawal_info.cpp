@@ -13,7 +13,7 @@ bool info_for_vin::comparer::operator() ( const info_for_vin& lhs, const info_fo
    return lhs.id < rhs.id;
 }
 
-void input_withdrawal_info::insert_info_for_vin( const prev_out& out, const std::string& address, std::vector<char> script )
+void input_withdrawal_info::insert_info_for_vin( const prev_out& out, const std::string& address, bytes script )
 {
    info_for_vins.insert( info_for_vin( out, address, script ) );
 }
@@ -49,6 +49,7 @@ std::vector<info_for_vin> input_withdrawal_info::get_info_for_vins()
    {
       for( size_t i = 0; itr_b != itr_e && i < 5 && !itr_b->created; i++ ) {  // 5 amount vins to bitcoin transaction
          info_for_vin vin;
+         vin.id = itr_b->id;
          vin.identifier = itr_b->identifier;
          vin.out.hash_tx = itr_b->out.hash_tx;
          vin.out.n_vout = itr_b->out.n_vout;
@@ -64,11 +65,11 @@ std::vector<info_for_vin> input_withdrawal_info::get_info_for_vins()
    return result;
 }
 
-void input_withdrawal_info::insert_info_for_vout( const graphene::chain::account_id_type& payer, /*ayment_type addr_type,*/ const std::string& data, const uint64_t& amount )
+void input_withdrawal_info::insert_info_for_vout( const graphene::chain::account_id_type& payer, const payment_type addr_type, const std::string& data, const uint64_t& amount )
 {
    db.create<graphene::chain::info_for_vout_object>([&](graphene::chain::info_for_vout_object& obj) {
       obj.payer = payer;
-      // obj.addr_type = addr_type;
+      obj.addr_type = addr_type;
       obj.data = data;
       obj.amount = amount;
    });
@@ -108,7 +109,7 @@ std::vector<info_for_vout> input_withdrawal_info::get_info_for_vouts()
    for(size_t i = 0; i < 5 && itr != info_for_vout_idx.end() && !itr->created; i++) {
       info_for_vout vout;
       vout.payer = itr->payer;
-      // vout.addr_type = itr->addr_type;
+      vout.addr_type = itr->addr_type;
       vout.data = itr->data;
       vout.amount = itr->amount;
 

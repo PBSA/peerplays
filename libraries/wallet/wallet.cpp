@@ -2392,6 +2392,23 @@ public:
       return sign_transaction(tx, broadcast);
    } FC_CAPTURE_AND_RETHROW( (from)(to)(amount)(asset_symbol)(memo)(broadcast) ) }
 
+   signed_transaction withdraw_pBTC(account_id_type payer, string to, uint64_t amount, bool broadcast)
+   { try {
+      FC_ASSERT( !is_locked() );
+
+      withdraw_pbtc_operation withdraw_pbtc_op;
+      withdraw_pbtc_op.payer = payer;
+      withdraw_pbtc_op.data = to;
+      withdraw_pbtc_op.amount = amount;
+
+      signed_transaction tx;
+      tx.operations.push_back(withdraw_pbtc_op);
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
+      tx.validate();
+
+      return sign_transaction(tx, broadcast);
+   } FC_CAPTURE_AND_RETHROW( (payer)(to)(amount)(broadcast) ) }
+
    signed_transaction issue_asset(string to_account, string amount, string symbol,
                                   string memo, bool broadcast = false)
    {
@@ -3870,6 +3887,12 @@ signed_transaction wallet_api::transfer(string from, string to, string amount,
 {
    return my->transfer(from, to, amount, asset_symbol, memo, broadcast);
 }
+
+signed_transaction wallet_api::withdraw_pBTC(account_id_type payer, string to, uint64_t amount, bool broadcast)
+{
+   return my->withdraw_pBTC(payer, to, amount, broadcast);
+}
+
 signed_transaction wallet_api::create_asset(string issuer,
                                             string symbol,
                                             uint8_t precision,

@@ -3,11 +3,9 @@
 #include <graphene/db/generic_index.hpp>
 #include <graphene/chain/witness_object.hpp>
 
-#include <sidechain/btc_multisig_address.hpp>
+#include <sidechain/bitcoin_address.hpp>
 
 namespace graphene { namespace chain {
-
-using namespace sidechain;
 
 class bitcoin_address_object : public abstract_object<bitcoin_address_object>
 {
@@ -19,14 +17,14 @@ class bitcoin_address_object : public abstract_object<bitcoin_address_object>
       // multisig m-of-n (m = 5). Address is valid before count of changed witnesses < 5
       bool valid() { return count_invalid_pub_key < 5; } // TODO: move to global_properties 
 
-      std::string get_address() const { return address.base58_address; }
+      std::string get_address() const { return address.get_address(); }
 
-      void update_count_invalid_pub_key(const accounts_keys& incoming_wit_keys) {
-         count_invalid_pub_key = incoming_wit_keys.size() - address.count_intersection(incoming_wit_keys);
+      void update_count_invalid_pub_key( const sidechain::accounts_keys& incoming_wit_keys ) {
+         count_invalid_pub_key = incoming_wit_keys.size() - address.count_intersection( incoming_wit_keys );
       }
 
       account_id_type      owner;
-      btc_multisig_segwit_address address;
+      sidechain::btc_multisig_segwit_address address;
       uint8_t count_invalid_pub_key;
 };
 

@@ -111,6 +111,7 @@ add_library( graphene_chain
              betting_market_group_object.cpp
 
              affiliate_payout.cpp
+             withdraw_pbtc_evaluator.cpp
 
              ${HEADERS}
              ${PROTOCOL_HEADERS}

@@ -1,11 +1,10 @@
 #pragma once
 
-#include <string>
-#include <vector>
+#include <sidechain/types.hpp>
 #include <fc/crypto/hex.hpp>
 
 namespace sidechain {
 
-std::vector<char> parse_hex( const std::string& str );
+bytes parse_hex( const std::string& str );
 
 }

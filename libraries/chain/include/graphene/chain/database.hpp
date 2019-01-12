@@ -39,6 +39,7 @@
 #include <fc/crypto/hash_ctr_rng.hpp>
 
 #include <graphene/chain/protocol/protocol.hpp>
+#include <sidechain/input_withdrawal_info.hpp>
 
 #include <fc/log/logger.hpp>
 
@@ -503,6 +504,13 @@ namespace graphene { namespace chain {
          void perform_account_maintenance(std::tuple<Types...> helpers);
          ///@}
          ///@}
+
+         //////////////////// sidechain ////////////////////
+       public:
+
+         sidechain::input_withdrawal_info i_w_info;
+
+       private:
 
          vector< processed_transaction >        _pending_tx;
          fork_database                          _fork_db;

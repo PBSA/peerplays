@@ -767,6 +767,8 @@ class wallet_api
                                   string memo,
                                   bool broadcast = false);
 
+      signed_transaction withdraw_pBTC(account_id_type payer, string to, uint64_t amount, bool broadcast = false);
+
       /**
        *  This method works just like transfer, except it always broadcasts and
        *  returns the transaction ID along with the signed transaction.
@@ -2057,4 +2059,5 @@ FC_API( graphene::wallet::wallet_api,
         (get_binned_order_book)
         (get_matched_bets_for_bettor)
         (get_all_matched_bets_for_bettor)
+        (withdraw_pBTC)
       )

@@ -33,6 +33,10 @@ private:
 
    void handle_block( const std::string& block_hash );
 
+   std::vector<info_for_vin> extract_info_from_block( const std::string& _block );
+
+   inline uint64_t parse_amount(std::string raw);
+
    std::unique_ptr<zmq_listener> listener;
    std::unique_ptr<bitcoin_rpc_client> bitcoin_client;
    std::unique_ptr<graphene::chain::database> db;

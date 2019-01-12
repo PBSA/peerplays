@@ -1,12 +1,10 @@
 #pragma once
 
-#include <string>
-#include <vector>
-
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 
+#include <sidechain/types.hpp>
 #include <sidechain/thread_safe_index.hpp>
 #include <fc/crypto/sha256.hpp>
 
@@ -32,7 +30,7 @@ struct info_for_vin
 {
    info_for_vin() = default;
 
-   info_for_vin( const prev_out& _out, const std::string& _address, std::vector<char> _script = std::vector<char>() ) :
+   info_for_vin( const prev_out& _out, const std::string& _address, bytes _script = bytes() ) :
       id( count_id_info_for_vin++ ), out( _out ), address( _address ), script( _script ) {
             identifier = fc::sha256::hash( out.hash_tx + std::to_string( out.n_vout ) );
       }
@@ -48,7 +46,7 @@ struct info_for_vin
 
    prev_out out;
    std::string address;
-   std::vector<char> script;
+   bytes script;
 
    bool created = false;
 };
@@ -77,7 +75,7 @@ public:
    input_withdrawal_info( graphene::chain::database& _db ) : db( _db ) {}
 
 
-   void insert_info_for_vin( const prev_out& out, const std::string& address, std::vector<char> script = std::vector<char>() );
+   void insert_info_for_vin( const prev_out& out, const std::string& address, bytes script = bytes() );
 
    void modify_info_for_vin( const info_for_vin& obj, const std::function<void( info_for_vin& e )>& func );
 
@@ -92,7 +90,7 @@ public:
    std::vector<info_for_vin> get_info_for_vins();
 
 
-   void insert_info_for_vout( const graphene::chain::account_id_type& payer, /*ayment_type addr_type,*/ const std::string& data, const uint64_t& amount );
+   void insert_info_for_vout( const graphene::chain::account_id_type& payer, const payment_type addr_type, const std::string& data, const uint64_t& amount );
 
    void mark_as_used_vout( const graphene::chain::info_for_vout_object& obj );
 

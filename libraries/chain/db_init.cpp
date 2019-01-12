@@ -78,6 +78,7 @@
 #include <graphene/chain/event_evaluator.hpp>
 #include <graphene/chain/betting_market_evaluator.hpp>
 #include <graphene/chain/tournament_evaluator.hpp>
+#include <graphene/chain/withdraw_pbtc_evaluator.hpp>
 #include <graphene/chain/bitcoin_address_evaluator.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
@@ -241,6 +242,7 @@ void database::initialize_evaluators()
    register_evaluator<tournament_join_evaluator>();
    register_evaluator<game_move_evaluator>();
    register_evaluator<tournament_leave_evaluator>();
+   register_evaluator<withdraw_pbtc_evaluator>();
    register_evaluator<bitcoin_address_create_evaluator>();
 }
 
