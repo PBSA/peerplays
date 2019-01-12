@@ -4,14 +4,14 @@
 
 namespace sidechain {
 
-btc_multisig_address::btc_multisig_address( const size_t n_required, const std::map< account_id_type, public_key_type >& keys ) :
+btc_multisig_address::btc_multisig_address( const size_t n_required, const accounts_keys& keys ) :
    keys_required ( n_required ), witnesses_keys( keys )
 {
    create_redeem_script();
    create_address();
 }
 
-size_t btc_multisig_address::count_intersection( const std::map< account_id_type, public_key_type >& keys ) const
+size_t btc_multisig_address::count_intersection( const accounts_keys& keys ) const
 {
    FC_ASSERT( keys.size() > 0 );
    
@@ -31,7 +31,7 @@ void btc_multisig_address::create_redeem_script()
    FC_ASSERT( keys_required < witnesses_keys.size() );
    redeem_script.clear();
    redeem_script.push_back( op[keys_required - 1] );
-   for( auto& key : witnesses_keys ) {
+   for( const auto& key : witnesses_keys ) {
       std::stringstream ss;
       ss << std::hex << key.second.key_data.size();
       auto key_size_hex = sidechain::parse_hex( ss.str() );
@@ -59,7 +59,7 @@ void btc_multisig_address::create_address()
    address.push_back( OP_EQUAL );
 }
 
-btc_multisig_segwit_address::btc_multisig_segwit_address( const size_t n_required, const std::map< account_id_type, public_key_type >& keys ) :
+btc_multisig_segwit_address::btc_multisig_segwit_address( const size_t n_required, const accounts_keys& keys ) :
    btc_multisig_address( n_required, keys )
 {
    create_witness_script();

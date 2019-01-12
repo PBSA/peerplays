@@ -11,6 +11,7 @@ using namespace graphene::chain;
 namespace sidechain {
 
 const std::vector<char> op = {0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5a,0x5b,0x5c,0x5d,0x5e,0x5f}; // OP_1 - OP_15
+typedef std::map< account_id_type, public_key_type > accounts_keys;
 
 class btc_multisig_address
 {
@@ -19,9 +20,9 @@ public:
 
    btc_multisig_address() = default;
 
-   btc_multisig_address( const size_t n_required, const std::map< account_id_type, public_key_type >& keys );
+   btc_multisig_address( const size_t n_required, const accounts_keys& keys );
 
-   size_t count_intersection( const std::map< account_id_type, public_key_type >& keys ) const;
+   size_t count_intersection( const accounts_keys& keys ) const;
 
    virtual std::vector< char > get_hex_address() { return address; }
 
@@ -45,7 +46,7 @@ public:
 
    size_t keys_required = 0;
 
-   const std::map< account_id_type,  public_key_type > witnesses_keys;
+   accounts_keys witnesses_keys;
 
 };
 
@@ -58,7 +59,7 @@ public:
 
    btc_multisig_segwit_address() = default;
 
-   btc_multisig_segwit_address( const size_t n_required, const std::map< account_id_type, public_key_type >& keys );
+   btc_multisig_segwit_address( const size_t n_required, const accounts_keys& keys );
 
    bool operator==( const btc_multisig_segwit_address& addr ) const;
 

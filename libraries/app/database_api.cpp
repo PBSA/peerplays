@@ -161,6 +161,9 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       vector<tournament_object> get_tournaments_by_state(tournament_id_type stop, unsigned limit, tournament_id_type start, tournament_state state);
       vector<tournament_id_type> get_registered_tournaments(account_id_type account_filter, uint32_t limit) const;
 
+      //Sidechain
+      vector<bitcoin_address_object> get_bitcoin_addresses(const account_id_type& acc_id) const;
+
 
    //private:
       template<typename T>
@@ -2019,6 +2022,32 @@ vector<tournament_id_type> database_api_impl::get_registered_tournaments(account
    if (tournament_ids.size() >= limit)
       tournament_ids.resize(limit);
    return tournament_ids;
+}
+
+//////////////////////////////////////////////////////////////////////
+//                                                                  //
+// Sidechain                                                        //
+//                                                                  //
+//////////////////////////////////////////////////////////////////////
+
+vector<bitcoin_address_object> database_api::get_bitcoin_addresses(const account_id_type& acc) const 
+{
+   return my->get_bitcoin_addresses(acc);
+}
+
+vector<bitcoin_address_object> database_api_impl::get_bitcoin_addresses(const account_id_type& acc) const 
+{
+   vector<bitcoin_address_object> result;
+
+   const auto& btc_addr_idx = _db.get_index_type<bitcoin_address_index>().indices().get<by_owner>();
+
+   auto itr = btc_addr_idx.lower_bound( acc );
+   while( itr != btc_addr_idx.end() && itr->owner == acc )
+   {
+      result.push_back( *itr );
+      ++itr;
+   }
+   return result;
 }
 
 //////////////////////////////////////////////////////////////////////

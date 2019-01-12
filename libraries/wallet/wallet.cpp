@@ -5756,6 +5756,28 @@ signed_transaction wallet_api::rps_throw(game_id_type game_id,
    return my->sign_transaction( tx, broadcast );
 }
 
+signed_transaction wallet_api::create_bitcoin_address( string payer, string owner, bool broadcast ) 
+{
+   FC_ASSERT( !is_locked() );
+
+   bitcoin_address_create_operation op;
+   op.payer = get_account_id(payer);
+   op.owner = get_account_id(owner);
+   
+   signed_transaction tx;
+   tx.operations = { op };
+   my->set_operation_fees( tx, my->_remote_db->get_global_properties().parameters.current_fees );
+   tx.validate();
+
+   return my->sign_transaction( tx, broadcast );
+}
+
+vector<bitcoin_address_object> wallet_api::get_bitcoin_addresses(string account_name_or_id) const 
+{
+   return my->_remote_db->get_bitcoin_addresses( get_account_id(account_name_or_id) );
+}
+
+
 // default ctor necessary for FC_REFLECT
 signed_block_with_info::signed_block_with_info()
 {
