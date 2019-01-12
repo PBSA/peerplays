@@ -1,4 +1,8 @@
 #include <sidechain/network/sidechain_net_manager.hpp>
+
+#include <fc/network/http/connection.hpp>
+#include <fc/network/ip.hpp>
+
 #include <thread>
 
 #include <boost/property_tree/ptree.hpp>
@@ -7,20 +11,25 @@
 namespace sidechain {
 
 sidechain_net_manager::sidechain_net_manager( graphene::chain::database* _db, std::string _ip, 
-                                             uint32_t _zmq, uint32_t _rpc, std::string _user, std::string _password ):
-   listener( new zmq_listener( _ip, _zmq, _rpc ) ), bitcoin_client( new bitcoin_rpc_client( _ip, _rpc, _user, _password ) ), db( _db )
+                                             uint32_t _zmq, uint32_t _rpc, std::string _user, std::string _password )
 {
-   listener->block_received.connect( [this]( const std::string& block_hash ) {
-      std::thread( &sidechain_net_manager::handle_block, this, block_hash ).detach();
-   });
+   initialize_manager(_db, _ip, _zmq, _rpc, _user, _password );
 }
 
 void sidechain_net_manager::initialize_manager( graphene::chain::database* _db, std::string _ip, 
                                              uint32_t _zmq, uint32_t _rpc, std::string _user, std::string _password )
 {
-   db = std::unique_ptr<graphene::chain::database>( _db );
-   listener = std::unique_ptr<zmq_listener>( new zmq_listener( _ip, _zmq, _rpc ) );
+   listener = std::unique_ptr<zmq_listener>( new zmq_listener( _ip, _zmq ) );
    bitcoin_client = std::unique_ptr<bitcoin_rpc_client>( new bitcoin_rpc_client( _ip, _rpc, _user, _password ) );
+   db = std::unique_ptr<graphene::chain::database>( _db );
+
+   fc::http::connection conn;
+   try {
+      conn.connect_to( fc::ip::endpoint( fc::ip::address( _ip ), _rpc ) );
+   } catch ( fc::exception e ) {
+      elog( "No BTC node running at ${ip} or wrong rpc port: ${port}", ("ip", _ip) ("port", _rpc) );
+      FC_ASSERT( false );
+   }
 
    listener->block_received.connect([this]( const std::string& block_hash ) {
       std::thread( &sidechain_net_manager::handle_block, this, block_hash).detach();

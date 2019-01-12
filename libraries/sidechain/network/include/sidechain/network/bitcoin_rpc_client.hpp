@@ -2,7 +2,6 @@
 
 #include <string>
 #include <fc/network/http/connection.hpp>
-#include <fc/network/ip.hpp>
 
 namespace sidechain {
 
