@@ -157,6 +157,9 @@ void database::open(
 
 void database::close(bool rewind)
 {
+   if (!_opened)
+      return;
+      
    // TODO:  Save pending tx's on close()
    clear_pending();
 
