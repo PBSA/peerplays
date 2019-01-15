@@ -707,13 +707,13 @@ BOOST_AUTO_TEST_CASE( competing_proposals )
 
       // only w2 is getting paid as it haves more votes and money is only enough for 1
       BOOST_CHECK_EQUAL(w1.worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 0);
-      BOOST_CHECK_EQUAL(w2.worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 73488756706);
+      BOOST_CHECK_EQUAL(w2.worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 100000000000);
 
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       generate_block();
 
       BOOST_CHECK_EQUAL(w1.worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 0);
-      BOOST_CHECK_EQUAL(w2.worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 123488756706);
+      BOOST_CHECK_EQUAL(w2.worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 150000000000);
 
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       generate_block();
@@ -726,7 +726,7 @@ BOOST_AUTO_TEST_CASE( competing_proposals )
       BOOST_CHECK_EQUAL(w2.total_votes_for, 150);
 
       BOOST_CHECK_EQUAL(w1.worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 0);
-      BOOST_CHECK_EQUAL(w2.worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 173488756706);
+      BOOST_CHECK_EQUAL(w2.worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 200000000000);
 
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       generate_block();
@@ -739,7 +739,7 @@ BOOST_AUTO_TEST_CASE( competing_proposals )
 
       // worker is sil getting paid as days pass
       BOOST_CHECK_EQUAL(w1.worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 0);
-      BOOST_CHECK_EQUAL(w2.worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 223488756706);
+      BOOST_CHECK_EQUAL(w2.worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 250000000000);
 
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       generate_block();
@@ -751,7 +751,7 @@ BOOST_AUTO_TEST_CASE( competing_proposals )
       BOOST_CHECK_EQUAL(w2.total_votes_for, 50);
 
       BOOST_CHECK_EQUAL(w1.worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 0);
-      BOOST_CHECK_EQUAL(w2.worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 273488756706);
+      BOOST_CHECK_EQUAL(w2.worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 300000000000);
 
       generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
       generate_block();
@@ -764,7 +764,7 @@ BOOST_AUTO_TEST_CASE( competing_proposals )
       BOOST_CHECK_EQUAL(w2.total_votes_for, 0);
 
       BOOST_CHECK_EQUAL(w1.worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 0);
-      BOOST_CHECK_EQUAL(w2.worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 273488756706);
+      BOOST_CHECK_EQUAL(w2.worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 300000000000);
    }
    catch (fc::exception &e) {
       edump((e.to_detail_string()));

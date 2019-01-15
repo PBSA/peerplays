@@ -258,6 +258,9 @@
     "maximum_tournament_start_time_in_future": 5184000,
     "maximum_tournament_start_delay": 259200,
     "maximum_tournament_number_of_wins": 25,
+    "gpos_period": 15552000,
+    "gpos_subperiod": 2592000,
+    "gpos_period_start": "2019-02-01T00:00:00",
     "extensions": []
   },
   "initial_bts_accounts": [],
