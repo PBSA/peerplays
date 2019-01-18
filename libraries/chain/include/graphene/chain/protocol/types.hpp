@@ -148,6 +148,7 @@ namespace graphene { namespace chain {
       info_for_vout_object_type,
       bitcoin_address_object_type,
       primary_wallet_vout_object_type,
+      sidechain_proposal_object_type,
       OBJECT_TYPE_COUNT ///< Sentry value which contains the number of different object types
    };
 
@@ -208,6 +209,7 @@ namespace graphene { namespace chain {
    class info_for_vout_object;
    class bitcoin_address_object;
    class primary_wallet_vout_object;
+   class sidechain_proposal_object;
 
    typedef object_id< protocol_ids, account_object_type,            account_object>               account_id_type;
    typedef object_id< protocol_ids, asset_object_type,              asset_object>                 asset_id_type;
@@ -237,6 +239,7 @@ namespace graphene { namespace chain {
    typedef object_id< protocol_ids, info_for_vout_object_type,      info_for_vout_object>         info_for_vout_id_type;
    typedef object_id< protocol_ids, bitcoin_address_object_type,    bitcoin_address_object>       bitcoin_address_id_type;
    typedef object_id< protocol_ids, primary_wallet_vout_object_type,primary_wallet_vout_object>   primary_wallet_vout_id_type;
+   typedef object_id< protocol_ids, sidechain_proposal_object_type, sidechain_proposal_object>    sidechain_proposal_id_type;
 
    // implementation types
    class global_property_object;
@@ -414,6 +417,7 @@ FC_REFLECT_ENUM( graphene::chain::object_type,
                  (info_for_vout_object_type)
                  (bitcoin_address_object_type)
                  (primary_wallet_vout_object_type)
+                 (sidechain_proposal_object_type)
                  (OBJECT_TYPE_COUNT)
                )
 FC_REFLECT_ENUM( graphene::chain::impl_object_type,
@@ -468,6 +472,7 @@ FC_REFLECT_TYPENAME( graphene::chain::tournament_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::info_for_vout_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::bitcoin_address_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::primary_wallet_vout_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::sidechain_proposal_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::global_property_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::dynamic_global_property_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::asset_dynamic_data_id_type )
