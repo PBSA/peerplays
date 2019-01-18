@@ -13,7 +13,6 @@
 
 using boost::multi_index_container;
 using namespace boost::multi_index;
-using info_for_vout = graphene::chain::info_for_vout_object;
 
 namespace graphene { namespace chain { class database; } }
 
@@ -83,7 +82,7 @@ public:
    std::vector<info_for_vin> get_info_for_vins();
 
 
-   void insert_info_for_vout( const graphene::chain::account_id_type& payer, const payment_type addr_type, const std::string& data, const uint64_t& amount );
+   void insert_info_for_vout( const graphene::chain::account_id_type& payer, const std::string& data, const uint64_t& amount );
 
    void mark_as_used_vout( const graphene::chain::info_for_vout_object& obj );
 

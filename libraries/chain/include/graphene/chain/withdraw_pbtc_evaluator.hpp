@@ -15,7 +15,7 @@ public:
 
    void_result do_evaluate(const withdraw_pbtc_operation& op);
 
-   object_id_type do_apply(const withdraw_pbtc_operation& op);
+   void_result do_apply(const withdraw_pbtc_operation& op);
 
    void reserve_issue( const withdraw_pbtc_operation& op );
 

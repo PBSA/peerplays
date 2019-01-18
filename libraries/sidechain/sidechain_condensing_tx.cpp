@@ -1,0 +1,113 @@
+#include <sidechain/sidechain_condensing_tx.hpp>
+
+namespace sidechain {
+
+sidechain_condensing_tx::sidechain_condensing_tx( const std::vector<info_for_vin>& vin_info, const std::vector<info_for_vout>& vout_info )
+{
+   create_vins_for_condensing_tx( vin_info );
+   create_vouts_for_condensing_tx( vout_info );
+}
+
+void sidechain_condensing_tx::create_pw_vin( const info_for_vin& vin_info )
+{
+   bytes witness_script_temp = {0x22};
+   witness_script_temp.insert( witness_script_temp.end(), vin_info.script.begin(), vin_info.script.end() );
+   tb.add_in( payment_type::P2WSH, fc::sha256( vin_info.out.hash_tx ), vin_info.out.n_vout, witness_script_temp, true );
+
+   amount_vins += vin_info.out.amount;
+}
+
+void sidechain_condensing_tx::create_pw_vout( const uint64_t amount, const bytes& wit_script_out )
+{
+   tb.add_out( payment_type::P2WSH, amount, bytes(wit_script_out.begin() + 2, wit_script_out.end()), true );
+}
+
+void sidechain_condensing_tx::create_vins_for_condensing_tx( const std::vector<info_for_vin>& vin_info )
+{
+   for( const auto& info : vin_info ) {
+      bytes witness_script_temp = {0x22};
+      witness_script_temp.insert( witness_script_temp.end(), info.script.begin(), info.script.end() );
+      tb.add_in( payment_type::P2SH_WSH, fc::sha256( info.out.hash_tx ), info.out.n_vout, witness_script_temp );
+      amount_vins += info.out.amount;
+      count_transfer_vin++;
+   }
+}
+
+void sidechain_condensing_tx::create_vouts_for_condensing_tx( const std::vector<info_for_vout>& vout_info )
+{
+   for( const auto& info : vout_info ) {
+      tb.add_out_all_type( info.amount, info.address );
+      amount_transfer_to_bitcoin += info.amount;
+      count_transfer_vout++;
+   }
+}
+
+void sidechain_condensing_tx::create_vouts_for_witness_fee( const accounts_keys& witness_active_keys )
+{
+   for( auto& key : witness_active_keys ) {
+      tb.add_out( payment_type::P2PK, 0, key.second, true );
+      count_witness_vout++;
+   }
+}
+
+uint64_t sidechain_condensing_tx::get_estimate_tx_size( size_t number_witness ) const
+{
+   bytes temp_sig(72, 0x00);
+   bytes temp_key(34, 0x00);
+   bytes temp_script(3, 0x00);
+   for(size_t i = 0; i < number_witness; i++) {
+      temp_script.insert(temp_script.begin() + 1, temp_key.begin(), temp_key.end());
+   }
+
+   std::vector<bytes> temp_scriptWitness = { {},{temp_sig},{temp_sig},{temp_sig},{temp_sig},{temp_sig},{temp_script} };
+   bitcoin_transaction temp_tx = get_transaction();
+   for( auto& vin : temp_tx.vin ) {
+      vin.scriptWitness = temp_scriptWitness;
+   }
+
+   return temp_tx.get_vsize();
+}
+
+void sidechain_condensing_tx::subtract_fee( const uint64_t& fee, const double& witness_percentage )
+{
+   bitcoin_transaction tx = get_transaction();
+
+   uint64_t fee_size = fee / ( count_transfer_vin + count_transfer_vout );
+   if( fee % ( count_transfer_vin + count_transfer_vout ) != 0 ) {
+      fee_size += 1;
+   }
+
+   uint64_t fee_witnesses = 0;
+   size_t offset = tx.vout.size() > ( count_witness_vout + count_transfer_vout ) ? 1 + count_witness_vout : count_witness_vout;
+   for( ; offset < tx.vout.size(); offset++ ) {
+      uint64_t amount_without_fee_size = tx.vout[offset].value - fee_size;
+      uint64_t amount_fee_witness = amount_without_fee_size * witness_percentage;
+      tx.vout[offset].value = amount_without_fee_size;
+      tx.vout[offset].value -= amount_fee_witness;
+      fee_witnesses += amount_fee_witness;
+   }
+
+   if( count_witness_vout > 0 ) {
+      uint64_t fee_witness = fee_witnesses / count_witness_vout;
+      size_t limit = tx.vout.size() > ( count_witness_vout + count_transfer_vout ) ? 1 + count_witness_vout : count_witness_vout;
+      offset = tx.vout.size() > ( count_witness_vout + count_transfer_vout ) ? 1 : 0;
+      FC_ASSERT( fee_witness > 0 );
+      for( ; offset < limit; offset++ ) {
+         tx.vout[offset].value += fee_witness;
+      }
+   }
+
+   tb = std::move( bitcoin_transaction_builder( tx ) );
+}
+
+int64_t get_estimated_fee( size_t tx_vsize, uint64_t estimated_feerate ) {
+   static const uint64_t default_feerate = 1000;
+   static const uint64_t min_relay_fee = 1000;
+
+   const auto feerate = std::max( default_feerate, estimated_feerate );
+   const auto fee = feerate * int64_t( tx_vsize ) / 1000;
+
+   return std::max( min_relay_fee, fee );
+}
+
+}

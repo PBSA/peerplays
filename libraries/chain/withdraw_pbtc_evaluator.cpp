@@ -21,20 +21,11 @@ void_result withdraw_pbtc_evaluator::do_evaluate(const withdraw_pbtc_operation& 
    return void_result();
 }
 
-object_id_type withdraw_pbtc_evaluator::do_apply(const withdraw_pbtc_operation& op)
+void_result withdraw_pbtc_evaluator::do_apply(const withdraw_pbtc_operation& op)
 {
-   database& d = db();
-
-   auto id = d.create<info_for_vout_object>( [&]( info_for_vout_object& obj ) {
-      obj.payer = op.payer;
-      obj.addr_type = type;
-      obj.data = op.data;
-      obj.amount = op.amount;
-   } ).get_id();
-
+   db().i_w_info.insert_info_for_vout( op.payer, op.data, op.amount );
    reserve_issue( op );
-
-   return id;
+   return void_result();
 }
 
 void withdraw_pbtc_evaluator::reserve_issue( const withdraw_pbtc_operation& op )

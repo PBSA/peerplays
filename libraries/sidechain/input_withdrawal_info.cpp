@@ -65,12 +65,11 @@ std::vector<info_for_vin> input_withdrawal_info::get_info_for_vins()
    return result;
 }
 
-void input_withdrawal_info::insert_info_for_vout( const graphene::chain::account_id_type& payer, const payment_type addr_type, const std::string& data, const uint64_t& amount )
+void input_withdrawal_info::insert_info_for_vout( const graphene::chain::account_id_type& payer, const std::string& data, const uint64_t& amount )
 {
    db.create<graphene::chain::info_for_vout_object>([&](graphene::chain::info_for_vout_object& obj) {
       obj.payer = payer;
-      obj.addr_type = addr_type;
-      obj.data = data;
+      obj.address = bitcoin_address( data );
       obj.amount = amount;
    });
 }
@@ -109,8 +108,7 @@ std::vector<info_for_vout> input_withdrawal_info::get_info_for_vouts()
    for(size_t i = 0; i < 5 && itr != info_for_vout_idx.end() && !itr->created; i++) {
       info_for_vout vout;
       vout.payer = itr->payer;
-      vout.addr_type = itr->addr_type;
-      vout.data = itr->data;
+      vout.address = itr->address;
       vout.amount = itr->amount;
 
       result.push_back( vout );

@@ -11,6 +11,7 @@ namespace sidechain {
 
 using bytes = std::vector<char>;
 using accounts_keys = std::map< graphene::chain::account_id_type, graphene::chain::public_key_type >;
+using info_for_vout = graphene::chain::info_for_vout_object;
 
 enum class payment_type
 {

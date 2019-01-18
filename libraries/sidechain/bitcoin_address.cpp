@@ -146,7 +146,7 @@ void btc_multisig_address::create_redeem_script()
    FC_ASSERT( keys_required > 0 );
    FC_ASSERT( keys_required < witnesses_keys.size() );
    redeem_script.clear();
-   redeem_script.push_back( op[keys_required - 1] );
+   redeem_script.push_back( op_num[keys_required - 1] );
    for( const auto& key : witnesses_keys ) {
       std::stringstream ss;
       ss << std::hex << key.second.key_data.size();
@@ -154,7 +154,7 @@ void btc_multisig_address::create_redeem_script()
       redeem_script.insert( redeem_script.end(), key_size_hex.begin(), key_size_hex.end() );
       redeem_script.insert( redeem_script.end(), key.second.key_data.begin(), key.second.key_data.end() );
    }
-   redeem_script.push_back( op[witnesses_keys.size() - 1] );
+   redeem_script.push_back( op_num[witnesses_keys.size() - 1] );
    redeem_script.push_back( OP_CHECKMULTISIG );
 }
 

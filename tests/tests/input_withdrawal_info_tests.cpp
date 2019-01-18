@@ -154,7 +154,7 @@ BOOST_AUTO_TEST_CASE( input_withdrawal_info_get_info_for_vins_test )
 BOOST_AUTO_TEST_CASE( input_withdrawal_info_insert_vout_test )
 {
    input_withdrawal_info infos( db );
-   infos.insert_info_for_vout( account_id_type(), payment_type::NULLDATA, "1", 1 );
+   infos.insert_info_for_vout( account_id_type(), "1", 1 );
    BOOST_CHECK( infos.size_info_for_vouts() == 1 );
 }
 
@@ -162,7 +162,7 @@ BOOST_AUTO_TEST_CASE( input_withdrawal_info_many_insert_vout_test )
 {
    input_withdrawal_info infos( db );
    for( size_t i = 1; i <= 10; i++ ) {
-      infos.insert_info_for_vout( account_id_type(i), payment_type::NULLDATA, std::to_string( i ), static_cast<uint64_t>( i ) );
+      infos.insert_info_for_vout( account_id_type(i), std::to_string( i ), static_cast<uint64_t>( i ) );
    }
    BOOST_CHECK( infos.size_info_for_vouts() == 10 );
 }
@@ -171,7 +171,7 @@ BOOST_AUTO_TEST_CASE( input_withdrawal_info_remove_vout_test )
 {
    input_withdrawal_info infos( db );
    for( size_t i = 0; i < 10; i++ ) {
-      infos.insert_info_for_vout( account_id_type(i), payment_type::NULLDATA, std::to_string( i ), static_cast<uint64_t>( i ) );
+      infos.insert_info_for_vout( account_id_type(i), std::to_string( i ), static_cast<uint64_t>( i ) );
    }
 
    for( size_t i = 0; i < 10; i++ ) {
@@ -195,7 +195,7 @@ BOOST_AUTO_TEST_CASE( input_withdrawal_info_get_info_for_vouts_test )
 {
    input_withdrawal_info infos( db );
    for( size_t i = 0; i < 10; i++ ) {
-      infos.insert_info_for_vout( account_id_type(i), payment_type::NULLDATA, std::to_string( i ), static_cast<uint64_t>( i ) );
+      infos.insert_info_for_vout( account_id_type(i), std::to_string( i ), static_cast<uint64_t>( i ) );
    }
 
    const auto& vouts = infos.get_info_for_vouts();
