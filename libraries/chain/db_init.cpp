@@ -51,6 +51,7 @@
 #include <graphene/chain/game_object.hpp>
 #include <graphene/chain/info_for_vout_object.hpp>
 #include <graphene/chain/bitcoin_address_object.hpp>
+#include <graphene/chain/primary_wallet_vout_object.hpp>
 
 
 #include <graphene/chain/sport_object.hpp>
@@ -311,6 +312,7 @@ void database::initialize_indexes()
 
    add_index< primary_index<info_for_vout_index                           > >();
    add_index< primary_index<bitcoin_address_index                         > >();
+   add_index< primary_index<primary_wallet_vout_index                     > >();
 }
 
 void database::init_genesis(const genesis_state_type& genesis_state)

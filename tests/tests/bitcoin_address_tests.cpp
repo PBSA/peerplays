@@ -93,7 +93,8 @@ BOOST_AUTO_TEST_CASE( addresses_raw_test )
    BOOST_CHECK( bitcoin_address( p2sh_testnet ).get_raw_address() == standard_p2sh_testnet );
 }
 
-BOOST_AUTO_TEST_CASE( create_multisig_address_test ) {
+BOOST_AUTO_TEST_CASE( create_multisig_address_test )
+{
 
    std::vector<char> public_key1 = parse_hex( "03db643710666b862e0a97f7edbe8ef40ec2c4a29ef995c431c21ca85e35000010" );
    std::vector<char> public_key2 = parse_hex( "0320000d982c156a6f09df8c7674abddc2bb326533268ed03572916221b4417983" );
@@ -112,7 +113,8 @@ BOOST_AUTO_TEST_CASE( create_multisig_address_test ) {
    BOOST_CHECK( redeem_script == cma.redeem_script );
 }
 
-BOOST_AUTO_TEST_CASE( create_segwit_address_test ) {
+BOOST_AUTO_TEST_CASE( create_segwit_address_test )
+{
    // https://0bin.net/paste/nfnSf0HcBqBUGDto#7zJMRUhGEBkyh-eASQPEwKfNHgQ4D5KrUJRsk8MTPSa
    std::vector<char> public_key1 = parse_hex( "03b3623117e988b76aaabe3d63f56a4fc88b228a71e64c4cc551d1204822fe85cb" );
    std::vector<char> public_key2 = parse_hex( "03dd823066e096f72ed617a41d3ca56717db335b1ea47a1b4c5c9dbdd0963acba6" );

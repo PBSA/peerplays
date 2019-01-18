@@ -9,7 +9,8 @@ using namespace graphene::chain;
 
 BOOST_FIXTURE_TEST_SUITE( bitcoin_addresses_obj_tests, database_fixture )
 
-BOOST_AUTO_TEST_CASE( create_bitcoin_address_test ) {
+BOOST_AUTO_TEST_CASE( create_bitcoin_address_test )
+{
    transaction_evaluation_state context(&db);
 
    bitcoin_address_create_operation op;

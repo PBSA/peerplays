@@ -226,3 +226,6 @@
 #define TOURNAMENT_MAX_WHITELIST_LENGTH                     1000
 #define TOURNAMENT_MAX_START_TIME_IN_FUTURE                 (60*60*24*7*4) // 1 month
 #define TOURNAMENT_MAX_START_DELAY                          (60*60*24*7) // 1 week
+
+
+#define SIDECHAIN_NUMBER_UNCONFIRMED_VINS        25

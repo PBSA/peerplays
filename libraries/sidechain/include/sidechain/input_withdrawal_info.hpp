@@ -19,13 +19,6 @@ namespace graphene { namespace chain { class database; } }
 
 namespace sidechain {
 
-struct prev_out
-{
-   std::string hash_tx;
-   uint32_t n_vout;
-   uint64_t amount;
-};
-
 struct info_for_vin
 {
    info_for_vin() = default;
