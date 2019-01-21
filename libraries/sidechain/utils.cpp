@@ -9,4 +9,19 @@ bytes parse_hex( const std::string& str )
     return vec;
 }
 
+std::vector<bytes> get_pubkey_from_redeemScript( bytes script )
+{
+   FC_ASSERT( script.size() >= 37 );
+
+   script.erase( script.begin() );
+   script.erase( script.end() - 2, script.end() );
+
+   std::vector<bytes> result;
+   uint64_t count = script.size() / 34;
+   for( size_t i = 0; i < count; i++ ) {
+      result.push_back( bytes( script.begin() + (34 * i) + 1, script.begin() + (34 * (i + 1)) ) );
+   }
+   return result;
+}
+
 }

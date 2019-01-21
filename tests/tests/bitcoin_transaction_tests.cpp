@@ -1,6 +1,7 @@
 #include <boost/test/unit_test.hpp>
 #include <sidechain/utils.hpp>
 #include <sidechain/bitcoin_transaction.hpp>
+#include <sidechain/serialize.hpp>
 
 using namespace sidechain;
 

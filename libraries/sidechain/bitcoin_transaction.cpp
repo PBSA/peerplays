@@ -1,6 +1,7 @@
 #include <sidechain/bitcoin_transaction.hpp>
 #include <fc/crypto/base58.hpp>
 #include <sidechain/bitcoin_script.hpp>
+#include <sidechain/serialize.hpp>
 
 namespace sidechain {
 
