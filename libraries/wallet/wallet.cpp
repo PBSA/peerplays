@@ -5756,6 +5756,37 @@ signed_transaction wallet_api::rps_throw(game_id_type game_id,
    return my->sign_transaction( tx, broadcast );
 }
 
+signed_transaction wallet_api::create_vesting_balance(string owner,
+                                                      string amount,
+                                                      string asset_symbol,
+                                                      bool is_gpos,
+                                                      bool broadcast)
+{
+   FC_ASSERT( !is_locked() );
+
+   account_object owner_account = get_account(owner);
+   account_id_type owner_id = owner_account.id;
+
+   fc::optional<asset_object> asset_obj = get_asset(asset_symbol);
+
+   auto type = vesting_balance_type::unspecified;
+   if(is_gpos)
+      type = vesting_balance_type::gpos;
+
+   vesting_balance_create_operation op;
+   op.creator = owner_id;
+   op.owner = owner_id;
+   op.amount = asset_obj->amount_from_string(amount);
+   op.balance_type = type;
+
+   signed_transaction trx;
+   trx.operations.push_back(op);
+   my->set_operation_fees( trx, my->_remote_db->get_global_properties().parameters.current_fees );
+   trx.validate();
+
+   return my->sign_transaction( trx, broadcast );
+}
+
 // default ctor necessary for FC_REFLECT
 signed_block_with_info::signed_block_with_info()
 {
