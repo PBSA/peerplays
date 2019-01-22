@@ -149,6 +149,7 @@ namespace graphene { namespace chain {
       bitcoin_address_object_type,
       primary_wallet_vout_object_type,
       sidechain_proposal_object_type,
+      bitcoin_transaction_object_type,
       OBJECT_TYPE_COUNT ///< Sentry value which contains the number of different object types
    };
 
@@ -210,36 +211,38 @@ namespace graphene { namespace chain {
    class bitcoin_address_object;
    class primary_wallet_vout_object;
    class sidechain_proposal_object;
+   class bitcoin_transaction_object;
 
-   typedef object_id< protocol_ids, account_object_type,            account_object>               account_id_type;
-   typedef object_id< protocol_ids, asset_object_type,              asset_object>                 asset_id_type;
-   typedef object_id< protocol_ids, force_settlement_object_type,   force_settlement_object>      force_settlement_id_type;
-   typedef object_id< protocol_ids, committee_member_object_type,   committee_member_object>      committee_member_id_type;
-   typedef object_id< protocol_ids, witness_object_type,            witness_object>               witness_id_type;
-   typedef object_id< protocol_ids, limit_order_object_type,        limit_order_object>           limit_order_id_type;
-   typedef object_id< protocol_ids, call_order_object_type,         call_order_object>            call_order_id_type;
-   typedef object_id< protocol_ids, custom_object_type,             custom_object>                custom_id_type;
-   typedef object_id< protocol_ids, proposal_object_type,           proposal_object>              proposal_id_type;
-   typedef object_id< protocol_ids, operation_history_object_type,  operation_history_object>     operation_history_id_type;
-   typedef object_id< protocol_ids, withdraw_permission_object_type,withdraw_permission_object>   withdraw_permission_id_type;
-   typedef object_id< protocol_ids, vesting_balance_object_type,    vesting_balance_object>       vesting_balance_id_type;
-   typedef object_id< protocol_ids, worker_object_type,             worker_object>                worker_id_type;
-   typedef object_id< protocol_ids, balance_object_type,            balance_object>               balance_id_type;
-   typedef object_id< protocol_ids, tournament_object_type,         tournament_object>            tournament_id_type;
-   typedef object_id< protocol_ids, tournament_details_object_type, tournament_details_object>    tournament_details_id_type;
-   typedef object_id< protocol_ids, match_object_type,              match_object>                 match_id_type;
-   typedef object_id< protocol_ids, game_object_type,               game_object>                  game_id_type;
-   typedef object_id< protocol_ids, sport_object_type,              sport_object>                 sport_id_type;
-   typedef object_id< protocol_ids, event_group_object_type,        event_group_object>           event_group_id_type;
-   typedef object_id< protocol_ids, event_object_type,              event_object>                 event_id_type;
-   typedef object_id< protocol_ids, betting_market_rules_object_type, betting_market_rules_object> betting_market_rules_id_type;
-   typedef object_id< protocol_ids, betting_market_group_object_type, betting_market_group_object> betting_market_group_id_type;
-   typedef object_id< protocol_ids, betting_market_object_type,     betting_market_object>        betting_market_id_type;
-   typedef object_id< protocol_ids, bet_object_type,                bet_object>                   bet_id_type;
-   typedef object_id< protocol_ids, info_for_vout_object_type,      info_for_vout_object>         info_for_vout_id_type;
-   typedef object_id< protocol_ids, bitcoin_address_object_type,    bitcoin_address_object>       bitcoin_address_id_type;
-   typedef object_id< protocol_ids, primary_wallet_vout_object_type,primary_wallet_vout_object>   primary_wallet_vout_id_type;
-   typedef object_id< protocol_ids, sidechain_proposal_object_type, sidechain_proposal_object>    sidechain_proposal_id_type;
+   typedef object_id< protocol_ids, account_object_type,              account_object>               account_id_type;
+   typedef object_id< protocol_ids, asset_object_type,                asset_object>                 asset_id_type;
+   typedef object_id< protocol_ids, force_settlement_object_type,     force_settlement_object>      force_settlement_id_type;
+   typedef object_id< protocol_ids, committee_member_object_type,     committee_member_object>      committee_member_id_type;
+   typedef object_id< protocol_ids, witness_object_type,              witness_object>               witness_id_type;
+   typedef object_id< protocol_ids, limit_order_object_type,          limit_order_object>           limit_order_id_type;
+   typedef object_id< protocol_ids, call_order_object_type,           call_order_object>            call_order_id_type;
+   typedef object_id< protocol_ids, custom_object_type,               custom_object>                custom_id_type;
+   typedef object_id< protocol_ids, proposal_object_type,             proposal_object>              proposal_id_type;
+   typedef object_id< protocol_ids, operation_history_object_type,    operation_history_object>     operation_history_id_type;
+   typedef object_id< protocol_ids, withdraw_permission_object_type,  withdraw_permission_object>   withdraw_permission_id_type;
+   typedef object_id< protocol_ids, vesting_balance_object_type,      vesting_balance_object>       vesting_balance_id_type;
+   typedef object_id< protocol_ids, worker_object_type,               worker_object>                worker_id_type;
+   typedef object_id< protocol_ids, balance_object_type,              balance_object>               balance_id_type;
+   typedef object_id< protocol_ids, tournament_object_type,           tournament_object>            tournament_id_type;
+   typedef object_id< protocol_ids, tournament_details_object_type,   tournament_details_object>    tournament_details_id_type;
+   typedef object_id< protocol_ids, match_object_type,                match_object>                 match_id_type;
+   typedef object_id< protocol_ids, game_object_type,                 game_object>                  game_id_type;
+   typedef object_id< protocol_ids, sport_object_type,                sport_object>                 sport_id_type;
+   typedef object_id< protocol_ids, event_group_object_type,          event_group_object>           event_group_id_type;
+   typedef object_id< protocol_ids, event_object_type,                event_object>                 event_id_type;
+   typedef object_id< protocol_ids, betting_market_rules_object_type, betting_market_rules_object>  betting_market_rules_id_type;
+   typedef object_id< protocol_ids, betting_market_group_object_type, betting_market_group_object>  betting_market_group_id_type;
+   typedef object_id< protocol_ids, betting_market_object_type,       betting_market_object>        betting_market_id_type;
+   typedef object_id< protocol_ids, bet_object_type,                  bet_object>                   bet_id_type;
+   typedef object_id< protocol_ids, info_for_vout_object_type,        info_for_vout_object>         info_for_vout_id_type;
+   typedef object_id< protocol_ids, bitcoin_address_object_type,      bitcoin_address_object>       bitcoin_address_id_type;
+   typedef object_id< protocol_ids, primary_wallet_vout_object_type,  primary_wallet_vout_object>   primary_wallet_vout_id_type;
+   typedef object_id< protocol_ids, sidechain_proposal_object_type,   sidechain_proposal_object>    sidechain_proposal_id_type;
+   typedef object_id< protocol_ids, bitcoin_transaction_object_type,  bitcoin_transaction_object>   bitcoin_transaction_id_type;
 
    // implementation types
    class global_property_object;
@@ -418,6 +421,7 @@ FC_REFLECT_ENUM( graphene::chain::object_type,
                  (bitcoin_address_object_type)
                  (primary_wallet_vout_object_type)
                  (sidechain_proposal_object_type)
+                 (bitcoin_transaction_object_type)
                  (OBJECT_TYPE_COUNT)
                )
 FC_REFLECT_ENUM( graphene::chain::impl_object_type,
@@ -473,6 +477,7 @@ FC_REFLECT_TYPENAME( graphene::chain::info_for_vout_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::bitcoin_address_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::primary_wallet_vout_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::sidechain_proposal_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::bitcoin_transaction_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::global_property_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::dynamic_global_property_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::asset_dynamic_data_id_type )

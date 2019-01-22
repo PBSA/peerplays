@@ -5,7 +5,7 @@
 #include <string>
 #include <fc/reflect/reflect.hpp>
 
-#include <graphene/chain/account_object.hpp>
+#include <graphene/chain/protocol/types.hpp>
 
 namespace sidechain {
 

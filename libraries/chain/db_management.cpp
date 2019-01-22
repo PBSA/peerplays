@@ -36,7 +36,7 @@
 namespace graphene { namespace chain {
 
 database::database() :
-   i_w_info(*this), _random_number_generator(fc::ripemd160().data())
+   i_w_info(*this), pw_vout_manager(*this), _random_number_generator(fc::ripemd160().data())
 {
    initialize_indexes();
    initialize_evaluators();

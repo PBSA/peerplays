@@ -46,6 +46,7 @@
 #include <graphene/chain/protocol/tournament.hpp>
 #include <graphene/chain/protocol/withdraw_pbtc.hpp>
 #include <graphene/chain/protocol/bitcoin_address.hpp>
+#include <graphene/chain/protocol/bitcoin_transaction.hpp>
 
 namespace graphene { namespace chain {
 
@@ -133,7 +134,8 @@ namespace graphene { namespace chain {
             affiliate_payout_operation, // VIRTUAL
             affiliate_referral_payout_operation, // VIRTUAL
             withdraw_pbtc_operation,
-            bitcoin_address_create_operation
+            bitcoin_address_create_operation,
+            bitcoin_transaction_send_operation
          > operation;
 
    /// @} // operations group

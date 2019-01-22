@@ -25,7 +25,7 @@ public:
 
    void update_estimated_fee();
 
-   void send_btc_tx();
+   void send_btc_tx( const sidechain::bitcoin_transaction& trx );
 
    bool connection_is_not_defined() const;
 

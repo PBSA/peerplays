@@ -1,5 +1,8 @@
 #include <sidechain/primary_wallet_vout_manager.hpp>
+#include <graphene/chain/database.hpp>
+#include <graphene/chain/primary_wallet_vout_object.hpp>
 #include <graphene/chain/config.hpp>
+
 
 namespace sidechain {
 
@@ -21,6 +24,15 @@ fc::optional< graphene::chain::primary_wallet_vout_object > primary_wallet_vout_
    return fc::optional< graphene::chain::primary_wallet_vout_object > (*itr);
 }
 
+fc::optional< graphene::chain::primary_wallet_vout_object > primary_wallet_vout_manager::get_vout( fc::sha256 hash_id ) const
+{
+   const auto& PW_vout_by_hash_id = db.get_index_type<graphene::chain::primary_wallet_vout_index>().indices().get< graphene::chain::by_hash_id >();
+   const auto& itr_hash_id = PW_vout_by_hash_id.find( hash_id );
+   if( itr_hash_id == PW_vout_by_hash_id.end() )
+      return fc::optional< graphene::chain::primary_wallet_vout_object >();
+   return fc::optional< graphene::chain::primary_wallet_vout_object >( *itr_hash_id );
+}
+
 void primary_wallet_vout_manager::create_new_vout( const sidechain::prev_out& out )
 {
    db.create<graphene::chain::primary_wallet_vout_object>([&]( graphene::chain::primary_wallet_vout_object& obj ) {
@@ -31,7 +43,7 @@ void primary_wallet_vout_manager::create_new_vout( const sidechain::prev_out& ou
    });
 }
 
-void primary_wallet_vout_manager::delete_vout_with_newer( fc::uint256 hash_id )
+void primary_wallet_vout_manager::delete_vout_with_newer( fc::sha256 hash_id )
 {
    const auto& PW_vout_by_id = db.get_index_type<graphene::chain::primary_wallet_vout_index>().indices().get< graphene::chain::by_id >();
    auto vout_id = get_vout_id( hash_id );
@@ -48,7 +60,7 @@ void primary_wallet_vout_manager::delete_vout_with_newer( fc::uint256 hash_id )
    }
 }
 
-void primary_wallet_vout_manager::confirm_vout( fc::uint256 hash_id )
+void primary_wallet_vout_manager::confirm_vout( fc::sha256 hash_id )
 {
    const auto& PW_vout_by_id = db.get_index_type<graphene::chain::primary_wallet_vout_index>().indices().get< graphene::chain::by_id >();
    auto vout_id = get_vout_id( hash_id );
@@ -67,7 +79,7 @@ void primary_wallet_vout_manager::confirm_vout( fc::uint256 hash_id )
    }
 }
 
-void primary_wallet_vout_manager::use_latest_vout( fc::uint256 hash_id )
+void primary_wallet_vout_manager::use_latest_vout( fc::sha256 hash_id )
 {
    const auto& PW_vout_by_id = db.get_index_type<graphene::chain::primary_wallet_vout_index>().indices().get< graphene::chain::by_id >();
    auto vout_id = get_vout_id( hash_id );
@@ -85,7 +97,7 @@ void primary_wallet_vout_manager::use_latest_vout( fc::uint256 hash_id )
    }
 }
 
-fc::optional< graphene::chain::primary_wallet_vout_id_type > primary_wallet_vout_manager::get_vout_id( fc::uint256 hash_id ) const
+fc::optional< graphene::chain::primary_wallet_vout_id_type > primary_wallet_vout_manager::get_vout_id( fc::sha256 hash_id ) const
 {
    const auto& PW_vout_by_hash_id = db.get_index_type<graphene::chain::primary_wallet_vout_index>().indices().get< graphene::chain::by_hash_id >();
    const auto& itr_hash_id = PW_vout_by_hash_id.find( hash_id );

@@ -100,7 +100,7 @@ std::string bitcoin_rpc_client::send_btc_tx( const std::string& tx_hex )
 
    const auto reply = send_post_request( body );
 
-   if( reply.body.empty() )
+   if( reply.body.empty() || reply.status != 200 )
       return "";
 
    std::string reply_str( reply.body.begin(), reply.body.end() );

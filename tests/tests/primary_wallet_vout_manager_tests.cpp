@@ -1,5 +1,6 @@
 #include <boost/test/unit_test.hpp>
 #include <sidechain/primary_wallet_vout_manager.hpp>
+#include <graphene/chain/primary_wallet_vout_object.hpp>
 #include "../common/database_fixture.hpp"
 #include <sidechain/types.hpp>
 

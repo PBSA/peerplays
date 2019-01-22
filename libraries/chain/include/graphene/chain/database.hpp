@@ -39,7 +39,9 @@
 #include <fc/crypto/hash_ctr_rng.hpp>
 
 #include <graphene/chain/protocol/protocol.hpp>
+
 #include <sidechain/input_withdrawal_info.hpp>
+#include <sidechain/primary_wallet_vout_manager.hpp>
 
 #include <fc/log/logger.hpp>
 
@@ -79,7 +81,8 @@ namespace graphene { namespace chain {
             skip_assert_evaluation      = 1 << 8,  ///< used while reindexing
             skip_undo_history_check     = 1 << 9,  ///< used while reindexing
             skip_witness_schedule_check = 1 << 10,  ///< used while reindexing
-            skip_validate               = 1 << 11 ///< used prior to checkpoint, skips validate() call on transaction
+            skip_validate               = 1 << 11, ///< used prior to checkpoint, skips validate() call on transaction
+            skip_btc_tx_sending         = 1 << 12
          };
 
          /**
@@ -509,6 +512,9 @@ namespace graphene { namespace chain {
        public:
 
          sidechain::input_withdrawal_info i_w_info;
+         sidechain::primary_wallet_vout_manager pw_vout_manager;
+
+         fc::signal<void( const sidechain::bitcoin_transaction& )> send_btc_tx;
 
        private:
 

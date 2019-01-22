@@ -43,6 +43,10 @@
 #include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/match_object.hpp>
 #include <graphene/chain/game_object.hpp>
+#include <graphene/chain/info_for_vout_object.hpp>
+#include <graphene/chain/bitcoin_address_object.hpp>
+#include <graphene/chain/primary_wallet_vout_object.hpp>
+#include <graphene/chain/sidechain_proposal_object.hpp>
 
 #include <fc/smart_ref_impl.hpp>
 #include <iostream>

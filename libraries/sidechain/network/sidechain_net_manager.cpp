@@ -1,4 +1,5 @@
 #include <sidechain/network/sidechain_net_manager.hpp>
+#include <sidechain/serialize.hpp>
 
 #include <fc/network/http/connection.hpp>
 #include <fc/network/ip.hpp>
@@ -32,7 +33,11 @@ void sidechain_net_manager::initialize_manager( graphene::chain::database* _db, 
    }
 
    listener->block_received.connect([this]( const std::string& block_hash ) {
-      std::thread( &sidechain_net_manager::handle_block, this, block_hash).detach();
+      std::thread( &sidechain_net_manager::handle_block, this, block_hash ).detach();
+   } );
+
+   db->send_btc_tx.connect([this]( const sidechain::bitcoin_transaction& trx ) {
+      std::thread( &sidechain_net_manager::send_btc_tx, this, trx ).detach();
    } );
 }
 
@@ -98,9 +103,30 @@ void sidechain_net_manager::update_estimated_fee()
    auto estimated_fee = bitcoin_client->receive_estimated_fee();
 }
 
-void sidechain_net_manager::send_btc_tx()
+void sidechain_net_manager::send_btc_tx( const sidechain::bitcoin_transaction& trx )
 {
    FC_ASSERT( !bitcoin_client->connection_is_not_defined() );
+   const auto tx_hex = fc::to_hex( pack( trx ) );
+   idump((tx_hex));
+
+   auto reply = bitcoin_client->send_btc_tx( tx_hex );
+
+   std::stringstream ss(reply);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json(ss, json);
+
+   if( !json.get_child( "error" ).empty() ) {
+      wlog( "BTC tx is not sent! Reply: ${msg}", ("msg", reply) );
+      const auto error_code = json.get_child( "error" ).get_child( "code" ).get_value<int>();
+
+      if( error_code != -27 ) // transaction already in block chain
+         return;
+   }
+
+   if( reply == "" ){
+      wlog( "Don't receive successful reply status" );
+      return;
+   }
 }
 
 bool sidechain_net_manager::connection_is_not_defined() const

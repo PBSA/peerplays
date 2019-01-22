@@ -53,6 +53,7 @@
 #include <graphene/chain/bitcoin_address_object.hpp>
 #include <graphene/chain/primary_wallet_vout_object.hpp>
 #include <graphene/chain/sidechain_proposal_object.hpp>
+#include <graphene/chain/bitcoin_transaction_object.hpp>
 
 
 #include <graphene/chain/sport_object.hpp>
@@ -82,6 +83,7 @@
 #include <graphene/chain/tournament_evaluator.hpp>
 #include <graphene/chain/withdraw_pbtc_evaluator.hpp>
 #include <graphene/chain/bitcoin_address_evaluator.hpp>
+#include <graphene/chain/bitcoin_transaction_evaluator.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
@@ -246,6 +248,7 @@ void database::initialize_evaluators()
    register_evaluator<tournament_leave_evaluator>();
    register_evaluator<withdraw_pbtc_evaluator>();
    register_evaluator<bitcoin_address_create_evaluator>();
+   register_evaluator<bitcoin_transaction_send_evaluator>();
 }
 
 void database::initialize_indexes()
@@ -315,6 +318,7 @@ void database::initialize_indexes()
    add_index< primary_index<bitcoin_address_index                         > >();
    add_index< primary_index<primary_wallet_vout_index                     > >();
    add_index< primary_index<sidechain_proposal_index                      > >();
+   add_index< primary_index<bitcoin_transaction_index                     > >();
 }
 
 void database::init_genesis(const genesis_state_type& genesis_state)
