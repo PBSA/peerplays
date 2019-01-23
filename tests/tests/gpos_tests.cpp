@@ -85,13 +85,13 @@ struct gpos_fixture: database_fixture
    void update_gpos_global(uint32_t vesting_period, uint32_t vesting_subperiod, fc::time_point_sec period_start)
    {
       db.modify(db.get_global_properties(), [vesting_period, vesting_subperiod, period_start](global_property_object& p) {
-         p.parameters.gpos_period = vesting_period;
-         p.parameters.gpos_subperiod = vesting_subperiod;
-         p.parameters.gpos_period_start =  period_start;
+         p.parameters.extensions.value.gpos_period = vesting_period;
+         p.parameters.extensions.value.gpos_subperiod = vesting_subperiod;
+         p.parameters.extensions.value.gpos_period_start =  period_start.sec_since_epoch();
       });
-      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period, vesting_period);
-      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_subperiod, vesting_subperiod);
-      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start.sec_since_epoch(), period_start.sec_since_epoch());
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period(), vesting_period);
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_subperiod(), vesting_subperiod);
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), period_start.sec_since_epoch());
    }
    void vote_for(const account_id_type account_id, const vote_id_type vote_for, const fc::ecc::private_key& key)
    {
@@ -163,9 +163,9 @@ BOOST_AUTO_TEST_CASE(gpos_vesting_type)
       // check created vesting amount and policy
       BOOST_CHECK_EQUAL(alice_vesting.balance.amount.value, 100);
       BOOST_CHECK_EQUAL(alice_vesting.policy.get<linear_vesting_policy>().vesting_duration_seconds,
-                        db.get_global_properties().parameters.gpos_subperiod);
+                        db.get_global_properties().parameters.gpos_subperiod());
       BOOST_CHECK_EQUAL(alice_vesting.policy.get<linear_vesting_policy>().vesting_cliff_seconds,
-                        db.get_global_properties().parameters.gpos_subperiod);
+                        db.get_global_properties().parameters.gpos_subperiod());
 
       // bob creates a gpos vesting with his custom policy
       {
@@ -188,9 +188,9 @@ BOOST_AUTO_TEST_CASE(gpos_vesting_type)
       // policy is not the one defined by the user but default
       BOOST_CHECK_EQUAL(bob_vesting.balance.amount.value, 200);
       BOOST_CHECK_EQUAL(bob_vesting.policy.get<linear_vesting_policy>().vesting_duration_seconds,
-                        db.get_global_properties().parameters.gpos_subperiod);
+                        db.get_global_properties().parameters.gpos_subperiod());
       BOOST_CHECK_EQUAL(bob_vesting.policy.get<linear_vesting_policy>().vesting_cliff_seconds,
-                        db.get_global_properties().parameters.gpos_subperiod);
+                        db.get_global_properties().parameters.gpos_subperiod());
 
    }
    catch (fc::exception& e)
@@ -347,9 +347,9 @@ BOOST_AUTO_TEST_CASE( voting )
       generate_block();
 
       // default gpos values
-      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period, 15552000);
-      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_subperiod, 2592000);
-      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start.sec_since_epoch(), HARDFORK_GPOS_TIME.sec_since_epoch());
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period(), 15552000);
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_subperiod(), 2592000);
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), HARDFORK_GPOS_TIME.sec_since_epoch());
 
       // update default gpos for test speed
       auto now = db.head_block_time();
@@ -357,9 +357,9 @@ BOOST_AUTO_TEST_CASE( voting )
       // 86400 = 60x60x24 = 1 day
       update_gpos_global(518400, 86400, now);
 
-      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period, 518400);
-      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_subperiod, 86400);
-      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start.sec_since_epoch(), now.sec_since_epoch());
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period(), 518400);
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_subperiod(), 86400);
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), now.sec_since_epoch());
       // end global changes
 
       generate_block();
@@ -464,7 +464,7 @@ BOOST_AUTO_TEST_CASE( rolling_period_start )
       generate_block();
 
       // period start rolled
-      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start.sec_since_epoch(), now.sec_since_epoch());
+      BOOST_CHECK_EQUAL(db.get_global_properties().parameters.gpos_period_start(), now.sec_since_epoch());
    }
    catch (fc::exception &e) {
       edump((e.to_detail_string()));

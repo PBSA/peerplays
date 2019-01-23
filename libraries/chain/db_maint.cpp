@@ -733,9 +733,9 @@ double calculate_vesting_factor(const database& d, const account_object& stake_a
 
    // get global data related to gpos
    const auto &gpo = d.get_global_properties();
-   const auto vesting_period = gpo.parameters.gpos_period;
-   const auto vesting_subperiod = gpo.parameters.gpos_subperiod;
-   const auto period_start = gpo.parameters.gpos_period_start;
+   const auto vesting_period = gpo.parameters.gpos_period();
+   const auto vesting_subperiod = gpo.parameters.gpos_subperiod();
+   const auto period_start = fc::time_point_sec(gpo.parameters.gpos_period_start());
 
    //  variables needed
    const fc::time_point_sec period_end = period_start + vesting_period;
@@ -830,15 +830,16 @@ void rolling_period_start(database& db)
 {
    if(db.head_block_time() >= HARDFORK_GPOS_TIME)
    {
-      auto period_start = db.get_global_properties().parameters.gpos_period_start;
-      auto vesting_period = db.get_global_properties().parameters.gpos_period;
+      auto gpo = db.get_global_properties();
+      auto period_start = db.get_global_properties().parameters.gpos_period_start();
+      auto vesting_period = db.get_global_properties().parameters.gpos_period();
 
       auto now = db.head_block_time();
-      if(now.sec_since_epoch() > (period_start.sec_since_epoch() + vesting_period))
+      if(now.sec_since_epoch() > (period_start + vesting_period))
       {
          // roll
          db.modify(db.get_global_properties(), [now](global_property_object& p) {
-            p.parameters.gpos_period_start =  now;
+            p.parameters.extensions.value.gpos_period_start =  now.sec_since_epoch();
          });
       }
    }
