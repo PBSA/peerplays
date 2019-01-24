@@ -40,11 +40,17 @@ database::database() :
 {
    initialize_indexes();
    initialize_evaluators();
+   context_sign = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
+   context_verify = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
 }
 
 database::~database()
 {
    clear_pending();
+   secp256k1_context_destroy(context_sign);
+   context_sign = nullptr;
+   secp256k1_context_destroy(context_verify);
+   context_verify = nullptr;
 }
 
 void database::reindex(fc::path data_dir, const genesis_state_type& initial_allocation)

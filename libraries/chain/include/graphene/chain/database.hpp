@@ -46,6 +46,7 @@
 #include <fc/log/logger.hpp>
 
 #include <map>
+#include <secp256k1.h>
 
 namespace graphene { namespace chain {
    using graphene::db::abstract_object;
@@ -515,6 +516,10 @@ namespace graphene { namespace chain {
          sidechain::primary_wallet_vout_manager pw_vout_manager;
 
          fc::signal<void( const sidechain::bitcoin_transaction& )> send_btc_tx;
+
+         secp256k1_context_t* context_sign;
+
+         secp256k1_context_t* context_verify;
 
        private:
 

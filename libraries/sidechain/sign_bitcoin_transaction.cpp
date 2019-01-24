@@ -61,13 +61,13 @@ std::vector<bytes> sign_witness_transaction_part( const bitcoin_transaction& tx,
    return signatures;
 }
 
-void sign_witness_transaction_finalize( bitcoin_transaction& tx, const std::vector<bytes>& redeemScripts )
+void sign_witness_transaction_finalize( bitcoin_transaction& tx, const std::vector<info_for_vin>& info_vins )
 {
-   FC_ASSERT( tx.vin.size() == redeemScripts.size() );
+   FC_ASSERT( tx.vin.size() == info_vins.size() );
     
    for( size_t i = 0; i < tx.vin.size(); i++ ) {
       tx.vin[i].scriptWitness.insert( tx.vin[i].scriptWitness.begin(), bytes() ); // Bitcoin workaround CHECKMULTISIG bug
-      tx.vin[i].scriptWitness.push_back( redeemScripts[i] );
+      tx.vin[i].scriptWitness.push_back( info_vins[i].script );
    }
 }
 

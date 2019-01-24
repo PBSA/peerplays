@@ -14,9 +14,9 @@ class bitcoin_transaction_object : public abstract_object<bitcoin_transaction_ob
 
       bitcoin_transaction_id_type get_id()const { return id; }
 
-      fc::sha256                             pw_vin;
+      fc::optional< fc::sha256 >             pw_vin;
 
-      std::vector< fc::sha256 >              vins;
+      std::vector< info_for_used_vin_id_type >    vins;
       std::vector< info_for_vout_id_type >   vouts;
 
       sidechain::bitcoin_transaction         transaction;

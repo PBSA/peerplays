@@ -16,7 +16,7 @@ std::vector<char> privkey_sign( const bytes& privkey, const fc::sha256 &hash, co
 std::vector< bytes > sign_witness_transaction_part( const bitcoin_transaction& tx, const std::vector<info_for_vin>& info_vins,
                                                     const bytes& privkey, const secp256k1_context_t* context_sign = nullptr, int hash_type = 1 );
 
-void sign_witness_transaction_finalize( bitcoin_transaction& tx, const std::vector< bytes >& redeemScripts );
+void sign_witness_transaction_finalize( bitcoin_transaction& tx, const std::vector<info_for_vin>& info_vins );
 
 bool verify_sig( const bytes& sig, const bytes& pubkey, const bytes& msg, const secp256k1_context_t* context );
 

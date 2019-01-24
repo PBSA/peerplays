@@ -103,3 +103,5 @@ private:
 };
 
 }
+
+FC_REFLECT( sidechain::info_for_vin, (identifier)(out)(address)(script)(created) )

@@ -1,5 +1,6 @@
 #pragma once
 #include <graphene/chain/protocol/base.hpp>
+#include <sidechain/input_withdrawal_info.hpp>
 #include <sidechain/bitcoin_transaction.hpp>
 
 namespace graphene { namespace chain {
@@ -11,16 +12,15 @@ namespace graphene { namespace chain {
          uint32_t price_per_kbyte = 0;
       };
 
-      asset             fee;
-      account_id_type   payer;
+      asset                                          fee;
+      account_id_type                                payer;
 
-      fc::sha256                             pw_vin;
+      fc::optional< fc::sha256 >                     pw_vin;
+      std::vector< sidechain::info_for_vin >         vins;
+      std::vector< info_for_vout_id_type >           vouts;
 
-      std::vector< fc::sha256 >              vins;
-      std::vector< info_for_vout_id_type >   vouts;
-
-      sidechain::bitcoin_transaction         transaction;
-      uint64_t                               fee_for_size;
+      sidechain::bitcoin_transaction                 transaction;
+      uint64_t                                       fee_for_size;
 
       account_id_type fee_payer()const { return payer; }
       void            validate()const {}

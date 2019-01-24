@@ -45,7 +45,7 @@ BOOST_AUTO_TEST_CASE( btc_tx_witness_signature_test )
    secp256k1_context_t* context_sign = secp256k1_context_create( SECP256K1_CONTEXT_SIGN );
    tx.vin[0].scriptWitness.push_back( sign_witness_transaction_part( tx, { vin }, privkey_1, context_sign, hash_type)[0] );
    tx.vin[0].scriptWitness.push_back( sign_witness_transaction_part( tx, { vin }, privkey_2, context_sign, hash_type)[0] );
-   sign_witness_transaction_finalize( tx, { redeemScript } );
+   sign_witness_transaction_finalize( tx, { vin } );
 
    BOOST_CHECK( fc::to_hex( pack( tx ) ) == "0100000000010145310e878941a1b2bc2d33797ee4d89d95eaaf2e13488063a2aa9a74490f510a0100000023220020b6744de4f6ec63cc92f7c220cdefeeb1b1bed2b66c8e5706d80ec247d37e65a1ffffffff01002d3101000000001976a9143ebc40e411ed3c76f86711507ab952300890397288ac0400473044022001dd489a5d4e2fbd8a3ade27177f6b49296ba7695c40dbbe650ea83f106415fd02200b23a0602d8ff1bdf79dee118205fc7e9b40672bf31563e5741feb53fb86388501483045022100f88f040e90cc5dc6c6189d04718376ac19ed996bf9e4a3c29c3718d90ffd27180220761711f16c9e3a44f71aab55cbc0634907a1fa8bb635d971a9a01d368727bea10169522103b3623117e988b76aaabe3d63f56a4fc88b228a71e64c4cc551d1204822fe85cb2103dd823066e096f72ed617a41d3ca56717db335b1ea47a1b4c5c9dbdd0963acba621033d7c89bd9da29fa8d44db7906a9778b53121f72191184a9fee785c39180e4be153ae00000000" );
 

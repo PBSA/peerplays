@@ -13,6 +13,8 @@ public:
 
    object_id_type do_apply( const bitcoin_transaction_send_operation& op );
 
+   void finalize_bitcoin_transaction( bitcoin_transaction_send_operation& op );
+
    void send_bitcoin_transaction( const bitcoin_transaction_object& btc_tx );
 };
 

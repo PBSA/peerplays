@@ -125,11 +125,11 @@ BOOST_AUTO_TEST_CASE( use_pw_vout_objects )
 {
    const auto& idx = db.get_index_type<primary_wallet_vout_index>().indices().get< graphene::chain::by_id >();
    primary_wallet_vout_manager pw_vout_manager( db );
-   auto itr = idx.begin();
 
    create_primary_wallet_vouts( pw_vout_manager, db, 1 );
    pw_vout_manager.use_latest_vout( fc::sha256::hash( "0" + std::to_string( 0 )));
 
+   auto itr = idx.begin();
    BOOST_CHECK( !pw_vout_manager.get_latest_unused_vout().valid() );
    BOOST_CHECK( itr->used == true );
 
