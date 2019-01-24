@@ -762,12 +762,8 @@ double calculate_vesting_factor(const database& d, const account_object& stake_a
    // coefficient calculation is: (n-1)/number_of_subperiods
    double n = number_of_subperiods + 1;
 
-   auto period = std::find_if(period_list.begin(), period_list.end(),[&](uint32_t p) {
-      return (p == current_period);
-   });
-
    // todo: improve this loop
-   std::list<uint32_t> subperiod_list(*period);
+   std::list<uint32_t> subperiod_list(current_period);
    std::iota(subperiod_list.begin(), subperiod_list.end(), 1);
 
    for(auto subperiod: subperiod_list)
