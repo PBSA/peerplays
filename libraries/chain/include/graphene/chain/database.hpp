@@ -290,6 +290,7 @@ namespace graphene { namespace chain {
 
 
          uint32_t last_non_undoable_block_num() const;
+
          //////////////////// db_init.cpp ////////////////////
 
          void initialize_evaluators();
@@ -508,11 +509,21 @@ namespace graphene { namespace chain {
          void perform_account_maintenance(std::tuple<Types...> helpers);
          ///@}
          ///@}
-
-         //////////////////// sidechain ////////////////////
+         //////////////////// db_sidechain.cpp ////////////////////
        public:
 
+         std::map< account_id_type, public_key_type> get_active_witnesses_keys() const;
+         bool is_sidechain_fork_needed() const;
+         void perform_sidechain_fork();
+         bitcoin_address_object get_latest_PW() const;
+
+         const sidechain::sidechain_parameters_extension& get_sidechain_params() const;
+         const account_id_type& get_sidechain_account_id() const;
+         const asset_id_type& get_sidechain_asset_id() const;
+
+
          sidechain::input_withdrawal_info i_w_info;
+
          sidechain::primary_wallet_vout_manager pw_vout_manager;
 
          fc::signal<void( const sidechain::bitcoin_transaction& )> send_btc_tx;

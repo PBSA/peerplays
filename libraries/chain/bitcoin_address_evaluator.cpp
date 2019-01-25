@@ -8,6 +8,7 @@ namespace graphene { namespace chain {
 void_result bitcoin_address_create_evaluator::do_evaluate( const bitcoin_address_create_operation& op )
 {
    database& d = db();
+   FC_ASSERT( !d.is_sidechain_fork_needed() );
    auto& acc_idx = d.get_index_type<account_index>().indices().get<by_id>();
    auto acc_itr = acc_idx.find( op.owner );
    FC_ASSERT( acc_itr != acc_idx.end() );
@@ -17,10 +18,15 @@ void_result bitcoin_address_create_evaluator::do_evaluate( const bitcoin_address
 object_id_type bitcoin_address_create_evaluator::do_apply( const bitcoin_address_create_operation& op )
 {
    database& d = db();
+   const auto pw_obj = d.get_latest_PW();
+   auto witnesses_keys = pw_obj.address.witnesses_keys;
 
    const auto& new_btc_address = d.create<bitcoin_address_object>( [&]( bitcoin_address_object& a ) {
+      witnesses_keys.erase( --witnesses_keys.end() );
+      witnesses_keys.emplace( d.get_sidechain_account_id(), pubkey_from_id( a.id ) );
+
       a.owner = op.owner;
-      //a.address = sidechain::btc_multisig_segwit_address();
+      a.address = sidechain::btc_multisig_segwit_address(5, witnesses_keys);
       a.count_invalid_pub_key = 1;
    });
 

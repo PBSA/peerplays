@@ -10,13 +10,13 @@ void_result withdraw_pbtc_evaluator::do_evaluate(const withdraw_pbtc_operation& 
 {
    database& d = db();
 
-   // FC_ASSERT( !d.is_sidechain_fork_needed() );
+   FC_ASSERT( !d.is_sidechain_fork_needed() );
    FC_ASSERT( op.data.size() > 0 );
    type = bitcoin_address( op.data ).get_type();
    FC_ASSERT( type != payment_type::NULLDATA , "Invalid address type." );
    FC_ASSERT( check_amount( op ) );
-   // asset acc_balance = db().get_balance( op.payer, d.get_sidechain_asset_id() );
-   // FC_ASSERT( acc_balance.amount.value >= op.amount );
+   asset acc_balance = db().get_balance( op.payer, d.get_sidechain_asset_id() );
+   FC_ASSERT( acc_balance.amount.value >= op.amount );
 
    return void_result();
 }

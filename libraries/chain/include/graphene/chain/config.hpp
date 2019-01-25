@@ -228,4 +228,12 @@
 #define TOURNAMENT_MAX_START_DELAY                          (60*60*24*7) // 1 week
 
 
-#define SIDECHAIN_NUMBER_UNCONFIRMED_VINS        25
+////////////////////////////////////////////////////////////////////// SideChain
+#define SIDECHAIN_SYMBOL                                 "pBTC"
+#define SIDECHAIN_PRECISION_DIGITS                       8
+#define SIDECHAIN_MAX_SHARE_SUPPLY                       int64_t(21000000ll * 100000000ll)
+#define SIDECHAIN_DEFAULT_NUMBER_UNCONFIRMED_VINS        25
+#define SIDECHAIN_DEFAULT_NUMBER_SIG_MULTISIG            5
+#define SIDECHAIN_DEFAULT_CONDENSING_TX_VINS_NUMBER      5
+#define SIDECHAIN_DEFAULT_CONDENSING_TX_VOUTS_NUMBER     5
+//////////////////////////////////////////////////////////////////////
