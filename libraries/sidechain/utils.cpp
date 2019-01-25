@@ -24,4 +24,12 @@ std::vector<bytes> get_pubkey_from_redeemScript( bytes script )
    return result;
 }
 
+bytes public_key_data_to_bytes( const fc::ecc::public_key_data& key )
+{
+    bytes result;
+    result.resize( key.size() );
+    std::copy( key.begin(), key.end(), result.begin() );
+    return result;
+}
+
 }

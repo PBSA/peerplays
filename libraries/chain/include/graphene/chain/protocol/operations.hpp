@@ -135,7 +135,8 @@ namespace graphene { namespace chain {
             affiliate_referral_payout_operation, // VIRTUAL
             withdraw_pbtc_operation,
             bitcoin_address_create_operation,
-            bitcoin_transaction_send_operation
+            bitcoin_transaction_send_operation,
+            bitcoin_transaction_sign_operation
          > operation;
 
    /// @} // operations group

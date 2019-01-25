@@ -31,7 +31,28 @@ namespace graphene { namespace chain {
       }
    };
 
+
+   struct bitcoin_transaction_sign_operation : public base_operation
+   {
+      struct fee_parameters_type {
+         uint64_t fee             = 0;
+         uint32_t price_per_kbyte = 0;
+      };
+
+      asset                         fee;
+      account_id_type               payer;
+      sidechain_proposal_id_type    sidechain_proposal_id;
+      std::vector<sidechain::bytes> signatures;
+
+      account_id_type   fee_payer()const { return payer; }
+      void              validate()const {}
+      share_type        calculate_fee( const fee_parameters_type& k )const { return 0; }
+   };
+
 } } // graphene::chain
 
 FC_REFLECT( graphene::chain::bitcoin_transaction_send_operation::fee_parameters_type, (fee)(price_per_kbyte) )
 FC_REFLECT( graphene::chain::bitcoin_transaction_send_operation, (fee)(payer)(vins)(vouts)(transaction)(fee_for_size) )
+
+FC_REFLECT( graphene::chain::bitcoin_transaction_sign_operation::fee_parameters_type, (fee)(price_per_kbyte) )
+FC_REFLECT( graphene::chain::bitcoin_transaction_sign_operation, (fee)(payer)(sidechain_proposal_id)(signatures) )

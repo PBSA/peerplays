@@ -250,6 +250,7 @@ void database::initialize_evaluators()
    register_evaluator<withdraw_pbtc_evaluator>();
    register_evaluator<bitcoin_address_create_evaluator>();
    register_evaluator<bitcoin_transaction_send_evaluator>();
+   register_evaluator<bitcoin_transaction_sign_evaluator>();
 }
 
 void database::initialize_indexes()

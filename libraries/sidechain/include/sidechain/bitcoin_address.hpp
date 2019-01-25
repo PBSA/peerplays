@@ -1,6 +1,5 @@
 #pragma once
 
-#include <graphene/chain/protocol/types.hpp>
 #include <sidechain/types.hpp>
 #include <sidechain/utils.hpp>
 

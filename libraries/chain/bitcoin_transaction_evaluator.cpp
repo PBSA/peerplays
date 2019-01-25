@@ -3,10 +3,17 @@
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/bitcoin_transaction_object.hpp>
 #include <graphene/chain/info_for_used_vin_object.hpp>
+#include <graphene/chain/sidechain_proposal_object.hpp>
+#include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/proposal_object.hpp>
 
 #include <sidechain/sign_bitcoin_transaction.hpp>
+#include <sidechain/input_withdrawal_info.hpp>
+
 
 namespace graphene { namespace chain {
+
+using namespace sidechain;
 
 void_result bitcoin_transaction_send_evaluator::do_evaluate( const bitcoin_transaction_send_operation& op )
 {
@@ -75,6 +82,106 @@ void bitcoin_transaction_send_evaluator::send_bitcoin_transaction( const bitcoin
    if( !(skip & graphene::chain::database::skip_btc_tx_sending) ){
       d.send_btc_tx( btc_tx.transaction );
    }
+}
+
+void_result bitcoin_transaction_sign_evaluator::do_evaluate( const bitcoin_transaction_sign_operation& op )
+{
+   database& d = db();
+
+   const auto& sidechain_proposal_idx = d.get_index_type<sidechain_proposal_index>().indices().get<by_id>();
+   const auto& sidechain_proposal_itr = sidechain_proposal_idx.find( op.sidechain_proposal_id );
+   FC_ASSERT( sidechain_proposal_idx.end() != sidechain_proposal_itr,
+      "sidechain_proposal not found");
+
+   witness_id_type scheduled_witness = d.get_scheduled_witness( 1 );
+   const auto& witness_obj = d.get< witness_object >( scheduled_witness );
+   FC_ASSERT( witness_obj.witness_account == op.payer, "Incorrect witness." );
+
+   sidechain::bytes public_key( public_key_data_to_bytes( witness_obj.signing_key.key_data ) );
+   const auto& proposal = sidechain_proposal_itr->proposal_id( d );
+   auto btc_send_op = proposal.proposed_transaction.operations[0].get<bitcoin_transaction_send_operation>();
+   FC_ASSERT( check_sigs( public_key, op.signatures, btc_send_op.vins, btc_send_op.transaction ) ); // Add pw_vin
+
+   // const auto& proposal = sidechain_proposal_itr->proposal_id( d );
+   // FC_ASSERT( d.check_witness( witness_obj, *btc_tx, proposal ), "Can't sign this transaction" );
+
+   return void_result();
+}
+
+void_result bitcoin_transaction_sign_evaluator::do_apply( const bitcoin_transaction_sign_operation& op )
+{
+   database& d = db();
+
+   const auto& sidechain_proposal = op.sidechain_proposal_id( d );
+   const auto& proposal = sidechain_proposal.proposal_id( d );
+
+   d.modify( proposal, [&]( proposal_object& po ) {
+      auto bitcoin_transaction_send_op = po.proposed_transaction.operations[0].get<bitcoin_transaction_send_operation>();
+      for( size_t i = 0; i < op.signatures.size(); i++ ) {
+         bitcoin_transaction_send_op.transaction.vin[i].scriptWitness.push_back( op.signatures[i] );
+      }
+      po.proposed_transaction.operations[0] = bitcoin_transaction_send_op;
+   });
+
+   update_proposal( op );
+
+   return void_result();
+}
+
+void bitcoin_transaction_sign_evaluator::update_proposal( const bitcoin_transaction_sign_operation& op )
+{
+   database& d = db();
+   proposal_update_operation update_op;
+   
+   update_op.fee_paying_account = op.payer;
+   update_op.proposal = op.sidechain_proposal_id( d ).proposal_id;
+   update_op.active_approvals_to_add = { op.payer };
+
+   bool skip_fee_old = trx_state->skip_fee;
+   bool skip_fee_schedule_check_old = trx_state->skip_fee_schedule_check;
+   trx_state->skip_fee = true;
+   trx_state->skip_fee_schedule_check = true;
+
+   d.apply_operation( *trx_state, update_op );
+
+   trx_state->skip_fee = skip_fee_old;
+   trx_state->skip_fee_schedule_check = skip_fee_schedule_check_old;
+}
+
+bool bitcoin_transaction_sign_evaluator::check_sigs( const bytes& key_data, const std::vector<bytes>& sigs,
+                                                 const std::vector<sidechain::info_for_vin>& info_for_vins,
+                                                 const bitcoin_transaction& tx )
+{
+   FC_ASSERT( sigs.size() == info_for_vins.size() && sigs.size() == tx.vin.size() );
+
+   for( size_t i = 0; i < tx.vin.size(); i++ ) {
+      const bytes& script = info_for_vins[i].script;
+      const auto& sighash_str = get_signature_hash( tx, script, static_cast<int64_t>( info_for_vins[i].out.amount ), i, 1, true ).str();
+      const bytes& sighash_hex = parse_hex( sighash_str );
+
+      if( !verify_sig( sigs[i], key_data, sighash_hex, db().context_verify ) ) {
+         return false;
+      }
+
+      size_t count_sigs = 0;
+      for( auto& s : tx.vin[i].scriptWitness ) {
+         if( verify_sig( s, key_data, sighash_hex, db().context_verify ) ) {
+            count_sigs++;
+         }
+      }
+
+      std::vector<bytes> pubkeys = get_pubkey_from_redeemScript( script );
+      size_t count_pubkeys = std::count( pubkeys.begin(), pubkeys.end(), key_data );
+      if( count_sigs >= count_pubkeys ) {
+         return false;
+      }
+
+      uint32_t position = std::find( op_num.begin(), op_num.end(), script[0] ) - op_num.begin();
+      if( !( position >= 0 && position < op_num.size() ) || tx.vin[i].scriptWitness.size() == position + 1 ) {
+         return false;
+      }
+   }
+   return true;
 }
 
 } }
