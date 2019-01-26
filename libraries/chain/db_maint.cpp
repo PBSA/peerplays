@@ -746,42 +746,29 @@ double calculate_vesting_factor(const database& d, const account_object& stake_a
 
    FC_ASSERT(period_start <= now && now <= period_end);
 
-   // get in what period we are
-   uint32_t current_period = 0;
+   // get in what sub period we are
+   uint32_t current_subperiod = 0;
    std::list<uint32_t> period_list(number_of_subperiods);
-   std::iota(period_list.begin(), period_list.end(), 1); // todo: std::iota(period_list, 1); ??
+   std::iota(period_list.begin(), period_list.end(), 1);
 
    std::for_each(period_list.begin(), period_list.end(),[&](uint32_t period) {
       if(seconds_since_period_start > vesting_subperiod * (period - 1) &&
             seconds_since_period_start < vesting_subperiod * period)
-         current_period = period;
+         current_subperiod = period;
    });
 
-   if(current_period == 0 || current_period > number_of_subperiods) return 0;
+   if(current_subperiod == 0 || current_subperiod > number_of_subperiods) return 0;
 
-   // coefficient calculation is: (n-1)/number_of_subperiods
-   double n = number_of_subperiods + 1;
+   double numerator = number_of_subperiods - current_subperiod + 1;
 
-   // todo: improve this loop
-   std::list<uint32_t> subperiod_list(current_period);
-   std::iota(subperiod_list.begin(), subperiod_list.end(), 1);
+   auto last_period_start = period_start + fc::seconds(vesting_subperiod * (current_subperiod - 1));
+   auto last_period_end = period_start + fc::seconds(vesting_subperiod * (current_subperiod));
 
-   for(auto subperiod: subperiod_list)
-   {
-      if (current_period - subperiod > 0) {
-         n = number_of_subperiods - current_period + 2;
+   // reset n if account voted last period
+   if (last_date_voted < last_period_start && last_date_voted >= last_period_end)
+      numerator = number_of_subperiods;
 
-         if (last_date_voted <
-             (period_start + fc::seconds(vesting_subperiod * (current_period - subperiod - 1))) &&
-             last_date_voted >= (period_start + fc::seconds(vesting_subperiod * (current_period - subperiod))) &&
-             last_date_voted >= period_start) {
-
-            n = number_of_subperiods + 1;
-            break;
-         }
-      }
-   }
-   vesting_factor = (n - 1) / number_of_subperiods;
+   vesting_factor = numerator / number_of_subperiods;
 
    return vesting_factor;
 }
