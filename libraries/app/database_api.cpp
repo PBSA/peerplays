@@ -31,6 +31,7 @@
 #include <fc/smart_ref_impl.hpp>
 
 #include <fc/crypto/hex.hpp>
+#include <fc/crypto/digest.hpp>
 
 #include <boost/range/iterator_range.hpp>
 #include <boost/rational.hpp>
@@ -485,7 +486,7 @@ void database_api_impl::check_transaction_for_duplicated_operations(const signed
    {
       for( auto& operation : (*p_itr)(_db).proposed_transaction.operations )
       {
-         exited_operations_digests.insert( fc::digest(operation) );
+         existed_operations_digests.insert( fc::digest(operation) );
       }
    }
     
