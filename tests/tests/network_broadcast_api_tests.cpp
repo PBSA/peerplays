@@ -1,5 +1,9 @@
 #include <boost/test/unit_test.hpp>
 
+#include <graphene/chain/hardfork.hpp>
+#include <graphene/chain/sport_object.hpp>
+#include <graphene/chain/event_group_object.hpp>
+#include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/protocol/proposal.hpp>
 #include <graphene/chain/proposal_object.hpp>
@@ -341,6 +345,65 @@ BOOST_AUTO_TEST_CASE( check_fails_for_several_transactions_with_duplicates_in_pe
         auto trx = make_signed_transaction_with_proposed_operation(*this, {duplicate,
                                                                            make_transfer_operation(alice.id, moneyman.get_id(), asset(102))});
         BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+    }
+    catch( const fc::exception& e )
+    {
+        edump((e.to_detail_string()));
+        throw;
+    }
+}
+
+BOOST_AUTO_TEST_CASE( check_passes_for_duplicated_betting_market_or_group )
+{
+    generate_blocks( HARDFORK_1000_TIME + fc::seconds(300) );
+
+    try
+    {
+        const sport_id_type sport_id = create_sport( {{"SN","SPORT_NAME"}} ).id;
+        const event_group_id_type event_group_id = create_event_group( {{"EG", "EVENT_GROUP"}}, sport_id ).id;
+        const betting_market_rules_id_type betting_market_rules_id = 
+            create_betting_market_rules( {{"EN", "Rules"}}, {{"EN", "Some rules"}} ).id;
+        
+        event_create_operation evcop1;
+        evcop1.event_group_id = event_group_id;
+        evcop1.name           = {{"NO", "NAME_ONE"}};
+        evcop1.season         = {{"NO", "NAME_ONE"}};
+
+        event_create_operation evcop2;
+        evcop2.event_group_id = event_group_id;
+        evcop2.name           = {{"NT", "NAME_TWO"}};
+        evcop2.season         = {{"NT", "NAME_TWO"}};
+
+        betting_market_group_create_operation bmgcop;
+        bmgcop.description = {{"NN", "NO_NAME"}};
+        bmgcop.event_id = object_id_type(relative_protocol_ids, 0, 0);
+        bmgcop.rules_id = betting_market_rules_id;
+        bmgcop.asset_id = asset_id_type();      
+
+        betting_market_create_operation bmcop;
+        bmcop.group_id = object_id_type(relative_protocol_ids, 0, 1);
+        bmcop.payout_condition.insert( internationalized_string_type::value_type( "CN", "CONDI_NAME" ) );
+
+        proposal_create_operation pcop1 = proposal_create_operation::committee_proposal( 
+            db.get_global_properties().parameters,
+            db.head_block_time() 
+        );
+        pcop1.review_period_seconds.reset();
+
+        proposal_create_operation pcop2 = pcop1;
+
+        pcop1.proposed_ops.emplace_back( evcop1 );
+        pcop1.proposed_ops.emplace_back( bmgcop );
+        pcop1.proposed_ops.emplace_back( bmcop  );
+
+        pcop2.proposed_ops.emplace_back( evcop2 );
+        pcop2.proposed_ops.emplace_back( bmgcop );
+        pcop2.proposed_ops.emplace_back( bmcop  );
+
+        create_proposal(*this, { pcop1, pcop2 });
+
+        auto trx = make_signed_transaction_with_proposed_operation(*this, { pcop1, pcop2 });
+        BOOST_CHECK_NO_THROW( db.check_tansaction_for_duplicated_operations(trx) );
     }
     catch( const fc::exception& e )
     {
