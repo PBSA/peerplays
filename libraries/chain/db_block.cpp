@@ -26,6 +26,9 @@
 #include <graphene/chain/db_with.hpp>
 #include <graphene/chain/hardfork.hpp>
 
+#include <graphene/chain/protocol/operations.hpp>
+#include <graphene/chain/protocol/betting_market.hpp>
+
 #include <graphene/chain/block_summary_object.hpp>
 #include <graphene/chain/global_property_object.hpp>
 #include <graphene/chain/operation_history_object.hpp>
@@ -66,9 +69,14 @@ namespace {
    std::vector<fc::sha256> gather_proposed_operations_digests(const graphene::chain::transaction& trx)
    {
       proposed_operations_digest_accumulator digest_accumulator;
+      
       for (auto& operation: trx.operations)
       {
-         operation.visit(digest_accumulator);
+         if( operation.which() != graphene::chain::operation::tag<graphene::chain::betting_market_group_create_operation>::value
+          && operation.which() != graphene::chain::operation::tag<graphene::chain::betting_market_create_operation>::value )
+            operation.visit(digest_accumulator);
+         else
+            edump( ("Found dup"));
       }
        
       return digest_accumulator.proposed_operations_digests;
@@ -148,10 +156,8 @@ void database::check_tansaction_for_duplicated_operations(const signed_transacti
    
    proposal_index.inspect_all_objects( [&](const object& obj){
       const proposal_object& proposal = static_cast<const proposal_object&>(obj);
-      for (auto& operation: proposal.proposed_transaction.operations)
-      {
-         existed_operations_digests.insert(fc::digest(operation));
-      }
+      auto proposed_operations_digests = gather_proposed_operations_digests( proposal.proposed_transaction );
+      existed_operations_digests.insert( proposed_operations_digests.begin(), proposed_operations_digests.end() );
    });
    
    for (auto& pending_transaction: _pending_tx)
