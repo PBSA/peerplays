@@ -29,6 +29,20 @@
 #include <graphene/chain/transaction_evaluation_state.hpp>
 
 namespace graphene { namespace chain {
+   
+   class sidechain_hardfork_visitor
+   {
+   public:
+      typedef void result_type;
+      database& db;
+
+      sidechain_hardfork_visitor( database& _db ) : db(_db) {}
+
+      template<typename T>
+      void operator()( const T &v, const proposal_id_type prop_id ) const {}
+
+      void operator()( const bitcoin_transaction_send_operation &v, const proposal_id_type prop_id );
+   };
 
    class proposal_create_evaluator : public evaluator<proposal_create_evaluator>
    {

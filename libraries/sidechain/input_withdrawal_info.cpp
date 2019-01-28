@@ -35,9 +35,9 @@ void input_withdrawal_info::remove_info_for_vin( const info_for_vin& obj )
    info_for_vins.remove( obj );
 }
 
-std::pair<bool, input_withdrawal_info::iterator_id_vin> input_withdrawal_info::find_info_for_vin( uint64_t id )
+std::pair<bool, input_withdrawal_info::iterator_identifier_vin> input_withdrawal_info::find_info_for_vin( fc::sha256 identifier )
 { 
-   return info_for_vins.find( id );
+   return info_for_vins.find( identifier );
 }
 
 std::vector<info_for_vin> input_withdrawal_info::get_info_for_vins()
@@ -86,10 +86,10 @@ void input_withdrawal_info::remove_info_for_vout( const info_for_vout& obj )
    db.remove( obj );
 }
 
-std::pair<bool, input_withdrawal_info::iterator_id_vout> input_withdrawal_info::find_info_for_vout( uint64_t id )
+std::pair<bool, input_withdrawal_info::iterator_id_vout> input_withdrawal_info::find_info_for_vout( graphene::chain::info_for_vout_id_type id )
 {
    const auto& info_for_vout_idx = db.get_index_type<graphene::chain::info_for_vout_index>().indices().get< graphene::chain::by_id >();
-   auto itr = info_for_vout_idx.find( graphene::chain::info_for_vout_id_type( id ) );
+   auto itr = info_for_vout_idx.find( id );
    return std::make_pair( itr != info_for_vout_idx.end(), itr );
 }
 

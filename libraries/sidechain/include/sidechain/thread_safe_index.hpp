@@ -4,7 +4,7 @@
 
 namespace sidechain {
 
-struct by_id;
+struct by_identifier;
 
 template<class T1>
 class thread_safe_index {
@@ -12,7 +12,7 @@ class thread_safe_index {
 public:
 
    using iterator = typename T1::iterator;
-   using iterator_id = typename T1::template index<by_id>::type::iterator;
+   using iterator_identifier = typename T1::template index<by_identifier>::type::iterator;
 
    std::pair<iterator,bool> insert( const typename T1::value_type& value ) {
       std::lock_guard<std::recursive_mutex> locker( lock );
@@ -34,10 +34,10 @@ public:
       return data.size();
    }
 
-   std::pair<bool, iterator_id> find( uint64_t id ) {
+   std::pair<bool, iterator_identifier> find( fc::sha256 identifier ) {
       std::lock_guard<std::recursive_mutex> locker( lock );
-      auto& index = data.template get<by_id>();
-      auto it = index.find( id );
+      auto& index = data.template get<by_identifier>();
+      auto it = index.find( identifier );
       if( it != index.end() ) {
          return std::make_pair(true, it);
       }
