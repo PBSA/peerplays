@@ -473,27 +473,26 @@ void database_api::check_transaction_for_duplicated_operations(const signed_tran
 
 void database_api_impl::check_transaction_for_duplicated_operations(const signed_transaction& trx)
 {
-   const auto& proposal_index = get_index<proposal_object>();
+   const auto& idx = _db.get_index_type<proposal_index>();
+   const auto& pidx = dynamic_cast<const primary_index<proposal_index>&>(idx);
+   const auto& raidx = pidx.get_secondary_index<graphene::chain::required_approval_index>();
+   
+   auto& p_set = raidx._account_to_proposals.find( GRAPHENE_WITNESS_ACCOUNT )->second;
+
    std::set<fc::sha256> existed_operations_digests;
    
-   proposal_index.inspect_all_objects( [&](const object& obj){
-      const proposal_object& proposal = static_cast<const proposal_object&>(obj);
-      for (auto& operation: proposal.proposed_transaction.operations)
-      {
-         existed_operations_digests.insert(fc::digest(operation));
-      }
-   });
-   
-   for (auto& pending_transaction: _pending_tx)
+   for( auto p_itr = p_set.begin(); p_itr != p_set.end(); ++p_itr )
    {
-      auto proposed_operations_digests = gather_proposed_operations_digests(pending_transaction);
-      existed_operations_digests.insert(proposed_operations_digests.begin(), proposed_operations_digests.end());
+      for( auto& operation : (*p_itr)(_db).proposed_transaction.operations )
+      {
+         exited_operations_digests.insert( fc::digest(operation) );
+      }
    }
     
    auto proposed_operations_digests = gather_proposed_operations_digests(trx);
-   for (auto& digest: proposed_operations_digests)
+   for (auto& digest : proposed_operations_digests)
    {
-      FC_ASSERT(existed_operations_digests.count(digest) == 0, "Proposed operation is already pending for approval.");
+      FC_ASSERT(existed_operations_digests.count(digest) == 0, "Proposed operation is already pending for apsproval.");
    }
 }
 
