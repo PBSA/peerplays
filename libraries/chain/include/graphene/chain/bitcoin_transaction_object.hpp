@@ -20,7 +20,7 @@ class bitcoin_transaction_object : public abstract_object<bitcoin_transaction_ob
       std::vector< info_for_vout_id_type >   vouts;
 
       sidechain::bitcoin_transaction         transaction;
-      std::string                            transaction_id;
+      fc::sha256                             transaction_id;
 
       uint64_t                               fee_for_size;
 
@@ -33,7 +33,7 @@ typedef boost::multi_index_container<
    bitcoin_transaction_object,
    indexed_by<
       ordered_unique< tag< by_id >, member< object, object_id_type, &object::id > >,
-      ordered_unique< tag< by_transaction_id >, member< bitcoin_transaction_object, string, &bitcoin_transaction_object::transaction_id > >
+      ordered_unique< tag< by_transaction_id >, member< bitcoin_transaction_object, fc::sha256, &bitcoin_transaction_object::transaction_id > >
    >
 > bitcoin_transaction_multi_index_container;
 typedef generic_index<bitcoin_transaction_object, bitcoin_transaction_multi_index_container> bitcoin_transaction_index;

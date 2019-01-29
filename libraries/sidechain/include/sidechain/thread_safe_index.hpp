@@ -1,10 +1,9 @@
 #pragma once
 
 #include <mutex>
+#include <fc/optional.hpp>
 
 namespace sidechain {
-
-struct by_identifier;
 
 template<class T1>
 class thread_safe_index {
@@ -12,20 +11,23 @@ class thread_safe_index {
 public:
 
    using iterator = typename T1::iterator;
-   using iterator_identifier = typename T1::template index<by_identifier>::type::iterator;
 
    std::pair<iterator,bool> insert( const typename T1::value_type& value ) {
       std::lock_guard<std::recursive_mutex> locker( lock );
       return data.insert( value );
    }
 
-   void modify( const typename T1::value_type& obj, const std::function<void( typename T1::value_type& e)>& func ) {
+   template<class T2, typename Key>
+   void modify( const Key _key, const std::function<void( typename T1::value_type& e)>& func ) {
       std::lock_guard<std::recursive_mutex> locker( lock );
-      data.modify( data.iterator_to(obj), [&func]( typename T1::value_type& obj ) { func(obj); } );
+      const auto& obj = *find_iterator<T2>( _key );
+      data.modify( data.iterator_to( obj ), [&func]( typename T1::value_type& obj ) { func( obj ); } );
    }
 
-   void remove( const typename T1::value_type& obj ) {
+   template<class T2, typename Key>
+   void remove( const Key _key ) {
       std::lock_guard<std::recursive_mutex> locker( lock );
+      const auto& obj = *find_iterator<T2>( _key );
       data.erase( data.iterator_to( obj ) );
    }
 
@@ -34,14 +36,15 @@ public:
       return data.size();
    }
 
-   std::pair<bool, iterator_identifier> find( fc::sha256 identifier ) {
+   template<class T2, typename Key>
+   fc::optional<typename T1::value_type> find( const Key _key ) {
       std::lock_guard<std::recursive_mutex> locker( lock );
-      auto& index = data.template get<by_identifier>();
-      auto it = index.find( identifier );
+      auto& index = data.template get<T2>();
+      auto it = index.find( _key );
       if( it != index.end() ) {
-         return std::make_pair(true, it);
+         return fc::optional<typename T1::value_type>(*it);
       }
-      return std::make_pair(false, it);
+      return fc::optional<typename T1::value_type>();
    }
 
    template<class T2>
@@ -53,6 +56,14 @@ public:
    }
 
 private:
+
+   template<class T2, typename Key>
+   typename T1::template index<T2>::type::iterator find_iterator( const Key _key ) {
+      auto& index = data.template get<T2>();
+      auto it = index.find( _key );
+      return it;
+   }
+
 
    std::recursive_mutex lock;
    

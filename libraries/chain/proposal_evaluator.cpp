@@ -151,16 +151,15 @@ void sidechain_hardfork_visitor::operator()( const bitcoin_transaction_send_oper
    });
 
    for( auto& vin : v.vins ) {
-      auto itr = db.i_w_info.find_info_for_vin( vin.identifier );
-      if( !itr.first )
-         continue;
-      db.i_w_info.mark_as_used_vin( *itr.second );
+      auto obj = db.i_w_info.find_info_for_vin( vin.identifier );
+      if( obj.valid() )
+         db.i_w_info.mark_as_used_vin( *obj );
    }
 
    for( auto& vout : v.vouts ) {
-      auto itr = db.i_w_info.find_info_for_vout( vout );
-      FC_ASSERT( itr.first, "info_for_vout_object don't exist." );
-      db.i_w_info.mark_as_used_vout( *itr.second );
+      auto obj = db.i_w_info.find_info_for_vout( vout );
+      FC_ASSERT( obj.valid(), "info_for_vout_object don't exist." );
+      db.i_w_info.mark_as_used_vout( *obj );
    }
 
    fc::sha256 hashid = v.pw_vin.valid() ? *v.pw_vin : SIDECHAIN_NULL_HASH;

@@ -37,8 +37,8 @@ BOOST_AUTO_TEST_CASE( input_withdrawal_info_id_test )
       prev_out out = { std::to_string( i ), static_cast<uint32_t>( i ), static_cast< uint64_t >( i ) };
       infos.insert_info_for_vin( out, "addr" + std::to_string( i ), { 0x01, 0x02, 0x03 } );
       auto identifier = fc::sha256::hash( std::to_string( i ) + std::to_string( i ) );
-      BOOST_CHECK( infos.find_info_for_vin( identifier ).first );
-      BOOST_CHECK( infos.find_info_for_vin( identifier ).second->id == i );
+      BOOST_CHECK( infos.find_info_for_vin( identifier ).valid() );
+      BOOST_CHECK( infos.find_info_for_vin( identifier )->id == i );
    }
 
    info_for_vin::count_id_info_for_vin = 0;
@@ -54,14 +54,14 @@ BOOST_AUTO_TEST_CASE( input_withdrawal_info_check_data_test )
 
    for( size_t i = 0; i < 10; i++ ) {
       auto identifier = fc::sha256::hash( std::to_string( i ) + std::to_string( i ) );
-      BOOST_CHECK( infos.find_info_for_vin( identifier ).first );
-      BOOST_CHECK( infos.find_info_for_vin( identifier ).second->id == i );
-      BOOST_CHECK( infos.find_info_for_vin( identifier ).second->out.hash_tx == std::to_string( i ) );
-      BOOST_CHECK( infos.find_info_for_vin( identifier ).second->out.n_vout == i );
-      BOOST_CHECK( infos.find_info_for_vin( identifier ).second->out.amount == i );
-      BOOST_CHECK( infos.find_info_for_vin( identifier ).second->address == "addr" + std::to_string( i ) );
+      BOOST_CHECK( infos.find_info_for_vin( identifier ).valid() );
+      BOOST_CHECK( infos.find_info_for_vin( identifier )->id == i );
+      BOOST_CHECK( infos.find_info_for_vin( identifier )->out.hash_tx == std::to_string( i ) );
+      BOOST_CHECK( infos.find_info_for_vin( identifier )->out.n_vout == i );
+      BOOST_CHECK( infos.find_info_for_vin( identifier )->out.amount == i );
+      BOOST_CHECK( infos.find_info_for_vin( identifier )->address == "addr" + std::to_string( i ) );
       std::vector<char> script = { 0x01, 0x02, 0x03 };
-      BOOST_CHECK( infos.find_info_for_vin( identifier ).second->script == script );
+      BOOST_CHECK( infos.find_info_for_vin( identifier )->script == script );
    }
 
    info_for_vin::count_id_info_for_vin = 0;
@@ -79,8 +79,8 @@ BOOST_AUTO_TEST_CASE( input_withdrawal_info_modify_test )
       if( i % 2 == 0 ) {
          auto identifier = fc::sha256::hash( std::to_string( i ) + std::to_string( i ) );
          auto iter = infos.find_info_for_vin( identifier );
-         BOOST_CHECK( iter.first );
-         infos.modify_info_for_vin( *iter.second, [&]( info_for_vin& obj ) {
+         BOOST_CHECK( iter.valid() );
+         infos.modify_info_for_vin( *iter, [&]( info_for_vin& obj ) {
             obj.out.hash_tx = std::to_string( i + 1 );
             obj.out.n_vout = i + 1;
             obj.out.amount = i + 1;
@@ -92,14 +92,14 @@ BOOST_AUTO_TEST_CASE( input_withdrawal_info_modify_test )
    for( size_t i = 0; i < 10; i++ ) {
       if( i % 2 == 0 ) {
          auto identifier = fc::sha256::hash( std::to_string( i ) + std::to_string( i ) );
-         BOOST_CHECK( infos.find_info_for_vin( identifier ).first );
-         BOOST_CHECK( infos.find_info_for_vin( identifier ).second->id == i );
-         BOOST_CHECK( infos.find_info_for_vin( identifier ).second->out.hash_tx == std::to_string( i + 1 ) );
-         BOOST_CHECK( infos.find_info_for_vin( identifier ).second->out.n_vout == i + 1 );
-         BOOST_CHECK( infos.find_info_for_vin( identifier ).second->out.amount == i + 1 );
-         BOOST_CHECK( infos.find_info_for_vin( identifier ).second->address == "addr" + std::to_string( i ) + std::to_string( i ) );
+         BOOST_CHECK( infos.find_info_for_vin( identifier ).valid() );
+         BOOST_CHECK( infos.find_info_for_vin( identifier )->id == i );
+         BOOST_CHECK( infos.find_info_for_vin( identifier )->out.hash_tx == std::to_string( i + 1 ) );
+         BOOST_CHECK( infos.find_info_for_vin( identifier )->out.n_vout == i + 1 );
+         BOOST_CHECK( infos.find_info_for_vin( identifier )->out.amount == i + 1 );
+         BOOST_CHECK( infos.find_info_for_vin( identifier )->address == "addr" + std::to_string( i ) + std::to_string( i ) );
          std::vector<char> script = { 0x01, 0x02, 0x03 };
-         BOOST_CHECK( infos.find_info_for_vin( identifier ).second->script == script );
+         BOOST_CHECK( infos.find_info_for_vin( identifier )->script == script );
       }
    }
 
@@ -118,17 +118,17 @@ BOOST_AUTO_TEST_CASE( input_withdrawal_info_remove_vin_test )
       if( i % 2 == 0 ) {
          auto identifier = fc::sha256::hash( std::to_string( i ) + std::to_string( i ) );
          auto iter = infos.find_info_for_vin( identifier );
-         BOOST_CHECK( iter.first );
-         infos.remove_info_for_vin( *iter.second );
+         BOOST_CHECK( iter.valid() );
+         infos.remove_info_for_vin( *iter );
       }
    }
 
    for( size_t i = 0; i < 10; i++ ) {
       auto identifier = fc::sha256::hash( std::to_string( i ) + std::to_string( i ) );
       if( i % 2 == 0 ) {
-         BOOST_CHECK( !infos.find_info_for_vin( identifier ).first );
+         BOOST_CHECK( !infos.find_info_for_vin( identifier ).valid() );
       } else {
-         BOOST_CHECK( infos.find_info_for_vin( identifier ).first );
+         BOOST_CHECK( infos.find_info_for_vin( identifier ).valid() );
       }
    }
 
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE( input_withdrawal_info_get_info_for_vins_test )
    for( size_t i = 0; i < 7; i++ ) {
       auto identifier = fc::sha256::hash( std::to_string( i ) + std::to_string( i ) );
       auto iter = infos.find_info_for_vin( identifier );
-      infos.mark_as_used_vin( *iter.second );
+      infos.mark_as_used_vin( *iter );
    }
 
    const auto& vins2 = infos.get_info_for_vins();
@@ -184,16 +184,16 @@ BOOST_AUTO_TEST_CASE( input_withdrawal_info_remove_vout_test )
    for( size_t i = 0; i < 10; i++ ) {
       if( i % 2 == 0 ) {
          auto iter = infos.find_info_for_vout( graphene::chain::info_for_vout_id_type(i) );
-         BOOST_CHECK( iter.first );
-         infos.remove_info_for_vout( *iter.second );
+         BOOST_CHECK( iter.valid() );
+         infos.remove_info_for_vout( *iter );
       }
    }
 
    for( size_t i = 0; i < 10; i++ ) {
       if( i % 2 == 0 ) {
-         BOOST_CHECK( !infos.find_info_for_vout( graphene::chain::info_for_vout_id_type(i) ).first );
+         BOOST_CHECK( !infos.find_info_for_vout( graphene::chain::info_for_vout_id_type(i) ).valid() );
       } else {
-         BOOST_CHECK( infos.find_info_for_vout( graphene::chain::info_for_vout_id_type(i) ).first );
+         BOOST_CHECK( infos.find_info_for_vout( graphene::chain::info_for_vout_id_type(i) ).valid() );
       }
    }
 }
@@ -210,7 +210,7 @@ BOOST_AUTO_TEST_CASE( input_withdrawal_info_get_info_for_vouts_test )
 
    for( size_t i = 0; i < 7; i++ ) {
       auto iter = infos.find_info_for_vout( graphene::chain::info_for_vout_id_type(i) );
-      infos.mark_as_used_vout( *iter.second );
+      infos.mark_as_used_vout( *iter );
    }
 
    const auto& vouts2 = infos.get_info_for_vouts();

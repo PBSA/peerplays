@@ -59,16 +59,9 @@ class input_withdrawal_info
 {
 
 public:
-
-   using iterator_identifier_vin = typename info_for_vin_index::template index<by_identifier>::type::iterator;
-   using iterator_id_vout = typename graphene::chain::info_for_vout_index::index_type::template index<graphene::chain::by_id>::type::iterator;
-
-
    input_withdrawal_info( graphene::chain::database& _db ) : db( _db ) {}
 
-
    fc::optional<info_for_vin> get_info_for_pw_vin();
-
 
    void insert_info_for_vin( const prev_out& out, const std::string& address, bytes script = bytes() );
 
@@ -78,7 +71,7 @@ public:
 
    void remove_info_for_vin( const info_for_vin& obj );
 
-   std::pair<bool, input_withdrawal_info::iterator_identifier_vin> find_info_for_vin( fc::sha256 identifier );
+   fc::optional<info_for_vin> find_info_for_vin( fc::sha256 identifier );
 
    size_t size_info_for_vins() { return info_for_vins.size(); }
 
@@ -91,7 +84,7 @@ public:
 
    void remove_info_for_vout( const info_for_vout& obj );
 
-   std::pair<bool, input_withdrawal_info::iterator_id_vout> find_info_for_vout( graphene::chain::info_for_vout_id_type id );
+   fc::optional<graphene::chain::info_for_vout_object> find_info_for_vout( graphene::chain::info_for_vout_id_type id );
 
    size_t size_info_for_vouts();
 

@@ -25,21 +25,11 @@ object_id_type bitcoin_transaction_send_evaluator::do_apply( const bitcoin_trans
 {
    bitcoin_transaction_send_operation& mutable_op = const_cast<bitcoin_transaction_send_operation&>( op );
    database& d = db();
-   std::vector< info_for_used_vin_id_type > new_vins;
    sidechain::bytes wit_script;
 
    finalize_bitcoin_transaction( mutable_op );
 
-   for( auto itr : op.vins ){
-      auto itr_id = d.create< info_for_used_vin_object >( [&]( info_for_used_vin_object& obj )
-      {
-         obj.identifier = itr.identifier;
-         obj.out = itr.out;
-         obj.address = itr.address;
-         obj.script = itr.script;
-      }).get_id();
-      new_vins.push_back( itr_id );
-   }
+   auto new_vins = create_transaction_vins( mutable_op );
 
    const bitcoin_transaction_object& btc_tx = d.create< bitcoin_transaction_object >( [&]( bitcoin_transaction_object& obj )
    {
@@ -60,6 +50,27 @@ object_id_type bitcoin_transaction_send_evaluator::do_apply( const bitcoin_trans
    send_bitcoin_transaction( btc_tx );
 
    return btc_tx.id;
+}
+
+std::vector< info_for_used_vin_id_type > bitcoin_transaction_send_evaluator::create_transaction_vins( bitcoin_transaction_send_operation& op )
+{
+   database& d = db();
+   std::vector< info_for_used_vin_id_type > new_vins;
+
+   for( auto itr : op.vins ){
+      auto itr_id = d.create< info_for_used_vin_object >( [&]( info_for_used_vin_object& obj )
+      {
+         obj.identifier = itr.identifier;
+         obj.out = itr.out;
+         obj.address = itr.address;
+         obj.script = itr.script;
+      }).get_id();
+      new_vins.push_back( itr_id );
+
+      auto obj_itr = d.i_w_info.find_info_for_vin( itr.identifier );
+      if( obj_itr.valid() )
+         d.i_w_info.remove_info_for_vin( *obj_itr );
+   }
 }
 
 void bitcoin_transaction_send_evaluator::finalize_bitcoin_transaction( bitcoin_transaction_send_operation& op )

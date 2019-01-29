@@ -109,6 +109,8 @@ void sidechain_net_manager::update_estimated_fee()
 
 void sidechain_net_manager::send_btc_tx( const sidechain::bitcoin_transaction& trx )
 {
+   db->bitcoin_confirmations.insert( btc_tx_confirmations( trx.get_txid() ) );
+
    FC_ASSERT( !bitcoin_client->connection_is_not_defined() );
    const auto tx_hex = fc::to_hex( pack( trx ) );
    idump((tx_hex));

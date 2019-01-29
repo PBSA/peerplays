@@ -41,6 +41,7 @@
 #include <graphene/chain/protocol/protocol.hpp>
 
 #include <sidechain/input_withdrawal_info.hpp>
+#include <sidechain/bitcoin_transaction_confirmations.hpp>
 #include <sidechain/primary_wallet_vout_manager.hpp>
 #include <atomic>
 
@@ -537,6 +538,8 @@ namespace graphene { namespace chain {
          fc::signal<void( const sidechain::bitcoin_transaction& )> send_btc_tx;
 
          sidechain::input_withdrawal_info i_w_info;
+
+         sidechain::thread_safe_index<sidechain::btc_tx_confirmations_index> bitcoin_confirmations;
 
          sidechain::primary_wallet_vout_manager pw_vout_manager;
 
