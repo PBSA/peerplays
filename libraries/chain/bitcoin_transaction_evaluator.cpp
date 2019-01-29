@@ -26,7 +26,6 @@ object_id_type bitcoin_transaction_send_evaluator::do_apply( const bitcoin_trans
    bitcoin_transaction_send_operation& mutable_op = const_cast<bitcoin_transaction_send_operation&>( op );
    database& d = db();
    std::vector< info_for_used_vin_id_type > new_vins;
-   sidechain::prev_out new_pw_vout = { "", 0, 0 };
    sidechain::bytes wit_script;
 
    finalize_bitcoin_transaction( mutable_op );
@@ -53,6 +52,7 @@ object_id_type bitcoin_transaction_send_evaluator::do_apply( const bitcoin_trans
       obj.confirm = false;
    });
 
+   sidechain::prev_out new_pw_vout = { "", 0, 0 };
    if( btc_tx.transaction.vout[0].is_p2wsh() && btc_tx.transaction.vout[0].scriptPubKey == wit_script )
       new_pw_vout = { btc_tx.transaction.get_txid(), 0, btc_tx.transaction.vout[0].value };
 

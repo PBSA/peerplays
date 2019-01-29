@@ -9,6 +9,8 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
+#include <graphene/chain/bitcoin_address_object.hpp>
+
 namespace sidechain {
 
 sidechain_net_manager::sidechain_net_manager( graphene::chain::database* _db, std::string _ip, 
@@ -56,6 +58,8 @@ std::vector<info_for_vin> sidechain_net_manager::extract_info_from_block( const 
 
    std::vector<info_for_vin> result;
 
+   const auto& addr_idx = db->get_index_type<bitcoin_address_index>().indices().get<by_address>();
+
    for (const auto& tx_child : block.get_child("tx")) {
       const auto& tx = tx_child.second;
 
@@ -67,7 +71,7 @@ std::vector<info_for_vin> sidechain_net_manager::extract_info_from_block( const 
          for (const auto& addr : script.get_child("addresses")) { // in which cases there can be more addresses?
             const auto address_base58 = addr.second.get_value<std::string>();
 
-            // if( !test.count( address_base58 ) ) continue; // there is such an address in graphene
+            if( !addr_idx.count( address_base58 ) ) continue;
 
             info_for_vin vin;
             vin.out.hash_tx = tx.get_child("txid").get_value<std::string>();

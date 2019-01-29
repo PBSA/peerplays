@@ -1,5 +1,7 @@
 #include <sidechain/input_withdrawal_info.hpp>
 #include <graphene/chain/database.hpp>
+#include <graphene/chain/primary_wallet_vout_object.hpp>
+#include <graphene/chain/bitcoin_address_object.hpp>
 
 namespace sidechain {
 
@@ -11,6 +13,24 @@ bool info_for_vin::comparer::operator() ( const info_for_vin& lhs, const info_fo
       return lhs.created < rhs.created;
    }
    return lhs.id < rhs.id;
+}
+
+fc::optional<info_for_vin> input_withdrawal_info::get_info_for_pw_vin()
+{
+   fc::optional< primary_wallet_vout_object > vout = db.pw_vout_manager.get_latest_unused_vout();
+   if( !vout.valid() ) {
+      return fc::optional<info_for_vin>();
+   }
+
+   const auto& pw_address = db.get_latest_PW().address;
+
+   info_for_vin vin;
+   vin.identifier = vout->hash_id;
+   vin.out = vout->vout;
+   vin.address = pw_address.get_address();
+   vin.script = pw_address.get_witness_script();
+
+   return vin;
 }
 
 void input_withdrawal_info::insert_info_for_vin( const prev_out& out, const std::string& address, bytes script )
@@ -44,6 +64,8 @@ std::vector<info_for_vin> input_withdrawal_info::get_info_for_vins()
 {
    std::vector<info_for_vin> result;
 
+   const auto& addr_idx = db.get_index_type<bitcoin_address_index>().indices().get<by_address>();
+
    info_for_vins.safe_for<by_id_and_not_created>( [&]( info_for_vin_index::index<by_id_and_not_created>::type::iterator itr_b,
                                                        info_for_vin_index::index<by_id_and_not_created>::type::iterator itr_e )
    {
@@ -55,7 +77,9 @@ std::vector<info_for_vin> input_withdrawal_info::get_info_for_vins()
          vin.out.n_vout = itr_b->out.n_vout;
          vin.out.amount = itr_b->out.amount;
          vin.address = itr_b->address;
-         // vin.script = get account address, from the address get the script
+         const auto& address_itr = addr_idx.find( itr_b->address );
+         FC_ASSERT( address_itr != addr_idx.end() );
+         vin.script = address_itr->address.get_witness_script();
          
          result.push_back( vin );
          ++itr_b;

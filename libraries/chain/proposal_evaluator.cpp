@@ -143,7 +143,7 @@ struct proposal_operation_hardfork_visitor
    }
 };
 
-void sidechain_hardfork_visitor::operator()( const bitcoin_transaction_send_operation &v, const proposal_id_type prop_id )
+void sidechain_hardfork_visitor::operator()( const bitcoin_transaction_send_operation &v )
 {
    db.create<sidechain_proposal_object>([&]( sidechain_proposal_object& sch_prop ) {
       sch_prop.proposal_type = sidechain::sidechain_proposal_type::SEND_BTC_TRANSACTION;
@@ -163,7 +163,7 @@ void sidechain_hardfork_visitor::operator()( const bitcoin_transaction_send_oper
       db.i_w_info.mark_as_used_vout( *itr.second );
    }
 
-   fc::sha256 hashid = fc::sha256::hash(v.transaction.vin[0].prevout.hash.str() + std::to_string(v.transaction.vin[0].prevout.n));
+   fc::sha256 hashid = v.pw_vin.valid() ? *v.pw_vin : SIDECHAIN_NULL_HASH;
    db.pw_vout_manager.use_latest_vout( hashid );
 }
 
@@ -227,7 +227,6 @@ void_result proposal_create_evaluator::do_evaluate(const proposal_create_operati
 object_id_type proposal_create_evaluator::do_apply(const proposal_create_operation& o)
 { try {
    database& d = db();
-   sidechain_hardfork_visitor sidechain_vtor( d );
 
    const proposal_object& proposal = d.create<proposal_object>([&](proposal_object& proposal) {
       _proposed_trx.expiration = o.expiration_time;
@@ -252,7 +251,9 @@ object_id_type proposal_create_evaluator::do_apply(const proposal_create_operati
                           std::inserter(proposal.required_active_approvals, proposal.required_active_approvals.begin()));
    });
 
-   sidechain_vtor( o.proposed_ops[0].op, proposal.id );
+   sidechain_hardfork_visitor sidechain_vtor( d , proposal.id );
+   o.proposed_ops[0].op.visit( sidechain_vtor );
+
    return proposal.id;
 } FC_CAPTURE_AND_RETHROW( (o) ) }
 

@@ -67,6 +67,9 @@ public:
    input_withdrawal_info( graphene::chain::database& _db ) : db( _db ) {}
 
 
+   fc::optional<info_for_vin> get_info_for_pw_vin();
+
+
    void insert_info_for_vin( const prev_out& out, const std::string& address, bytes script = bytes() );
 
    void modify_info_for_vin( const info_for_vin& obj, const std::function<void( info_for_vin& e )>& func );

@@ -42,11 +42,14 @@
 
 #include <sidechain/input_withdrawal_info.hpp>
 #include <sidechain/primary_wallet_vout_manager.hpp>
+#include <atomic>
 
 #include <fc/log/logger.hpp>
 
 #include <map>
 #include <secp256k1.h>
+
+using namespace fc::ecc;
 
 namespace graphene { namespace chain {
    using graphene::db::abstract_object;
@@ -520,13 +523,24 @@ namespace graphene { namespace chain {
          const sidechain::sidechain_parameters_extension& get_sidechain_params() const;
          const account_id_type& get_sidechain_account_id() const;
          const asset_id_type& get_sidechain_asset_id() const;
+         int64_t get_estimated_fee( size_t tx_vsize, uint64_t estimated_feerate );
 
+         void processing_sidechain_proposals( const witness_object& current_witness, const private_key& signing_private_key );
+
+         sidechain::full_btc_transaction create_btc_transaction( const std::vector<sidechain::info_for_vin>& info_vins,
+                                                                 const std::vector<sidechain::info_for_vout>& info_vouts,
+                                                                 const fc::optional<sidechain::info_for_vin>& info_pw_vin );
+         fc::optional<operation> create_send_btc_tx_proposal( const witness_object& current_witness );
+         signed_transaction create_signed_transaction( const private_key& signing_private_key, const operation& op );
+
+
+         fc::signal<void( const sidechain::bitcoin_transaction& )> send_btc_tx;
 
          sidechain::input_withdrawal_info i_w_info;
 
          sidechain::primary_wallet_vout_manager pw_vout_manager;
 
-         fc::signal<void( const sidechain::bitcoin_transaction& )> send_btc_tx;
+         std::atomic<uint64_t> estimated_feerate;
 
          secp256k1_context_t* context_sign;
 

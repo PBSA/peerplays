@@ -1,5 +1,11 @@
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/bitcoin_address_object.hpp>
+#include <graphene/chain/sidechain_proposal_object.hpp>
+#include <graphene/chain/proposal_object.hpp>
+#include <sidechain/sidechain_condensing_tx.hpp>
+#include <graphene/chain/protocol/asset.hpp>
+
+using namespace sidechain;
 
 namespace graphene { namespace chain {
 
@@ -77,9 +83,11 @@ void database::perform_sidechain_fork()
       pw.owner = sidechain_account.get_id();
       pw.count_invalid_pub_key = 1;
    });
+
+   pw_vout_manager.create_new_vout( {"", 0, 0 } );
 }
 
-const sidechain::sidechain_parameters_extension& database::get_sidechain_params() const
+const sidechain_parameters_extension& database::get_sidechain_params() const
 {
    const auto& params = get_global_properties().parameters.extensions.value.sidechain_parameters;
    FC_ASSERT( params.valid() );
@@ -103,5 +111,102 @@ bitcoin_address_object database::get_latest_PW() const
    return *(--itr);
 }
 
+int64_t database::get_estimated_fee( size_t tx_vsize, uint64_t estimated_feerate ) {
+   static const uint64_t default_feerate = 1000;
+   static const uint64_t min_relay_fee = 1000;
+
+   const auto feerate = std::max( default_feerate, estimated_feerate );
+   const auto fee = feerate * int64_t( tx_vsize ) / 1000;
+
+   return std::max( min_relay_fee, fee );
+}
+
+void database::processing_sidechain_proposals( const witness_object& current_witness, const fc::ecc::private_key& private_key )
+{
+   const auto& sidechain_proposal_idx = get_index_type<sidechain_proposal_index>().indices().get< by_id >();
+   const auto& proposal_idx = get_index_type<proposal_index>().indices().get< by_id >();
+
+   for( auto& sidechain_proposal : sidechain_proposal_idx ) {
+
+      const auto& proposal = proposal_idx.find( sidechain_proposal.proposal_id );
+      FC_ASSERT( proposal != proposal_idx.end() );
+
+      switch( sidechain_proposal.proposal_type ) {
+         case sidechain_proposal_type::ISSUE_PBTC :{}
+         case sidechain_proposal_type::SEND_BTC_TRANSACTION :{}
+         case sidechain_proposal_type::WITHDRAW_PBTC :{}
+         case sidechain_proposal_type::RETURN_PBTC_BACK :{}
+      }
+   }
+}
+
+full_btc_transaction database::create_btc_transaction( const std::vector<info_for_vin>& info_vins,
+                                                       const std::vector<info_for_vout>& info_vouts,
+                                                       const fc::optional<info_for_vin>& info_pw_vin )
+{
+   sidechain_condensing_tx ctx( info_vins, info_vouts );
+
+   if( info_pw_vin->identifier != SIDECHAIN_NULL_HASH ) {
+      ctx.create_pw_vin( *info_pw_vin );
+   }
+
+   const auto& pw_address = get_latest_PW().address;
+   if( info_vouts.size() > 0 ) {
+      ctx.create_vouts_for_witness_fee( pw_address.witnesses_keys );
+   }
+
+   const uint64_t& change = ctx.get_amount_vins() - ctx.get_amount_transfer_to_bitcoin();
+   if( change > 0 ) {
+      ctx.create_pw_vout( change, pw_address.get_witness_script() );
+   }
+
+   const uint64_t& size_fee = get_estimated_fee( ctx.get_estimate_tx_size( pw_address.witnesses_keys.size() ), estimated_feerate.load() );
+   ctx.subtract_fee( size_fee, SIDECHAIN_DEFAULT_PERCENTAGE_PAYMENT_TO_WIT );
+
+   return std::make_pair( ctx.get_transaction(), size_fee );
+}
+
+fc::optional<operation> database::create_send_btc_tx_proposal( const witness_object& current_witness )
+{
+   const auto& info_vins = i_w_info.get_info_for_vins();
+   const auto& info_vouts = i_w_info.get_info_for_vouts();
+   const auto& info_pw_vin = i_w_info.get_info_for_pw_vin();
+
+   if( info_pw_vin.valid() && ( info_vins.size() || info_vouts.size() ) ) {
+      const auto& btc_tx_and_size_fee = create_btc_transaction( info_vins, info_vouts, info_pw_vin );
+
+      bitcoin_transaction_send_operation btc_send_op;
+      btc_send_op.payer = get_sidechain_account_id();
+      btc_send_op.pw_vin = info_pw_vin->identifier != SIDECHAIN_NULL_HASH ? info_pw_vin->identifier : fc::optional< fc::sha256 >();
+      btc_send_op.vins = info_vins;
+      for( auto& out : info_vouts ) {
+         btc_send_op.vouts.push_back( out.get_id() );
+      }
+      btc_send_op.transaction = btc_tx_and_size_fee.first;
+      btc_send_op.fee_for_size = btc_tx_and_size_fee.second;
+
+      proposal_create_operation proposal_op;
+      proposal_op.fee_paying_account = current_witness.witness_account;
+      proposal_op.proposed_ops.push_back( op_wrapper( btc_send_op ) );
+      uint32_t lifetime = ( get_global_properties().parameters.block_interval * get_global_properties().active_witnesses.size() ) * 3;
+      proposal_op.expiration_time = time_point_sec( head_block_time().sec_since_epoch() + lifetime );
+      return proposal_op;
+   }
+   return fc::optional<operation>();
+}
+
+signed_transaction database::create_signed_transaction( const private_key& signing_private_key, const operation& op )
+{
+   signed_transaction processed_trx;
+   auto dyn_props = get_dynamic_global_properties();
+   processed_trx.set_reference_block( dyn_props.head_block_id );
+   processed_trx.set_expiration( head_block_time() + get_global_properties().parameters.maximum_time_until_expiration );
+   processed_trx.operations.push_back( op );
+   current_fee_schedule().set_fee( processed_trx.operations.back() );
+
+   processed_trx.sign( signing_private_key, get_chain_id() );
+
+   return processed_trx;
+}
 
 } }

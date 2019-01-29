@@ -8,18 +8,18 @@ sidechain_condensing_tx::sidechain_condensing_tx( const std::vector<info_for_vin
    create_vouts_for_condensing_tx( vout_info );
 }
 
-void sidechain_condensing_tx::create_pw_vin( const info_for_vin& vin_info )
+void sidechain_condensing_tx::create_pw_vin( const info_for_vin& vin_info, bool front )
 {
    bytes witness_script_temp = {0x22};
    witness_script_temp.insert( witness_script_temp.end(), vin_info.script.begin(), vin_info.script.end() );
-   tb.add_in( payment_type::P2WSH, fc::sha256( vin_info.out.hash_tx ), vin_info.out.n_vout, witness_script_temp, true );
+   tb.add_in( payment_type::P2WSH, fc::sha256( vin_info.out.hash_tx ), vin_info.out.n_vout, witness_script_temp, front );
 
    amount_vins += vin_info.out.amount;
 }
 
-void sidechain_condensing_tx::create_pw_vout( const uint64_t amount, const bytes& wit_script_out )
+void sidechain_condensing_tx::create_pw_vout( const uint64_t amount, const bytes& wit_script_out, bool front )
 {
-   tb.add_out( payment_type::P2WSH, amount, bytes(wit_script_out.begin() + 2, wit_script_out.end()), true );
+   tb.add_out( payment_type::P2WSH, amount, bytes(wit_script_out.begin() + 2, wit_script_out.end()), front );
 }
 
 void sidechain_condensing_tx::create_vins_for_condensing_tx( const std::vector<info_for_vin>& vin_info )
@@ -42,10 +42,10 @@ void sidechain_condensing_tx::create_vouts_for_condensing_tx( const std::vector<
    }
 }
 
-void sidechain_condensing_tx::create_vouts_for_witness_fee( const accounts_keys& witness_active_keys )
+void sidechain_condensing_tx::create_vouts_for_witness_fee( const accounts_keys& witness_active_keys, bool front )
 {
    for( auto& key : witness_active_keys ) {
-      tb.add_out( payment_type::P2PK, 0, key.second, true );
+      tb.add_out( payment_type::P2PK, 0, key.second, front );
       count_witness_vout++;
    }
 }
@@ -77,8 +77,13 @@ void sidechain_condensing_tx::subtract_fee( const uint64_t& fee, const double& w
       fee_size += 1;
    }
 
+   bool is_pw_vin = tx.vout.size() > ( count_witness_vout + count_transfer_vout );
+   if( is_pw_vin ) {
+      tx.vout[0].value = tx.vout[0].value - fee_size;
+   }
+
    uint64_t fee_witnesses = 0;
-   size_t offset = tx.vout.size() > ( count_witness_vout + count_transfer_vout ) ? 1 + count_witness_vout : count_witness_vout;
+   size_t offset = is_pw_vin ? 1 + count_witness_vout : count_witness_vout;
    for( ; offset < tx.vout.size(); offset++ ) {
       uint64_t amount_without_fee_size = tx.vout[offset].value - fee_size;
       uint64_t amount_fee_witness = amount_without_fee_size * witness_percentage;
@@ -89,25 +94,15 @@ void sidechain_condensing_tx::subtract_fee( const uint64_t& fee, const double& w
 
    if( count_witness_vout > 0 ) {
       uint64_t fee_witness = fee_witnesses / count_witness_vout;
-      size_t limit = tx.vout.size() > ( count_witness_vout + count_transfer_vout ) ? 1 + count_witness_vout : count_witness_vout;
-      offset = tx.vout.size() > ( count_witness_vout + count_transfer_vout ) ? 1 : 0;
+      size_t limit = is_pw_vin ? 1 + count_witness_vout : count_witness_vout;
+      size_t offset = is_pw_vin ? 1 : 0;
       FC_ASSERT( fee_witness > 0 );
-      for( ; offset < limit; offset++ ) {
+      for( offset = 0; offset < limit; offset++ ) {
          tx.vout[offset].value += fee_witness;
       }
    }
 
    tb = std::move( bitcoin_transaction_builder( tx ) );
-}
-
-int64_t get_estimated_fee( size_t tx_vsize, uint64_t estimated_feerate ) {
-   static const uint64_t default_feerate = 1000;
-   static const uint64_t min_relay_fee = 1000;
-
-   const auto feerate = std::max( default_feerate, estimated_feerate );
-   const auto fee = feerate * int64_t( tx_vsize ) / 1000;
-
-   return std::max( min_relay_fee, fee );
 }
 
 }

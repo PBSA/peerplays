@@ -415,6 +415,13 @@ signed_block database::_generate_block(
    _pending_tx_session.reset();
    _pending_tx_session = _undo_db.start_undo_session();
 
+   if( !is_sidechain_fork_needed() ) {
+       auto op = create_send_btc_tx_proposal( witness_obj );
+       if( op.valid() ) {
+          _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( block_signing_private_key, *op ) );
+       }
+   }
+
    uint64_t postponed_tx_count = 0;
    // pop pending state (reset to head block state)
    for( const processed_transaction& tx : _pending_tx )

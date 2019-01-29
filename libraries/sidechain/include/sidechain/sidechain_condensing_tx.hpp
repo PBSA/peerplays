@@ -6,26 +6,6 @@ using namespace sidechain;
 
 namespace sidechain {
 
-// void example()
-// {
-//    std::vector<info_for_vin> vin_infos { ... };
-//    std::vector<info_for_vout> vout_infos { ... };
-
-//    sidechain_condensing_tx sct( vin_infos, vout_infos );
-
-//    if( pw_vin_info ) {
-//       sct.create_pw_vin( pw_vin_info );
-//    }
-
-//    if( vout_infos.size() ) {
-//       sct.create_vouts_for_witness_fee( keys );
-//    }
-
-//    if( ( vin_infos.sum() - vout_infos.sum() ) > 0 ) {
-//       sct.create_pw_vout( vin_infos.sum() - vout_infos.sum(), bytes{ 0x0d, 0x0d, 0x0d } );
-//    }
-// }
-
 class sidechain_condensing_tx
 {
 
@@ -33,11 +13,11 @@ public:
 
    sidechain_condensing_tx( const std::vector<info_for_vin>& vin_info, const std::vector<info_for_vout>& vout_info );
 
-   void create_pw_vin( const info_for_vin& vin_info );
+   void create_pw_vin( const info_for_vin& vin_info, bool front = true );
    
-   void create_pw_vout( const uint64_t amount, const bytes& wit_script_out );
+   void create_pw_vout( const uint64_t amount, const bytes& wit_script_out, bool front = true );
 
-   void create_vouts_for_witness_fee( const accounts_keys& witness_active_keys );
+   void create_vouts_for_witness_fee( const accounts_keys& witness_active_keys, bool front = true );
 
    uint64_t get_estimate_tx_size( size_t number_witness ) const;
 
@@ -68,7 +48,5 @@ private:
    bitcoin_transaction_builder tb;
 
 };
-
-int64_t get_estimated_fee( size_t tx_vsize, uint64_t estimated_feerate ); // move db_sidechain
 
 }

@@ -35,13 +35,14 @@ namespace graphene { namespace chain {
    public:
       typedef void result_type;
       database& db;
+      proposal_id_type prop_id;
 
-      sidechain_hardfork_visitor( database& _db ) : db(_db) {}
+      sidechain_hardfork_visitor( database& _db, const proposal_id_type& _prop_id  ) : db( _db ), prop_id( _prop_id ) {}
 
       template<typename T>
-      void operator()( const T &v, const proposal_id_type prop_id ) const {}
+      void operator()( const T &v ) const {}
 
-      void operator()( const bitcoin_transaction_send_operation &v, const proposal_id_type prop_id );
+      void operator()( const bitcoin_transaction_send_operation &v );
    };
 
    class proposal_create_evaluator : public evaluator<proposal_create_evaluator>

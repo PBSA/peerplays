@@ -42,6 +42,7 @@ database::database() :
    initialize_evaluators();
    context_sign = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
    context_verify = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
+   estimated_feerate = 0;
 }
 
 database::~database()

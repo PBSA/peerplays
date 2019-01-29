@@ -6,6 +6,9 @@
 
 namespace graphene { namespace chain { class database; } }
 
+using graphene::chain::primary_wallet_vout_object;
+using graphene::chain::primary_wallet_vout_id_type;
+
 namespace sidechain {
 
 class primary_wallet_vout_manager
@@ -16,9 +19,9 @@ public:
 
    bool is_reach_max_unconfirmaed_vout() const;
 
-   fc::optional< graphene::chain::primary_wallet_vout_object > get_latest_unused_vout() const;
+   fc::optional< primary_wallet_vout_object > get_latest_unused_vout() const;
 
-   fc::optional< graphene::chain::primary_wallet_vout_object > get_vout( fc::sha256 hash_id ) const;
+   fc::optional< primary_wallet_vout_object > get_vout( fc::sha256 hash_id ) const;
    
    void create_new_vout( const sidechain::prev_out& out );
 
@@ -30,7 +33,7 @@ public:
 
 private:
 
-   fc::optional< graphene::chain::primary_wallet_vout_id_type > get_vout_id( fc::sha256 hash_id ) const;
+   fc::optional< primary_wallet_vout_id_type > get_vout_id( fc::sha256 hash_id ) const;
 
    graphene::chain::database& db;
 

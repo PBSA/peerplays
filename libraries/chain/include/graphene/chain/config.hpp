@@ -236,4 +236,6 @@
 #define SIDECHAIN_DEFAULT_NUMBER_SIG_MULTISIG            5
 #define SIDECHAIN_DEFAULT_CONDENSING_TX_VINS_NUMBER      5
 #define SIDECHAIN_DEFAULT_CONDENSING_TX_VOUTS_NUMBER     5
+#define SIDECHAIN_DEFAULT_PERCENTAGE_PAYMENT_TO_WIT      0.001
+#define SIDECHAIN_NULL_HASH                              fc::sha256( "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9" ) // fc::sha256::hash( "" + std::to_string( 0 ) );
 //////////////////////////////////////////////////////////////////////
