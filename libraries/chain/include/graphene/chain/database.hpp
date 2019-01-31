@@ -534,6 +534,10 @@ namespace graphene { namespace chain {
          fc::optional<operation> create_send_btc_tx_proposal( const witness_object& current_witness );
          signed_transaction create_signed_transaction( const private_key& signing_private_key, const operation& op );
 
+         void remove_sidechain_proposal_object( const proposal_object& proposal );
+
+         void roll_back_vin_and_vout( const proposal_object& proposal );
+
 
          fc::signal<void( const sidechain::bitcoin_transaction& )> send_btc_tx;
 

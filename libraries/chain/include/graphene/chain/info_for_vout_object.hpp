@@ -15,8 +15,8 @@ class info_for_vout_object : public abstract_object<info_for_vout_object>
 
       struct comparer {
          bool operator()( const info_for_vout_object& lhs, const info_for_vout_object& rhs ) const {
-            if( lhs.created != rhs.created )
-               return lhs.created < rhs.created;
+            if( lhs.used != rhs.used )
+               return lhs.used < rhs.used;
             return lhs.id < rhs.id;
          }
       };
@@ -27,23 +27,23 @@ class info_for_vout_object : public abstract_object<info_for_vout_object>
       sidechain::bitcoin_address address;
       uint64_t                   amount;
 
-      bool created = false;
+      bool used = false;
 };
 
 struct by_created;
-struct by_id_and_not_created;
+struct by_id_and_not_used;
 
 typedef boost::multi_index_container<
    info_for_vout_object,
    indexed_by<
       ordered_unique< tag< by_id >, member< object, object_id_type, &object::id > >,
-      ordered_non_unique< tag< by_created >, member< info_for_vout_object, bool, &info_for_vout_object::created > >,
-      ordered_non_unique<tag<by_id_and_not_created>, identity< info_for_vout_object >, info_for_vout_object::comparer >
+      ordered_non_unique< tag< by_created >, member< info_for_vout_object, bool, &info_for_vout_object::used > >,
+      ordered_non_unique<tag<by_id_and_not_used>, identity< info_for_vout_object >, info_for_vout_object::comparer >
    >
 > info_for_vout_multi_index_container;
 typedef generic_index<info_for_vout_object, info_for_vout_multi_index_container> info_for_vout_index;
 
 } } // graphene::chain
 
-FC_REFLECT_DERIVED( graphene::chain::info_for_vout_object, (graphene::chain::object), (payer)(address)(amount)(created) )
+FC_REFLECT_DERIVED( graphene::chain::info_for_vout_object, (graphene::chain::object), (payer)(address)(amount)(used) )
 

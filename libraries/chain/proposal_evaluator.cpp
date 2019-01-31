@@ -162,8 +162,7 @@ void sidechain_hardfork_visitor::operator()( const bitcoin_transaction_send_oper
       db.i_w_info.mark_as_used_vout( *obj );
    }
 
-   fc::sha256 hashid = v.pw_vin.valid() ? *v.pw_vin : SIDECHAIN_NULL_HASH;
-   db.pw_vout_manager.use_latest_vout( hashid );
+   db.pw_vout_manager.mark_as_used_vout( v.pw_vin );
 }
 
 void_result proposal_create_evaluator::do_evaluate(const proposal_create_operation& o)

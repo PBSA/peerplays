@@ -146,7 +146,7 @@ full_btc_transaction database::create_btc_transaction( const std::vector<info_fo
 {
    sidechain_condensing_tx ctx( info_vins, info_vouts );
 
-   if( info_pw_vin->identifier != SIDECHAIN_NULL_HASH ) {
+   if( info_pw_vin->identifier.str().compare( 0, 24, SIDECHAIN_NULL_VIN_IDENTIFIER ) == 0 ) {
       ctx.create_pw_vin( *info_pw_vin );
    }
 
@@ -177,7 +177,7 @@ fc::optional<operation> database::create_send_btc_tx_proposal( const witness_obj
 
       bitcoin_transaction_send_operation btc_send_op;
       btc_send_op.payer = get_sidechain_account_id();
-      btc_send_op.pw_vin = info_pw_vin->identifier != SIDECHAIN_NULL_HASH ? info_pw_vin->identifier : fc::optional< fc::sha256 >();
+      btc_send_op.pw_vin = info_pw_vin->identifier;
       btc_send_op.vins = info_vins;
       for( auto& out : info_vouts ) {
          btc_send_op.vouts.push_back( out.get_id() );
@@ -207,6 +207,49 @@ signed_transaction database::create_signed_transaction( const private_key& signi
    processed_trx.sign( signing_private_key, get_chain_id() );
 
    return processed_trx;
+}
+
+void database::remove_sidechain_proposal_object( const proposal_object& proposal )
+{ try {
+   if( proposal.proposed_transaction.operations.size() == 1 &&
+       proposal.proposed_transaction.operations.back().which() == operation::tag<bitcoin_transaction_send_operation>::value )
+   {
+      const auto& sidechain_proposal_idx = get_index_type<sidechain_proposal_index>().indices().get<by_proposal>();
+      auto sidechain_proposal_itr = sidechain_proposal_idx.find( proposal.id );
+      if( sidechain_proposal_itr == sidechain_proposal_idx.end() ) {
+         return;
+      }
+      remove( *sidechain_proposal_itr );
+   }
+} FC_CAPTURE_AND_RETHROW( (proposal) ) }
+
+void database::roll_back_vin_and_vout( const proposal_object& proposal )
+{
+   if( proposal.proposed_transaction.operations.size() == 1 &&
+       proposal.proposed_transaction.operations.back().which() == operation::tag<bitcoin_transaction_send_operation>::value )
+   {
+      bitcoin_transaction_send_operation op = proposal.proposed_transaction.operations.back().get<bitcoin_transaction_send_operation>();
+
+      if( pw_vout_manager.get_vout( op.pw_vin ).valid() ) {
+         pw_vout_manager.mark_as_unused_vout( op.pw_vin );
+      }
+
+      for( const auto& vin : op.vins ) {
+         const auto& v = i_w_info.find_info_for_vin( vin.identifier );
+         if( v.valid() ) {
+            i_w_info.mark_as_unused_vin( vin );
+         }
+      }
+
+      for( const auto& vout : op.vouts ) {
+         const auto& v = i_w_info.find_info_for_vout( vout );
+         if( v.valid() ) {
+            i_w_info.mark_as_unused_vout( *v );
+         }
+      }
+
+      remove_sidechain_proposal_object( proposal );
+   }
 }
 
 } }

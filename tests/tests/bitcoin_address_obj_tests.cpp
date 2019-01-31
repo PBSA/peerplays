@@ -19,12 +19,12 @@ BOOST_AUTO_TEST_CASE( create_bitcoin_address_test )
 
    const auto& idx = db.get_index_type<bitcoin_address_index>().indices().get< by_id >();
 
-   BOOST_CHECK( idx.size() == 0 );
+   BOOST_CHECK( idx.size() == 1 );
 
    db.apply_operation( context, op );
 
    auto btc_address = idx.begin();
-   BOOST_CHECK(btc_address->count_invalid_pub_key == 1);
+   BOOST_CHECK( btc_address->count_invalid_pub_key == 1 );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -35,9 +35,10 @@ fc::optional< primary_wallet_vout_object > primary_wallet_vout_manager::get_vout
 
 void primary_wallet_vout_manager::create_new_vout( const sidechain::prev_out& out )
 {
+   const auto& next_pw_id = db.get_index_type<graphene::chain::primary_wallet_vout_index>().get_next_id().instance();
    db.create<primary_wallet_vout_object>([&]( primary_wallet_vout_object& obj ) {
       obj.vout = out;
-      obj.hash_id = fc::sha256::hash( out.hash_tx + std::to_string( out.n_vout ) );
+      obj.hash_id = create_hash_id( out.hash_tx, out.n_vout, next_pw_id );
       obj.confirmed = false;
       obj.used = false;
    });
@@ -79,7 +80,7 @@ void primary_wallet_vout_manager::confirm_vout( fc::sha256 hash_id )
    }
 }
 
-void primary_wallet_vout_manager::use_latest_vout( fc::sha256 hash_id )
+void primary_wallet_vout_manager::mark_as_used_vout( fc::sha256 hash_id )
 {
    const auto& PW_vout_by_id = db.get_index_type<graphene::chain::primary_wallet_vout_index>().indices().get< graphene::chain::by_id >();
    auto vout_id = get_vout_id( hash_id );
@@ -97,6 +98,19 @@ void primary_wallet_vout_manager::use_latest_vout( fc::sha256 hash_id )
    }
 }
 
+void primary_wallet_vout_manager::mark_as_unused_vout( fc::sha256 hash_id )
+{
+   const auto& PW_vout_by_id = db.get_index_type<graphene::chain::primary_wallet_vout_index>().indices().get< graphene::chain::by_id >();
+   auto vout_id = get_vout_id( hash_id );
+   FC_ASSERT( vout_id.valid() );
+
+   auto itr = PW_vout_by_id.find( *vout_id );
+
+   db.modify(*itr, [&]( primary_wallet_vout_object& PW_vout ) {
+      PW_vout.used = false;
+   });
+}
+
 fc::optional< graphene::chain::primary_wallet_vout_id_type > primary_wallet_vout_manager::get_vout_id( fc::sha256 hash_id ) const
 {
    const auto& PW_vout_by_hash_id = db.get_index_type<graphene::chain::primary_wallet_vout_index>().indices().get< graphene::chain::by_hash_id >();
@@ -104,6 +118,18 @@ fc::optional< graphene::chain::primary_wallet_vout_id_type > primary_wallet_vout
    if( itr_hash_id == PW_vout_by_hash_id.end() )
       return fc::optional< graphene::chain::primary_wallet_vout_id_type >();
    return fc::optional< graphene::chain::primary_wallet_vout_id_type >( itr_hash_id->get_id() );
+}
+
+fc::sha256 primary_wallet_vout_manager::create_hash_id( const std::string& hash_tx, const uint32_t& n_vout, const uint64_t& id ) const
+{
+   std::stringstream ss;
+   ss << std::hex << id;
+   std::string id_hex = std::string( 16 - ss.str().size(), '0' ) + ss.str();
+
+   std::string hash_str = fc::sha256::hash( hash_tx + std::to_string( n_vout ) ).str();
+   std::string final_hash_id = std::string( hash_str.begin(), hash_str.begin() + 48 ) + id_hex;
+
+   return fc::sha256( final_hash_id );
 }
 
 }

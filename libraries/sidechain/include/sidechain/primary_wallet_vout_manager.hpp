@@ -29,9 +29,13 @@ public:
 
    void confirm_vout( fc::sha256 hash_id );
 
-   void use_latest_vout( fc::sha256 hash_id );
+   void mark_as_used_vout( fc::sha256 hash_id );
+
+   void mark_as_unused_vout( fc::sha256 hash_id );
 
 private:
+
+   fc::sha256 create_hash_id( const std::string& hash_tx, const uint32_t& n_vout, const uint64_t& id ) const;
 
    fc::optional< primary_wallet_vout_id_type > get_vout_id( fc::sha256 hash_id ) const;
 

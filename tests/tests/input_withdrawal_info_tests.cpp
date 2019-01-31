@@ -2,6 +2,7 @@
 #include <sidechain/input_withdrawal_info.hpp>
 #include "../common/database_fixture.hpp"
 #include <sidechain/types.hpp>
+#include <graphene/chain/bitcoin_address_object.hpp>
 
 using namespace graphene::chain;
 using namespace sidechain;
@@ -138,9 +139,18 @@ BOOST_AUTO_TEST_CASE( input_withdrawal_info_remove_vin_test )
 BOOST_AUTO_TEST_CASE( input_withdrawal_info_get_info_for_vins_test )
 {
    input_withdrawal_info infos( db );
+
+   const auto pw_obj = db.get_latest_PW();
+   auto witnesses_keys = pw_obj.address.witnesses_keys;
+
    for( size_t i = 0; i < 10; i++ ) {
+      const auto& address = db.create<bitcoin_address_object>( [&]( bitcoin_address_object& a ) {
+         const fc::ecc::private_key petra_private_key  = generate_private_key( std::to_string( i ) );
+         witnesses_keys.begin()->second = public_key_type( petra_private_key.get_public_key() );
+         a.address = sidechain::btc_multisig_segwit_address( 5, witnesses_keys);
+      });
       prev_out out = { std::to_string( i ), static_cast<uint32_t>( i ), static_cast< uint64_t >( i ) };
-      infos.insert_info_for_vin( out, "addr" + std::to_string( i ), { 0x01, 0x02, 0x03 } );
+      infos.insert_info_for_vin( out, address.get_address(), { 0x01, 0x02, 0x03 } );
    }
 
    const auto& vins = infos.get_info_for_vins();

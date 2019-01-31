@@ -127,14 +127,14 @@ BOOST_AUTO_TEST_CASE( use_pw_vout_objects )
    primary_wallet_vout_manager pw_vout_manager( db );
 
    create_primary_wallet_vouts( pw_vout_manager, db, 1 );
-   pw_vout_manager.use_latest_vout( fc::sha256::hash( "0" + std::to_string( 0 )));
+   pw_vout_manager.mark_as_used_vout( fc::sha256::hash( "0" + std::to_string( 0 )));
 
    auto itr = idx.begin();
    BOOST_CHECK( !pw_vout_manager.get_latest_unused_vout().valid() );
    BOOST_CHECK( itr->used == true );
 
    create_primary_wallet_vouts( pw_vout_manager, db, 1 );
-   pw_vout_manager.use_latest_vout( fc::sha256::hash( "1" + std::to_string( 1 )));
+   pw_vout_manager.mark_as_used_vout( fc::sha256::hash( "1" + std::to_string( 1 )));
    itr++;
 
    BOOST_CHECK( !pw_vout_manager.get_latest_unused_vout().valid() );
@@ -142,7 +142,7 @@ BOOST_AUTO_TEST_CASE( use_pw_vout_objects )
 
    create_primary_wallet_vouts( pw_vout_manager, db, 2 );
 
-   GRAPHENE_REQUIRE_THROW( pw_vout_manager.use_latest_vout( fc::sha256::hash( "3" + std::to_string( 3 ))), fc::exception );
+   GRAPHENE_REQUIRE_THROW( pw_vout_manager.mark_as_used_vout( fc::sha256::hash( "3" + std::to_string( 3 ))), fc::exception );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

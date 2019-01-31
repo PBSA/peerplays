@@ -9,8 +9,8 @@ uint64_t info_for_vin::count_id_info_for_vin = 0;
 
 bool info_for_vin::comparer::operator() ( const info_for_vin& lhs, const info_for_vin& rhs ) const
 {
-   if( lhs.created != rhs.created ) {
-      return lhs.created < rhs.created;
+   if( lhs.used != rhs.used ) {
+      return lhs.used < rhs.used;
    }
    return lhs.id < rhs.id;
 }
@@ -46,7 +46,14 @@ void input_withdrawal_info::modify_info_for_vin( const info_for_vin& obj, const 
 void input_withdrawal_info::mark_as_used_vin( const info_for_vin& obj )
 {
    info_for_vins.modify<by_identifier>( obj.identifier, [&]( info_for_vin& o ) {
-      o.created = true;
+      o.used = true;
+   });
+}
+
+void input_withdrawal_info::mark_as_unused_vin( const info_for_vin& obj )
+{
+   info_for_vins.modify<by_identifier>( obj.identifier, [&]( info_for_vin& o ) {
+      o.used = false;
    });
 }
 
@@ -66,12 +73,11 @@ std::vector<info_for_vin> input_withdrawal_info::get_info_for_vins()
 
    const auto& addr_idx = db.get_index_type<bitcoin_address_index>().indices().get<by_address>();
 
-   info_for_vins.safe_for<by_id_and_not_created>( [&]( info_for_vin_index::index<by_id_and_not_created>::type::iterator itr_b,
-                                                       info_for_vin_index::index<by_id_and_not_created>::type::iterator itr_e )
+   info_for_vins.safe_for<by_id_and_not_used>( [&]( info_for_vin_index::index<by_id_and_not_used>::type::iterator itr_b,
+                                                    info_for_vin_index::index<by_id_and_not_used>::type::iterator itr_e )
    {
-      for( size_t i = 0; itr_b != itr_e && i < 5 && !itr_b->created; i++ ) {  // 5 amount vins to bitcoin transaction
+      for( size_t i = 0; itr_b != itr_e && i < 5 && !itr_b->used; i++ ) {  // 5 amount vins to bitcoin transaction
          info_for_vin vin;
-         vin.id = itr_b->id;
          vin.identifier = itr_b->identifier;
          vin.out.hash_tx = itr_b->out.hash_tx;
          vin.out.n_vout = itr_b->out.n_vout;
@@ -104,7 +110,17 @@ void input_withdrawal_info::mark_as_used_vout( const graphene::chain::info_for_v
    auto itr = info_for_vout_idx.find( obj.id );
 
    db.modify<graphene::chain::info_for_vout_object>( *itr, [&]( graphene::chain::info_for_vout_object& o ) {
-      o.created = true;
+      o.used = true;
+   });
+}
+
+void input_withdrawal_info::mark_as_unused_vout( const graphene::chain::info_for_vout_object& obj )
+{
+   const auto& info_for_vout_idx = db.get_index_type<graphene::chain::info_for_vout_index>().indices().get< graphene::chain::by_id >();
+   auto itr = info_for_vout_idx.find( obj.id );
+
+   db.modify<graphene::chain::info_for_vout_object>( *itr, [&]( graphene::chain::info_for_vout_object& o ) {
+      o.used = false;
    });
 }
 
@@ -134,9 +150,9 @@ std::vector<info_for_vout> input_withdrawal_info::get_info_for_vouts()
 {
    std::vector<info_for_vout> result;
 
-   const auto& info_for_vout_idx = db.get_index_type<graphene::chain::info_for_vout_index>().indices().get< graphene::chain::by_id_and_not_created >();
+   const auto& info_for_vout_idx = db.get_index_type<graphene::chain::info_for_vout_index>().indices().get< graphene::chain::by_id_and_not_used >();
    auto itr = info_for_vout_idx.begin();
-   for(size_t i = 0; i < 5 && itr != info_for_vout_idx.end() && !itr->created; i++) {
+   for(size_t i = 0; i < 5 && itr != info_for_vout_idx.end() && !itr->used; i++) {
       info_for_vout vout;
       vout.payer = itr->payer;
       vout.address = itr->address;

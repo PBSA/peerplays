@@ -19,7 +19,7 @@ public:
    primary_wallet_vout_id_type get_id() const { return id; }
 
    sidechain::prev_out      vout;
-   fc::uint256              hash_id; // sha256(hash + n_vout)
+   fc::sha256               hash_id; // ( sha256(hash + n_vout) - 8 bytes ) + id_obj
 
    bool                     confirmed;
    bool                     used;

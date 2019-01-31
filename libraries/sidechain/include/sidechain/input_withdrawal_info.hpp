@@ -40,18 +40,18 @@ struct info_for_vin
    std::string address;
    bytes script;
 
-   bool created = false;
+   bool used = false;
 };
 
 struct by_id;
 struct by_identifier;
-struct by_id_and_not_created;
+struct by_id_and_not_used;
 
 using info_for_vin_index = boost::multi_index_container<info_for_vin,
    indexed_by<
       ordered_unique<tag<by_id>, member<info_for_vin, uint64_t, &info_for_vin::id>>,
       ordered_unique<tag<by_identifier>, member<info_for_vin, fc::sha256, &info_for_vin::identifier>>,
-      ordered_non_unique<tag<by_id_and_not_created>, identity< info_for_vin >, info_for_vin::comparer >
+      ordered_non_unique<tag<by_id_and_not_used>, identity< info_for_vin >, info_for_vin::comparer >
    >
 >;
 
@@ -69,6 +69,8 @@ public:
 
    void mark_as_used_vin( const info_for_vin& obj );
 
+   void mark_as_unused_vin( const info_for_vin& obj );
+
    void remove_info_for_vin( const info_for_vin& obj );
 
    fc::optional<info_for_vin> find_info_for_vin( fc::sha256 identifier );
@@ -81,6 +83,8 @@ public:
    void insert_info_for_vout( const graphene::chain::account_id_type& payer, const std::string& data, const uint64_t& amount );
 
    void mark_as_used_vout( const graphene::chain::info_for_vout_object& obj );
+
+   void mark_as_unused_vout( const graphene::chain::info_for_vout_object& obj );
 
    void remove_info_for_vout( const info_for_vout& obj );
 
@@ -100,4 +104,4 @@ private:
 
 }
 
-FC_REFLECT( sidechain::info_for_vin, (identifier)(out)(address)(script)(created) )
+FC_REFLECT( sidechain::info_for_vin, (identifier)(out)(address)(script)(used) )
