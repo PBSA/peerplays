@@ -61,7 +61,14 @@ class input_withdrawal_info
 public:
    input_withdrawal_info( graphene::chain::database& _db ) : db( _db ) {}
 
+
+   std::vector<sidechain::bytes> get_redeem_scripts( const std::vector<info_for_vin>& info_vins );
+
+   std::vector<uint64_t> get_amounts( const std::vector<info_for_vin>& info_vins );
+
+
    fc::optional<info_for_vin> get_info_for_pw_vin();
+
 
    void insert_info_for_vin( const prev_out& out, const std::string& address, bytes script = bytes() );
 

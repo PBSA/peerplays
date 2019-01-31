@@ -4,6 +4,7 @@
 #include <graphene/chain/proposal_object.hpp>
 #include <sidechain/sidechain_condensing_tx.hpp>
 #include <graphene/chain/protocol/asset.hpp>
+#include <sidechain/sign_bitcoin_transaction.hpp>
 
 using namespace sidechain;
 
@@ -133,8 +134,11 @@ void database::processing_sidechain_proposals( const witness_object& current_wit
 
       switch( sidechain_proposal.proposal_type ) {
          case sidechain_proposal_type::ISSUE_PBTC :{}
-         case sidechain_proposal_type::SEND_BTC_TRANSACTION :{}
-         case sidechain_proposal_type::WITHDRAW_PBTC :{}
+         case sidechain_proposal_type::SEND_BTC_TRANSACTION :{
+            const auto& sign_operation = create_sign_btc_tx_operation( current_witness, private_key, proposal->id );
+            _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( private_key, sign_operation ) );
+            break;
+         }
          case sidechain_proposal_type::RETURN_PBTC_BACK :{}
       }
    }
@@ -142,12 +146,13 @@ void database::processing_sidechain_proposals( const witness_object& current_wit
 
 full_btc_transaction database::create_btc_transaction( const std::vector<info_for_vin>& info_vins,
                                                        const std::vector<info_for_vout>& info_vouts,
-                                                       const fc::optional<info_for_vin>& info_pw_vin )
+                                                       const info_for_vin& info_pw_vin )
 {
    sidechain_condensing_tx ctx( info_vins, info_vouts );
 
-   if( info_pw_vin->identifier.str().compare( 0, 24, SIDECHAIN_NULL_VIN_IDENTIFIER ) == 0 ) {
-      ctx.create_pw_vin( *info_pw_vin );
+
+   if( info_pw_vin.identifier.str().compare( 0, 24, SIDECHAIN_NULL_VIN_IDENTIFIER ) == 0 ) {
+      ctx.create_pw_vin( info_pw_vin );
    }
 
    const auto& pw_address = get_latest_PW().address;
@@ -173,7 +178,7 @@ fc::optional<operation> database::create_send_btc_tx_proposal( const witness_obj
    const auto& info_pw_vin = i_w_info.get_info_for_pw_vin();
 
    if( info_pw_vin.valid() && ( info_vins.size() || info_vouts.size() ) ) {
-      const auto& btc_tx_and_size_fee = create_btc_transaction( info_vins, info_vouts, info_pw_vin );
+      const auto& btc_tx_and_size_fee = create_btc_transaction( info_vins, info_vouts, *info_pw_vin );
 
       bitcoin_transaction_send_operation btc_send_op;
       btc_send_op.payer = get_sidechain_account_id();
@@ -207,6 +212,37 @@ signed_transaction database::create_signed_transaction( const private_key& signi
    processed_trx.sign( signing_private_key, get_chain_id() );
 
    return processed_trx;
+}
+
+operation database::create_sign_btc_tx_operation( const witness_object& current_witness, const private_key_type& privkey,
+                                                  const proposal_id_type& proposal_id )
+{
+   const auto& proposal_idx = get_index_type<proposal_index>().indices().get<by_id>();
+   const auto& proposal_itr = proposal_idx.find( proposal_id );
+   bitcoin_transaction_send_operation op = proposal_itr->proposed_transaction.operations.back().get<bitcoin_transaction_send_operation>();
+
+   bitcoin_transaction_sign_operation sign_operation;
+   sign_operation.payer = current_witness.witness_account;
+   sign_operation.proposal_id = proposal_id;
+   const auto secret = privkey.get_secret();
+   bytes key(secret.data(), secret.data() + secret.data_size());
+
+   auto vins = op.vins;
+   if( op.pw_vin.str().compare( 0, 24, SIDECHAIN_NULL_VIN_IDENTIFIER ) != 0 ) {
+      const auto& pw_vout = pw_vout_manager.get_vout( op.pw_vin );
+      info_for_vin vin;
+      vin.out = pw_vout->vout;
+      vin.address = get_latest_PW().address.get_address();
+      vin.identifier = pw_vout->hash_id;
+      vins.insert( vins.begin(), vin );
+   }
+
+   std::vector<bytes> redeem_scripts( i_w_info.get_redeem_scripts( vins ) );
+   std::vector<uint64_t> amounts( i_w_info.get_amounts( vins ) );
+
+   sign_operation.signatures = sign_witness_transaction_part( op.transaction, redeem_scripts, amounts, key, context_sign, 1 );
+
+   return sign_operation;
 }
 
 void database::remove_sidechain_proposal_object( const proposal_object& proposal )

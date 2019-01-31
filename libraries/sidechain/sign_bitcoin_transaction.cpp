@@ -44,15 +44,16 @@ std::vector<char> privkey_sign( const bytes& privkey, const fc::sha256 &hash, co
    return sig;
 }
 
-std::vector<bytes> sign_witness_transaction_part( const bitcoin_transaction& tx, const std::vector<info_for_vin>& info_vins,
-                                                  const bytes& privkey, const secp256k1_context_t* context_sign, int hash_type )
+std::vector<bytes> sign_witness_transaction_part( const bitcoin_transaction& tx, const std::vector<bytes>& redeem_scripts,
+                                                  const std::vector<uint64_t>& amounts, const bytes& privkey,
+                                                  const secp256k1_context_t* context_sign, int hash_type )
 {
-   FC_ASSERT( tx.vin.size() == info_vins.size() );
+   FC_ASSERT( tx.vin.size() == redeem_scripts.size() && tx.vin.size() == amounts.size() );
    FC_ASSERT( !privkey.empty() );
     
    std::vector< bytes > signatures;
    for( size_t i = 0; i < tx.vin.size(); i++ ) {
-      const auto sighash = get_signature_hash( tx, info_vins[i].script, static_cast<int64_t>( info_vins[i].out.amount ), i, hash_type, true );
+      const auto sighash = get_signature_hash( tx, redeem_scripts[i], static_cast<int64_t>( amounts[i] ), i, hash_type, true );
       auto sig = privkey_sign( privkey, sighash, context_sign );
       sig.push_back( static_cast<uint8_t>( hash_type ) );
 
@@ -61,13 +62,13 @@ std::vector<bytes> sign_witness_transaction_part( const bitcoin_transaction& tx,
    return signatures;
 }
 
-void sign_witness_transaction_finalize( bitcoin_transaction& tx, const std::vector<info_for_vin>& info_vins )
+void sign_witness_transaction_finalize( bitcoin_transaction& tx, const std::vector<bytes>& redeem_scripts )
 {
-   FC_ASSERT( tx.vin.size() == info_vins.size() );
+   FC_ASSERT( tx.vin.size() == redeem_scripts.size() );
     
    for( size_t i = 0; i < tx.vin.size(); i++ ) {
       tx.vin[i].scriptWitness.insert( tx.vin[i].scriptWitness.begin(), bytes() ); // Bitcoin workaround CHECKMULTISIG bug
-      tx.vin[i].scriptWitness.push_back( info_vins[i].script );
+      tx.vin[i].scriptWitness.push_back( redeem_scripts[i] );
    }
 }
 
@@ -81,8 +82,11 @@ bool verify_sig( const bytes& sig, const bytes& pubkey, const bytes& msg, const 
    return result == 1;
 }
 
-std::vector<std::vector<bytes>> sort_sigs( const bitcoin_transaction& tx, const std::vector<info_for_vin>& info_vins, const secp256k1_context_t* context )
+std::vector<std::vector<bytes>> sort_sigs( const bitcoin_transaction& tx, const std::vector<bytes>& redeem_scripts,
+                                           const std::vector<uint64_t>& amounts, const secp256k1_context_t* context )
 {
+   FC_ASSERT( redeem_scripts.size() == amounts.size() );
+
    using data = std::pair<size_t, bytes>;
    struct comp {
       bool operator() (const data& lhs, const data& rhs) const { return lhs.first < rhs.first; }
@@ -90,9 +94,9 @@ std::vector<std::vector<bytes>> sort_sigs( const bitcoin_transaction& tx, const 
 
    std::vector<std::vector<bytes>> new_stacks;
 
-   for( size_t i = 0; i < info_vins.size(); i++ ) {
-      const std::vector<bytes>& keys = get_pubkey_from_redeemScript( info_vins[i].script );
-      const auto& sighash = get_signature_hash( tx, info_vins[i].script, static_cast<int64_t>( info_vins[i].out.amount ), i, 1, true ).str();
+   for( size_t i = 0; i < redeem_scripts.size(); i++ ) {
+      const std::vector<bytes>& keys = get_pubkey_from_redeemScript( redeem_scripts[i] );
+      const auto& sighash = get_signature_hash( tx, redeem_scripts[i], static_cast<int64_t>( amounts[i] ), i, 1, true ).str();
       bytes sighash_temp( parse_hex( sighash ) );
 
       std::vector<bytes> stack( tx.vin[i].scriptWitness );

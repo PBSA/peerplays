@@ -41,7 +41,7 @@ namespace graphene { namespace chain {
 
       asset                         fee;
       account_id_type               payer;
-      sidechain_proposal_id_type    sidechain_proposal_id;
+      proposal_id_type              proposal_id;
       std::vector<sidechain::bytes> signatures;
 
       account_id_type   fee_payer()const { return payer; }
@@ -55,4 +55,4 @@ FC_REFLECT( graphene::chain::bitcoin_transaction_send_operation::fee_parameters_
 FC_REFLECT( graphene::chain::bitcoin_transaction_send_operation, (fee)(payer)(vins)(vouts)(transaction)(fee_for_size) )
 
 FC_REFLECT( graphene::chain::bitcoin_transaction_sign_operation::fee_parameters_type, (fee)(price_per_kbyte) )
-FC_REFLECT( graphene::chain::bitcoin_transaction_sign_operation, (fee)(payer)(sidechain_proposal_id)(signatures) )
+FC_REFLECT( graphene::chain::bitcoin_transaction_sign_operation, (fee)(payer)(proposal_id)(signatures) )

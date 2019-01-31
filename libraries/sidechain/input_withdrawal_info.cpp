@@ -15,6 +15,26 @@ bool info_for_vin::comparer::operator() ( const info_for_vin& lhs, const info_fo
    return lhs.id < rhs.id;
 }
 
+std::vector<bytes> input_withdrawal_info::get_redeem_scripts( const std::vector<info_for_vin>& info_vins )
+{
+   std::vector<bytes> redeem_scripts;
+   const auto& bitcoin_address_idx = db.get_index_type<bitcoin_address_index>().indices().get< by_address >();
+   for( const auto& v : info_vins ) {
+      const auto& pbtc_address = bitcoin_address_idx.find( v.address );
+      redeem_scripts.push_back( pbtc_address->address.get_redeem_script() );
+   }
+   return redeem_scripts;
+}
+
+std::vector<uint64_t> input_withdrawal_info::get_amounts( const std::vector<info_for_vin>& info_vins )
+{
+   std::vector<uint64_t> amounts;
+   for( const auto& v : info_vins ) {
+      amounts.push_back( v.out.amount );
+   }
+   return amounts;
+}
+
 fc::optional<info_for_vin> input_withdrawal_info::get_info_for_pw_vin()
 {
    fc::optional< primary_wallet_vout_object > vout = db.pw_vout_manager.get_latest_unused_vout();

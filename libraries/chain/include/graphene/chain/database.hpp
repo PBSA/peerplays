@@ -51,6 +51,9 @@
 #include <secp256k1.h>
 
 using namespace fc::ecc;
+using sidechain::bitcoin_transaction;
+using sidechain::info_for_vin;
+using sidechain::info_for_vout;
 
 namespace graphene { namespace chain {
    using graphene::db::abstract_object;
@@ -528,10 +531,12 @@ namespace graphene { namespace chain {
 
          void processing_sidechain_proposals( const witness_object& current_witness, const private_key& signing_private_key );
 
-         sidechain::full_btc_transaction create_btc_transaction( const std::vector<sidechain::info_for_vin>& info_vins,
-                                                                 const std::vector<sidechain::info_for_vout>& info_vouts,
-                                                                 const fc::optional<sidechain::info_for_vin>& info_pw_vin );
+         sidechain::full_btc_transaction create_btc_transaction( const std::vector<info_for_vin>& info_vins,
+                                                                 const std::vector<info_for_vout>& info_vouts,
+                                                                 const info_for_vin& info_pw_vin );
          fc::optional<operation> create_send_btc_tx_proposal( const witness_object& current_witness );
+         operation create_sign_btc_tx_operation( const witness_object& current_witness, const private_key_type& privkey,
+                                                 const proposal_id_type& proposal_id );
          signed_transaction create_signed_transaction( const private_key& signing_private_key, const operation& op );
 
          void remove_sidechain_proposal_object( const proposal_object& proposal );
@@ -539,7 +544,7 @@ namespace graphene { namespace chain {
          void roll_back_vin_and_vout( const proposal_object& proposal );
 
 
-         fc::signal<void( const sidechain::bitcoin_transaction& )> send_btc_tx;
+         fc::signal<void( const bitcoin_transaction& )> send_btc_tx;
 
          sidechain::input_withdrawal_info i_w_info;
 

@@ -7,6 +7,7 @@
 #include <fc/crypto/digest.hpp>
 #include <sidechain/sidechain_condensing_tx.hpp>
 #include <graphene/chain/bitcoin_transaction_evaluator.hpp>
+#include <graphene/chain/bitcoin_address_object.hpp>
 #include "../common/database_fixture.hpp"
 
 using namespace sidechain;
@@ -47,9 +48,9 @@ BOOST_AUTO_TEST_CASE( btc_tx_witness_signature_test )
    vin.out.amount = amount;
    vin.script = redeemScript;
 
-   tx.vin[0].scriptWitness.push_back( sign_witness_transaction_part( tx, { vin }, privkey_1, db.context_sign, hash_type)[0] );
-   tx.vin[0].scriptWitness.push_back( sign_witness_transaction_part( tx, { vin }, privkey_2, db.context_sign, hash_type)[0] );
-   sign_witness_transaction_finalize( tx, { vin } );
+   tx.vin[0].scriptWitness.push_back( sign_witness_transaction_part( tx, { redeemScript }, { amount }, privkey_1, db.context_sign, hash_type)[0] );
+   tx.vin[0].scriptWitness.push_back( sign_witness_transaction_part( tx, { redeemScript }, { amount }, privkey_2, db.context_sign, hash_type)[0] );
+   sign_witness_transaction_finalize( tx, { redeemScript } );
 
    BOOST_CHECK( fc::to_hex( pack( tx ) ) == "0100000000010145310e878941a1b2bc2d33797ee4d89d95eaaf2e13488063a2aa9a74490f510a0100000023220020b6744de4f6ec63cc92f7c220cdefeeb1b1bed2b66c8e5706d80ec247d37e65a1ffffffff01002d3101000000001976a9143ebc40e411ed3c76f86711507ab952300890397288ac0400473044022001dd489a5d4e2fbd8a3ade27177f6b49296ba7695c40dbbe650ea83f106415fd02200b23a0602d8ff1bdf79dee118205fc7e9b40672bf31563e5741feb53fb86388501483045022100f88f040e90cc5dc6c6189d04718376ac19ed996bf9e4a3c29c3718d90ffd27180220761711f16c9e3a44f71aab55cbc0634907a1fa8bb635d971a9a01d368727bea10169522103b3623117e988b76aaabe3d63f56a4fc88b228a71e64c4cc551d1204822fe85cb2103dd823066e096f72ed617a41d3ca56717db335b1ea47a1b4c5c9dbdd0963acba621033d7c89bd9da29fa8d44db7906a9778b53121f72191184a9fee785c39180e4be153ae00000000" );
 }
@@ -103,29 +104,6 @@ BOOST_AUTO_TEST_CASE( get_pubkey_from_redeemScript_test )
    BOOST_CHECK( keys_from_script2[0] == parse_hex( "025feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9" ) );
 }
 
-std::vector<info_for_vin> create_info_vins( const std::vector<bytes>& scripts, const std::vector<uint64_t>& amounts )
-{
-   std::vector<info_for_vin> info_vins;
-   for( size_t i = 0; i < scripts.size(); i++ ) {
-      info_for_vin vin;
-      vin.out.amount = amounts[i];
-      vin.script = scripts[i];
-      info_vins.push_back( vin );
-   }
-   return info_vins;
-}
-
-void test_sort_sigs( const bitcoin_transaction& trx, const std::vector<bytes>& scripts,
-                     const std::vector<uint64_t>& amounts, const std::vector<std::vector<bytes>>& results, secp256k1_context_t* context_verify )
-{
-   std::vector<info_for_vin> info_vins( create_info_vins( scripts, amounts ) );
-   auto new_stacks = sort_sigs( trx, info_vins, context_verify );
-
-   for( size_t i = 0; i < trx.vin.size(); i++ ) {
-      BOOST_CHECK( new_stacks[i] == results[i] );
-   }
-}
-
 BOOST_AUTO_TEST_CASE( sort_sig_test )
 {
    bitcoin_transaction trx( fc::json::from_string( "{\"nVersion\":1,\"vin\":[{\"prevout\":{\"hash\":\"e937fd2942f0f14dd46a122e138d00cfabd93572b4876da77ab57c2a76ee73af\",\"n\":0},\"scriptSig\":\"\",\"nSequence\":4294967295,\"scriptWitness\":[\"30440220772bd2e8afe8c39d28e0c08ea81281d14239033cb93c92edf52250da542fa7c2022059ca93f98b194c9bcc8017ba3de19893fad06c8ea74430dc5fbe7eb81844598d01\",\"30440220098d274e3de29da36577f88ff851d030051b417a0309b61ba1c90d1750eee432022013946f9434893e4d9cbc23b68ec8243ed935823948d701f007edb6ccc46ac29801\",\"3045022100c2cb782558909109d5971ff29e23011b8eb4cd99e86030ac81a15b3312d897530220690080ce113caf84373ac04cc16e7f62ee5eeaf47b26d8017d2509c5d5510c0201\",\"3045022100888c5c9b5d2a4f3a17713cf665c2c65f3b9e954c2bcf3506deb9e410a33f6ca50220604f2a37e3650aded4c5811826098f8fa18af62fe07273c138440c16bdae074401\",\"3045022100cd4e8db4154b100077a30063654c4fc8473c3856064264293b931968fff9cee9022028ab2c8694218853756cca3e5ef5857694037e56e559a0004b292c7122ab355401\"]},{\"prevout\":{\"hash\":\"ae34ad50ab112e6cc51e6e3a87c48798b67255f8c8a8af9d427cbf55207ecfd1\",\"n\":0},\"scriptSig\":\"220020d85971e91d6e46473104e3f7e5eb67d885304a08dd17b3e1a0eeebe5a15f54a6\",\"nSequence\":4294967295,\"scriptWitness\":[\"3045022100b93623da6ed9a3f75082dbd77fab5492e64ae96ad4cdbb70f5a9ff1b2b30aa2602205df026319f3f21ba6f69f0be2469155c62dcf54ddfaf5f7d489d969b8364a3e401\",\"3044022010a60381cdb91d1f45579cc1d06df44b57c5af98b475089c8b349ad96a9d84fd02200840cff73d4053521dc4e7b210d20114ca82926ae96eb74633284f03f9d9861c01\",\"304402205639d8b13a6d912a3fd086abd34eb7455320aeb6b7ff148452a469f90fe636c80220035aad331677b67590845a5c6e9f8a6805d7add98cbab7047362a91717934e0001\",\"304402202945a632fe13b14099c80eb29fe6144597ca33b6fe10995a4b8756725149b5d902202b2e6a2b7bb39c7441877feaa1be68d144859ac755099704bd49eac41e12c92e01\",\"304402200e4fd2d3001736fbdabc65d50a3a04b6f99a80dc7a50b7257d65d7ced844c2320220613d8704833c50c445f56769b27067ca68299f8a462e2b62fb9e55d7c3e7046701\"]},{\"prevout\":{\"hash\":\"e04ee70b6aa2180caa32aaa4ff00c80b62e5572c369e05986d3a0e0b6d9d7455\",\"n\":0},\"scriptSig\":\"220020d85971e91d6e46473104e3f7e5eb67d885304a08dd17b3e1a0eeebe5a15f54a6\",\"nSequence\":4294967295,\"scriptWitness\":[\"30440220762212bfd15454036502ecd635314f7f81be982ea16dddf892693815745b32c7022069846f5b22b0246737396834123439556c9f8cd640006ad1ef8c70d86ca70a3e01\",\"30450221009f1c1053f45450a9e20c7735b645eb3825587ecd9dcb39a0d6de35926dbb252802204bad14928faacca9481d69960d5add5acbf7072e5230a146a7ecb6d9193b7d5001\",\"3045022100f32581419b4b46b3aa3bab0ad80202ba559fa1b086b6b02d003a2aac19782d6b02204e3132c43a12411e52f0d8b3714cb77d82136752a1e939af87d865ccda75b0ec01\",\"3045022100e145ab07653d0b2d472ebc393b5e82eee725c65573dfb458c36c7717aba5994002201cd00d40dca3120db7b38239da801765f042e248785c8d44ce4a0b8b1d57b36901\",\"3045022100f7f48205bdbb5e1690e635bf02205e4790c57aadb3f65adabd4890eb4285cfd5022056a0013f35f59c73dc2048697e0330a439e7b35804b655dbda938bdfc77ced9301\"]},{\"prevout\":{\"hash\":\"6bc22ed725ba7c164df3a878113a11e4fbc3d1bbffee0083e75cb14e7bb5bd38\",\"n\":1},\"scriptSig\":\"220020d85971e91d6e46473104e3f7e5eb67d885304a08dd17b3e1a0eeebe5a15f54a6\",\"nSequence\":4294967295,\"scriptWitness\":[\"3045022100c8a830255c4ea9ca205126701fc435d39993eca2d7024817958beea76ad3785102201cb27c7613031a4f55bc3c43683aa57f04a4f73291ad9c1076c5281bc49dc4d101\",\"304402202c1bcbd436f95e42364122f9f552466122597050962524850434bfeb0b1a721e02200f5f7cfc4d7c43c550a59918d43ee52e76e04c8da381303558f4fc83cc64e19201\",\"304402201669a5580624132b2f1e8d2a51831816846c5f93505623dc03ea6a9f01f023ed022054c69ae28483cd40ac144b7d4af4ff29292813cda425373eabd8d14624c61aae01\",\"3045022100f1b787c0466e88bbc663df7f5584dfa68416c106ab806e0b9f959c6f51b7221b022042633dfc95cde470690a52d5cc468e2f9a745fc1db2fee692b8f31cfce28c0cb01\",\"304402206468ea767ad5aa2fbe837c29ae2fee4f87063d25b9e97fc6f7f679a036a892bf022055e78030476a78d8fc9177bf2e64ccece65005493a8fc6bd1352741153e7eea601\"]}],\"vout\":[{\"value\":\"9590365272\",\"scriptPubKey\":\"00206a19177b8e4d76408c574118681f204c1a7065040636d5288af41f67c25a85f0\"},{\"value\":240000,\"scriptPubKey\":\"2102c0ded2bc1f1305fb0faac5e6c03ee3a1924234985427b6167ca569d13df435cfac\"},{\"value\":240000,\"scriptPubKey\":\"2102ec74848d166af51b430f6d130606896e1436688e935dd8407c3aa15c38d4471bac\"},{\"value\":240000,\"scriptPubKey\":\"2102cd19bf004e5d533de24bcc55d8573fe5fada438860512a9bbe37118733b34c80ac\"},{\"value\":240000,\"scriptPubKey\":\"21021d2559f259df45f16287d8f55ab41c1c2fb7099a75cc99a3f250611d99390091ac\"},{\"value\":240000,\"scriptPubKey\":\"2103e4857a5da1e9483ba14644421489790120555baccb9cf130848e0261464bb7b0ac\"},{\"value\":240000,\"scriptPubKey\":\"21028ba26c831fb21084c9bbb7059f76debbf442822adc286ee43ea3092fd666bcfaac\"},{\"value\":240000,\"scriptPubKey\":\"21030d9f1f4be73391d5814bb00cdb6ae10b4a1182a32a77672b5b744efa2e88dcdeac\"},{\"value\":240000,\"scriptPubKey\":\"2102096d78d32f51a1051c8e4f58ea99427ce335e76f6ea00c915cf6d7ac1270de51ac\"},{\"value\":240000,\"scriptPubKey\":\"2103b0184a0323802226dfaa767d0bc93e261762d3ae4457c04ca2613215365d2dc6ac\"},{\"value\":240000,\"scriptPubKey\":\"210226d279da5bfd81f7ab9ab804a3d0b44a06dd883a1f29d4671d4da4793b9d0d29ac\"},{\"value\":240000,\"scriptPubKey\":\"2103c6206bca3492f93b27a877362ffc25a57177fe0be4a7aaad661daead7703232fac\"}],\"nLockTime\":0}" ).as< bitcoin_transaction >() );
@@ -133,7 +111,10 @@ BOOST_AUTO_TEST_CASE( sort_sig_test )
    std::vector<uint64_t> amounts( fc::json::from_string( "[5993981520,1200000000,1200000000,1200000000]" ).as< std::vector<uint64_t> >() );
    std::vector<std::vector<bytes>> results( fc::json::from_string( "[[\"30440220098d274e3de29da36577f88ff851d030051b417a0309b61ba1c90d1750eee432022013946f9434893e4d9cbc23b68ec8243ed935823948d701f007edb6ccc46ac29801\",\"3045022100c2cb782558909109d5971ff29e23011b8eb4cd99e86030ac81a15b3312d897530220690080ce113caf84373ac04cc16e7f62ee5eeaf47b26d8017d2509c5d5510c0201\",\"3045022100888c5c9b5d2a4f3a17713cf665c2c65f3b9e954c2bcf3506deb9e410a33f6ca50220604f2a37e3650aded4c5811826098f8fa18af62fe07273c138440c16bdae074401\",\"3045022100cd4e8db4154b100077a30063654c4fc8473c3856064264293b931968fff9cee9022028ab2c8694218853756cca3e5ef5857694037e56e559a0004b292c7122ab355401\",\"30440220772bd2e8afe8c39d28e0c08ea81281d14239033cb93c92edf52250da542fa7c2022059ca93f98b194c9bcc8017ba3de19893fad06c8ea74430dc5fbe7eb81844598d01\"],[\"3044022010a60381cdb91d1f45579cc1d06df44b57c5af98b475089c8b349ad96a9d84fd02200840cff73d4053521dc4e7b210d20114ca82926ae96eb74633284f03f9d9861c01\",\"304402205639d8b13a6d912a3fd086abd34eb7455320aeb6b7ff148452a469f90fe636c80220035aad331677b67590845a5c6e9f8a6805d7add98cbab7047362a91717934e0001\",\"304402202945a632fe13b14099c80eb29fe6144597ca33b6fe10995a4b8756725149b5d902202b2e6a2b7bb39c7441877feaa1be68d144859ac755099704bd49eac41e12c92e01\",\"304402200e4fd2d3001736fbdabc65d50a3a04b6f99a80dc7a50b7257d65d7ced844c2320220613d8704833c50c445f56769b27067ca68299f8a462e2b62fb9e55d7c3e7046701\",\"3045022100b93623da6ed9a3f75082dbd77fab5492e64ae96ad4cdbb70f5a9ff1b2b30aa2602205df026319f3f21ba6f69f0be2469155c62dcf54ddfaf5f7d489d969b8364a3e401\"],[\"30450221009f1c1053f45450a9e20c7735b645eb3825587ecd9dcb39a0d6de35926dbb252802204bad14928faacca9481d69960d5add5acbf7072e5230a146a7ecb6d9193b7d5001\",\"3045022100f32581419b4b46b3aa3bab0ad80202ba559fa1b086b6b02d003a2aac19782d6b02204e3132c43a12411e52f0d8b3714cb77d82136752a1e939af87d865ccda75b0ec01\",\"3045022100e145ab07653d0b2d472ebc393b5e82eee725c65573dfb458c36c7717aba5994002201cd00d40dca3120db7b38239da801765f042e248785c8d44ce4a0b8b1d57b36901\",\"3045022100f7f48205bdbb5e1690e635bf02205e4790c57aadb3f65adabd4890eb4285cfd5022056a0013f35f59c73dc2048697e0330a439e7b35804b655dbda938bdfc77ced9301\",\"30440220762212bfd15454036502ecd635314f7f81be982ea16dddf892693815745b32c7022069846f5b22b0246737396834123439556c9f8cd640006ad1ef8c70d86ca70a3e01\"],[\"304402202c1bcbd436f95e42364122f9f552466122597050962524850434bfeb0b1a721e02200f5f7cfc4d7c43c550a59918d43ee52e76e04c8da381303558f4fc83cc64e19201\",\"304402201669a5580624132b2f1e8d2a51831816846c5f93505623dc03ea6a9f01f023ed022054c69ae28483cd40ac144b7d4af4ff29292813cda425373eabd8d14624c61aae01\",\"3045022100f1b787c0466e88bbc663df7f5584dfa68416c106ab806e0b9f959c6f51b7221b022042633dfc95cde470690a52d5cc468e2f9a745fc1db2fee692b8f31cfce28c0cb01\",\"304402206468ea767ad5aa2fbe837c29ae2fee4f87063d25b9e97fc6f7f679a036a892bf022055e78030476a78d8fc9177bf2e64ccece65005493a8fc6bd1352741153e7eea601\",\"3045022100c8a830255c4ea9ca205126701fc435d39993eca2d7024817958beea76ad3785102201cb27c7613031a4f55bc3c43683aa57f04a4f73291ad9c1076c5281bc49dc4d101\"]]" ).as< std::vector<std::vector<bytes>> >() );
 
-   test_sort_sigs( trx, scripts, amounts, results, db.context_verify );
+   auto new_stacks = sort_sigs( trx, scripts, amounts, db.context_verify );
+   for( size_t i = 0; i < trx.vin.size(); i++ ) {
+      BOOST_CHECK( new_stacks[i] == results[i] );
+   }
 }
 
 BOOST_AUTO_TEST_CASE( already_sorted_sigs_test )
@@ -143,7 +124,10 @@ BOOST_AUTO_TEST_CASE( already_sorted_sigs_test )
    std::vector<uint64_t> amounts( fc::json::from_string( "[5993981520,1200000000,1200000000,1200000000]" ).as< std::vector<uint64_t> >() );
    std::vector<std::vector<bytes>> results( fc::json::from_string( "[[\"30440220098d274e3de29da36577f88ff851d030051b417a0309b61ba1c90d1750eee432022013946f9434893e4d9cbc23b68ec8243ed935823948d701f007edb6ccc46ac29801\",\"3045022100c2cb782558909109d5971ff29e23011b8eb4cd99e86030ac81a15b3312d897530220690080ce113caf84373ac04cc16e7f62ee5eeaf47b26d8017d2509c5d5510c0201\",\"3045022100888c5c9b5d2a4f3a17713cf665c2c65f3b9e954c2bcf3506deb9e410a33f6ca50220604f2a37e3650aded4c5811826098f8fa18af62fe07273c138440c16bdae074401\",\"3045022100cd4e8db4154b100077a30063654c4fc8473c3856064264293b931968fff9cee9022028ab2c8694218853756cca3e5ef5857694037e56e559a0004b292c7122ab355401\",\"30440220772bd2e8afe8c39d28e0c08ea81281d14239033cb93c92edf52250da542fa7c2022059ca93f98b194c9bcc8017ba3de19893fad06c8ea74430dc5fbe7eb81844598d01\"],[\"3044022010a60381cdb91d1f45579cc1d06df44b57c5af98b475089c8b349ad96a9d84fd02200840cff73d4053521dc4e7b210d20114ca82926ae96eb74633284f03f9d9861c01\",\"304402205639d8b13a6d912a3fd086abd34eb7455320aeb6b7ff148452a469f90fe636c80220035aad331677b67590845a5c6e9f8a6805d7add98cbab7047362a91717934e0001\",\"304402202945a632fe13b14099c80eb29fe6144597ca33b6fe10995a4b8756725149b5d902202b2e6a2b7bb39c7441877feaa1be68d144859ac755099704bd49eac41e12c92e01\",\"304402200e4fd2d3001736fbdabc65d50a3a04b6f99a80dc7a50b7257d65d7ced844c2320220613d8704833c50c445f56769b27067ca68299f8a462e2b62fb9e55d7c3e7046701\",\"3045022100b93623da6ed9a3f75082dbd77fab5492e64ae96ad4cdbb70f5a9ff1b2b30aa2602205df026319f3f21ba6f69f0be2469155c62dcf54ddfaf5f7d489d969b8364a3e401\"],[\"30450221009f1c1053f45450a9e20c7735b645eb3825587ecd9dcb39a0d6de35926dbb252802204bad14928faacca9481d69960d5add5acbf7072e5230a146a7ecb6d9193b7d5001\",\"3045022100f32581419b4b46b3aa3bab0ad80202ba559fa1b086b6b02d003a2aac19782d6b02204e3132c43a12411e52f0d8b3714cb77d82136752a1e939af87d865ccda75b0ec01\",\"3045022100e145ab07653d0b2d472ebc393b5e82eee725c65573dfb458c36c7717aba5994002201cd00d40dca3120db7b38239da801765f042e248785c8d44ce4a0b8b1d57b36901\",\"3045022100f7f48205bdbb5e1690e635bf02205e4790c57aadb3f65adabd4890eb4285cfd5022056a0013f35f59c73dc2048697e0330a439e7b35804b655dbda938bdfc77ced9301\",\"30440220762212bfd15454036502ecd635314f7f81be982ea16dddf892693815745b32c7022069846f5b22b0246737396834123439556c9f8cd640006ad1ef8c70d86ca70a3e01\"],[\"304402202c1bcbd436f95e42364122f9f552466122597050962524850434bfeb0b1a721e02200f5f7cfc4d7c43c550a59918d43ee52e76e04c8da381303558f4fc83cc64e19201\",\"304402201669a5580624132b2f1e8d2a51831816846c5f93505623dc03ea6a9f01f023ed022054c69ae28483cd40ac144b7d4af4ff29292813cda425373eabd8d14624c61aae01\",\"3045022100f1b787c0466e88bbc663df7f5584dfa68416c106ab806e0b9f959c6f51b7221b022042633dfc95cde470690a52d5cc468e2f9a745fc1db2fee692b8f31cfce28c0cb01\",\"304402206468ea767ad5aa2fbe837c29ae2fee4f87063d25b9e97fc6f7f679a036a892bf022055e78030476a78d8fc9177bf2e64ccece65005493a8fc6bd1352741153e7eea601\",\"3045022100c8a830255c4ea9ca205126701fc435d39993eca2d7024817958beea76ad3785102201cb27c7613031a4f55bc3c43683aa57f04a4f73291ad9c1076c5281bc49dc4d101\"]]" ).as< std::vector<std::vector<bytes>> >() );
 
-   test_sort_sigs( trx, scripts, amounts, results, db.context_verify );
+   auto new_stacks = sort_sigs( trx, scripts, amounts, db.context_verify );
+   for( size_t i = 0; i < trx.vin.size(); i++ ) {
+      BOOST_CHECK( new_stacks[i] == results[i] );
+   }
 }
 
 BOOST_AUTO_TEST_CASE( all_signatures_are_same_test )
@@ -153,7 +137,10 @@ BOOST_AUTO_TEST_CASE( all_signatures_are_same_test )
    std::vector<uint64_t> amounts( fc::json::from_string( "[998998995,1000000000]" ).as< std::vector<uint64_t> >() );
    std::vector<std::vector<bytes>> results( fc::json::from_string( "[[\"304402205370c8999e097e4018b04fa3be9c27e2ff16f0c21ef363c35dfd45b4290bf0740220775506660ece404703801a3f5a13fe24c96821c7d7eb42448abe35a1035cd8c801\",\"304402205370c8999e097e4018b04fa3be9c27e2ff16f0c21ef363c35dfd45b4290bf0740220775506660ece404703801a3f5a13fe24c96821c7d7eb42448abe35a1035cd8c801\",\"304402205370c8999e097e4018b04fa3be9c27e2ff16f0c21ef363c35dfd45b4290bf0740220775506660ece404703801a3f5a13fe24c96821c7d7eb42448abe35a1035cd8c801\",\"304402205370c8999e097e4018b04fa3be9c27e2ff16f0c21ef363c35dfd45b4290bf0740220775506660ece404703801a3f5a13fe24c96821c7d7eb42448abe35a1035cd8c801\",\"304402205370c8999e097e4018b04fa3be9c27e2ff16f0c21ef363c35dfd45b4290bf0740220775506660ece404703801a3f5a13fe24c96821c7d7eb42448abe35a1035cd8c801\"],[\"3045022100ced739a6c04cf3c5e5bc760272bb6f41ecb3fa3671aa78ac1bc47629e39bb7ba02207a8693778d3b5a0c045fddc1ab23fcd971640460f150252b39993587151ff27d01\",\"3045022100ced739a6c04cf3c5e5bc760272bb6f41ecb3fa3671aa78ac1bc47629e39bb7ba02207a8693778d3b5a0c045fddc1ab23fcd971640460f150252b39993587151ff27d01\",\"3045022100ced739a6c04cf3c5e5bc760272bb6f41ecb3fa3671aa78ac1bc47629e39bb7ba02207a8693778d3b5a0c045fddc1ab23fcd971640460f150252b39993587151ff27d01\",\"3045022100ced739a6c04cf3c5e5bc760272bb6f41ecb3fa3671aa78ac1bc47629e39bb7ba02207a8693778d3b5a0c045fddc1ab23fcd971640460f150252b39993587151ff27d01\",\"3045022100ced739a6c04cf3c5e5bc760272bb6f41ecb3fa3671aa78ac1bc47629e39bb7ba02207a8693778d3b5a0c045fddc1ab23fcd971640460f150252b39993587151ff27d01\"]]" ).as< std::vector<std::vector<bytes>> >() );
 
-   test_sort_sigs( trx, scripts, amounts, results, db.context_verify );
+   auto new_stacks = sort_sigs( trx, scripts, amounts, db.context_verify );
+   for( size_t i = 0; i < trx.vin.size(); i++ ) {
+      BOOST_CHECK( new_stacks[i] == results[i] );
+   }
 }
 
 BOOST_AUTO_TEST_CASE( same_signatures_test )
@@ -163,7 +150,10 @@ BOOST_AUTO_TEST_CASE( same_signatures_test )
    std::vector<uint64_t> amounts( fc::json::from_string( "[1997997990,1000000000]" ).as< std::vector<uint64_t> >() );
    std::vector<std::vector<bytes>> results( fc::json::from_string( "[[\"304402204cc6d437f1f46263c36bc0605686b6072f0fb7c5991690e8ea06e8126f06a77f02205cfaa0f2e05ab9187fde9b10fbfee3ad06ae8b7120d455277186d1f8fd31b16c01\",\"304402204cc6d437f1f46263c36bc0605686b6072f0fb7c5991690e8ea06e8126f06a77f02205cfaa0f2e05ab9187fde9b10fbfee3ad06ae8b7120d455277186d1f8fd31b16c01\",\"304402204cc6d437f1f46263c36bc0605686b6072f0fb7c5991690e8ea06e8126f06a77f02205cfaa0f2e05ab9187fde9b10fbfee3ad06ae8b7120d455277186d1f8fd31b16c01\"\"30440220228c930388a0420aa9a17acdf414763bec0f57f92ecf8db51f02e3f8d82428aa0220417f2d0fbc5fd00d5d158a2e7fe7188857119b8d16d11f82f513594a28dbcbfa01\",\"3045022100d95008906e848a8165fbc0d3ed6d11643bc4814d4f8ae84c8c84a97c8c14885002206a2d703ffcca22309b843b55b746994fb08c15fbbf0aadbf900398e8768c62dc01\"],[\"3045022100c4d233c9183d91fd9f1821fb68e1180bbd6493eb66caf36438bccd8cb46a247302200d3a16ff3180fb9ffe8dd16c8ea71f461e7b940baea4c302c8d8e2ba9bf74b9201\",\"3045022100c4d233c9183d91fd9f1821fb68e1180bbd6493eb66caf36438bccd8cb46a247302200d3a16ff3180fb9ffe8dd16c8ea71f461e7b940baea4c302c8d8e2ba9bf74b9201\",\"3045022100c4d233c9183d91fd9f1821fb68e1180bbd6493eb66caf36438bccd8cb46a247302200d3a16ff3180fb9ffe8dd16c8ea71f461e7b940baea4c302c8d8e2ba9bf74b9201\",\"3045022100bdc4d1151d0567bb4e377b473100eaf41544bb547bc6d82b0a0dae8e8e833a6d022013caa911c553558abe6fdf1a6853ca6bab6912d90676595cfd4d11afd4f7966301\",\"3045022100e1262b0e14df0f6f99d850651caa6b8881f7cbf811ad549cb0d6a1b1369beec902204232af72b6bfcb21a83d555374dc622275b7c2cac31b4f56d76b87d88fdc586e01\"]]" ).as< std::vector<std::vector<bytes>> >() );
 
-   test_sort_sigs( trx, scripts, amounts, results, db.context_verify );
+   auto new_stacks = sort_sigs( trx, scripts, amounts, db.context_verify );
+   for( size_t i = 0; i < trx.vin.size(); i++ ) {
+      BOOST_CHECK( new_stacks[i] == results[i] );
+   }
 }
 
 class bitcoin_transaction_sign_evaluator_test : public bitcoin_transaction_sign_evaluator
@@ -224,29 +214,44 @@ public:
    accounts_keys keys_map;
 };
 
-std::vector<info_for_vin> create_info_for_vins( const btc_multisig_segwit_address& addr )
+std::vector<info_for_vin> create_info_for_vins( const std::vector<btc_multisig_segwit_address>& addresses )
 {
    std::vector<info_for_vin> result;
-   for( size_t i = 0; i < 5; i++ ) {
+   for( size_t i = 0; i < addresses.size(); i++ ) {
       info_for_vin vin;
       vin.out.hash_tx = "1111111111111111111111111111111111111111111111111111111111111111";
       vin.out.n_vout = static_cast<uint32_t>( i );
       vin.out.amount = static_cast<uint64_t>( i );
-      std::string address = addr.get_address();
-      vin.script = addr.get_redeem_script();
+      vin.address = addresses[i].get_address();
+      vin.script = addresses[i].get_witness_script();
       result.push_back( vin );
    }
    return result;
 }
 
-void sign_transaction( bitcoin_transaction& tx, const private_key& priv_key, const std::vector<info_for_vin>& info_vins, secp256k1_context_t* context_sign )
+void sign_transaction( bitcoin_transaction& tx, const private_key& priv_key, const std::vector<bytes>& redeem_scripts,
+                       const std::vector<uint64_t>& amounts, secp256k1_context_t* context_sign )
 {
    const auto secret = priv_key.get_secret();
    bytes key( secret.data(), secret.data() + secret.data_size() );
-   auto sigs = sign_witness_transaction_part( tx, info_vins, key, context_sign, 1 );
+   auto sigs = sign_witness_transaction_part( tx, redeem_scripts, amounts, key, context_sign, 1 );
    for( size_t j = 0; j < tx.vin.size(); j++ ) {
       tx.vin[j].scriptWitness.push_back( sigs[j] );
    }
+}
+
+std::vector<btc_multisig_segwit_address> create_addresses( database& db, accounts_keys keys_map )
+{
+   std::vector<btc_multisig_segwit_address> addresses;
+   for( size_t i = 0; i < 5; i++ ) {
+      const auto& address = db.create<bitcoin_address_object>( [&]( bitcoin_address_object& a ) {
+         const private_key petra_private_key = private_key::regenerate( fc::sha256::hash( std::to_string( i ) ) );
+         (--keys_map.end())->second = public_key_type( petra_private_key.get_public_key() );
+         a.address = sidechain::btc_multisig_segwit_address( 5, keys_map );
+      });
+      addresses.push_back( address.address );
+   }
+   return addresses;
 }
 
 BOOST_AUTO_TEST_CASE( check_sigs_normal_sigs_test )
@@ -254,18 +259,22 @@ BOOST_AUTO_TEST_CASE( check_sigs_normal_sigs_test )
    transaction_evaluation_state trx_eval( &db );
    bitcoin_transaction_sign_evaluator_test sign_eval( trx_eval );
 
-   btc_multisig_segwit_address address( 5, sign_eval.keys_map );
-   std::vector<info_for_vin> info_for_vins = create_info_for_vins( address );
+   auto addresses = create_addresses( db, sign_eval.keys_map );
+
+   std::vector<info_for_vin> info_for_vins = create_info_for_vins( addresses );
    sidechain_condensing_tx ct( info_for_vins, std::vector<info_for_vout>() );
    bitcoin_transaction transaction = ct.get_transaction();
 
+   std::vector<bytes> redeem_scripts( db.i_w_info.get_redeem_scripts( info_for_vins ) );
+   std::vector<uint64_t> amounts( db.i_w_info.get_amounts( info_for_vins ) );
+
    for( size_t i = 0; i < 4; i++ ) {
-      sign_transaction( transaction, sign_eval.private_keys[i], info_for_vins, db.context_sign );
+      sign_transaction( transaction, sign_eval.private_keys[i], redeem_scripts, amounts, db.context_sign );
    }
 
    const auto secret = sign_eval.private_keys[4].get_secret();
    bytes key( secret.data(), secret.data() + secret.data_size() );
-   auto sigs = sign_witness_transaction_part( transaction, info_for_vins, key, db.context_sign, 1 );
+   auto sigs = sign_witness_transaction_part( transaction, redeem_scripts, amounts, key, db.context_sign, 1 );
 
    const auto pub_key = sign_eval.keys_map[account_id_type(4)].key_data;
    bytes key_hex( public_key_data_to_bytes( pub_key ) );
@@ -277,18 +286,22 @@ BOOST_AUTO_TEST_CASE( check_sigs_extra_signature_test )
    transaction_evaluation_state trx_eval( &db );
    bitcoin_transaction_sign_evaluator_test sign_eval( trx_eval );
 
-   btc_multisig_segwit_address address( 5, sign_eval.keys_map );
-   std::vector<info_for_vin> info_for_vins = create_info_for_vins( address );
+   const auto& addresses = create_addresses( db, sign_eval.keys_map );
+
+   std::vector<info_for_vin> info_for_vins = create_info_for_vins( addresses );
    sidechain_condensing_tx ct( info_for_vins, std::vector<info_for_vout>() );
    bitcoin_transaction transaction = ct.get_transaction();
 
+   std::vector<bytes> redeem_scripts( db.i_w_info.get_redeem_scripts( info_for_vins ) );
+   std::vector<uint64_t> amounts( db.i_w_info.get_amounts( info_for_vins ) );
+
    for( size_t i = 0; i < 5; i++ ) {
-      sign_transaction( transaction, sign_eval.private_keys[i], info_for_vins, db.context_sign );
+      sign_transaction( transaction, sign_eval.private_keys[i], redeem_scripts, amounts, db.context_sign );
    }
 
    const auto secret = sign_eval.private_keys[5].get_secret();
    bytes key(secret.data(), secret.data() + secret.data_size());
-   auto sigs = sign_witness_transaction_part( transaction, info_for_vins, key, db.context_sign, 1 );
+   auto sigs = sign_witness_transaction_part( transaction, redeem_scripts, amounts, key, db.context_sign, 1 );
 
    const auto pub_key = sign_eval.keys_map[account_id_type(5)].key_data;
    bytes key_hex( public_key_data_to_bytes( pub_key ) );
@@ -300,14 +313,19 @@ BOOST_AUTO_TEST_CASE( check_sigs_sign_not_match_key_test )
    transaction_evaluation_state trx_eval( &db );
    bitcoin_transaction_sign_evaluator_test sign_eval( trx_eval );
 
-   btc_multisig_segwit_address address( 5, sign_eval.keys_map );
-   std::vector<info_for_vin> info_for_vins = create_info_for_vins( address );
+   const auto& addresses = create_addresses( db, sign_eval.keys_map );
+
+   std::vector<info_for_vin> info_for_vins = create_info_for_vins( addresses );
    sidechain_condensing_tx ct( info_for_vins, std::vector<info_for_vout>() );
    bitcoin_transaction transaction = ct.get_transaction();
 
    const auto secret = sign_eval.private_keys[3].get_secret();
    bytes key(secret.data(), secret.data() + secret.data_size());
-   auto sigs = sign_witness_transaction_part( transaction, info_for_vins, key, db.context_sign, 1 );
+
+   std::vector<bytes> redeem_scripts( db.i_w_info.get_redeem_scripts( info_for_vins ) );
+   std::vector<uint64_t> amounts( db.i_w_info.get_amounts( info_for_vins ) );
+
+   auto sigs = sign_witness_transaction_part( transaction, redeem_scripts, amounts, key, db.context_sign, 1 );
 
    const auto pub_key = sign_eval.keys_map[account_id_type(5)].key_data;
    bytes key_hex( public_key_data_to_bytes( pub_key ) );
@@ -321,18 +339,22 @@ BOOST_AUTO_TEST_CASE( check_sigs_identical_keys_normal_tests )
 
    sign_eval.keys_map[account_id_type( 4 )] = sign_eval.keys_map[account_id_type( 3 )];
 
-   btc_multisig_segwit_address address( 5, sign_eval.keys_map );
-   std::vector<info_for_vin> info_for_vins = create_info_for_vins( address );
+   const auto& addresses = create_addresses( db, sign_eval.keys_map );
+
+   std::vector<info_for_vin> info_for_vins = create_info_for_vins( addresses );
    sidechain_condensing_tx ct( info_for_vins, std::vector<info_for_vout>() );
    bitcoin_transaction transaction = ct.get_transaction();
 
+   std::vector<bytes> redeem_scripts( db.i_w_info.get_redeem_scripts( info_for_vins ) );
+   std::vector<uint64_t> amounts( db.i_w_info.get_amounts( info_for_vins ) );
+
    for( size_t i = 0; i < 4; i++ ) {
-      sign_transaction( transaction, sign_eval.private_keys[i], info_for_vins, db.context_sign );
+      sign_transaction( transaction, sign_eval.private_keys[i], redeem_scripts, amounts, db.context_sign );
    }
 
    const auto secret = sign_eval.private_keys[3].get_secret();
    bytes key(secret.data(), secret.data() + secret.data_size());
-   auto sigs = sign_witness_transaction_part( transaction, info_for_vins, key, db.context_sign, 1 );
+   auto sigs = sign_witness_transaction_part( transaction, redeem_scripts, amounts, key, db.context_sign, 1 );
 
    const auto pub_key = sign_eval.keys_map[account_id_type(3)].key_data;
    bytes key_hex( public_key_data_to_bytes( pub_key ) );
@@ -346,18 +368,22 @@ BOOST_AUTO_TEST_CASE( check_sigs_identical_keys_not_normal_tests )
 
    sign_eval.keys_map[account_id_type( 4 )] = sign_eval.keys_map[account_id_type( 3 )];
 
-   btc_multisig_segwit_address address( 5, sign_eval.keys_map );
-   std::vector<info_for_vin> info_for_vins = create_info_for_vins( address );
+   const auto& addresses = create_addresses( db, sign_eval.keys_map );
+
+   std::vector<info_for_vin> info_for_vins = create_info_for_vins( addresses );
    sidechain_condensing_tx ct( info_for_vins, std::vector<info_for_vout>() );
    bitcoin_transaction transaction = ct.get_transaction();
 
+   std::vector<bytes> redeem_scripts( db.i_w_info.get_redeem_scripts( info_for_vins ) );
+   std::vector<uint64_t> amounts( db.i_w_info.get_amounts( info_for_vins ) );
+
    for( size_t i = 0; i < 4; i++ ) {
-      sign_transaction( transaction, sign_eval.private_keys[i], info_for_vins, db.context_sign );
+      sign_transaction( transaction, sign_eval.private_keys[i], redeem_scripts, amounts, db.context_sign );
    }
 
    const auto secret = sign_eval.private_keys[3].get_secret();
    bytes key(secret.data(), secret.data() + secret.data_size());
-   auto sigs = sign_witness_transaction_part( transaction, info_for_vins, key, db.context_sign, 1 );
+   auto sigs = sign_witness_transaction_part( transaction, redeem_scripts, amounts, key, db.context_sign, 1 );
    for( size_t j = 0; j < transaction.vin.size(); j++ ) {
       transaction.vin[j].scriptWitness.push_back( sigs[j] );
    }

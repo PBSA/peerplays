@@ -400,6 +400,10 @@ signed_block database::_generate_block(
    auto maximum_block_size = get_global_properties().parameters.maximum_block_size;
    size_t total_block_size = max_block_header_size;
 
+   if( !is_sidechain_fork_needed() ) {
+       processing_sidechain_proposals( witness_obj, block_signing_private_key );
+   }
+
    signed_block pending_block;
 
    //

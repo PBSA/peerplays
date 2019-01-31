@@ -32,7 +32,6 @@ enum class sidechain_proposal_type
 {
    ISSUE_PBTC,
    SEND_BTC_TRANSACTION,
-   WITHDRAW_PBTC,
    RETURN_PBTC_BACK
 };
 
@@ -46,5 +45,5 @@ struct prev_out
 }
 
 FC_REFLECT_ENUM( sidechain::payment_type, (NULLDATA)(P2PK)(P2PKH)(P2SH)(P2WPKH)(P2WSH)(P2SH_WPKH)(P2SH_WSH) );
-FC_REFLECT_ENUM( sidechain::sidechain_proposal_type, (ISSUE_PBTC)(SEND_BTC_TRANSACTION)(WITHDRAW_PBTC)(RETURN_PBTC_BACK) );
+FC_REFLECT_ENUM( sidechain::sidechain_proposal_type, (ISSUE_PBTC)(SEND_BTC_TRANSACTION)(RETURN_PBTC_BACK) );
 FC_REFLECT( sidechain::prev_out, (hash_tx)(n_vout)(amount) );

@@ -9,7 +9,8 @@
 
 #include <sidechain/sign_bitcoin_transaction.hpp>
 #include <sidechain/input_withdrawal_info.hpp>
-
+#include <graphene/chain/bitcoin_address_object.hpp>
+#include <graphene/chain/primary_wallet_vout_object.hpp>
 
 namespace graphene { namespace chain {
 
@@ -25,7 +26,6 @@ object_id_type bitcoin_transaction_send_evaluator::do_apply( const bitcoin_trans
 {
    bitcoin_transaction_send_operation& mutable_op = const_cast<bitcoin_transaction_send_operation&>( op );
    database& d = db();
-   sidechain::bytes wit_script;
 
    finalize_bitcoin_transaction( mutable_op );
 
@@ -43,6 +43,7 @@ object_id_type bitcoin_transaction_send_evaluator::do_apply( const bitcoin_trans
    });
 
    sidechain::prev_out new_pw_vout = { "", 0, 0 };
+   sidechain::bytes wit_script = d.get_latest_PW().address.get_witness_script();
    if( btc_tx.transaction.vout[0].is_p2wsh() && btc_tx.transaction.vout[0].scriptPubKey == wit_script )
       new_pw_vout = { btc_tx.transaction.get_txid(), 0, btc_tx.transaction.vout[0].value };
 
@@ -71,19 +72,34 @@ std::vector< info_for_used_vin_id_type > bitcoin_transaction_send_evaluator::cre
       if( obj_itr.valid() )
          d.i_w_info.remove_info_for_vin( *obj_itr );
    }
+
+   return new_vins;
 }
 
 void bitcoin_transaction_send_evaluator::finalize_bitcoin_transaction( bitcoin_transaction_send_operation& op )
 {
    database& d = db();
 
-   std::vector<std::vector<sidechain::bytes>> new_stacks( sidechain::sort_sigs( op.transaction, op.vins, d.context_verify ) );
+   auto vins = op.vins;
+   if( op.pw_vin.str().compare( 0, 24, SIDECHAIN_NULL_VIN_IDENTIFIER ) != 0 ) {
+      const auto& pw_vout = d.pw_vout_manager.get_vout( op.pw_vin );
+      info_for_vin vin;
+      vin.out = pw_vout->vout;
+      vin.address = d.get_latest_PW().address.get_address();
+      vin.identifier = pw_vout->hash_id;
+      vins.insert( vins.begin(), vin );
+   }
+
+   std::vector<bytes> redeem_scripts( d.i_w_info.get_redeem_scripts( vins ) );
+   std::vector<uint64_t> amounts( d.i_w_info.get_amounts( vins ) );
+
+   std::vector<std::vector<sidechain::bytes>> new_stacks( sidechain::sort_sigs( op.transaction, redeem_scripts, amounts, d.context_verify ) );
 
    for( size_t i = 0; i < new_stacks.size(); i++ ) {
       op.transaction.vin[i].scriptWitness = new_stacks[i];
    }
 
-   sidechain::sign_witness_transaction_finalize( op.transaction, op.vins );
+   sidechain::sign_witness_transaction_finalize( op.transaction, redeem_scripts );
 }
 
 void bitcoin_transaction_send_evaluator::send_bitcoin_transaction( const bitcoin_transaction_object& btc_tx )
@@ -99,18 +115,16 @@ void_result bitcoin_transaction_sign_evaluator::do_evaluate( const bitcoin_trans
 {
    database& d = db();
 
-   const auto& sidechain_proposal_idx = d.get_index_type<sidechain_proposal_index>().indices().get<by_id>();
-   const auto& sidechain_proposal_itr = sidechain_proposal_idx.find( op.sidechain_proposal_id );
-   FC_ASSERT( sidechain_proposal_idx.end() != sidechain_proposal_itr,
-      "sidechain_proposal not found");
+   const auto& proposal_idx = d.get_index_type<proposal_index>().indices().get<by_id>();
+   const auto& proposal_itr = proposal_idx.find( op.proposal_id );
+   FC_ASSERT( proposal_idx.end() != proposal_itr, "proposal not found");
 
    witness_id_type scheduled_witness = d.get_scheduled_witness( 1 );
    const auto& witness_obj = d.get< witness_object >( scheduled_witness );
    FC_ASSERT( witness_obj.witness_account == op.payer, "Incorrect witness." );
 
    sidechain::bytes public_key( public_key_data_to_bytes( witness_obj.signing_key.key_data ) );
-   const auto& proposal = sidechain_proposal_itr->proposal_id( d );
-   auto btc_send_op = proposal.proposed_transaction.operations[0].get<bitcoin_transaction_send_operation>();
+   auto btc_send_op = proposal_itr->proposed_transaction.operations[0].get<bitcoin_transaction_send_operation>();
    FC_ASSERT( check_sigs( public_key, op.signatures, btc_send_op.vins, btc_send_op.transaction ) ); // Add pw_vin
 
    // const auto& proposal = sidechain_proposal_itr->proposal_id( d );
@@ -122,9 +136,7 @@ void_result bitcoin_transaction_sign_evaluator::do_evaluate( const bitcoin_trans
 void_result bitcoin_transaction_sign_evaluator::do_apply( const bitcoin_transaction_sign_operation& op )
 {
    database& d = db();
-
-   const auto& sidechain_proposal = op.sidechain_proposal_id( d );
-   const auto& proposal = sidechain_proposal.proposal_id( d );
+   const auto& proposal = op.proposal_id( d );
 
    d.modify( proposal, [&]( proposal_object& po ) {
       auto bitcoin_transaction_send_op = po.proposed_transaction.operations[0].get<bitcoin_transaction_send_operation>();
@@ -145,7 +157,7 @@ void bitcoin_transaction_sign_evaluator::update_proposal( const bitcoin_transact
    proposal_update_operation update_op;
    
    update_op.fee_paying_account = op.payer;
-   update_op.proposal = op.sidechain_proposal_id( d ).proposal_id;
+   update_op.proposal = op.proposal_id;
    update_op.active_approvals_to_add = { op.payer };
 
    bool skip_fee_old = trx_state->skip_fee;
@@ -164,9 +176,12 @@ bool bitcoin_transaction_sign_evaluator::check_sigs( const bytes& key_data, cons
                                                  const bitcoin_transaction& tx )
 {
    FC_ASSERT( sigs.size() == info_for_vins.size() && sigs.size() == tx.vin.size() );
+   const auto& bitcoin_address_idx = db().get_index_type<bitcoin_address_index>().indices().get< by_address >();
 
    for( size_t i = 0; i < tx.vin.size(); i++ ) {
-      const bytes& script = info_for_vins[i].script;
+      const auto pbtc_address = bitcoin_address_idx.find( info_for_vins[i].address );
+      const bytes& script = pbtc_address->address.get_redeem_script();
+
       const auto& sighash_str = get_signature_hash( tx, script, static_cast<int64_t>( info_for_vins[i].out.amount ), i, 1, true ).str();
       const bytes& sighash_hex = parse_hex( sighash_str );
 

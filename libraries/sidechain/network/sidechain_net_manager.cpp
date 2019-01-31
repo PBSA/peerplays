@@ -113,7 +113,6 @@ void sidechain_net_manager::send_btc_tx( const sidechain::bitcoin_transaction& t
 
    FC_ASSERT( !bitcoin_client->connection_is_not_defined() );
    const auto tx_hex = fc::to_hex( pack( trx ) );
-   idump((tx_hex));
 
    auto reply = bitcoin_client->send_btc_tx( tx_hex );
 
