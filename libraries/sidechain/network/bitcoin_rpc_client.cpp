@@ -39,13 +39,14 @@ int32_t bitcoin_rpc_client::receive_confirmations_tx( const std::string& tx_hash
    const auto reply = send_post_request( body );
 
    if ( reply.status != 200 )
-      return -1;
+      return 0;
 
    const auto result = std::string( reply.body.begin(), reply.body.end() );
    
    std::stringstream ss( result );
    boost::property_tree::ptree tx;
    boost::property_tree::read_json( ss, tx );
+
    if( tx.count( "result" ) ) {
       if( tx.get_child( "result" ).count( "confirmations" ) ) {
          return tx.get_child( "result" ).get_child( "confirmations" ).get_value<int64_t>();
@@ -93,19 +94,32 @@ uint64_t bitcoin_rpc_client::receive_estimated_fee()
    return 0;
 }
 
-std::string bitcoin_rpc_client::send_btc_tx( const std::string& tx_hex )
+void bitcoin_rpc_client::send_btc_tx( const std::string& tx_hex )
 {
    const auto body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"send_tx\", \"method\": \"sendrawtransaction\", \"params\": [") +
                      std::string("\"") + tx_hex + std::string("\"") + std::string("] }");
 
    const auto reply = send_post_request( body );
 
-   if( reply.body.empty() || reply.status != 200 )
-      return "";
+   if( reply.body.empty() )
+      return;
 
    std::string reply_str( reply.body.begin(), reply.body.end() );
 
-   return reply_str;
+   std::stringstream ss(reply_str);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json( ss, json );
+
+   if( reply.status == 200 ) {
+      idump(( tx_hex ));
+      return;
+   } else if( json.count( "error" ) && !json.get_child( "error" ).empty() ) {
+      const auto error_code = json.get_child( "error" ).get_child( "code" ).get_value<int>();
+      if( error_code == -27 ) // transaction already in block chain
+         return;
+
+      wlog( "BTC tx is not sent! Reply: ${msg}", ("msg", reply_str) );
+   }
 }
 
 bool bitcoin_rpc_client::connection_is_not_defined() const

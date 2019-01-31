@@ -20,7 +20,7 @@ public:
 
    uint64_t receive_estimated_fee();
 
-   std::string send_btc_tx( const std::string& tx_hex );
+   void send_btc_tx( const std::string& tx_hex );
 
    bool connection_is_not_defined() const;
 

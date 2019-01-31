@@ -16,23 +16,24 @@ namespace graphene { namespace chain { class database; } }
 
 namespace sidechain {
 
-struct btc_tx_confirmations
+struct bitcoin_transaction_confirmations
 {
-   btc_tx_confirmations() = default;
+   bitcoin_transaction_confirmations() = default;
 
-   btc_tx_confirmations( fc::sha256 trx_id ) : transaction_id( trx_id ) {}
+   bitcoin_transaction_confirmations( fc::sha256 trx_id ) : transaction_id( trx_id ) {}
 
    fc::sha256 transaction_id;
 
-   uint64_t count_blocks = 0;
+   uint64_t count_block = 0;
    bool confirmed = false;
+   bool missing = false;
 };
 
 struct by_hash;
 
-using btc_tx_confirmations_index = boost::multi_index_container<btc_tx_confirmations,
+using btc_tx_confirmations_index = boost::multi_index_container<bitcoin_transaction_confirmations,
    indexed_by<
-      ordered_unique<tag<by_hash>, member<btc_tx_confirmations, fc::sha256, &btc_tx_confirmations::transaction_id>>
+      ordered_unique<tag<by_hash>, member<bitcoin_transaction_confirmations, fc::sha256, &bitcoin_transaction_confirmations::transaction_id>>
    >
 >;
 

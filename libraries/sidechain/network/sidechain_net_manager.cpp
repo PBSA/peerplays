@@ -1,5 +1,6 @@
 #include <sidechain/network/sidechain_net_manager.hpp>
 #include <sidechain/serialize.hpp>
+#include <sidechain/sidechain_parameters.hpp>
 
 #include <fc/network/http/connection.hpp>
 #include <fc/network/ip.hpp>
@@ -43,15 +44,67 @@ void sidechain_net_manager::initialize_manager( graphene::chain::database* _db, 
    } );
 }
 
+void sidechain_net_manager::update_tx_infos( const std::string& block_hash )
+{
+   std::string block = bitcoin_client->receive_full_block( block_hash );
+   if( block != "" ) {
+      const auto& vins = extract_info_from_block( block );
+      for( const auto& v : vins ) {
+         db->i_w_info.insert_info_for_vin( prev_out{ v.out.hash_tx, v.out.n_vout, v.out.amount }, v.address );
+      }
+   }
+}
+
+void sidechain_net_manager::update_tx_approvals()
+{
+   std::vector<fc::sha256> trx_for_check;
+   const auto& confirmations_num = db->get_sidechain_params().confirmations_num;
+
+   db->bitcoin_confirmations.safe_for<by_hash>([&]( btc_tx_confirmations_index::iterator itr_b, btc_tx_confirmations_index::iterator itr_e ){
+      for(auto iter = itr_b; iter != itr_e; iter++) {
+         db->bitcoin_confirmations.modify<by_hash>( iter->transaction_id, [&]( bitcoin_transaction_confirmations& obj ) {
+            obj.count_block++;
+         });
+
+         if( iter->count_block == confirmations_num ) {
+            trx_for_check.push_back( iter->transaction_id );
+         }
+      }
+   });
+
+   update_transaction_status( trx_for_check );
+
+}
+
+void sidechain_net_manager::update_estimated_fee()
+{
+   db->estimated_feerate = bitcoin_client->receive_estimated_fee();
+}
+
+void sidechain_net_manager::send_btc_tx( const sidechain::bitcoin_transaction& trx )
+{
+   db->bitcoin_confirmations.insert( bitcoin_transaction_confirmations( trx.get_txid() ) );
+
+   FC_ASSERT( !bitcoin_client->connection_is_not_defined() );
+   const auto tx_hex = fc::to_hex( pack( trx ) );
+
+   bitcoin_client->send_btc_tx( tx_hex );
+}
+
+bool sidechain_net_manager::connection_is_not_defined() const
+{
+   return listener->connection_is_not_defined() && bitcoin_client->connection_is_not_defined();
+}
+
+void sidechain_net_manager::handle_block( const std::string& block_hash )
+{
+   update_tx_approvals();
+   update_estimated_fee();
+   update_tx_infos( block_hash );
+}
+
 std::vector<info_for_vin> sidechain_net_manager::extract_info_from_block( const std::string& _block )
 {
-
-//    std::map<std::string, bool> test = { {"2MsmG481n4W4AC1QcPgBUJQrVRTrLNM2GpB", false},
-//                                         {"2N2LkZG2Zp9eXGjSJzP9taR1gYdZBPzH7S7", false},
-//                                         {"2N4MCW3XggAxs9C8Dh2vNcx7uH8zUqoLMjA", false},
-//                                         {"2NEkNoDyQ9tyREFDAPehi9Jr2m6EFiTDxAS", false},
-//                                         {"2N1rQcKr4F14L8dfnNiUVpc4LzcZTWN9Kpd", false} };
-
    std::stringstream ss( _block );
    boost::property_tree::ptree block;
    boost::property_tree::read_json( ss, block );
@@ -86,64 +139,28 @@ std::vector<info_for_vin> sidechain_net_manager::extract_info_from_block( const 
    return result;
 }
 
-void sidechain_net_manager::update_tx_infos( const std::string& block_hash )
+void sidechain_net_manager::update_transaction_status( std::vector<fc::sha256> trx_for_check )
 {
-   std::string block = bitcoin_client->receive_full_block( block_hash );
-   if( block != "" ) {
-      const auto& vins = extract_info_from_block( block );
-      for( const auto& v : vins ) {
-         db->i_w_info.insert_info_for_vin( prev_out{ v.out.hash_tx, v.out.n_vout, v.out.amount }, v.address );
+   const auto& confirmations_num = db->get_sidechain_params().confirmations_num;
+
+   for( const auto& trx : trx_for_check ) {
+      auto confirmations = bitcoin_client->receive_confirmations_tx( trx.str() );
+      db->bitcoin_confirmations.modify<by_hash>( trx, [&]( bitcoin_transaction_confirmations& obj ) {
+         obj.count_block = confirmations;
+      });
+
+      if( confirmations >= confirmations_num ) {
+         db->bitcoin_confirmations.modify<by_hash>( trx, [&]( bitcoin_transaction_confirmations& obj ) {
+            obj.confirmed = true;
+         });
+
+      } else if( confirmations == 0 ) {
+         auto is_in_mempool =  bitcoin_client->receive_mempool_entry_tx( trx.str() );
+         db->bitcoin_confirmations.modify<by_hash>( trx, [&]( bitcoin_transaction_confirmations& obj ) {
+            obj.missing = !is_in_mempool;
+         });
       }
    }
-}
-
-void sidechain_net_manager::update_tx_approvals()
-{
-   
-}
-
-void sidechain_net_manager::update_estimated_fee()
-{
-   auto estimated_fee = bitcoin_client->receive_estimated_fee();
-}
-
-void sidechain_net_manager::send_btc_tx( const sidechain::bitcoin_transaction& trx )
-{
-   db->bitcoin_confirmations.insert( btc_tx_confirmations( trx.get_txid() ) );
-
-   FC_ASSERT( !bitcoin_client->connection_is_not_defined() );
-   const auto tx_hex = fc::to_hex( pack( trx ) );
-
-   auto reply = bitcoin_client->send_btc_tx( tx_hex );
-
-   std::stringstream ss(reply);
-   boost::property_tree::ptree json;
-   boost::property_tree::read_json(ss, json);
-
-   if( !json.get_child( "error" ).empty() ) {
-      wlog( "BTC tx is not sent! Reply: ${msg}", ("msg", reply) );
-      const auto error_code = json.get_child( "error" ).get_child( "code" ).get_value<int>();
-
-      if( error_code != -27 ) // transaction already in block chain
-         return;
-   }
-
-   if( reply == "" ){
-      wlog( "Don't receive successful reply status" );
-      return;
-   }
-}
-
-bool sidechain_net_manager::connection_is_not_defined() const
-{
-   return listener->connection_is_not_defined() && bitcoin_client->connection_is_not_defined();
-}
-
-void sidechain_net_manager::handle_block( const std::string& block_hash )
-{
-   update_tx_approvals();
-   update_estimated_fee();
-   update_tx_infos( block_hash );
 }
 
 // Removes dot from amount output: "50.00000000"

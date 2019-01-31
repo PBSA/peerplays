@@ -35,6 +35,8 @@ private:
 
    std::vector<info_for_vin> extract_info_from_block( const std::string& _block );
 
+   void update_transaction_status( std::vector<fc::sha256> trx_for_check );
+
    inline uint64_t parse_amount(std::string raw);
 
    std::unique_ptr<zmq_listener> listener;
