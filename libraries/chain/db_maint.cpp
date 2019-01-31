@@ -752,24 +752,35 @@ double calculate_vesting_factor(const database& d, const account_object& stake_a
    std::iota(period_list.begin(), period_list.end(), 1);
 
    std::for_each(period_list.begin(), period_list.end(),[&](uint32_t period) {
-      if(seconds_since_period_start > vesting_subperiod * (period - 1) &&
+      if(seconds_since_period_start >= vesting_subperiod * (period - 1) &&
             seconds_since_period_start < vesting_subperiod * period)
          current_subperiod = period;
    });
 
    if(current_subperiod == 0 || current_subperiod > number_of_subperiods) return 0;
+   if(last_date_voted < period_start) return 0;
 
-   double numerator = number_of_subperiods - current_subperiod + 1;
+   double numerator = number_of_subperiods;
 
-   auto last_period_start = period_start + fc::seconds(vesting_subperiod * (current_subperiod - 1));
-   auto last_period_end = period_start + fc::seconds(vesting_subperiod * (current_subperiod));
+   if(current_subperiod > 1) {
+      std::list<uint32_t> subperiod_list(current_subperiod - 1);
+      std::iota(subperiod_list.begin(), subperiod_list.end(), 2);
+      subperiod_list.reverse();
 
-   // reset n if account voted last period
-   if (last_date_voted < last_period_start && last_date_voted >= last_period_end)
-      numerator = number_of_subperiods;
+      for(auto subperiod: subperiod_list)
+      {
+         numerator--;
 
+         auto last_period_start = period_start + fc::seconds(vesting_subperiod * (subperiod - 1));
+         auto last_period_end = period_start + fc::seconds(vesting_subperiod * (subperiod));
+
+         if (last_date_voted > last_period_start && last_date_voted <= last_period_end) {
+            numerator++;
+            break;
+         }
+      }
+   }
    vesting_factor = numerator / number_of_subperiods;
-
    return vesting_factor;
 }
 
