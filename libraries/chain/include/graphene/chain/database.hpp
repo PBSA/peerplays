@@ -558,6 +558,8 @@ namespace graphene { namespace chain {
 
          secp256k1_context_t* context_verify;
 
+         bool send_btc_tx_flag = true;
+
        private:
 
          vector< processed_transaction >        _pending_tx;

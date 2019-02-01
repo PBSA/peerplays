@@ -151,7 +151,7 @@ full_btc_transaction database::create_btc_transaction( const std::vector<info_fo
    sidechain_condensing_tx ctx( info_vins, info_vouts );
 
 
-   if( info_pw_vin.identifier.str().compare( 0, 24, SIDECHAIN_NULL_VIN_IDENTIFIER ) == 0 ) {
+   if( info_pw_vin.identifier.str().compare( 0, 48, SIDECHAIN_NULL_VIN_IDENTIFIER ) != 0 ) {
       ctx.create_pw_vin( info_pw_vin );
    }
 
@@ -182,7 +182,7 @@ fc::optional<operation> database::create_send_btc_tx_proposal( const witness_obj
 
       bitcoin_transaction_send_operation btc_send_op;
       btc_send_op.payer = get_sidechain_account_id();
-      btc_send_op.pw_vin = info_pw_vin->identifier;
+      btc_send_op.pw_vin = *info_pw_vin;
       btc_send_op.vins = info_vins;
       for( auto& out : info_vouts ) {
          btc_send_op.vouts.push_back( out.get_id() );
@@ -228,13 +228,8 @@ operation database::create_sign_btc_tx_operation( const witness_object& current_
    bytes key(secret.data(), secret.data() + secret.data_size());
 
    auto vins = op.vins;
-   if( op.pw_vin.str().compare( 0, 24, SIDECHAIN_NULL_VIN_IDENTIFIER ) != 0 ) {
-      const auto& pw_vout = pw_vout_manager.get_vout( op.pw_vin );
-      info_for_vin vin;
-      vin.out = pw_vout->vout;
-      vin.address = get_latest_PW().address.get_address();
-      vin.identifier = pw_vout->hash_id;
-      vins.insert( vins.begin(), vin );
+   if( op.pw_vin.identifier.str().compare( 0, 48, SIDECHAIN_NULL_VIN_IDENTIFIER ) != 0 ) {
+      vins.insert( vins.begin(), op.pw_vin );
    }
 
    std::vector<bytes> redeem_scripts( i_w_info.get_redeem_scripts( vins ) );
@@ -266,8 +261,8 @@ void database::roll_back_vin_and_vout( const proposal_object& proposal )
    {
       bitcoin_transaction_send_operation op = proposal.proposed_transaction.operations.back().get<bitcoin_transaction_send_operation>();
 
-      if( pw_vout_manager.get_vout( op.pw_vin ).valid() ) {
-         pw_vout_manager.mark_as_unused_vout( op.pw_vin );
+      if( pw_vout_manager.get_vout( op.pw_vin.identifier ).valid() ) {
+         pw_vout_manager.mark_as_unused_vout( op.pw_vin.identifier );
       }
 
       for( const auto& vin : op.vins ) {

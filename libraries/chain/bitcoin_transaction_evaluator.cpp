@@ -33,7 +33,7 @@ object_id_type bitcoin_transaction_send_evaluator::do_apply( const bitcoin_trans
 
    const bitcoin_transaction_object& btc_tx = d.create< bitcoin_transaction_object >( [&]( bitcoin_transaction_object& obj )
    {
-      obj.pw_vin = mutable_op.pw_vin;
+      obj.pw_vin = mutable_op.pw_vin.identifier;
       obj.vins = new_vins;
       obj.vouts = mutable_op.vouts;
       obj.transaction = mutable_op.transaction;
@@ -81,13 +81,8 @@ void bitcoin_transaction_send_evaluator::finalize_bitcoin_transaction( bitcoin_t
    database& d = db();
 
    auto vins = op.vins;
-   if( op.pw_vin.str().compare( 0, 24, SIDECHAIN_NULL_VIN_IDENTIFIER ) != 0 ) {
-      const auto& pw_vout = d.pw_vout_manager.get_vout( op.pw_vin );
-      info_for_vin vin;
-      vin.out = pw_vout->vout;
-      vin.address = d.get_latest_PW().address.get_address();
-      vin.identifier = pw_vout->hash_id;
-      vins.insert( vins.begin(), vin );
+   if( op.pw_vin.identifier.str().compare( 0, 48, SIDECHAIN_NULL_VIN_IDENTIFIER ) != 0 ) {
+      vins.insert( vins.begin(), op.pw_vin );
    }
 
    std::vector<bytes> redeem_scripts( d.i_w_info.get_redeem_scripts( vins ) );
@@ -106,7 +101,7 @@ void bitcoin_transaction_send_evaluator::send_bitcoin_transaction( const bitcoin
 {
    database& d = db();
    uint32_t skip = d.get_node_properties().skip_flags;
-   if( !(skip & graphene::chain::database::skip_btc_tx_sending) ){
+   if( !(skip & graphene::chain::database::skip_btc_tx_sending) && d.send_btc_tx_flag ){
       d.send_btc_tx( btc_tx.transaction );
    }
 }
@@ -125,7 +120,13 @@ void_result bitcoin_transaction_sign_evaluator::do_evaluate( const bitcoin_trans
 
    sidechain::bytes public_key( public_key_data_to_bytes( witness_obj.signing_key.key_data ) );
    auto btc_send_op = proposal_itr->proposed_transaction.operations[0].get<bitcoin_transaction_send_operation>();
-   FC_ASSERT( check_sigs( public_key, op.signatures, btc_send_op.vins, btc_send_op.transaction ) ); // Add pw_vin
+
+   auto vins = btc_send_op.vins;
+   if( btc_send_op.pw_vin.identifier.str().compare( 0, 48, SIDECHAIN_NULL_VIN_IDENTIFIER ) != 0 ) {
+      vins.insert( vins.begin(), btc_send_op.pw_vin );
+   }
+
+   FC_ASSERT( check_sigs( public_key, op.signatures, vins, btc_send_op.transaction ) ); // Add pw_vin
 
    // const auto& proposal = sidechain_proposal_itr->proposal_id( d );
    // FC_ASSERT( d.check_witness( witness_obj, *btc_tx, proposal ), "Can't sign this transaction" );

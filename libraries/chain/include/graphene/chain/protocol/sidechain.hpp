@@ -24,5 +24,5 @@ namespace graphene { namespace chain {
 
 } } // graphene::chain
 
-FC_REFLECT( graphene::chain::bitcoin_issue_operation::fee_parameters_type, (fee)(price_per_kbyte) )
+FC_REFLECT( graphene::chain::bitcoin_issue_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::bitcoin_issue_operation, (fee)(payer)(transaction_id) )

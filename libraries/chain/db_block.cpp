@@ -182,6 +182,9 @@ void database::check_tansaction_for_duplicated_operations(const signed_transacti
 bool database::push_block(const signed_block& new_block, uint32_t skip)
 {
 //   idump((new_block.block_num())(new_block.id())(new_block.timestamp)(new_block.previous));
+
+   send_btc_tx_flag = true;
+
    bool result;
    detail::with_skip_flags( *this, skip, [&]()
    {
@@ -426,6 +429,8 @@ signed_block database::_generate_block(
           _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( block_signing_private_key, *op ) );
        }
    }
+
+   send_btc_tx_flag = false;
 
    uint64_t postponed_tx_count = 0;
    // pop pending state (reset to head block state)

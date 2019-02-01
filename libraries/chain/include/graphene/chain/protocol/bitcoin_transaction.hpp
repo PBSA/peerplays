@@ -15,7 +15,7 @@ namespace graphene { namespace chain {
       asset                                          fee;
       account_id_type                                payer;
 
-      fc::sha256                                     pw_vin;
+      sidechain::info_for_vin                        pw_vin;
       std::vector< sidechain::info_for_vin >         vins;
       std::vector< info_for_vout_id_type >           vouts;
 
