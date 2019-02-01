@@ -47,6 +47,7 @@
 #include <graphene/chain/protocol/withdraw_pbtc.hpp>
 #include <graphene/chain/protocol/bitcoin_address.hpp>
 #include <graphene/chain/protocol/bitcoin_transaction.hpp>
+#include <graphene/chain/protocol/sidechain.hpp>
 
 namespace graphene { namespace chain {
 
@@ -136,7 +137,8 @@ namespace graphene { namespace chain {
             withdraw_pbtc_operation,
             bitcoin_address_create_operation,
             bitcoin_transaction_send_operation,
-            bitcoin_transaction_sign_operation
+            bitcoin_transaction_sign_operation,
+            bitcoin_issue_operation
          > operation;
 
    /// @} // operations group

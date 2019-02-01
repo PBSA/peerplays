@@ -85,6 +85,7 @@
 #include <graphene/chain/withdraw_pbtc_evaluator.hpp>
 #include <graphene/chain/bitcoin_address_evaluator.hpp>
 #include <graphene/chain/bitcoin_transaction_evaluator.hpp>
+#include <graphene/chain/sidechain_evaluator.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
@@ -251,6 +252,7 @@ void database::initialize_evaluators()
    register_evaluator<bitcoin_address_create_evaluator>();
    register_evaluator<bitcoin_transaction_send_evaluator>();
    register_evaluator<bitcoin_transaction_sign_evaluator>();
+   register_evaluator<bitcoin_issue_evaluator>();
 }
 
 void database::initialize_indexes()

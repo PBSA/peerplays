@@ -14,17 +14,17 @@ class bitcoin_transaction_object : public abstract_object<bitcoin_transaction_ob
 
       bitcoin_transaction_id_type get_id()const { return id; }
 
-      fc::optional< fc::sha256 >             pw_vin;
+      fc::sha256                                  pw_vin;
 
       std::vector< info_for_used_vin_id_type >    vins;
-      std::vector< info_for_vout_id_type >   vouts;
+      std::vector< info_for_vout_id_type >        vouts;
 
-      sidechain::bitcoin_transaction         transaction;
-      fc::sha256                             transaction_id;
+      sidechain::bitcoin_transaction              transaction;
+      fc::sha256                                  transaction_id;
 
-      uint64_t                               fee_for_size;
+      uint64_t                                    fee_for_size;
 
-      bool                                   confirm = false;
+      bool                                        confirm = false;
 };
 
 struct by_transaction_id;

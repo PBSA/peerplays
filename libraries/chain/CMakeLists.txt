@@ -88,6 +88,7 @@ add_library( graphene_chain
              buyback.cpp
              bitcoin_address_evaluator.cpp
              bitcoin_transaction_evaluator.cpp
+             sidechain_evaluator.cpp
 
              account_object.cpp
              asset_object.cpp
