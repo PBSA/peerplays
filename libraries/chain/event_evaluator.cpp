@@ -35,6 +35,17 @@ namespace graphene { namespace chain {
 
 namespace 
 {
+   /// searches for the manager in event_group => sport
+   bool is_manager( const database& db, const event_group_id_type& event_group_id, const account_id_type& manager_id )
+   {
+      const event_group_object& event_group_obj = event_group_id(db);
+      if( event_group_obj.manager == manager_id ) 
+         return true;
+
+      const sport_object& sport_obj = event_group_obj.sport_id(db);
+      return sport_obj.manager == manager_id;
+   } 
+
    /// searches for the manager in event => event_group => sport
    bool is_manager( const database& db, const event_id_type& event_id, const account_id_type& manager_id )
    {
@@ -42,24 +53,8 @@ namespace
       if( event_obj.manager == manager_id ) 
          return true;
 
-      const event_group_object& event_group_obj = event_obj.event_group_id(db);
-      if( event_group_obj.manager == manager_id )
-         return true;
-
-      const sport_object& sport_obj = event_group_obj.sport_id(db);
-      return sport_obj.manager == manager_id;
+      return is_manager( db, event_obj.event_group_id, manager_id );
    }
-
-   /// searches for the manager in event_group => sport
-   bool is_manager( const database& db, const event_group_id_type& event_group_id, const account_id_type& manager_id )
-   {
-      const event_group_object& event_group_obj = ( (event_group_id_type)event_group_id )(db);
-      if( event_group_obj.manager == manager_id ) 
-         return true;
-
-      const sport_object& sport_obj = event_group_obj.sport_id(db);
-      return sport_obj.manager == manager_id;
-   } 
 } // graphene::chain::anon
 
 void_result event_create_evaluator::do_evaluate(const event_create_operation& op)
@@ -77,7 +72,6 @@ void_result event_create_evaluator::do_evaluate(const event_create_operation& op
              resolved_event_group_id.type() == event_group_id_type::type_id, 
              "event_group_id must refer to a event_group_id_type");
    event_group_id = resolved_event_group_id;
-   //const event_group_object& event_group = event_group_id(d);
 
    FC_ASSERT(trx_state->_is_proposed_trx
       || op.extensions.value.fee_paying_account ? is_manager( db(), event_group_id, *op.extensions.value.fee_paying_account ) : false,
@@ -95,16 +89,9 @@ object_id_type event_create_evaluator::do_apply(const event_create_operation& op
          event_obj.season = op.season;
          event_obj.start_time = op.start_time;
          event_obj.event_group_id = event_group_id;
-         //if( op.extensions.value.new_manager ) { // NORMALLY SET MANAGER HERE BUT DOESNT WORK
-         //   event_obj.manager = *op.extensions.value.new_manager;
-         //}
+         if( op.extensions.value.new_manager ) 
+            event_obj.manager = *op.extensions.value.new_manager;
      });
-   // the manager is set separately through an update because it cannot be set through the create above (???)
-   if( op.extensions.value.new_manager ) { 
-      d.modify( new_event, [&](event_object& event_obj ) {
-         event_obj.manager = *op.extensions.value.new_manager;
-      });
-   }
    
    //increment number of active events in global betting statistics object
    const global_betting_statistics_object& betting_statistics = global_betting_statistics_id_type()(d);

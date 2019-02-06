@@ -35,6 +35,13 @@ namespace graphene { namespace chain {
 
 namespace 
 {
+   /// searches for a manager in sport
+   bool is_manager( const database& db, const sport_id_type& sport_id, const account_id_type& manager_id ) 
+   {
+      const sport_object& sport_obj = sport_id(db);
+      return sport_obj.manager == manager_id;
+   }
+   
    /// searches for a manager in event_group => sport
    bool is_manager( const database& db, const event_group_id_type& event_group_id, const account_id_type& manager_id )
    {
@@ -42,16 +49,8 @@ namespace
       if( event_group_obj.manager == manager_id ) 
          return true;
       
-      const sport_object& sport_obj = event_group_obj.sport_id(db);
-      return sport_obj.manager == manager_id;
-   }
-
-   /// searches for a manager in sport
-   bool is_manager( const database& db, const sport_id_type& sport_id, const account_id_type& manager_id ) 
-   {
-      const sport_object& sport_obj = sport_id(db);
-      return sport_obj.manager == manager_id;
-   }
+      return is_manager( db, event_group_obj.sport_id, manager_id );
+   }   
 } // graphene::chain::anon
 
 void_result event_group_create_evaluator::do_evaluate(const event_group_create_operation& op)
