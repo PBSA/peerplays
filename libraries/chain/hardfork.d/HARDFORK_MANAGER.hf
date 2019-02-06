@@ -1,0 +1,4 @@
+// added manager
+#ifndef HARDFORK_MANAGER_TIME
+#define HARDFORK_MANAGER_TIME (fc::time_point_sec( 1858752402 ))
+#endif
