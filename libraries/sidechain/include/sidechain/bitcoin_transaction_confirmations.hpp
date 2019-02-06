@@ -49,7 +49,7 @@ struct by_confirmed_and_not_used;
 using btc_tx_confirmations_index = boost::multi_index_container<bitcoin_transaction_confirmations,
    indexed_by<
       ordered_unique<tag<by_hash>, member<bitcoin_transaction_confirmations, fc::sha256, &bitcoin_transaction_confirmations::transaction_id>>,
-      ordered_non_unique<tag<by_confirmed_and_not_used>, const_mem_fun< bitcoin_transaction_confirmations, bool, &bitcoin_transaction_confirmations::is_confirmed_and_not_used >>
+      ordered_non_unique<tag<by_confirmed_and_not_used>, identity< bitcoin_transaction_confirmations >, bitcoin_transaction_confirmations::comparer >
    >
 >;
 

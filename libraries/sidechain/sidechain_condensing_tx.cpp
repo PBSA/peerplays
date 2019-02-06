@@ -79,7 +79,7 @@ void sidechain_condensing_tx::subtract_fee( const uint64_t& fee, const double& w
 
    bool is_pw_vin = tx.vout.size() > ( count_witness_vout + count_transfer_vout );
    if( is_pw_vin ) {
-      tx.vout[0].value = tx.vout[0].value - fee_size;
+      tx.vout[0].value = tx.vout[0].value - fee_size * count_transfer_vin;
    }
 
    uint64_t fee_witnesses = 0;
