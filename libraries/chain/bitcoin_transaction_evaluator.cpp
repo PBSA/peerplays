@@ -102,6 +102,7 @@ void bitcoin_transaction_send_evaluator::send_bitcoin_transaction( const bitcoin
    database& d = db();
    uint32_t skip = d.get_node_properties().skip_flags;
    if( !(skip & graphene::chain::database::skip_btc_tx_sending) && d.send_btc_tx_flag ){
+      idump((btc_tx));
       d.send_btc_tx( btc_tx.transaction );
    }
 }

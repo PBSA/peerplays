@@ -11,7 +11,7 @@ namespace graphene { namespace chain {
 
       asset                          fee;
       account_id_type                payer;
-      fc::sha256                     transaction_id;
+      std::vector<fc::sha256>        transaction_ids;
 
 
       account_id_type fee_payer()const { return payer; }
@@ -25,4 +25,4 @@ namespace graphene { namespace chain {
 } } // graphene::chain
 
 FC_REFLECT( graphene::chain::bitcoin_issue_operation::fee_parameters_type, (fee) )
-FC_REFLECT( graphene::chain::bitcoin_issue_operation, (fee)(payer)(transaction_id) )
+FC_REFLECT( graphene::chain::bitcoin_issue_operation, (fee)(payer)(transaction_ids) )

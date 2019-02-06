@@ -43,6 +43,8 @@ namespace graphene { namespace chain {
       void operator()( const T &v ) const {}
 
       void operator()( const bitcoin_transaction_send_operation &v );
+
+      void operator()( const bitcoin_issue_operation &v );
    };
 
    class proposal_create_evaluator : public evaluator<proposal_create_evaluator>

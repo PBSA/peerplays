@@ -404,7 +404,7 @@ signed_block database::_generate_block(
    size_t total_block_size = max_block_header_size;
 
    if( !is_sidechain_fork_needed() ) {
-       processing_sidechain_proposals( witness_obj, block_signing_private_key );
+      processing_sidechain_proposals( witness_obj, block_signing_private_key );
    }
 
    signed_block pending_block;
@@ -424,10 +424,15 @@ signed_block database::_generate_block(
    _pending_tx_session = _undo_db.start_undo_session();
 
    if( !is_sidechain_fork_needed() ) {
-       auto op = create_send_btc_tx_proposal( witness_obj );
-       if( op.valid() ) {
-          _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( block_signing_private_key, *op ) );
-       }
+      auto op = create_send_btc_tx_proposal( witness_obj );
+      if( op.valid() ) {
+         _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( block_signing_private_key, *op ) );
+      }
+
+      auto iss_op = create_bitcoin_issue_proposals( witness_obj );
+      if( iss_op.valid() ) {
+         _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( block_signing_private_key, *iss_op ) );
+      }
    }
 
    send_btc_tx_flag = false;

@@ -45,6 +45,7 @@ void create_bitcoin_issue_operation_environment( database& db )
       obj.vins = vins;
       obj.vouts = vouts;
       obj.transaction_id = fc::sha256( "1111111111111111111111111111111111111111111111111111111111111111" );
+      obj.fee_for_size = 0;
    });
 }
 
@@ -66,7 +67,7 @@ BOOST_AUTO_TEST_CASE( check_deleting_all_btc_transaction_information )
 
    bitcoin_issue_operation op;
    op.payer = db.get_sidechain_account_id();
-   op.transaction_id = fc::sha256( "1111111111111111111111111111111111111111111111111111111111111111" );
+   op.transaction_ids = { fc::sha256( "1111111111111111111111111111111111111111111111111111111111111111" ) };
    db.apply_operation( context, op );
 
    FC_ASSERT( btc_trx_idx.size() == 0 );
@@ -84,7 +85,7 @@ BOOST_AUTO_TEST_CASE( check_adding_issue_to_accounts )
 
    bitcoin_issue_operation op;
    op.payer = db.get_sidechain_account_id();
-   op.transaction_id = fc::sha256( "1111111111111111111111111111111111111111111111111111111111111111" );
+   op.transaction_ids = { fc::sha256( "1111111111111111111111111111111111111111111111111111111111111111" ) };
    
    db.apply_operation( context, op );
 
@@ -115,7 +116,7 @@ BOOST_AUTO_TEST_CASE( check_bitcoin_issue_operation_throw )
 
       bitcoin_issue_operation op;
       op.payer = db.get_sidechain_account_id();
-      op.transaction_id = fc::sha256( "1111111111111111111111111111111111111111111111111111111111111111" );
+      op.transaction_ids = { fc::sha256( "1111111111111111111111111111111111111111111111111111111111111111" ) };
       GRAPHENE_REQUIRE_THROW( db.apply_operation( context, op ) , fc::exception );
 
       session.undo();
@@ -128,7 +129,7 @@ BOOST_AUTO_TEST_CASE( check_bitcoin_issue_operation_throw )
 
       bitcoin_issue_operation op;
       op.payer = db.get_sidechain_account_id();
-      op.transaction_id = fc::sha256( "1111111111111111111111111111111111111111111111111111111111111111" );
+      op.transaction_ids = { fc::sha256( "1111111111111111111111111111111111111111111111111111111111111111" ) };
       GRAPHENE_REQUIRE_THROW( db.apply_operation( context, op ) , fc::exception );
 
       session.undo();
@@ -141,7 +142,7 @@ BOOST_AUTO_TEST_CASE( check_bitcoin_issue_operation_throw )
 
       bitcoin_issue_operation op;
       op.payer = db.get_sidechain_account_id();
-      op.transaction_id = fc::sha256( "1111111111111111111111111111111111111111111111111111111111111111" );
+      op.transaction_ids = { fc::sha256( "1111111111111111111111111111111111111111111111111111111111111111" ) };
       GRAPHENE_REQUIRE_THROW( db.apply_operation( context, op ) , fc::exception );
 
       session.undo();
@@ -154,7 +155,7 @@ BOOST_AUTO_TEST_CASE( check_bitcoin_issue_operation_throw )
 
       bitcoin_issue_operation op;
       op.payer = db.get_sidechain_account_id();
-      op.transaction_id = fc::sha256( "1111111111111111111111111111111111111111111111111111111111111111" );
+      op.transaction_ids = { fc::sha256( "1111111111111111111111111111111111111111111111111111111111111111" ) };
       GRAPHENE_REQUIRE_THROW( db.apply_operation( context, op ) , fc::exception );
 
       session.undo();
@@ -165,7 +166,7 @@ BOOST_AUTO_TEST_CASE( check_bitcoin_issue_operation_throw )
 
       bitcoin_issue_operation op;
       op.payer = account_id_type(1);
-      op.transaction_id = fc::sha256( "1111111111111111111111111111111111111111111111111111111111111111" );
+      op.transaction_ids = { fc::sha256( "1111111111111111111111111111111111111111111111111111111111111111" ) };
       GRAPHENE_REQUIRE_THROW( db.apply_operation( context, op ) , fc::exception );
 
       session.undo();

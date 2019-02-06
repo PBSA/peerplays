@@ -2,8 +2,10 @@
 #include <graphene/chain/bitcoin_address_object.hpp>
 #include <graphene/chain/sidechain_proposal_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
-#include <sidechain/sidechain_condensing_tx.hpp>
 #include <graphene/chain/protocol/asset.hpp>
+#include <graphene/chain/bitcoin_transaction_object.hpp>
+
+#include <sidechain/sidechain_condensing_tx.hpp>
 #include <sidechain/sign_bitcoin_transaction.hpp>
 
 using namespace sidechain;
@@ -133,7 +135,14 @@ void database::processing_sidechain_proposals( const witness_object& current_wit
       FC_ASSERT( proposal != proposal_idx.end() );
 
       switch( sidechain_proposal.proposal_type ) {
-         case sidechain_proposal_type::ISSUE_PBTC :{}
+         case sidechain_proposal_type::ISSUE_BTC :{ 
+            proposal_update_operation puo;
+            puo.fee_paying_account = current_witness.witness_account;
+            puo.proposal = proposal->id;
+            puo.active_approvals_to_add = { current_witness.witness_account };
+            _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( private_key, puo ) );
+            break;
+          }
          case sidechain_proposal_type::SEND_BTC_TRANSACTION :{
             const auto& sign_operation = create_sign_btc_tx_operation( current_witness, private_key, proposal->id );
             _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( private_key, sign_operation ) );
@@ -243,7 +252,8 @@ operation database::create_sign_btc_tx_operation( const witness_object& current_
 void database::remove_sidechain_proposal_object( const proposal_object& proposal )
 { try {
    if( proposal.proposed_transaction.operations.size() == 1 &&
-       proposal.proposed_transaction.operations.back().which() == operation::tag<bitcoin_transaction_send_operation>::value )
+     ( proposal.proposed_transaction.operations.back().which() == operation::tag<bitcoin_transaction_send_operation>::value  || 
+       proposal.proposed_transaction.operations.back().which() == operation::tag<bitcoin_issue_operation>::value ) )
    {
       const auto& sidechain_proposal_idx = get_index_type<sidechain_proposal_index>().indices().get<by_proposal>();
       auto sidechain_proposal_itr = sidechain_proposal_idx.find( proposal.id );
@@ -281,6 +291,39 @@ void database::roll_back_vin_and_vout( const proposal_object& proposal )
 
       remove_sidechain_proposal_object( proposal );
    }
+}
+
+fc::optional<operation> database::create_bitcoin_issue_proposals( const witness_object& current_witness )
+{
+   std::vector<fc::sha256> trx_ids;
+
+   bitcoin_confirmations.safe_for<by_confirmed_and_not_used>([&]( btc_tx_confirmations_index::index<by_confirmed_and_not_used>::type::iterator itr_b, btc_tx_confirmations_index::index<by_confirmed_and_not_used>::type::iterator itr_e ){
+      for(auto iter = itr_b; iter != itr_e; iter++) {
+         if( !iter->is_confirmed_and_not_used() ) return;
+
+         const auto& btc_trx_idx = get_index_type<bitcoin_transaction_index>().indices().get<by_transaction_id>();
+         const auto& btc_tx = btc_trx_idx.find( iter->transaction_id );
+         if( btc_tx == btc_trx_idx.end() ) continue;
+
+         trx_ids.push_back( iter->transaction_id );
+      }
+   });
+
+   if( trx_ids.size() ) {
+      bitcoin_issue_operation issue_op;
+      issue_op.payer = get_sidechain_account_id();
+      issue_op.transaction_ids = trx_ids;
+
+      proposal_create_operation proposal_op;
+      proposal_op.fee_paying_account = current_witness.witness_account;
+      proposal_op.proposed_ops.push_back( op_wrapper( issue_op ) );
+      uint32_t lifetime = ( get_global_properties().parameters.block_interval * get_global_properties().active_witnesses.size() ) * 3;
+      proposal_op.expiration_time = time_point_sec( head_block_time().sec_since_epoch() + lifetime );
+
+      return fc::optional<operation>( proposal_op );
+   }
+
+   return fc::optional<operation>();
 }
 
 } }
