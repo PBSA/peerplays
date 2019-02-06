@@ -23,8 +23,6 @@ class bitcoin_transaction_object : public abstract_object<bitcoin_transaction_ob
       fc::sha256                                  transaction_id;
 
       uint64_t                                    fee_for_size;
-
-      bool                                        confirm = false;
 };
 
 struct by_transaction_id;
@@ -40,4 +38,4 @@ typedef generic_index<bitcoin_transaction_object, bitcoin_transaction_multi_inde
 
 } } // graphene::chain
 
-FC_REFLECT_DERIVED( graphene::chain::bitcoin_transaction_object, (graphene::chain::object), (pw_vin)(vins)(vouts)(transaction)(transaction_id)(fee_for_size)(confirm) )
+FC_REFLECT_DERIVED( graphene::chain::bitcoin_transaction_object, (graphene::chain::object), (pw_vin)(vins)(vouts)(transaction)(transaction_id)(fee_for_size) )

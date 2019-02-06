@@ -39,7 +39,6 @@ object_id_type bitcoin_transaction_send_evaluator::do_apply( const bitcoin_trans
       obj.transaction = mutable_op.transaction;
       obj.transaction_id = mutable_op.transaction.get_txid();
       obj.fee_for_size = mutable_op.fee_for_size;
-      obj.confirm = false;
    });
 
    sidechain::prev_out new_pw_vout = { "", 0, 0 };

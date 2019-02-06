@@ -2,10 +2,12 @@
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/primary_wallet_vout_object.hpp>
 #include <graphene/chain/bitcoin_address_object.hpp>
+#include <sidechain/bitcoin_transaction_confirmations.hpp>
 
 namespace sidechain {
 
 uint64_t info_for_vin::count_id_info_for_vin = 0;
+uint64_t bitcoin_transaction_confirmations::count_id_tx_conf = 0;
 
 bool info_for_vin::comparer::operator() ( const info_for_vin& lhs, const info_for_vin& rhs ) const
 {
@@ -173,12 +175,8 @@ std::vector<info_for_vout> input_withdrawal_info::get_info_for_vouts()
    const auto& info_for_vout_idx = db.get_index_type<graphene::chain::info_for_vout_index>().indices().get< graphene::chain::by_id_and_not_used >();
    auto itr = info_for_vout_idx.begin();
    for(size_t i = 0; i < 5 && itr != info_for_vout_idx.end() && !itr->used; i++) {
-      info_for_vout vout;
-      vout.payer = itr->payer;
-      vout.address = itr->address;
-      vout.amount = itr->amount;
 
-      result.push_back( vout );
+      result.push_back( *itr );
       ++itr;
    }
 

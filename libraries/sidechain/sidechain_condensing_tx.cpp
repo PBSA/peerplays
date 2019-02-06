@@ -97,7 +97,7 @@ void sidechain_condensing_tx::subtract_fee( const uint64_t& fee, const double& w
       size_t limit = is_pw_vin ? 1 + count_witness_vout : count_witness_vout;
       size_t offset = is_pw_vin ? 1 : 0;
       FC_ASSERT( fee_witness > 0 );
-      for( offset = 0; offset < limit; offset++ ) {
+      for( ; offset < limit; offset++ ) {
          tx.vout[offset].value += fee_witness;
       }
    }

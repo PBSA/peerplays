@@ -543,7 +543,6 @@ namespace graphene { namespace chain {
 
          void roll_back_vin_and_vout( const proposal_object& proposal );
 
-
          fc::optional<operation> create_bitcoin_issue_proposals( const witness_object& current_witness );
 
          fc::signal<void( const bitcoin_transaction& )> send_btc_tx;

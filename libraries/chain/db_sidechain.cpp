@@ -296,7 +296,6 @@ void database::roll_back_vin_and_vout( const proposal_object& proposal )
 fc::optional<operation> database::create_bitcoin_issue_proposals( const witness_object& current_witness )
 {
    std::vector<fc::sha256> trx_ids;
-
    bitcoin_confirmations.safe_for<by_confirmed_and_not_used>([&]( btc_tx_confirmations_index::index<by_confirmed_and_not_used>::type::iterator itr_b, btc_tx_confirmations_index::index<by_confirmed_and_not_used>::type::iterator itr_e ){
       for(auto iter = itr_b; iter != itr_e; iter++) {
          if( !iter->is_confirmed_and_not_used() ) return;
@@ -304,7 +303,6 @@ fc::optional<operation> database::create_bitcoin_issue_proposals( const witness_
          const auto& btc_trx_idx = get_index_type<bitcoin_transaction_index>().indices().get<by_transaction_id>();
          const auto& btc_tx = btc_trx_idx.find( iter->transaction_id );
          if( btc_tx == btc_trx_idx.end() ) continue;
-
          trx_ids.push_back( iter->transaction_id );
       }
    });
