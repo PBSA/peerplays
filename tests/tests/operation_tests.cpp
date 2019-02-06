@@ -2459,7 +2459,7 @@ BOOST_AUTO_TEST_CASE( manager_test )
     transfer( committee_account, bob_id,     asset(10000) );
     transfer( committee_account, charlie_id, asset(10000) );
 
-    generate_blocks( HARDFORK_1000_TIME );
+    generate_blocks( HARDFORK_MANAGER_TIME );
     generate_block();
 
     sport_id_type       test_sport_id;
