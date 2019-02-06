@@ -57,7 +57,9 @@ namespace {
       {
          for (auto& operation: proposal.proposed_ops)
          {
-            proposed_operations_digests.push_back(fc::digest(operation.op));
+            if( operation.op.which() != graphene::chain::operation::tag<graphene::chain::betting_market_group_create_operation>::value
+             && operation.op.which() != graphene::chain::operation::tag<graphene::chain::betting_market_create_operation>::value )
+               proposed_operations_digests.push_back(fc::digest(operation.op));
          }
       }
        
@@ -477,23 +479,26 @@ void database_api_impl::check_transaction_for_duplicated_operations(const signed
    const auto& idx = _db.get_index_type<proposal_index>();
    const auto& pidx = dynamic_cast<const primary_index<proposal_index>&>(idx);
    const auto& raidx = pidx.get_secondary_index<graphene::chain::required_approval_index>();
-   
-   auto& p_set = raidx._account_to_proposals.find( GRAPHENE_WITNESS_ACCOUNT )->second;
 
-   std::set<fc::sha256> existed_operations_digests;
-   
-   for( auto p_itr = p_set.begin(); p_itr != p_set.end(); ++p_itr )
+   auto acc_itr = raidx._account_to_proposals.find( GRAPHENE_WITNESS_ACCOUNT );
+   if( acc_itr != raidx._account_to_proposals.end() ) 
    {
-      for( auto& operation : (*p_itr)(_db).proposed_transaction.operations )
+      auto& p_set = acc_itr->second;
+      
+      std::set<fc::sha256> existed_operations_digests;
+      for( auto p_itr = p_set.begin(); p_itr != p_set.end(); ++p_itr )
       {
-         existed_operations_digests.insert( fc::digest(operation) );
+         for( auto& operation : (*p_itr)(_db).proposed_transaction.operations )
+         {
+            existed_operations_digests.insert( fc::digest(operation) );
+         }
       }
-   }
-    
-   auto proposed_operations_digests = gather_proposed_operations_digests(trx);
-   for (auto& digest : proposed_operations_digests)
-   {
-      FC_ASSERT(existed_operations_digests.count(digest) == 0, "Proposed operation is already pending for apsproval.");
+      
+      auto proposed_operations_digests = gather_proposed_operations_digests(trx);
+      for (auto& digest : proposed_operations_digests)
+      {
+         FC_ASSERT(existed_operations_digests.count(digest) == 0, "Proposed operation is already pending for apsproval.");
+      }
    }
 }
 
