@@ -380,6 +380,7 @@ namespace graphene { namespace chain {
       event_group_id(rhs.event_group_id),
       at_least_one_betting_market_group_settled(rhs.at_least_one_betting_market_group_settled),
       scores(rhs.scores),
+      manager(rhs.manager),
       my(new impl(this))
    {
       my->state_machine = rhs.my->state_machine;
@@ -396,6 +397,7 @@ namespace graphene { namespace chain {
       event_group_id = rhs.event_group_id;
       at_least_one_betting_market_group_settled = rhs.at_least_one_betting_market_group_settled;
       scores = rhs.scores;
+      manager = rhs.manager;
 
       my->state_machine = rhs.my->state_machine;
       my->state_machine.event_obj = this;
