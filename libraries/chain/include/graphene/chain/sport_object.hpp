@@ -52,4 +52,4 @@ typedef multi_index_container<
 typedef generic_index<sport_object, sport_object_multi_index_type> sport_object_index;
 } } // graphene::chain
 
-FC_REFLECT_DERIVED( graphene::chain::sport_object, (graphene::db::object), (name) )
+FC_REFLECT_DERIVED( graphene::chain::sport_object, (graphene::db::object), (name) (manager) )
