@@ -41,7 +41,7 @@ namespace
       const sport_object& sport_obj = sport_id(db);
       return sport_obj.manager == manager_id;
    }
-   
+
    /// searches for a manager in event_group => sport
    bool is_manager( const database& db, const event_group_id_type& event_group_id, const account_id_type& manager_id )
    {
@@ -69,9 +69,14 @@ void_result event_group_create_evaluator::do_evaluate(const event_group_create_o
 
    FC_ASSERT( db().find_object(sport_id), "Invalid sport specified" );
 
-   FC_ASSERT(trx_state->_is_proposed_trx 
-      || op.extensions.value.fee_paying_account ? is_manager( db(), sport_id, *op.extensions.value.fee_paying_account ) : false,
-      "trx is not proposed and fee_payer is not the manager of this object" );
+   if( db().head_block_time() < HARDFORK_MANAGER_TIME ) { // remove after HARDFORK_MANAGER_TIME
+      FC_ASSERT( trx_state->_is_proposed_trx );
+   }
+   else {
+      FC_ASSERT( op.extensions.value.fee_paying_account ? 
+         is_manager( db(), sport_id, *op.extensions.value.fee_paying_account ) : false,
+         "trx is not proposed and fee_payer is not the manager of this object" );
+   }
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -82,8 +87,13 @@ object_id_type event_group_create_evaluator::do_apply(const event_group_create_o
      db().create<event_group_object>( [&]( event_group_object& event_group_obj ) {
          event_group_obj.name = op.name;
          event_group_obj.sport_id = sport_id;
-         if( op.extensions.value.new_manager ) 
-            event_group_obj.manager = *op.extensions.value.new_manager;
+         if( db().head_block_time() >= HARDFORK_MANAGER_TIME )
+         {
+            if( op.extensions.value.new_manager ) 
+               event_group_obj.manager = *op.extensions.value.new_manager;
+            else
+               event_group_obj.manager = GRAPHENE_WITNESS_ACCOUNT;
+         }
      });
    return new_event_group.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -91,9 +101,15 @@ object_id_type event_group_create_evaluator::do_apply(const event_group_create_o
 void_result event_group_update_evaluator::do_evaluate(const event_group_update_operation& op)
 { try {
    FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
-   FC_ASSERT(trx_state->_is_proposed_trx 
-      || op.extensions.value.fee_paying_account ? is_manager( db(), op.event_group_id, *op.extensions.value.fee_paying_account ) : false,
-      "trx is not proposed and fee_payer is not the manager of this object" );
+   if( db().head_block_time() < HARDFORK_MANAGER_TIME ) { // remove after HARDFORK_MANAGER_TIME
+      FC_ASSERT( trx_state->_is_proposed_trx );
+   }
+   else {
+      FC_ASSERT( op.extensions.value.fee_paying_account ? 
+         is_manager( db(), op.event_group_id, *op.extensions.value.fee_paying_account ) : false,
+         "trx is not proposed and fee_payer is not the manager of this object" );
+   }
+   
    FC_ASSERT(op.new_sport_id.valid() || op.new_name.valid() || op.extensions.value.new_manager, "nothing to change");
    if( op.new_sport_id.valid() )
    {
@@ -107,9 +123,12 @@ void_result event_group_update_evaluator::do_evaluate(const event_group_update_o
 
        FC_ASSERT( db().find_object(sport_id), "invalid sport specified" );
        
-       if( op.extensions.value.fee_paying_account ) // check for manager permissions in the new_sport_id
-          FC_ASSERT( is_manager( db(), sport_id, *op.extensions.value.fee_paying_account ),
-             "no manager permission for the new_sport_id" );
+       if( db().head_block_time() >= HARDFORK_MANAGER_TIME )
+       {
+          if( op.extensions.value.fee_paying_account ) // check for manager permissions in the new_sport_id
+            FC_ASSERT( is_manager( db(), sport_id, *op.extensions.value.fee_paying_account ),
+               "no manager permission for the new_sport_id" );
+       }
    }
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -125,8 +144,11 @@ void_result event_group_update_evaluator::do_apply(const event_group_update_oper
               ego.name = *op.new_name;
           if( op.new_sport_id.valid() )
               ego.sport_id = sport_id;
-          if( op.extensions.value.new_manager )
-              ego.manager = *op.extensions.value.new_manager;
+          if( _db.head_block_time() >= HARDFORK_MANAGER_TIME )
+          {
+             if( op.extensions.value.new_manager )
+                ego.manager = *op.extensions.value.new_manager;
+          }
        });
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -135,10 +157,15 @@ void_result event_group_update_evaluator::do_apply(const event_group_update_oper
 void_result event_group_delete_evaluator::do_evaluate(const event_group_delete_operation& op)
 { try {
     FC_ASSERT(db().head_block_time() >= HARDFORK_1001_TIME);
-    FC_ASSERT(trx_state->_is_proposed_trx 
-      || op.extensions.value.fee_paying_account ? is_manager( db(), op.event_group_id, *op.extensions.value.fee_paying_account ) : false,
-      "trx is not proposed and fee_payer is not the manager of this object" );
-    
+    if( db().head_block_time() < HARDFORK_MANAGER_TIME ) { // remove after HARDFORK_MANAGER_TIME
+      FC_ASSERT( trx_state->_is_proposed_trx );
+    }
+    else {
+      FC_ASSERT( op.extensions.value.fee_paying_account ?
+        is_manager( db(), op.event_group_id, *op.extensions.value.fee_paying_account ) : false,
+        "trx is not proposed and fee_payer is not the manager of this object" );
+    }
+
     //check for event group existence
     _event_group = &op.event_group_id(db());
     
