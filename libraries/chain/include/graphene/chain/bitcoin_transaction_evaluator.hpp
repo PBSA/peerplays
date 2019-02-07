@@ -40,4 +40,16 @@ public:
 
 };
 
+class bitcoin_transaction_revert_evaluator : public evaluator<bitcoin_transaction_revert_evaluator>
+{
+
+public:
+
+   typedef bitcoin_transaction_revert_operation operation_type;
+
+   void_result do_evaluate( const bitcoin_transaction_revert_operation& op );
+
+   void_result do_apply( const bitcoin_transaction_revert_operation& op );
+};
+
 } } // graphene::chain

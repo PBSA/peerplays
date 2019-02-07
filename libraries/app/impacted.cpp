@@ -298,7 +298,11 @@ struct get_impacted_account_visitor
    {
       _impacted.insert( op.payer );
    }
-      void operator()( const bitcoin_issue_operation& op )
+   void operator()( const bitcoin_issue_operation& op )
+   {
+      _impacted.insert( op.payer );
+   }
+   void operator()( const bitcoin_transaction_revert_operation& op )
    {
       _impacted.insert( op.payer );
    }

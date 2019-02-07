@@ -212,4 +212,59 @@ bool bitcoin_transaction_sign_evaluator::check_sigs( const bytes& key_data, cons
    return true;
 }
 
+void_result bitcoin_transaction_revert_evaluator::do_evaluate( const bitcoin_transaction_revert_operation& op )
+{ try {
+
+   database& d = db();
+   const auto& btc_trx_idx = d.get_index_type<bitcoin_transaction_index>().indices().get<by_transaction_id>();
+   const auto& vouts_info_idx = d.get_index_type<info_for_vout_index>().indices().get<by_id>();
+   const auto& vins_info_idx = d.get_index_type<info_for_used_vin_index>().indices().get<by_identifier>();
+
+   const auto& btc_itr = btc_trx_idx.find( op.transaction_id );
+   FC_ASSERT( btc_itr != btc_trx_idx.end() );
+
+   for( const auto& vout_id : btc_itr->vouts ) {
+      FC_ASSERT( vouts_info_idx.find( vout_id ) != vouts_info_idx.end() );
+   }
+
+   for( const auto& vout_id : btc_itr->vins ) {
+      FC_ASSERT( vins_info_idx.find( vout_id ) != vins_info_idx.end() );
+   }
+
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+void_result bitcoin_transaction_revert_evaluator::do_apply( const bitcoin_transaction_revert_operation& op )
+{ try {
+
+   database& d = db();
+   const auto& btc_trx_idx = d.get_index_type<bitcoin_transaction_index>().indices().get<by_transaction_id>();
+   const auto& vouts_info_idx = d.get_index_type<info_for_vout_index>().indices().get<by_id>();
+   const auto& vins_info_idx = d.get_index_type<info_for_used_vin_index>().indices().get<by_identifier>();
+
+   const auto& btc_trx_obj = *btc_trx_idx.find( op.transaction_id );
+
+   for( const auto& vout_id : btc_trx_obj.vouts ) {
+      const auto& vout_obj = *vouts_info_idx.find( vout_id );
+      d.modify( vout_obj, [&]( info_for_vout_object& obj ){
+         obj.used = false;
+      });
+   }
+
+   for( const auto& vin_id : btc_trx_obj.vins ) {
+      const auto& vin_obj = *vins_info_idx.find( vin_id );
+      if( op.valid_vins.count( fc::sha256 ( vin_obj.out.hash_tx ) ) ) {
+         d.modify( vin_obj, [&]( info_for_used_vin_object& obj ){
+            obj.resend = true;
+         });
+      } else {
+         d.remove( vin_obj );
+      }
+   }
+   d.bitcoin_confirmations.remove<sidechain::by_hash>( op.transaction_id );
+   d.remove( btc_trx_obj );
+
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
 } }

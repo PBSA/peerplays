@@ -138,7 +138,8 @@ namespace graphene { namespace chain {
             bitcoin_address_create_operation,
             bitcoin_transaction_send_operation,
             bitcoin_transaction_sign_operation,
-            bitcoin_issue_operation
+            bitcoin_issue_operation,
+            bitcoin_transaction_revert_operation
          > operation;
 
    /// @} // operations group

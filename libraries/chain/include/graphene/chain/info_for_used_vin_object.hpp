@@ -20,6 +20,8 @@ class info_for_used_vin_object : public abstract_object<info_for_used_vin_object
       sidechain::prev_out out;
       std::string address;
       sidechain::bytes script;
+
+      bool resend = false;
 };
 
 struct by_id;
@@ -36,4 +38,4 @@ typedef generic_index<info_for_used_vin_object, info_for_used_vin_multi_index_co
 
 } } // graphene::chain
 
-FC_REFLECT_DERIVED( graphene::chain::info_for_used_vin_object, (graphene::chain::object), (identifier)(out)(address)(script) )
+FC_REFLECT_DERIVED( graphene::chain::info_for_used_vin_object, (graphene::chain::object), (identifier)(out)(address)(script)(resend) )
