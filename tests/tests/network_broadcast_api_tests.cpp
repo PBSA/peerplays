@@ -1,5 +1,9 @@
 #include <boost/test/unit_test.hpp>
 
+#include <graphene/chain/hardfork.hpp>
+#include <graphene/chain/sport_object.hpp>
+#include <graphene/chain/event_group_object.hpp>
+#include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/protocol/proposal.hpp>
 #include <graphene/chain/proposal_object.hpp>
@@ -429,6 +433,7 @@ BOOST_AUTO_TEST_CASE( check_passes_for_duplicated_betting_market_in_one_operatio
     catch( const fc::exception &e )
     {
         edump( ( e.to_detail_string() ) );
+
         throw;
     }
 }

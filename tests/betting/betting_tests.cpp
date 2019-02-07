@@ -35,6 +35,8 @@
 #include <fc/log/appender.hpp>
 #include <openssl/rand.h>
 
+#include <graphene/chain/protocol/proposal.hpp>
+
 #include <graphene/utilities/tempdir.hpp>
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/is_authorized_asset.hpp>
@@ -2937,6 +2939,64 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_final_test )
    } FC_LOG_AND_RETHROW()
 }
 
+// reworked check_transasction for duplicate
+// now should not through an exception when there are different events with the same betting_market_group
+// and or the same betting_market
+BOOST_AUTO_TEST_CASE( check_transaction_for_duplicate_reworked_test )
+{
+   std::vector<internationalized_string_type> names_vec(104);
+   
+   // create 104 pattern for first name
+   for( char co = 'A'; co <= 'D'; ++co ) {
+      for( char ci = 'A'; ci <= 'Z'; ++ci ) {
+         std::string first_name  = std::to_string(co) + std::to_string(ci);
+         std::string second_name = first_name + first_name;
+         names_vec.push_back( {{ first_name, second_name }} );
+      }
+   }
+   
+   sport_id_type sport_id = create_sport( {{"SN","SPORT_NAME"}} ).id;
+   
+   event_group_id_type event_group_id = create_event_group( {{"EG", "EVENT_GROUP"}}, sport_id ).id;
+
+   betting_market_rules_id_type betting_market_rules_id = 
+      create_betting_market_rules( {{"EN", "Rules"}}, {{"EN", "Some rules"}} ).id;
+   
+   for( const auto& name : names_vec )
+   {
+      proposal_create_operation pcop = proposal_create_operation::committee_proposal( 
+         db.get_global_properties().parameters,
+         db.head_block_time() 
+      );
+      pcop.review_period_seconds.reset();
+      
+      event_create_operation evcop;
+      evcop.event_group_id = event_group_id;
+      evcop.name           = name;
+      evcop.season         = name;
+
+      betting_market_group_create_operation bmgcop;
+      bmgcop.description = name;
+      bmgcop.event_id = object_id_type(relative_protocol_ids, 0, 0);
+      bmgcop.rules_id = betting_market_rules_id;
+      bmgcop.asset_id = asset_id_type();      
+
+      betting_market_create_operation bmcop;
+      bmcop.group_id = object_id_type(relative_protocol_ids, 0, 1);
+      bmcop.payout_condition.insert( internationalized_string_type::value_type( "CN", "CONDI_NAME" ) );
+      
+      pcop.proposed_ops.emplace_back( evcop  );
+      pcop.proposed_ops.emplace_back( bmgcop );
+      pcop.proposed_ops.emplace_back( bmcop  );
+
+      signed_transaction trx;
+      set_expiration( db, trx );
+      trx.operations.push_back( pcop );
+
+      process_operation_by_witnesses( pcop );
+   }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 
@@ -2951,7 +3011,7 @@ boost::unit_test::test_suite* init_unit_test_suite(int argc, char* argv[]) {
     std::cout << "Random number generator seeded to " << time(NULL) << std::endl;
 
     // betting operations don't take effect until HARDFORK 1000
-    GRAPHENE_TESTING_GENESIS_TIMESTAMP = HARDFORK_1000_TIME.sec_since_epoch();
+    GRAPHENE_TESTING_GENESIS_TIMESTAMP = HARDFORK_1000_TIME.sec_since_epoch() + 2;
 
     return nullptr;
 }
