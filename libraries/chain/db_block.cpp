@@ -160,6 +160,7 @@ void database::check_tansaction_for_duplicated_operations(const signed_transacti
       existed_operations_digests.insert( proposed_operations_digests.begin(), proposed_operations_digests.end() );
    });
     
+   /// FIXME / TODO: Migrate this check to a new API call to leave a broadcast call that does not do dupchecks
    auto proposed_operations_digests = gather_proposed_operations_digests(trx);
    for (auto& digest: proposed_operations_digests)
    {

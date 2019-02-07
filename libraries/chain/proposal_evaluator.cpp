@@ -71,8 +71,16 @@ struct proposal_operation_hardfork_visitor
          FC_ASSERT( !aco.extensions.value.affiliate_distributions.valid(), "Affiliate reward distributions not allowed yet" );
    }
 
+   void operator()(const sport_create_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "sport_create_operation not allowed yet!" );
+   }
+
    void operator()(const sport_update_operation &v) const {
        FC_ASSERT( block_time >= HARDFORK_1000_TIME, "sport_update_operation not allowed yet!" );
+   }
+
+   void operator()(const sport_delete_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "sport_delete_operation not allowed yet!" );
    }
 
    void operator()(const event_group_create_operation &v) const {
@@ -81,6 +89,10 @@ struct proposal_operation_hardfork_visitor
 
    void operator()(const event_group_update_operation &v) const {
        FC_ASSERT( block_time >= HARDFORK_1000_TIME, "event_group_update_operation not allowed yet!" );
+   }
+
+   void operator()(const event_group_delete_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "event_group_delete_operation not allowed yet!" );
    }
 
    void operator()(const event_create_operation &v) const {
@@ -120,7 +132,7 @@ struct proposal_operation_hardfork_visitor
    }
 
    void operator()(const bet_cancel_operation &v) const {
-       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "betting_market_group_resolve_operation not allowed yet!" );
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "bet_cancel_operation not allowed yet!" );
    }
 
    void operator()(const betting_market_group_update_operation &v) const {

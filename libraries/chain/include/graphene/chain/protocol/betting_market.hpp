@@ -481,13 +481,13 @@ FC_REFLECT( graphene::chain::bet_place_operation,
             (fee)(bettor_id)(betting_market_id)(amount_to_bet)(backer_multiplier)(back_or_lay)(extensions) )
 
 FC_REFLECT( graphene::chain::bet_matched_operation::fee_parameters_type, )
-FC_REFLECT( graphene::chain::bet_matched_operation, (bettor_id)(bet_id)(amount_bet)(backer_multiplier)(guaranteed_winnings_returned) )
+FC_REFLECT( graphene::chain::bet_matched_operation, (fee)(bettor_id)(bet_id)(amount_bet)(backer_multiplier)(guaranteed_winnings_returned) )
 
 FC_REFLECT( graphene::chain::bet_cancel_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::bet_cancel_operation, (fee) (bettor_id) (bet_to_cancel) (extensions) )
 
 FC_REFLECT( graphene::chain::bet_canceled_operation::fee_parameters_type, )
-FC_REFLECT( graphene::chain::bet_canceled_operation, (bettor_id)(bet_id)(stake_returned) )
+FC_REFLECT( graphene::chain::bet_canceled_operation, (fee)(bettor_id)(bet_id)(stake_returned) )
 
 FC_REFLECT( graphene::chain::bet_adjusted_operation::fee_parameters_type, )
-FC_REFLECT( graphene::chain::bet_adjusted_operation, (bettor_id)(bet_id)(stake_returned) )
+FC_REFLECT( graphene::chain::bet_adjusted_operation, (fee) (bettor_id)(bet_id)(stake_returned) )
