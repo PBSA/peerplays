@@ -159,12 +159,6 @@ void database::check_tansaction_for_duplicated_operations(const signed_transacti
       auto proposed_operations_digests = gather_proposed_operations_digests( proposal.proposed_transaction );
       existed_operations_digests.insert( proposed_operations_digests.begin(), proposed_operations_digests.end() );
    });
-   
-   for (auto& pending_transaction: _pending_tx)
-   {
-      auto proposed_operations_digests = gather_proposed_operations_digests(pending_transaction);
-      existed_operations_digests.insert(proposed_operations_digests.begin(), proposed_operations_digests.end());
-   }
     
    auto proposed_operations_digests = gather_proposed_operations_digests(trx);
    for (auto& digest: proposed_operations_digests)
