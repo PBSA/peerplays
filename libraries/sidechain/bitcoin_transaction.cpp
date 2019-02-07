@@ -5,6 +5,37 @@
 
 namespace sidechain {
 
+bool out_point::operator==( const out_point& op ) const
+{
+   if( this->hash == op.hash &&
+       this->n == op.n )
+   {
+      return true;
+   }
+   return false;
+}
+
+bool tx_in::operator==( const tx_in& ti ) const
+{
+   if( this->prevout == ti.prevout &&
+       this->scriptSig == ti.scriptSig &&
+       this->nSequence == ti.nSequence )
+   {
+      return true;
+   }
+   return false;
+}
+
+bool tx_out::operator==( const tx_out& to ) const
+{
+   if( this->value == to.value &&
+       this->scriptPubKey == to.scriptPubKey )
+   {
+      return true;
+   }
+   return false;
+}
+
 bool tx_out::is_p2wsh() const
 {
    if( scriptPubKey.size() == 34 && scriptPubKey[0] == static_cast<char>(0x00) && scriptPubKey[1] == static_cast<char>(0x20) ) {
@@ -59,6 +90,18 @@ bytes tx_out::get_data_or_script() const
       return bytes( scriptPubKey.begin() + 1, scriptPubKey.begin() + 34 );
    }
    return scriptPubKey;
+}
+
+bool bitcoin_transaction::operator!=( const bitcoin_transaction& bt ) const
+{
+   if( this->nVersion != bt.nVersion ||
+      this->vin != bt.vin ||
+      this->vout != bt.vout ||
+      this->nLockTime != bt.nLockTime )
+   {
+      return true;
+   }
+   return false;
 }
 
 fc::sha256 bitcoin_transaction::get_hash() const

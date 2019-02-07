@@ -17,7 +17,7 @@ public:
    bitcoin_address() = default;
 
    bitcoin_address( const std::string& addr ) : address( addr ), type( determine_type() ),
-      raw_address( determine_raw_address( type ) ) {}
+      raw_address( determine_raw_address() ) {}
 
    payment_type get_type() const { return type; }
 
@@ -25,13 +25,15 @@ public:
 
    bytes get_raw_address() const { return raw_address; }
 
+   bytes get_script() const;
+
 private:
 
    enum size_segwit_address { P2WSH = 32, P2WPKH = 20 };
 
    payment_type determine_type();
 
-   bytes determine_raw_address( const payment_type& type );
+   bytes determine_raw_address();
 
    bool check_segwit_address( const size_segwit_address& size ) const;
 
@@ -102,6 +104,8 @@ public:
    bool operator==( const btc_multisig_segwit_address& addr ) const;
 
    bytes get_witness_script() const { return witness_script; }
+
+   std::vector<public_key_type> get_keys();
 
 private:
 

@@ -2,8 +2,30 @@
 #include <sstream>
 #include <fc/crypto/base58.hpp>
 #include <sidechain/segwit_addr.hpp>
+#include <sidechain/bitcoin_script.hpp>
 
 namespace sidechain {
+
+bytes bitcoin_address::get_script() const
+{
+   switch ( type ) {
+    case payment_type::NULLDATA:
+       return script_builder() << op::RETURN << raw_address;
+    case payment_type::P2PK:
+       return script_builder() << raw_address << op::CHECKSIG;
+    case payment_type::P2PKH:
+       return script_builder() << op::DUP << op::HASH160 << raw_address << op::EQUALVERIFY << op::CHECKSIG;
+    case payment_type::P2SH:
+    case payment_type::P2SH_WPKH:
+    case payment_type::P2SH_WSH:
+       return script_builder() << op::HASH160 << raw_address << op::EQUAL;
+    case payment_type::P2WPKH:
+    case payment_type::P2WSH:
+       return script_builder() << op::_0 << raw_address;
+    default:
+       return raw_address;
+    }
+}
 
 payment_type bitcoin_address::determine_type()
 {
@@ -22,7 +44,7 @@ payment_type bitcoin_address::determine_type()
    }
 }
 
-bytes bitcoin_address::determine_raw_address( const payment_type& type )
+bytes bitcoin_address::determine_raw_address()
 {
    bytes result;
    switch( type ) {
@@ -190,6 +212,14 @@ bool btc_multisig_segwit_address::operator==( const btc_multisig_segwit_address&
        raw_address != addr.raw_address )
       return false;
    return true;
+}
+
+std::vector<public_key_type> btc_multisig_segwit_address::get_keys() {
+   std::vector<public_key_type> keys;
+   for( const auto& k : witnesses_keys ) {
+      keys.push_back( k.second );
+   }
+   return keys;
 }
 
 void btc_multisig_segwit_address::create_witness_script()

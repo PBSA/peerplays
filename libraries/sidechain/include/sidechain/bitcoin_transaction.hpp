@@ -8,9 +8,13 @@ struct out_point {
    uint32_t n = 0;
    out_point() = default;
    out_point( fc::sha256 _hash, uint32_t _n ) : hash( _hash ), n( _n ) {}
+   bool operator==( const out_point& op ) const;
 };
 
 struct tx_in {
+
+   bool operator==( const tx_in& ti ) const;
+
    out_point prevout;
    bytes scriptSig;
    uint32_t nSequence = 0xffffffff;
@@ -20,6 +24,8 @@ struct tx_in {
 struct tx_out {
    int64_t value = 0;
    bytes scriptPubKey;
+
+   bool operator==( const tx_out& to ) const;
 
    bool is_p2wsh() const;
 
@@ -35,14 +41,17 @@ struct tx_out {
 };
 
 struct bitcoin_transaction {
-    int32_t nVersion = 1;
-    std::vector<tx_in> vin;
-    std::vector<tx_out> vout;
-    uint32_t nLockTime = 0;
 
-    fc::sha256 get_hash() const;
-    fc::sha256 get_txid() const;
-    size_t get_vsize() const;
+   bool operator!=( const bitcoin_transaction& bt ) const;
+
+   int32_t nVersion = 1;
+   std::vector<tx_in> vin;
+   std::vector<tx_out> vout;
+   uint32_t nLockTime = 0;
+
+   fc::sha256 get_hash() const;
+   fc::sha256 get_txid() const;
+   size_t get_vsize() const;
 };
 
 class bitcoin_transaction_builder

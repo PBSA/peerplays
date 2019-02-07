@@ -7,6 +7,7 @@
 
 #include <sidechain/sidechain_condensing_tx.hpp>
 #include <sidechain/sign_bitcoin_transaction.hpp>
+#include <sidechain/sidechain_proposal_checker.hpp>
 
 using namespace sidechain;
 
@@ -129,10 +130,16 @@ void database::processing_sidechain_proposals( const witness_object& current_wit
    const auto& sidechain_proposal_idx = get_index_type<sidechain_proposal_index>().indices().get< by_id >();
    const auto& proposal_idx = get_index_type<proposal_index>().indices().get< by_id >();
 
+   sidechain_proposal_checker checker( *this );
+
    for( auto& sidechain_proposal : sidechain_proposal_idx ) {
 
       const auto& proposal = proposal_idx.find( sidechain_proposal.proposal_id );
       FC_ASSERT( proposal != proposal_idx.end() );
+
+      if( !checker.check_reuse( proposal->proposed_transaction.operations.back() ) ) {
+         continue;
+      }
 
       switch( sidechain_proposal.proposal_type ) {
          case sidechain_proposal_type::ISSUE_BTC :{ 
@@ -144,8 +151,12 @@ void database::processing_sidechain_proposals( const witness_object& current_wit
             break;
           }
          case sidechain_proposal_type::SEND_BTC_TRANSACTION :{
-            const auto& sign_operation = create_sign_btc_tx_operation( current_witness, private_key, proposal->id );
-            _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( private_key, sign_operation ) );
+            bitcoin_transaction_send_operation op = proposal->proposed_transaction.operations.back().get<bitcoin_transaction_send_operation>();
+            if( checker.check_bitcoin_transaction_send_operation( op ) )
+            {
+               const auto& sign_operation = create_sign_btc_tx_operation( current_witness, private_key, proposal->id );
+               _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( private_key, sign_operation ) );
+            }
             break;
          }
          case sidechain_proposal_type::RETURN_PBTC_BACK :{}
@@ -174,7 +185,7 @@ full_btc_transaction database::create_btc_transaction( const std::vector<info_fo
       ctx.create_pw_vout( change, pw_address.get_witness_script() );
    }
 
-   const uint64_t& size_fee = get_estimated_fee( ctx.get_estimate_tx_size( pw_address.witnesses_keys.size() ), estimated_feerate.load() );
+   const uint64_t& size_fee = get_estimated_fee( sidechain_condensing_tx::get_estimate_tx_size( ctx.get_transaction(), pw_address.witnesses_keys.size() ), estimated_feerate.load() );
    ctx.subtract_fee( size_fee, get_sidechain_params().percent_payment_to_witnesses );
 
    return std::make_pair( ctx.get_transaction(), size_fee );

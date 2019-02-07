@@ -49,8 +49,11 @@ void sidechain_net_manager::update_tx_infos( const std::string& block_hash )
    std::string block = bitcoin_client->receive_full_block( block_hash );
    if( block != "" ) {
       const auto& vins = extract_info_from_block( block );
+      const auto& addr_idx = db->get_index_type<bitcoin_address_index>().indices().get<by_address>();
       for( const auto& v : vins ) {
-         db->i_w_info.insert_info_for_vin( prev_out{ v.out.hash_tx, v.out.n_vout, v.out.amount }, v.address );
+         const auto& addr_itr = addr_idx.find( v.address );
+         FC_ASSERT( addr_itr != addr_idx.end() );
+         db->i_w_info.insert_info_for_vin( prev_out{ v.out.hash_tx, v.out.n_vout, v.out.amount }, v.address, addr_itr->address.get_witness_script() );
       }
    }
 }

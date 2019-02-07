@@ -22,10 +22,9 @@ struct info_for_vin
 {
    info_for_vin() = default;
 
-   info_for_vin( const prev_out& _out, const std::string& _address, bytes _script = bytes() ) :
-      id( count_id_info_for_vin++ ), out( _out ), address( _address ), script( _script ) {
-            identifier = fc::sha256::hash( out.hash_tx + std::to_string( out.n_vout ) );
-      }
+   info_for_vin( const prev_out& _out, const std::string& _address, bytes _script = bytes() );
+
+   bool operator!=( const info_for_vin& obj ) const;
 
    struct comparer {
       bool operator() ( const info_for_vin& lhs, const info_for_vin& rhs ) const;

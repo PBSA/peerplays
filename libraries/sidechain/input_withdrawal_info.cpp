@@ -9,6 +9,26 @@ namespace sidechain {
 uint64_t info_for_vin::count_id_info_for_vin = 0;
 uint64_t bitcoin_transaction_confirmations::count_id_tx_conf = 0;
 
+info_for_vin::info_for_vin( const prev_out& _out, const std::string& _address, bytes _script ) :
+   id( count_id_info_for_vin++ ), out( _out ), address( _address ), script( _script )
+{
+   identifier = fc::sha256::hash( out.hash_tx + std::to_string( out.n_vout ) );
+}
+
+bool info_for_vin::operator!=( const info_for_vin& obj ) const
+{
+   if( this->identifier != obj.identifier ||
+       this->out.hash_tx != obj.out.hash_tx ||
+       this->out.n_vout != obj.out.n_vout ||
+       this->out.amount != obj.out.amount ||
+       this->address != obj.address ||
+       this->script != obj.script )
+   {
+      return true;
+   }
+   return false;
+}
+
 bool info_for_vin::comparer::operator() ( const info_for_vin& lhs, const info_for_vin& rhs ) const
 {
    if( lhs.used != rhs.used ) {
@@ -92,8 +112,6 @@ fc::optional<info_for_vin> input_withdrawal_info::find_info_for_vin( fc::sha256 
 std::vector<info_for_vin> input_withdrawal_info::get_info_for_vins()
 {
    std::vector<info_for_vin> result;
-
-   const auto& addr_idx = db.get_index_type<bitcoin_address_index>().indices().get<by_address>();
    const auto max_vins = db.get_sidechain_params().maximum_condensing_tx_vins;
 
    info_for_vins.safe_for<by_id_and_not_used>( [&]( info_for_vin_index::index<by_id_and_not_used>::type::iterator itr_b,
@@ -106,9 +124,7 @@ std::vector<info_for_vin> input_withdrawal_info::get_info_for_vins()
          vin.out.n_vout = itr_b->out.n_vout;
          vin.out.amount = itr_b->out.amount;
          vin.address = itr_b->address;
-         const auto& address_itr = addr_idx.find( itr_b->address );
-         FC_ASSERT( address_itr != addr_idx.end() );
-         vin.script = address_itr->address.get_witness_script();
+         vin.script = itr_b->script;
          
          result.push_back( vin );
          ++itr_b;

@@ -11,7 +11,7 @@ void_result bitcoin_issue_evaluator::do_evaluate( const bitcoin_issue_operation&
 
    const auto& btc_trx_idx = d.get_index_type<bitcoin_transaction_index>().indices().get<by_transaction_id>();
    const auto& btc_addr_idx = d.get_index_type<bitcoin_address_index>().indices().get<by_address>();
-   const auto& vins_info_idx = d.get_index_type<info_for_used_vin_index>().indices().get<by_id>();
+   const auto& vins_info_idx = d.get_index_type<info_for_used_vin_index>().indices().get<by_identifier>();
    const auto& vouts_info_idx = d.get_index_type<info_for_vout_index>().indices().get<by_id>();
    FC_ASSERT( op.payer == db().get_sidechain_account_id() );
 
@@ -82,7 +82,7 @@ void bitcoin_issue_evaluator::add_issue( const bitcoin_transaction_object& btc_o
 void bitcoin_issue_evaluator::clear_btc_transaction_information( const bitcoin_transaction_object& btc_obj )
 {
    database& d = db();
-   const auto& vins_info_idx = d.get_index_type<info_for_used_vin_index>().indices().get<by_id>();
+   const auto& vins_info_idx = d.get_index_type<info_for_used_vin_index>().indices().get<by_identifier>();
    const auto& vouts_info_idx = d.get_index_type<info_for_vout_index>().indices().get<by_id>();
 
    for( auto& vin_id : btc_obj.vins ) {
@@ -103,31 +103,31 @@ void bitcoin_issue_evaluator::clear_btc_transaction_information( const bitcoin_t
    d.remove( btc_obj );
 }
 
-std::vector<uint64_t> bitcoin_issue_evaluator::get_amounts_to_issue( std::vector<info_for_used_vin_id_type> vins_id )
+std::vector<uint64_t> bitcoin_issue_evaluator::get_amounts_to_issue( std::vector<fc::sha256> vins_identifier )
 {
    database& d = db();
-   const auto& vins_info_idx = d.get_index_type<info_for_used_vin_index>().indices().get<by_id>();
+   const auto& vins_info_idx = d.get_index_type<info_for_used_vin_index>().indices().get<by_identifier>();
 
    std::vector<uint64_t> result;
 
-   for( auto& id : vins_id ) {
-      auto vin_itr = vins_info_idx.find( id );
+   for( auto& identifier : vins_identifier ) {
+      auto vin_itr = vins_info_idx.find( identifier );
       result.push_back( vin_itr->out.amount );
    }
 
    return result;
 }
 
-std::vector<account_id_type> bitcoin_issue_evaluator::get_accounts_to_issue( std::vector<info_for_used_vin_id_type> vins_id )
+std::vector<account_id_type> bitcoin_issue_evaluator::get_accounts_to_issue( std::vector<fc::sha256> vins_identifier )
 {
    database& d = db();
    const auto& btc_addr_idx = d.get_index_type<bitcoin_address_index>().indices().get<by_address>();
-   const auto& vins_info_idx = d.get_index_type<info_for_used_vin_index>().indices().get<by_id>();
+   const auto& vins_info_idx = d.get_index_type<info_for_used_vin_index>().indices().get<by_identifier>();
 
    std::vector<account_id_type> result;
    
-   for( auto& id : vins_id ) {
-      auto vin_itr = vins_info_idx.find( id );
+   for( auto& identifier : vins_identifier ) {
+      auto vin_itr = vins_info_idx.find( identifier );
       auto addr_itr = btc_addr_idx.find( vin_itr->address );
 
       result.push_back( addr_itr->owner );

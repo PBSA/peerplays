@@ -15,7 +15,7 @@ public:
 
    object_id_type do_apply( const bitcoin_transaction_send_operation& op );
 
-   std::vector< info_for_used_vin_id_type > create_transaction_vins( bitcoin_transaction_send_operation& op );
+   std::vector<fc::sha256> create_transaction_vins( bitcoin_transaction_send_operation& op );
 
    void finalize_bitcoin_transaction( bitcoin_transaction_send_operation& op );
 

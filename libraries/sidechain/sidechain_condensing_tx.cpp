@@ -50,7 +50,7 @@ void sidechain_condensing_tx::create_vouts_for_witness_fee( const accounts_keys&
    }
 }
 
-uint64_t sidechain_condensing_tx::get_estimate_tx_size( size_t number_witness ) const
+uint64_t sidechain_condensing_tx::get_estimate_tx_size( bitcoin_transaction tx, size_t number_witness )
 {
    bytes temp_sig(72, 0x00);
    bytes temp_key(34, 0x00);
@@ -60,12 +60,11 @@ uint64_t sidechain_condensing_tx::get_estimate_tx_size( size_t number_witness ) 
    }
 
    std::vector<bytes> temp_scriptWitness = { {},{temp_sig},{temp_sig},{temp_sig},{temp_sig},{temp_sig},{temp_script} };
-   bitcoin_transaction temp_tx = get_transaction();
-   for( auto& vin : temp_tx.vin ) {
+   for( auto& vin : tx.vin ) {
       vin.scriptWitness = temp_scriptWitness;
    }
 
-   return temp_tx.get_vsize();
+   return tx.get_vsize();
 }
 
 void sidechain_condensing_tx::subtract_fee( const uint64_t& fee, const uint16_t& witnesses_percentage )

@@ -19,7 +19,7 @@ public:
 
    void create_vouts_for_witness_fee( const accounts_keys& witness_active_keys, bool front = true );
 
-   uint64_t get_estimate_tx_size( size_t number_witness ) const;
+   static uint64_t get_estimate_tx_size(  bitcoin_transaction tx, size_t number_witness  );
 
    void subtract_fee( const uint64_t& fee, const uint16_t& witnesses_percentage );
 

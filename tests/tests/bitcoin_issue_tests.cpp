@@ -15,7 +15,7 @@ BOOST_FIXTURE_TEST_SUITE( bitcoin_issue_tests, database_fixture )
 
 void create_bitcoin_issue_operation_environment( database& db )
 {
-   std::vector< info_for_used_vin_id_type >    vins;
+   std::vector< fc::sha256 >    vins;
    std::vector< info_for_vout_id_type >        vouts;
 
    for( auto i = 0; i < 3; i++ ){
@@ -25,10 +25,10 @@ void create_bitcoin_issue_operation_environment( database& db )
       });
 
       auto vin_id = db.create<info_for_used_vin_object>([&]( info_for_used_vin_object& obj ) {
-         obj.identifier = fc::sha256( std::to_string( i ) );
+         obj.identifier = fc::sha256( std::string( 64, std::to_string( i )[0] ) );
          obj.out.amount = 100000 + i * 100000;
          obj.address = std::to_string( i );
-      }).get_id();
+      });
 
       auto vout_id = db.create<info_for_vout_object>([&]( info_for_vout_object& obj ) {
          obj.payer = account_id_type( i );
@@ -36,7 +36,7 @@ void create_bitcoin_issue_operation_environment( database& db )
          obj.address = std::to_string( i );
       }).get_id();
 
-      vins.push_back( vin_id );
+      vins.push_back( vin_id.identifier );
       vouts.push_back( vout_id );
    }
    

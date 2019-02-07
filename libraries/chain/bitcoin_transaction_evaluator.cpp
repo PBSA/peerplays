@@ -52,24 +52,25 @@ object_id_type bitcoin_transaction_send_evaluator::do_apply( const bitcoin_trans
    return btc_tx.id;
 }
 
-std::vector< info_for_used_vin_id_type > bitcoin_transaction_send_evaluator::create_transaction_vins( bitcoin_transaction_send_operation& op )
+std::vector<fc::sha256> bitcoin_transaction_send_evaluator::create_transaction_vins( bitcoin_transaction_send_operation& op )
 {
    database& d = db();
-   std::vector< info_for_used_vin_id_type > new_vins;
+   std::vector<fc::sha256> new_vins;
 
-   for( auto itr : op.vins ){
-      auto itr_id = d.create< info_for_used_vin_object >( [&]( info_for_used_vin_object& obj )
+   for( auto itr : op.vins ) {
+      auto info_for_used_vin_itr = d.create< info_for_used_vin_object >( [&]( info_for_used_vin_object& obj )
       {
          obj.identifier = itr.identifier;
          obj.out = itr.out;
          obj.address = itr.address;
          obj.script = itr.script;
-      }).get_id();
-      new_vins.push_back( itr_id );
+      });
+      new_vins.push_back( info_for_used_vin_itr.identifier );
 
       auto obj_itr = d.i_w_info.find_info_for_vin( itr.identifier );
-      if( obj_itr.valid() )
+      if( obj_itr.valid() ) {
          d.i_w_info.remove_info_for_vin( *obj_itr );
+      }
    }
 
    return new_vins;
