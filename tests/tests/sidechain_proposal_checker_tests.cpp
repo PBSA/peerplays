@@ -2,6 +2,10 @@
 #include "../common/database_fixture.hpp"
 #include <sidechain/sidechain_proposal_checker.hpp>
 
+#include <graphene/chain/proposal_object.hpp>
+#include <graphene/chain/proposal_evaluator.hpp>
+#include <graphene/chain/witness_object.hpp>
+
 using namespace sidechain;
 
 BOOST_FIXTURE_TEST_SUITE( sidechain_proposal_checker_tests, database_fixture )
@@ -135,6 +139,109 @@ BOOST_AUTO_TEST_CASE( check_btc_tx_send_op_incorrect_tx_test )
    op.fee_for_size = env.full_tx.second;
 
    BOOST_CHECK( !checker.check_bitcoin_transaction_send_operation( op ) );
+}
+
+BOOST_AUTO_TEST_CASE( twice_approve_btc_tx_send_test )
+{
+   sidechain_proposal_checker checker( db );
+   const flat_set<witness_id_type>& active_witnesses = db.get_global_properties().active_witnesses;
+   const auto& proposal_idx = db.get_index_type<graphene::chain::proposal_index>().indices().get< graphene::chain::by_id >();
+   transaction_evaluation_state context(&db);
+
+   auto propose = db.create<proposal_object>( [&]( proposal_object& obj ){
+      obj.expiration_time =  db.head_block_time() + fc::days(1);
+      obj.review_period_time = db.head_block_time() + fc::days(1);
+   } );
+
+   const witness_id_type& witness_id = *active_witnesses.begin();
+   const witness_object witness = witness_id(db);
+   const account_object& witness_account = witness.witness_account(db);
+
+   proposal_update_operation op;
+   {
+      op.proposal = propose.id;
+      op.fee_paying_account = witness_account.id;
+      op.active_approvals_to_add.insert( witness_account.id );
+   }
+
+   BOOST_CHECK( proposal_idx.size() == 1 );
+   BOOST_CHECK_EQUAL( proposal_idx.begin()->available_active_approvals.size(), 0 );
+   BOOST_CHECK( checker.check_witness_opportunity_to_approve( witness, *proposal_idx.begin() ) );
+
+   db.apply_operation( context, op );
+
+   BOOST_CHECK( proposal_idx.size() == 1 );
+   BOOST_CHECK_EQUAL( proposal_idx.begin()->available_active_approvals.size(), 1 );
+   BOOST_CHECK( !checker.check_witness_opportunity_to_approve( witness, *proposal_idx.begin() ) );
+}
+
+BOOST_AUTO_TEST_CASE( not_active_wit_try_to_approve_btc_send_test )
+{
+   ACTOR(nathan);
+   upgrade_to_lifetime_member( nathan_id );
+   trx.clear();
+   witness_id_type nathan_witness_id = create_witness( nathan_id, nathan_private_key ).id;
+
+   const auto& witnesses = db.get_global_properties().active_witnesses;
+   BOOST_CHECK( std::find(witnesses.begin(), witnesses.end(), nathan_witness_id) == witnesses.end() );
+
+   const auto& witness_idx = db.get_index_type<graphene::chain::witness_index>().indices().get<graphene::chain::by_id>();
+   auto itr = witness_idx.find( nathan_witness_id );
+   BOOST_CHECK( itr != witness_idx.end() );
+
+   sidechain_proposal_checker checker( db );
+   const auto& proposal_idx = db.get_index_type<graphene::chain::proposal_index>().indices().get< graphene::chain::by_id >();
+   auto propose = db.create<proposal_object>( [&]( proposal_object& obj ){
+      obj.expiration_time =  db.head_block_time() + fc::days(1);
+      obj.review_period_time = db.head_block_time() + fc::days(1);
+   } );
+
+   BOOST_CHECK( !checker.check_witness_opportunity_to_approve( *itr, *proposal_idx.begin() ) );
+}
+
+BOOST_AUTO_TEST_CASE( not_account_auths_wit_try_to_approve_btc_send_test )
+{
+   ACTOR(nathan);
+   upgrade_to_lifetime_member(nathan_id);
+   trx.clear();
+   witness_id_type nathan_witness_id = create_witness(nathan_id, nathan_private_key).id;
+   // Give nathan some voting stake
+   transfer(committee_account, nathan_id, asset(10000000));
+   generate_block();
+   test::set_expiration( db, trx );
+
+   {
+      account_update_operation op;
+      op.account = nathan_id;
+      op.new_options = nathan_id(db).options;
+      op.new_options->votes.insert(nathan_witness_id(db).vote_id);
+      op.new_options->num_witness = std::count_if(op.new_options->votes.begin(), op.new_options->votes.end(),
+                                                  [](vote_id_type id) { return id.type() == vote_id_type::witness; });
+      op.new_options->num_committee = std::count_if(op.new_options->votes.begin(), op.new_options->votes.end(),
+                                                    [](vote_id_type id) { return id.type() == vote_id_type::committee; });
+      trx.operations.push_back(op);
+      sign( trx, nathan_private_key );
+      PUSH_TX( db, trx );
+      trx.clear();
+   }
+
+   generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+   const auto& witnesses = db.get_global_properties().active_witnesses;
+   auto itr_ = std::find(witnesses.begin(), witnesses.end(), nathan_witness_id);
+   BOOST_CHECK(itr_ != witnesses.end());
+
+   const auto& witness_idx = db.get_index_type<graphene::chain::witness_index>().indices().get<graphene::chain::by_id>();
+   auto itr = witness_idx.find( nathan_witness_id );
+   BOOST_CHECK( itr != witness_idx.end() );
+
+   sidechain_proposal_checker checker( db );
+   const auto& proposal_idx = db.get_index_type<graphene::chain::proposal_index>().indices().get< graphene::chain::by_id >();
+   auto propose = db.create<proposal_object>( [&]( proposal_object& obj ){
+      obj.expiration_time =  db.head_block_time() + fc::days(1);
+      obj.review_period_time = db.head_block_time() + fc::days(1);
+   } );
+
+   BOOST_CHECK( !checker.check_witness_opportunity_to_approve( *itr, *proposal_idx.begin() ) );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

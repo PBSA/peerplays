@@ -152,7 +152,7 @@ void database::processing_sidechain_proposals( const witness_object& current_wit
           }
          case sidechain_proposal_type::SEND_BTC_TRANSACTION :{
             bitcoin_transaction_send_operation op = proposal->proposed_transaction.operations.back().get<bitcoin_transaction_send_operation>();
-            if( checker.check_bitcoin_transaction_send_operation( op ) )
+            if( checker.check_bitcoin_transaction_send_operation( op ) && checker.check_witness_opportunity_to_approve( current_witness, *proposal ) )
             {
                const auto& sign_operation = create_sign_btc_tx_operation( current_witness, private_key, proposal->id );
                _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( private_key, sign_operation ) );

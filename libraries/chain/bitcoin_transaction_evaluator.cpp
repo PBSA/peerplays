@@ -9,6 +9,7 @@
 
 #include <sidechain/sign_bitcoin_transaction.hpp>
 #include <sidechain/input_withdrawal_info.hpp>
+#include <sidechain/sidechain_proposal_checker.hpp>
 #include <graphene/chain/bitcoin_address_object.hpp>
 #include <graphene/chain/primary_wallet_vout_object.hpp>
 
@@ -127,10 +128,10 @@ void_result bitcoin_transaction_sign_evaluator::do_evaluate( const bitcoin_trans
       vins.insert( vins.begin(), btc_send_op.pw_vin );
    }
 
-   FC_ASSERT( check_sigs( public_key, op.signatures, vins, btc_send_op.transaction ) ); // Add pw_vin
+   FC_ASSERT( check_sigs( public_key, op.signatures, vins, btc_send_op.transaction ) );
 
-   // const auto& proposal = sidechain_proposal_itr->proposal_id( d );
-   // FC_ASSERT( d.check_witness( witness_obj, *btc_tx, proposal ), "Can't sign this transaction" );
+   sidechain::sidechain_proposal_checker checker( d );
+   FC_ASSERT( checker.check_witness_opportunity_to_approve( witness_obj, *proposal_itr ), "Can't sign this transaction" );
 
    return void_result();
 }

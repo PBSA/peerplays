@@ -17,6 +17,8 @@ public:
    bool check_bitcoin_transaction_send_operation( const bitcoin_transaction_send_operation& op );
 
    bool check_reuse( const graphene::chain::operation& op );
+   
+   bool check_witness_opportunity_to_approve( const witness_object& current_witness, const proposal_object& proposal );
 
 private:
 

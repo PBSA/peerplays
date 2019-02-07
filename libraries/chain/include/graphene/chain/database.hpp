@@ -545,6 +545,7 @@ namespace graphene { namespace chain {
 
          fc::optional<operation> create_bitcoin_issue_proposals( const witness_object& current_witness );
 
+
          fc::signal<void( const bitcoin_transaction& )> send_btc_tx;
 
          sidechain::input_withdrawal_info i_w_info;

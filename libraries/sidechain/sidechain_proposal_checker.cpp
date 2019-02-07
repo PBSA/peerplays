@@ -141,4 +141,22 @@ bool sidechain_proposal_checker::check_transaction( const bitcoin_transaction_se
    return true;
 }
 
+bool sidechain_proposal_checker::check_witness_opportunity_to_approve( const witness_object& current_witness, const proposal_object& proposal )
+{
+   auto is_active_witness = [ & ]() {
+      return db.get_global_properties().active_witnesses.find( current_witness.id ) != db.get_global_properties().active_witnesses.end();
+   };
+
+   // Checks can witness approve this proposal or not
+   auto does_the_witness_have_authority = [ & ]() {
+      const auto& accounts_index = db.get_index_type<account_index>().indices().get<graphene::chain::by_id>();
+      auto account_pBTC_issuer = accounts_index.find( db.get_sidechain_account_id() );
+
+      return account_pBTC_issuer->owner.account_auths.count( current_witness.witness_account ) &&
+             !proposal.available_active_approvals.count( current_witness.witness_account );
+   };
+
+   return is_active_witness() && does_the_witness_have_authority();
+}
+
 }
