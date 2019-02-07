@@ -26,7 +26,7 @@ object_id_type bitcoin_address_create_evaluator::do_apply( const bitcoin_address
       witnesses_keys.emplace( d.get_sidechain_account_id(), pubkey_from_id( a.id ) );
 
       a.owner = op.owner;
-      a.address = sidechain::btc_multisig_segwit_address(5, witnesses_keys);
+      a.address = sidechain::btc_multisig_segwit_address( SIDECHAIN_DEFAULT_NUMBER_SIG_MULTISIG, witnesses_keys );
       a.count_invalid_pub_key = 1;
    });
 

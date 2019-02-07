@@ -9,7 +9,7 @@ namespace sidechain {
 bool primary_wallet_vout_manager::is_reach_max_unconfirmaed_vout() const
 {
    const auto& PW_vout_idx = db.get_index_type<graphene::chain::primary_wallet_vout_index>().indices().get< graphene::chain::by_id >();
-   return !( PW_vout_idx.size() < SIDECHAIN_DEFAULT_NUMBER_UNCONFIRMED_VINS );
+   return !( PW_vout_idx.size() < db.get_sidechain_params().maxmum_unconfirmed_vins );
 }
 
 fc::optional< primary_wallet_vout_object > primary_wallet_vout_manager::get_latest_unused_vout() const

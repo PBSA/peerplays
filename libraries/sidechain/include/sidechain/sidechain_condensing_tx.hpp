@@ -21,7 +21,7 @@ public:
 
    uint64_t get_estimate_tx_size( size_t number_witness ) const;
 
-   void subtract_fee( const uint64_t& fee, const double& witness_percentage );
+   void subtract_fee( const uint64_t& fee, const uint16_t& witnesses_percentage );
 
    bitcoin_transaction get_transaction() const { return tb.get_transaction(); }
 

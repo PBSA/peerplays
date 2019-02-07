@@ -175,7 +175,7 @@ full_btc_transaction database::create_btc_transaction( const std::vector<info_fo
    }
 
    const uint64_t& size_fee = get_estimated_fee( ctx.get_estimate_tx_size( pw_address.witnesses_keys.size() ), estimated_feerate.load() );
-   ctx.subtract_fee( size_fee, SIDECHAIN_DEFAULT_PERCENTAGE_PAYMENT_TO_WIT );
+   ctx.subtract_fee( size_fee, get_sidechain_params().percent_payment_to_witnesses );
 
    return std::make_pair( ctx.get_transaction(), size_fee );
 }

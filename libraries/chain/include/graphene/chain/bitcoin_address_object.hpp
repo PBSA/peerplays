@@ -15,7 +15,7 @@ class bitcoin_address_object : public abstract_object<bitcoin_address_object>
 
       bitcoin_address_id_type get_id()const { return id; }
       // multisig m-of-n (m = 5). Address is valid before count of changed witnesses < 5
-      bool valid() { return count_invalid_pub_key < 5; } // TODO: move to global_properties 
+      bool valid() { return count_invalid_pub_key < SIDECHAIN_NUMBER_INVALID_KEYS; }
 
       std::string get_address() const { return address.get_address(); }
 

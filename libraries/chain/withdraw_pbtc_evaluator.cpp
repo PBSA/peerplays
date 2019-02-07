@@ -74,7 +74,7 @@ bool withdraw_pbtc_evaluator::check_amount_higher_than_fee( const withdraw_pbtc_
    if( op.amount < mock_trx.second )
       return false;
 
-   auto fee_for_witnesses = ( op.amount - mock_trx.second ) * SIDECHAIN_DEFAULT_PERCENTAGE_PAYMENT_TO_WIT;
+   uint64_t fee_for_witnesses = ( (op.amount - mock_trx.second) * d.get_sidechain_params().percent_payment_to_witnesses ) / GRAPHENE_100_PERCENT;
 
    if( op.amount < mock_trx.second + fee_for_witnesses )
       return false;

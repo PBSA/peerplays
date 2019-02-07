@@ -11,7 +11,7 @@ BOOST_AUTO_TEST_SUITE( sidechain_condensing_tx_tests )
 
 uint64_t size_fee = 100;
 uint64_t pw_vout_amount = 113;
-double witness_percentage = 0.01;
+double witness_percentage = SIDECHAIN_DEFAULT_PERCENT_PAYMENT_TO_WITNESSES;
 
 void create_info_vins_and_info_vouts( std::vector<info_for_vin>& info_vins, std::vector<info_for_vout>& info_vouts )
 {
@@ -19,7 +19,7 @@ void create_info_vins_and_info_vouts( std::vector<info_for_vin>& info_vins, std:
       info_for_vin vin;
       vin.out.hash_tx = "1111111111111111111111111111111111111111111111111111111111111111";
       vin.out.n_vout = static_cast<uint32_t>( i );
-      vin.out.amount = static_cast<uint64_t>( i + 1000 );
+      vin.out.amount = static_cast<uint64_t>( i + 10000 );
       vin.address = std::to_string( i );
       vin.script = { 0x0d };
       info_vins.push_back( vin );
@@ -27,7 +27,7 @@ void create_info_vins_and_info_vouts( std::vector<info_for_vin>& info_vins, std:
       info_for_vout vout;
       vout.payer = account_id_type( i );
       vout.address = sidechain::bitcoin_address( "mipcBbFg9gMiCh81Kj8tqqdgoZub1ZJRfn" );
-      vout.amount = static_cast<uint64_t>( i + 1000 );
+      vout.amount = static_cast<uint64_t>( i + 10000 );
       info_vouts.push_back( vout );
    }
 }
@@ -71,7 +71,7 @@ BOOST_AUTO_TEST_CASE( create_sidechain_condensing_tx_test )
       BOOST_CHECK( tx.vin[i].scriptSig == scriptSig );
       BOOST_CHECK( tx.vin[i].scriptWitness == std::vector<bytes>() );
 
-      BOOST_CHECK( tx.vout[i].value == static_cast<int64_t>( i + 1000 ) );
+      BOOST_CHECK( tx.vout[i].value == static_cast<int64_t>( i + 10000 ) );
       const auto address_bytes = fc::from_base58( "mipcBbFg9gMiCh81Kj8tqqdgoZub1ZJRfn" );
       bytes raw_address( address_bytes.begin() + 1, address_bytes.begin() + 21 );
       bytes scriptPubKey = script_builder() << op::DUP << op::HASH160 << raw_address << op::EQUALVERIFY << op::CHECKSIG;
@@ -133,12 +133,12 @@ BOOST_AUTO_TEST_CASE( subtract_fee_tests )
 
    std::vector<uint64_t> witnesses_fee;
    for( size_t i = 0; i < info_vouts.size(); i++ ) {
-      witnesses_fee.push_back( ( info_vouts[i].amount - size_fee_user ) * witness_percentage );
+      witnesses_fee.push_back( ( info_vouts[i].amount - size_fee_user ) * witness_percentage / GRAPHENE_100_PERCENT );
    }
 
    uint64_t witnesses_fee_sum = std::accumulate( witnesses_fee.begin(), witnesses_fee.end(), 0 );
    uint64_t witness_fee = witnesses_fee_sum / keys.size();
-   BOOST_CHECK( tx.vout[0].value == static_cast<int64_t>( pw_vout_amount ) );
+   BOOST_CHECK( tx.vout[0].value == static_cast<int64_t>( pw_vout_amount - size_fee_user * info_vins.size() ) );
    for( size_t i = 1; i <= keys.size(); i++ ) {
       BOOST_CHECK( tx.vout[i].value == static_cast<int64_t>( witness_fee ) );
    }
@@ -164,7 +164,7 @@ BOOST_AUTO_TEST_CASE( subtract_fee_not_pw_vout_and_witness_vouts_tests )
 
    std::vector<uint64_t> witnesses_fee;
    for( size_t i = 0; i < info_vouts.size(); i++ ) {
-      witnesses_fee.push_back( ( info_vouts[i].amount - size_fee_user ) * witness_percentage );
+      witnesses_fee.push_back( ( info_vouts[i].amount - size_fee_user ) * witness_percentage / GRAPHENE_100_PERCENT );
    }
 
    for( size_t i = 0; i < tx.vout.size(); i++ ) {
@@ -188,7 +188,7 @@ BOOST_AUTO_TEST_CASE( subtract_fee_not_witness_vouts_tests )
 
    std::vector<uint64_t> witnesses_fee;
    for( size_t i = 0; i < info_vouts.size(); i++ ) {
-      witnesses_fee.push_back( ( info_vouts[i].amount - size_fee_user ) * witness_percentage );
+      witnesses_fee.push_back( ( info_vouts[i].amount - size_fee_user ) * witness_percentage / GRAPHENE_100_PERCENT );
    }
 
    size_t offset = 1;
@@ -214,7 +214,7 @@ BOOST_AUTO_TEST_CASE( subtract_fee_not_pw_vout_tests )
 
    std::vector<uint64_t> witnesses_fee;
    for( size_t i = 0; i < info_vouts.size(); i++ ) {
-      witnesses_fee.push_back( ( info_vouts[i].amount - size_fee_user ) * witness_percentage );
+      witnesses_fee.push_back( ( info_vouts[i].amount - size_fee_user ) * witness_percentage / GRAPHENE_100_PERCENT );
    }
 
    size_t offset = keys.size();
@@ -223,7 +223,7 @@ BOOST_AUTO_TEST_CASE( subtract_fee_not_pw_vout_tests )
    }
 }
 
-BOOST_AUTO_TEST_CASE( subtract_fee_not_vins_vout_tests )
+BOOST_AUTO_TEST_CASE( subtract_fee_not_vins_tests )
 {
    std::vector<info_for_vin> info_vins;
    std::vector<info_for_vout> info_vouts;
@@ -242,7 +242,7 @@ BOOST_AUTO_TEST_CASE( subtract_fee_not_vins_vout_tests )
 
    std::vector<uint64_t> witnesses_fee;
    for( size_t i = 0; i < info_vouts.size(); i++ ) {
-      witnesses_fee.push_back( ( info_vouts[i].amount - size_fee_user ) * witness_percentage );
+      witnesses_fee.push_back( ( info_vouts[i].amount - size_fee_user ) * witness_percentage / GRAPHENE_100_PERCENT );
    }
 
    size_t offset = 1 + keys.size();

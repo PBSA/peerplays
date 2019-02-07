@@ -94,11 +94,12 @@ std::vector<info_for_vin> input_withdrawal_info::get_info_for_vins()
    std::vector<info_for_vin> result;
 
    const auto& addr_idx = db.get_index_type<bitcoin_address_index>().indices().get<by_address>();
+   const auto max_vins = db.get_sidechain_params().maximum_condensing_tx_vins;
 
    info_for_vins.safe_for<by_id_and_not_used>( [&]( info_for_vin_index::index<by_id_and_not_used>::type::iterator itr_b,
                                                     info_for_vin_index::index<by_id_and_not_used>::type::iterator itr_e )
    {
-      for( size_t i = 0; itr_b != itr_e && i < 5 && !itr_b->used; i++ ) {  // 5 amount vins to bitcoin transaction
+      for( size_t i = 0; itr_b != itr_e && i < max_vins && !itr_b->used; i++ ) {
          info_for_vin vin;
          vin.identifier = itr_b->identifier;
          vin.out.hash_tx = itr_b->out.hash_tx;
@@ -173,8 +174,10 @@ std::vector<info_for_vout> input_withdrawal_info::get_info_for_vouts()
    std::vector<info_for_vout> result;
 
    const auto& info_for_vout_idx = db.get_index_type<graphene::chain::info_for_vout_index>().indices().get< graphene::chain::by_id_and_not_used >();
+   const auto max_vouts = db.get_sidechain_params().maximum_condensing_tx_vouts;
+
    auto itr = info_for_vout_idx.begin();
-   for(size_t i = 0; i < 5 && itr != info_for_vout_idx.end() && !itr->used; i++) {
+   for(size_t i = 0; i < max_vouts && itr != info_for_vout_idx.end() && !itr->used; i++) {
 
       result.push_back( *itr );
       ++itr;

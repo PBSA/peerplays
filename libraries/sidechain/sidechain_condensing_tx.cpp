@@ -68,7 +68,7 @@ uint64_t sidechain_condensing_tx::get_estimate_tx_size( size_t number_witness ) 
    return temp_tx.get_vsize();
 }
 
-void sidechain_condensing_tx::subtract_fee( const uint64_t& fee, const double& witness_percentage )
+void sidechain_condensing_tx::subtract_fee( const uint64_t& fee, const uint16_t& witnesses_percentage )
 {
    bitcoin_transaction tx = get_transaction();
 
@@ -86,7 +86,7 @@ void sidechain_condensing_tx::subtract_fee( const uint64_t& fee, const double& w
    size_t offset = is_pw_vin ? 1 + count_witness_vout : count_witness_vout;
    for( ; offset < tx.vout.size(); offset++ ) {
       uint64_t amount_without_fee_size = tx.vout[offset].value - fee_size;
-      uint64_t amount_fee_witness = amount_without_fee_size * witness_percentage;
+      uint64_t amount_fee_witness = ( amount_without_fee_size * witnesses_percentage ) / GRAPHENE_100_PERCENT;
       tx.vout[offset].value = amount_without_fee_size;
       tx.vout[offset].value -= amount_fee_witness;
       fee_witnesses += amount_fee_witness;
