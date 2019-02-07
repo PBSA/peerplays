@@ -46,13 +46,34 @@ struct proposal_operation_hardfork_visitor
    void operator()(const T &v) const {}
 
    void operator()(const committee_member_update_global_parameters_operation &op) const {
-      if( block_time < HARDFORK_1000_TIME ) // TODO: remove after hf
+      if( block_time < HARDFORK_1000_TIME ) { // TODO: remove after hf
          FC_ASSERT( !op.new_parameters.extensions.value.min_bet_multiplier.valid()
-                    && !op.new_parameters.extensions.value.max_bet_multiplier.valid()
-                    && !op.new_parameters.extensions.value.betting_rake_fee_percentage.valid()
-                    && !op.new_parameters.extensions.value.permitted_betting_odds_increments.valid()
-                    && !op.new_parameters.extensions.value.live_betting_delay_time.valid(),
-                    "Parameter extensions are not allowed yet!" );
+               && !op.new_parameters.extensions.value.max_bet_multiplier.valid()
+               && !op.new_parameters.extensions.value.betting_rake_fee_percentage.valid()
+               && !op.new_parameters.extensions.value.permitted_betting_odds_increments.valid()
+               && !op.new_parameters.extensions.value.live_betting_delay_time.valid(),
+               "Parameter extensions are not allowed yet!" );
+         FC_ASSERT( !op.new_parameters.current_fees->exists<sport_create_operation>()
+               && !op.new_parameters.current_fees->exists<sport_update_operation>()
+               && !op.new_parameters.current_fees->exists<sport_delete_operation>()
+               && !op.new_parameters.current_fees->exists<event_group_create_operation>()
+               && !op.new_parameters.current_fees->exists<event_group_update_operation>()
+               && !op.new_parameters.current_fees->exists<event_group_delete_operation>()
+               && !op.new_parameters.current_fees->exists<event_create_operation>()
+               && !op.new_parameters.current_fees->exists<event_update_operation>()
+               && !op.new_parameters.current_fees->exists<betting_market_rules_create_operation>()
+               && !op.new_parameters.current_fees->exists<betting_market_rules_update_operation>()
+               && !op.new_parameters.current_fees->exists<betting_market_group_create_operation>()
+               && !op.new_parameters.current_fees->exists<betting_market_create_operation>()
+               && !op.new_parameters.current_fees->exists<bet_place_operation>()
+               && !op.new_parameters.current_fees->exists<betting_market_group_resolve_operation>()
+               && !op.new_parameters.current_fees->exists<betting_market_group_cancel_unmatched_bets_operation>()
+               && !op.new_parameters.current_fees->exists<bet_cancel_operation>()
+               && !op.new_parameters.current_fees->exists<betting_market_group_update_operation>()
+               && !op.new_parameters.current_fees->exists<betting_market_update_operation>()
+               && !op.new_parameters.current_fees->exists<event_update_status_operation>(),
+               "Bookie-specific operations not available before HARDFORK_1000_TIME" );
+      }
    }
 
    void operator()(const graphene::chain::tournament_payout_operation &o) const {
