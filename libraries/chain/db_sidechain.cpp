@@ -335,4 +335,37 @@ fc::optional<operation> database::create_bitcoin_issue_proposals( const witness_
    return fc::optional<operation>();
 }
 
+fc::optional<operation> database::create_bitcoin_revert_proposals( const witness_object& current_witness )
+{
+   using iter_by_missing = btc_tx_confirmations_index::index<by_missing_first>::type::iterator;
+   std::vector<revert_trx_info> trx_info;
+
+   bitcoin_confirmations.safe_for<by_missing_first>([&]( iter_by_missing itr_b, iter_by_missing itr_e ){
+      for(auto iter = itr_b; iter != itr_e; iter++) {
+         if( !iter->missing ) return;
+
+         const auto& btc_trx_idx = get_index_type<bitcoin_transaction_index>().indices().get<by_transaction_id>();
+         const auto& btc_tx = btc_trx_idx.find( iter->transaction_id );
+         if( btc_tx == btc_trx_idx.end() ) continue;
+         trx_info.push_back( revert_trx_info( iter->transaction_id, iter->valid_vins ) ); 
+      }
+   });
+
+   if( trx_info.size() ) {
+      bitcoin_transaction_revert_operation revert_op;
+      revert_op.payer = get_sidechain_account_id();
+      revert_op.transactions_info = trx_info;
+
+      proposal_create_operation proposal_op;
+      proposal_op.fee_paying_account = current_witness.witness_account;
+      proposal_op.proposed_ops.push_back( op_wrapper( revert_op ) );
+      uint32_t lifetime = ( get_global_properties().parameters.block_interval * get_global_properties().active_witnesses.size() ) * 3;
+      proposal_op.expiration_time = time_point_sec( head_block_time().sec_since_epoch() + lifetime );
+
+      return fc::optional<operation>( proposal_op );
+   }
+
+   return fc::optional<operation>();
+}
+
 } }

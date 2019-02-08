@@ -47,11 +47,13 @@ struct bitcoin_transaction_confirmations
 
 struct by_hash;
 struct by_confirmed_and_not_used;
+struct by_missing_first;
 
 using btc_tx_confirmations_index = boost::multi_index_container<bitcoin_transaction_confirmations,
    indexed_by<
       ordered_unique<tag<by_hash>, member<bitcoin_transaction_confirmations, fc::sha256, &bitcoin_transaction_confirmations::transaction_id>>,
-      ordered_non_unique<tag<by_confirmed_and_not_used>, identity< bitcoin_transaction_confirmations >, bitcoin_transaction_confirmations::comparer >
+      ordered_non_unique<tag<by_confirmed_and_not_used>, identity< bitcoin_transaction_confirmations >, bitcoin_transaction_confirmations::comparer >,
+      ordered_non_unique<tag<by_missing_first>, member<bitcoin_transaction_confirmations, bool, &bitcoin_transaction_confirmations::missing>, std::greater<bool>>
    >
 >;
 

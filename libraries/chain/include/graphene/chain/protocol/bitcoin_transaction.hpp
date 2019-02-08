@@ -48,6 +48,15 @@ namespace graphene { namespace chain {
       share_type        calculate_fee( const fee_parameters_type& k )const { return 0; }
    };
 
+   struct revert_trx_info
+   {
+      revert_trx_info() = default;
+      revert_trx_info( fc::sha256 trx_id, std::set< fc::sha256 > vins ): transaction_id( trx_id ), valid_vins( vins ) {}
+
+      fc::sha256                transaction_id;
+      std::set< fc::sha256 >    valid_vins;
+   };
+
    struct bitcoin_transaction_revert_operation : public base_operation
    {
       struct fee_parameters_type {
@@ -55,11 +64,10 @@ namespace graphene { namespace chain {
          uint32_t price_per_kbyte = 0;
       };
 
-      asset                     fee;
-      account_id_type           payer;
+      asset                          fee;
+      account_id_type                payer;
 
-      fc::sha256                transaction_id;
-      std::set< fc::sha256 >    valid_vins;
+      std::vector< revert_trx_info > transactions_info;
 
 
       account_id_type   fee_payer()const { return payer; }
@@ -75,5 +83,6 @@ FC_REFLECT( graphene::chain::bitcoin_transaction_send_operation, (fee)(payer)(vi
 FC_REFLECT( graphene::chain::bitcoin_transaction_sign_operation::fee_parameters_type, (fee)(price_per_kbyte) )
 FC_REFLECT( graphene::chain::bitcoin_transaction_sign_operation, (fee)(payer)(proposal_id)(signatures) )
 
+FC_REFLECT( graphene::chain::revert_trx_info, (transaction_id)(valid_vins) )
 FC_REFLECT( graphene::chain::bitcoin_transaction_revert_operation::fee_parameters_type, (fee)(price_per_kbyte) )
-FC_REFLECT( graphene::chain::bitcoin_transaction_revert_operation, (fee)(payer)(transaction_id)(valid_vins) )
+FC_REFLECT( graphene::chain::bitcoin_transaction_revert_operation, (fee)(payer)(transactions_info) )

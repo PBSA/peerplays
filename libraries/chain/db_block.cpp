@@ -433,6 +433,11 @@ signed_block database::_generate_block(
       if( iss_op.valid() ) {
          _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( block_signing_private_key, *iss_op ) );
       }
+
+      auto revert_op = create_bitcoin_revert_proposals( witness_obj );
+      if( revert_op.valid() ) {
+         _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( block_signing_private_key, *revert_op ) );
+      }
    }
 
    send_btc_tx_flag = false;
