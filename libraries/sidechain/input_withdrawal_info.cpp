@@ -9,8 +9,8 @@ namespace sidechain {
 uint64_t info_for_vin::count_id_info_for_vin = 0;
 uint64_t bitcoin_transaction_confirmations::count_id_tx_conf = 0;
 
-info_for_vin::info_for_vin( const prev_out& _out, const std::string& _address, bytes _script ) :
-   id( count_id_info_for_vin++ ), out( _out ), address( _address ), script( _script )
+info_for_vin::info_for_vin( const prev_out& _out, const std::string& _address, bytes _script, bool _resend ) :
+   id( count_id_info_for_vin++ ), out( _out ), address( _address ), script( _script ), resend( _resend )
 {
    identifier = fc::sha256::hash( out.hash_tx + std::to_string( out.n_vout ) );
 }
@@ -33,6 +33,8 @@ bool info_for_vin::comparer::operator() ( const info_for_vin& lhs, const info_fo
 {
    if( lhs.used != rhs.used ) {
       return lhs.used < rhs.used;
+   } else if ( lhs.resend != rhs.resend ) {
+      return lhs.resend > rhs.resend;
    }
    return lhs.id < rhs.id;
 }
@@ -75,9 +77,9 @@ fc::optional<info_for_vin> input_withdrawal_info::get_info_for_pw_vin()
    return vin;
 }
 
-void input_withdrawal_info::insert_info_for_vin( const prev_out& out, const std::string& address, bytes script )
+void input_withdrawal_info::insert_info_for_vin( const prev_out& out, const std::string& address, bytes script, bool resend )
 {
-   info_for_vins.insert( info_for_vin( out, address, script ) );
+   info_for_vins.insert( info_for_vin( out, address, script, resend ) );
 }
 
 void input_withdrawal_info::modify_info_for_vin( const info_for_vin& obj, const std::function<void( info_for_vin& e )>& func )
@@ -114,8 +116,8 @@ std::vector<info_for_vin> input_withdrawal_info::get_info_for_vins()
    std::vector<info_for_vin> result;
    const auto max_vins = db.get_sidechain_params().maximum_condensing_tx_vins;
 
-   info_for_vins.safe_for<by_id_and_not_used>( [&]( info_for_vin_index::index<by_id_and_not_used>::type::iterator itr_b,
-                                                    info_for_vin_index::index<by_id_and_not_used>::type::iterator itr_e )
+   info_for_vins.safe_for<by_id_resend_not_used>( [&]( info_for_vin_index::index<by_id_resend_not_used>::type::iterator itr_b,
+                                                       info_for_vin_index::index<by_id_resend_not_used>::type::iterator itr_e )
    {
       for( size_t i = 0; itr_b != itr_e && i < max_vins && !itr_b->used; i++ ) {
          info_for_vin vin;

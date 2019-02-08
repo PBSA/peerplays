@@ -22,7 +22,7 @@ struct info_for_vin
 {
    info_for_vin() = default;
 
-   info_for_vin( const prev_out& _out, const std::string& _address, bytes _script = bytes() );
+   info_for_vin( const prev_out& _out, const std::string& _address, bytes _script = bytes(), bool _resend = false );
 
    bool operator!=( const info_for_vin& obj ) const;
 
@@ -40,17 +40,18 @@ struct info_for_vin
    bytes script;
 
    bool used = false;
+   bool resend = false;
 };
 
 struct by_id;
 struct by_identifier;
-struct by_id_and_not_used;
+struct by_id_resend_not_used;
 
 using info_for_vin_index = boost::multi_index_container<info_for_vin,
    indexed_by<
       ordered_unique<tag<by_id>, member<info_for_vin, uint64_t, &info_for_vin::id>>,
       ordered_unique<tag<by_identifier>, member<info_for_vin, fc::sha256, &info_for_vin::identifier>>,
-      ordered_non_unique<tag<by_id_and_not_used>, identity< info_for_vin >, info_for_vin::comparer >
+      ordered_non_unique<tag<by_id_resend_not_used>, identity< info_for_vin >, info_for_vin::comparer >
    >
 >;
 
@@ -69,7 +70,7 @@ public:
    fc::optional<info_for_vin> get_info_for_pw_vin();
 
 
-   void insert_info_for_vin( const prev_out& out, const std::string& address, bytes script = bytes() );
+   void insert_info_for_vin( const prev_out& out, const std::string& address, bytes script = bytes(), bool resend = false );
 
    void modify_info_for_vin( const info_for_vin& obj, const std::function<void( info_for_vin& e )>& func );
 
@@ -110,4 +111,4 @@ private:
 
 }
 
-FC_REFLECT( sidechain::info_for_vin, (identifier)(out)(address)(script)(used) )
+FC_REFLECT( sidechain::info_for_vin, (identifier)(out)(address)(script)(used)(resend) )

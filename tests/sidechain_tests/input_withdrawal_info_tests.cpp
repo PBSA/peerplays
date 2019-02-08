@@ -227,4 +227,48 @@ BOOST_AUTO_TEST_CASE( input_withdrawal_info_get_info_for_vouts_test )
    BOOST_CHECK( vouts2.size() == 3 );
 }
 
+BOOST_AUTO_TEST_CASE( info_for_vin_comparer_tests )
+{
+   input_withdrawal_info infos( db );
+
+   auto vins_checker = [&]( std::vector<uint32_t> vins_id ) {
+      auto vins = infos.get_info_for_vins();
+      auto i = 0;
+      for( uint32_t j : vins_id ) {
+         BOOST_CHECK( vins[i].out.hash_tx == std::to_string( j ) );
+         BOOST_CHECK( vins[i].out.n_vout == j );
+         BOOST_CHECK( vins[i].out.amount == j );
+         BOOST_CHECK( vins[i].address == "addr" + std::to_string( j ) );
+         i++;
+      }
+   };
+
+   for( size_t i = 0; i < 10; i++ ) {
+      prev_out out = { std::to_string( i ), static_cast<uint32_t>( i ), static_cast< uint64_t >( i ) };
+      bool resend = ( i % 2 == 0 ) ? true : false;
+      infos.insert_info_for_vin( out, "addr" + std::to_string( i ), { 0x01, 0x02, 0x03 }, resend );
+   }
+   vins_checker( { 0, 2, 4, 6, 8 } );
+
+   for( size_t i = 0; i < 5; i++ ) {
+      auto identifier = fc::sha256::hash( std::to_string( i ) + std::to_string( i ) );
+      auto iter = infos.find_info_for_vin( identifier );
+      infos.mark_as_used_vin( *iter );
+   }
+   vins_checker( { 6, 8, 5, 7, 9 } );
+
+   for( auto i : { 6, 8 } ) {
+      auto identifier = fc::sha256::hash( std::to_string( i ) + std::to_string( i ) );
+      auto iter = infos.find_info_for_vin( identifier );
+      infos.mark_as_used_vin( *iter );
+   }
+   vins_checker( { 5, 7, 9 } );
+
+   for( size_t i = 10; i < 14; i++ ) {
+      prev_out out = { std::to_string( i ), static_cast<uint32_t>( i ), static_cast< uint64_t >( i ) };
+      infos.insert_info_for_vin( out, "addr" + std::to_string( i ), { 0x01, 0x02, 0x03 }, true );
+   }
+   vins_checker( { 10, 11, 12, 13, 5 } );
+}
+
 BOOST_AUTO_TEST_SUITE_END()

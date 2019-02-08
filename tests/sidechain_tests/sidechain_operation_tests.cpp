@@ -216,8 +216,6 @@ BOOST_AUTO_TEST_CASE( bitcoin_transaction_revert_operation_test )
    auto vin_itr = vins_info_idx.find( fc::sha256( std::string( 64, '1' ) ) );
 
    BOOST_CHECK( vin_itr != vins_info_idx.end() );
-   BOOST_CHECK( vin_itr->resend );
-
    BOOST_CHECK( vouts_info_idx.size() == 3 );
 
    auto vout_itr = vouts_info_idx.begin();

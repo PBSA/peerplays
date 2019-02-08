@@ -257,13 +257,11 @@ void_result bitcoin_transaction_revert_evaluator::do_apply( const bitcoin_transa
    
       for( const auto& vin_id : btc_trx_obj.vins ) {
          const auto& vin_obj = *vins_info_idx.find( vin_id );
+
          if( trx_info.valid_vins.count( fc::sha256 ( vin_obj.out.hash_tx ) ) ) {
-            d.modify( vin_obj, [&]( info_for_used_vin_object& obj ){
-               obj.resend = true;
-            });
-         } else {
-            d.remove( vin_obj );
+            d.i_w_info.insert_info_for_vin( vin_obj.out, vin_obj.address, vin_obj.script, true );
          }
+         d.remove( vin_obj );
       }
       d.bitcoin_confirmations.remove<sidechain::by_hash>( trx_info.transaction_id );
       d.remove( btc_trx_obj );
