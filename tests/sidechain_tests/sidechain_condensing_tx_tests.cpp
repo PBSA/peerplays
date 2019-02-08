@@ -5,7 +5,7 @@
 #include <fc/crypto/digest.hpp>
 
 #include <iostream>
-#include <algorithm>
+#include <numeric>
 
 BOOST_AUTO_TEST_SUITE( sidechain_condensing_tx_tests )
 
