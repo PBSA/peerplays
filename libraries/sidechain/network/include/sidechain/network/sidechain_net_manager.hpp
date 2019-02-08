@@ -37,6 +37,8 @@ private:
 
    void update_transaction_status( std::vector<fc::sha256> trx_for_check );
 
+   std::set<fc::sha256> get_valid_vins( const std::string tx_hash );
+
    inline uint64_t parse_amount(std::string raw);
 
    std::unique_ptr<zmq_listener> listener;

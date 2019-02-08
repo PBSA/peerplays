@@ -86,7 +86,11 @@ void sidechain_net_manager::update_estimated_fee()
 
 void sidechain_net_manager::send_btc_tx( const sidechain::bitcoin_transaction& trx )
 {
-   db->bitcoin_confirmations.insert( bitcoin_transaction_confirmations( trx.get_txid() ) );
+   std::set<fc::sha256> valid_vins;
+   for( const auto& v : trx.vin ) {
+      valid_vins.insert( v.prevout.hash );
+   }
+   db->bitcoin_confirmations.insert( bitcoin_transaction_confirmations( trx.get_txid(), valid_vins ) );
 
    FC_ASSERT( !bitcoin_client->connection_is_not_defined() );
    const auto tx_hex = fc::to_hex( pack( trx ) );
@@ -142,6 +146,22 @@ std::vector<info_for_vin> sidechain_net_manager::extract_info_from_block( const 
    return result;
 }
 
+std::set<fc::sha256> sidechain_net_manager::get_valid_vins( const std::string tx_hash )
+{
+   const auto& confirmations_obj = db->bitcoin_confirmations.find<sidechain::by_hash>( fc::sha256( tx_hash ) );
+   FC_ASSERT( confirmations_obj.valid() );
+
+   std::set<fc::sha256> valid_vins;
+   for( const auto& v : confirmations_obj->valid_vins ) {
+      auto confirmations = bitcoin_client->receive_confirmations_tx( v.str() );
+      if( confirmations == 0 ) {
+         continue;
+      }
+      valid_vins.insert( v );
+   }
+   return valid_vins;
+}
+
 void sidechain_net_manager::update_transaction_status( std::vector<fc::sha256> trx_for_check )
 {
    const auto& confirmations_num = db->get_sidechain_params().confirmations_num;
@@ -159,8 +179,15 @@ void sidechain_net_manager::update_transaction_status( std::vector<fc::sha256> t
 
       } else if( confirmations == 0 ) {
          auto is_in_mempool =  bitcoin_client->receive_mempool_entry_tx( trx.str() );
+
+         std::set<fc::sha256> valid_vins;
+         if( !is_in_mempool ) {
+            valid_vins = get_valid_vins( trx.str() );
+         }
+
          db->bitcoin_confirmations.modify<by_hash>( trx, [&]( bitcoin_transaction_confirmations& obj ) {
             obj.missing = !is_in_mempool;
+            obj.valid_vins = valid_vins;
          });
       }
    }

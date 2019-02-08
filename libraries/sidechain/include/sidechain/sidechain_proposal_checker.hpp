@@ -12,6 +12,7 @@ class sidechain_proposal_checker
 {
 
 public:
+
    sidechain_proposal_checker( graphene::chain::database& _db ) : db(_db) {}
 
    bool check_bitcoin_transaction_send_operation( const bitcoin_transaction_send_operation& op );

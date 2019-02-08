@@ -20,7 +20,8 @@ struct bitcoin_transaction_confirmations
 {
    bitcoin_transaction_confirmations() = default;
 
-   bitcoin_transaction_confirmations( fc::sha256 trx_id ) : id( count_id_tx_conf++ ), transaction_id( trx_id ) {}
+   bitcoin_transaction_confirmations( const fc::sha256& trx_id, const std::set<fc::sha256>& vins ) :
+      id( count_id_tx_conf++ ), transaction_id( trx_id ), valid_vins( vins ) {}
 
    struct comparer {
       bool operator()( const bitcoin_transaction_confirmations& lhs, const bitcoin_transaction_confirmations& rhs ) const {
@@ -36,6 +37,7 @@ struct bitcoin_transaction_confirmations
    bool is_confirmed_and_not_used() const { return !used && confirmed; }
 
    fc::sha256 transaction_id;
+   std::set<fc::sha256> valid_vins;
 
    uint64_t count_block = 0;
    bool confirmed = false;
