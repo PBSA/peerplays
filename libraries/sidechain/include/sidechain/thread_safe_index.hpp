@@ -6,7 +6,8 @@
 namespace sidechain {
 
 template<class T1>
-class thread_safe_index {
+class thread_safe_index
+{
 
 public:
 
@@ -18,17 +19,23 @@ public:
    }
 
    template<class T2, typename Key>
-   void modify( const Key _key, const std::function<void( typename T1::value_type& e)>& func ) {
+   bool modify( const Key _key, const std::function<void( typename T1::value_type& e)>& func ) {
       std::lock_guard<std::recursive_mutex> locker( lock );
-      const auto& obj = *find_iterator<T2>( _key );
-      data.modify( data.iterator_to( obj ), [&func]( typename T1::value_type& obj ) { func( obj ); } );
+      const auto option = find_iterator<T2>( _key );
+      if( !option )
+         return false;
+      data.modify( data.iterator_to( **option ), [&func]( typename T1::value_type& obj ) { func( obj ); } );
+      return true;
    }
 
    template<class T2, typename Key>
-   void remove( const Key _key ) {
+   bool remove( const Key _key ) {
       std::lock_guard<std::recursive_mutex> locker( lock );
-      const auto& obj = *find_iterator<T2>( _key );
-      data.erase( data.iterator_to( obj ) );
+      const auto option = find_iterator<T2>( _key );
+      if( !option )
+         return false;
+      data.erase( data.iterator_to( **option ) );
+      return true;
    }
 
    size_t size() {
@@ -58,12 +65,13 @@ public:
 private:
 
    template<class T2, typename Key>
-   typename T1::template index<T2>::type::iterator find_iterator( const Key _key ) {
+   fc::optional<typename T1::template index<T2>::type::iterator> find_iterator( const Key _key ) {
       auto& index = data.template get<T2>();
       auto it = index.find( _key );
+      if( it == index.end() )
+         return fc::optional<typename T1::template index<T2>::type::iterator>();
       return it;
    }
-
 
    std::recursive_mutex lock;
    
