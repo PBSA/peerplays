@@ -50,7 +50,10 @@ namespace graphene { namespace chain {
           * Keep the most recent operation as a root pointer to a linked list of the transaction history.
           */
          account_transaction_history_id_type most_recent_op;
+         /** Total operations related to this account. */
          uint32_t                            total_ops = 0;
+         /** Total operations related to this account that has been removed from the database. */
+         uint32_t                            removed_ops = 0;
 
          /**
           * When calculating votes it is necessary to know how much is stored in orders (and thus unavailable for
@@ -78,6 +81,11 @@ namespace graphene { namespace chain {
           * available for withdrawal) rather than requiring the normal vesting period.
           */
          share_type pending_vested_fees;
+
+         /**
+          * Keep the date of the last voting activity for this account.
+          */
+         time_point_sec last_vote_time;
 
          /// @brief Split up and pay out @ref pending_fees and @ref pending_vested_fees
          void process_fees(const account_object& a, database& d) const;
@@ -223,6 +231,8 @@ namespace graphene { namespace chain {
           * In the future we may expand this to allow accounts to e.g. voluntarily restrict incoming transfers.
           */
          optional< flat_set<asset_id_type> > allowed_assets;
+
+         optional< affiliate_reward_distributions > affiliate_distributions;
 
          bool has_special_authority()const
          {
@@ -443,7 +453,7 @@ FC_REFLECT_DERIVED( graphene::chain::account_object,
                     (cashback_vb)
                     (owner_special_authority)(active_special_authority)
                     (top_n_control_flags)
-                    (allowed_assets)
+                    (allowed_assets)(affiliate_distributions)
                     )
 
 FC_REFLECT_DERIVED( graphene::chain::account_balance_object,
@@ -454,10 +464,11 @@ FC_REFLECT_DERIVED( graphene::chain::account_statistics_object,
                     (graphene::chain::object),
                     (owner)
                     (most_recent_op)
-                    (total_ops)
+                    (total_ops)(removed_ops)
                     (total_core_in_orders)
                     (lifetime_fees_paid)
                     (pending_fees)(pending_vested_fees)
+                    (last_vote_time)
                   )
 
 FC_REFLECT_DERIVED( graphene::chain::pending_dividend_payout_balance_for_holder_object,

@@ -21,19 +21,167 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <graphene/chain/hardfork.hpp>
 #include <graphene/chain/proposal_evaluator.hpp>
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/account_object.hpp>
+#include <graphene/chain/protocol/account.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
+#include <graphene/chain/protocol/tournament.hpp>
 #include <graphene/chain/exceptions.hpp>
+#include <graphene/chain/hardfork.hpp>
 
 #include <fc/smart_ref_impl.hpp>
 
 namespace graphene { namespace chain {
 
+struct proposal_operation_hardfork_visitor
+{
+   typedef void result_type;
+   const fc::time_point_sec block_time;
+
+   proposal_operation_hardfork_visitor( const fc::time_point_sec bt ) : block_time(bt) {}
+
+   template<typename T>
+   void operator()(const T &v) const {}
+
+   void operator()(const committee_member_update_global_parameters_operation &op) const {
+      if( block_time < HARDFORK_1000_TIME ) { // TODO: remove after hf
+         FC_ASSERT( !op.new_parameters.extensions.value.min_bet_multiplier.valid()
+               && !op.new_parameters.extensions.value.max_bet_multiplier.valid()
+               && !op.new_parameters.extensions.value.betting_rake_fee_percentage.valid()
+               && !op.new_parameters.extensions.value.permitted_betting_odds_increments.valid()
+               && !op.new_parameters.extensions.value.live_betting_delay_time.valid(),
+               "Parameter extensions are not allowed yet!" );
+         FC_ASSERT( !op.new_parameters.current_fees->exists<sport_create_operation>()
+               && !op.new_parameters.current_fees->exists<sport_update_operation>()
+               && !op.new_parameters.current_fees->exists<sport_delete_operation>()
+               && !op.new_parameters.current_fees->exists<event_group_create_operation>()
+               && !op.new_parameters.current_fees->exists<event_group_update_operation>()
+               && !op.new_parameters.current_fees->exists<event_group_delete_operation>()
+               && !op.new_parameters.current_fees->exists<event_create_operation>()
+               && !op.new_parameters.current_fees->exists<event_update_operation>()
+               && !op.new_parameters.current_fees->exists<betting_market_rules_create_operation>()
+               && !op.new_parameters.current_fees->exists<betting_market_rules_update_operation>()
+               && !op.new_parameters.current_fees->exists<betting_market_group_create_operation>()
+               && !op.new_parameters.current_fees->exists<betting_market_create_operation>()
+               && !op.new_parameters.current_fees->exists<bet_place_operation>()
+               && !op.new_parameters.current_fees->exists<betting_market_group_resolve_operation>()
+               && !op.new_parameters.current_fees->exists<betting_market_group_cancel_unmatched_bets_operation>()
+               && !op.new_parameters.current_fees->exists<bet_cancel_operation>()
+               && !op.new_parameters.current_fees->exists<betting_market_group_update_operation>()
+               && !op.new_parameters.current_fees->exists<betting_market_update_operation>()
+               && !op.new_parameters.current_fees->exists<event_update_status_operation>(),
+               "Bookie-specific operations not available before HARDFORK_1000_TIME" );
+      }
+   }
+
+   void operator()(const graphene::chain::tournament_payout_operation &o) const {
+      // TODO: move check into tournament_payout_operation::validate after HARDFORK_999_TIME
+      FC_ASSERT( block_time < HARDFORK_999_TIME, "Not allowed!" );
+   }
+
+   void operator()(const graphene::chain::asset_settle_cancel_operation &o) const {
+      // TODO: move check into asset_settle_cancel_operation::validate after HARDFORK_999_TIME
+      FC_ASSERT( block_time < HARDFORK_999_TIME, "Not allowed!" );
+   }
+
+   void operator()(const graphene::chain::account_create_operation &aco) const {
+      // TODO: remove after HARDFORK_999_TIME
+      if (block_time < HARDFORK_999_TIME)
+         FC_ASSERT( !aco.extensions.value.affiliate_distributions.valid(), "Affiliate reward distributions not allowed yet" );
+   }
+
+   void operator()(const sport_create_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "sport_create_operation not allowed yet!" );
+   }
+
+   void operator()(const sport_update_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "sport_update_operation not allowed yet!" );
+   }
+
+   void operator()(const sport_delete_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "sport_delete_operation not allowed yet!" );
+   }
+
+   void operator()(const event_group_create_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "event_group_create_operation not allowed yet!" );
+   }
+
+   void operator()(const event_group_update_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "event_group_update_operation not allowed yet!" );
+   }
+
+   void operator()(const event_group_delete_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "event_group_delete_operation not allowed yet!" );
+   }
+
+   void operator()(const event_create_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "event_create_operation not allowed yet!" );
+   }
+
+   void operator()(const event_update_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "event_update_operation not allowed yet!" );
+   }
+
+   void operator()(const betting_market_rules_create_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "betting_market_rules_create_operation not allowed yet!" );
+   }
+
+   void operator()(const betting_market_rules_update_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "betting_market_rules_update_operation not allowed yet!" );
+   }
+
+   void operator()(const betting_market_group_create_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "betting_market_group_create_operation not allowed yet!" );
+   }
+
+   void operator()(const betting_market_create_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "betting_market_create_operation not allowed yet!" );
+   }
+
+   void operator()(const bet_place_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "bet_place_operation not allowed yet!" );
+   }
+
+   void operator()(const betting_market_group_resolve_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "betting_market_group_resolve_operation not allowed yet!" );
+   }
+
+   void operator()(const betting_market_group_cancel_unmatched_bets_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "betting_market_group_cancel_unmatched_bets_operation not allowed yet!" );
+   }
+
+   void operator()(const bet_cancel_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "bet_cancel_operation not allowed yet!" );
+   }
+
+   void operator()(const betting_market_group_update_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "betting_market_group_update_operation not allowed yet!" );
+   }
+
+   void operator()(const betting_market_update_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "betting_market_update_operation not allowed yet!" );
+   }
+
+   void operator()(const event_update_status_operation &v) const {
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "event_update_status_operation not allowed yet!" );
+   }
+
+   // loop and self visit in proposals
+   void operator()(const proposal_create_operation &v) const {
+      for (const op_wrapper &op : v.proposed_ops)
+         op.op.visit(*this);
+   }
+};
+
 void_result proposal_create_evaluator::do_evaluate(const proposal_create_operation& o)
 { try {
    const database& d = db();
+
+   proposal_operation_hardfork_visitor vtor( d.head_block_time() );
+   vtor( o );
+
    const auto& global_parameters = d.get_global_properties().parameters;
 
    FC_ASSERT( o.expiration_time > d.head_block_time(), "Proposal has already expired on creation." );
@@ -85,6 +233,7 @@ object_id_type proposal_create_evaluator::do_apply(const proposal_create_operati
    const proposal_object& proposal = d.create<proposal_object>([&](proposal_object& proposal) {
       _proposed_trx.expiration = o.expiration_time;
       proposal.proposed_transaction = _proposed_trx;
+      proposal.proposer = o.fee_paying_account;
       proposal.expiration_time = o.expiration_time;
       if( o.review_period_seconds )
          proposal.review_period_time = o.expiration_time - *o.review_period_seconds;

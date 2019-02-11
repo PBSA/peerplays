@@ -36,6 +36,10 @@
 #include <graphene/chain/withdraw_permission_object.hpp>
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/worker_object.hpp>
+#include <graphene/chain/sport_object.hpp>
+#include <graphene/chain/event_group_object.hpp>
+#include <graphene/chain/event_object.hpp>
+#include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/match_object.hpp>
 #include <graphene/chain/game_object.hpp>
@@ -378,7 +382,6 @@ struct serializer_init_helper<T, fc::true_type> {
   }
 };
 
-
 template<typename T, bool reflected>
 struct serializer
 {
@@ -388,7 +391,6 @@ struct serializer
    {
      serializer_init_helper< T, typename fc::reflector<T>::is_enum >::init();
    }
-
 };
 
 } // namespace detail_ns

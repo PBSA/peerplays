@@ -81,6 +81,17 @@ class account_history_plugin : public graphene::app::plugin
       std::unique_ptr<detail::account_history_plugin_impl> my;
 };
 
+class affiliate_reward_index : public secondary_index
+{
+   public:
+      virtual void object_inserted( const object& obj ) override;
+      virtual void object_removed( const object& obj ) override;
+      virtual void about_to_modify( const object& before ) override{};
+      virtual void object_modified( const object& after  ) override{};
+
+      map<account_id_type, set<operation_history_id_type> > _history_by_account;
+};
+
 } } //graphene::account_history
 
 /*struct by_id;

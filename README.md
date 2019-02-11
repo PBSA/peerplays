@@ -6,10 +6,9 @@ This is a quick introduction to get new developers and witnesses up to speed on 
 Starting A Peerplays Node
 -----------------
 
-For Ubuntu 14.04 LTS and up users, see this link first:
-    https://github.com/cryptonomex/graphene/wiki/build-ubuntu
-
-and then proceed with:
+For Ubuntu 14.04 LTS and up users, see
+[this](https://github.com/cryptonomex/graphene/wiki/build-ubuntu) and
+then proceed with:
 
     git clone https://github.com/pbsa/peerplays.git
     cd peerplays
@@ -20,7 +19,7 @@ and then proceed with:
     
 Launching the witness creates required directories. Next, **stop the witness** and continue.
 
-    vi witness_node_data_dir/config.ini
+    $ vi witness_node_data_dir/config.ini
     p2p-endpoint = 0.0.0.0:9777
     rpc-endpoint = 127.0.0.1:8090
     seed-node = 213.184.225.234:59500
@@ -31,7 +30,9 @@ Start the witness back up
 
 Upgrading A Peerplays Node
 -----------------
-To minimize downtime of your peerplays node when upgrading, one upgrade idea was written in this steemit article: https://steemit.com/peerplays/@joseph/peerplays-update-setting-a-backup-witness-server-switching-servers
+To minimize downtime of your peerplays node when upgrading, one upgrade
+idea was written in [this steemit
+article](https://steemit.com/peerplays/@joseph/peerplays-update-setting-a-backup-witness-server-switching-servers).
 
 Wallet Setup
 -----------------
@@ -48,16 +49,11 @@ A list of CLI wallet commands is available
 [here](https://github.com/PBSA/peerplays/blob/master/libraries/wallet/include/graphene/wallet/wallet.hpp).
 
 
-Testnet
+Testnet - "Beatrice"
 ----------------------
-- chain-id - 5b37954aa0d33a8e0d57b084995c262a7c13dbc0693d3e96654e63ff45a9ceec
+- chain-id - T.B.D.
 
-Register your username at the faucet address
----------------------------
-https://595-dev.pixelplex.by/
-
-
-Use the get_private_key_from_password command
+Use the `get_private_key_from_password` command
 ---------------------------------
 You will to generate owner and active keys
 
@@ -144,9 +140,6 @@ You will get logs that look like this:
 
 ```
 2070264ms th_a       application.cpp:506           handle_block         ] Got block: #87913 time: 2017-05-27T16:34:30 latency: 264 ms from: bhuz-witness  irreversible: 87903 (-10)
-2071000ms th_a       witness.cpp:204               block_production_loo ] Not producing block because slot has not yet arrived
-2072000ms th_a       witness.cpp:204               block_production_loo ] Not producing block because slot has not yet arrived
-2073000ms th_a       witness.cpp:201               block_production_loo ] Not producing block because it isn't my turn
 ```
 
 Assuming you've received votes, you will start producing as a witness at the next maintenance interval (once per hour). You can check your votes with.
@@ -205,11 +198,7 @@ Check your logfile for entries
 tail -f /var/log/peerplays.log
 ```
 
-
 Running specific tests
 ----------------------
 
 - `tests/chain_tests -t block_tests/name_of_test`
-
-
- 

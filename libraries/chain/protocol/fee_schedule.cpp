@@ -189,11 +189,22 @@ namespace graphene { namespace chain {
       FC_ASSERT( maximum_proposal_lifetime - committee_proposal_review_period > block_interval,
                  "Committee proposal review period must be less than the maximum proposal lifetime" );
 
-      FC_ASSERT( rake_fee_percentage >= TOURNAMENT_MINIMAL_RAKE_FEE_PERCENTAGE,
-                 "Rake fee percentage must not be less than ${min}", ("min",TOURNAMENT_MINIMAL_RAKE_FEE_PERCENTAGE));
-      FC_ASSERT( rake_fee_percentage <= TOURNAMENT_MAXIMAL_RAKE_FEE_PERCENTAGE,
-                 "Rake fee percentage must not be greater than ${max}", ("max", TOURNAMENT_MAXIMAL_RAKE_FEE_PERCENTAGE));
+      if( extensions.value.min_bet_multiplier.valid() )
+         FC_ASSERT( *extensions.value.min_bet_multiplier >= GRAPHENE_BETTING_MIN_MULTIPLIER &&
+                    *extensions.value.min_bet_multiplier <= GRAPHENE_BETTING_MAX_MULTIPLIER );
+      if( extensions.value.max_bet_multiplier.valid() )
+         FC_ASSERT( *extensions.value.max_bet_multiplier >= GRAPHENE_BETTING_MIN_MULTIPLIER &&
+                    *extensions.value.max_bet_multiplier <= GRAPHENE_BETTING_MAX_MULTIPLIER );
+      if( extensions.value.min_bet_multiplier.valid() && extensions.value.max_bet_multiplier.valid() )
+         FC_ASSERT( *extensions.value.min_bet_multiplier < *extensions.value.max_bet_multiplier );
 
+      if( extensions.value.betting_rake_fee_percentage.valid() )
+      {
+         FC_ASSERT( *extensions.value.betting_rake_fee_percentage >= TOURNAMENT_MINIMAL_RAKE_FEE_PERCENTAGE,
+                    "Rake fee percentage must not be less than ${min}", ("min",TOURNAMENT_MINIMAL_RAKE_FEE_PERCENTAGE));
+         FC_ASSERT( *extensions.value.betting_rake_fee_percentage <= TOURNAMENT_MAXIMAL_RAKE_FEE_PERCENTAGE,
+                    "Rake fee percentage must not be greater than ${max}", ("max", TOURNAMENT_MAXIMAL_RAKE_FEE_PERCENTAGE));
+      }
    }
 
 } } // graphene::chain

@@ -26,6 +26,9 @@
 
 #include <graphene/account_history/account_history_plugin.hpp>
 #include <graphene/market_history/market_history_plugin.hpp>
+#include <graphene/bookie/bookie_plugin.hpp>
+#include <graphene/bookie/bookie_api.hpp>
+#include <graphene/affiliate_stats/affiliate_stats_plugin.hpp>
 
 #include <graphene/db/simple_index.hpp>
 
@@ -36,6 +39,11 @@
 #include <graphene/chain/market_object.hpp>
 #include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/betting_market_object.hpp>
+#include <graphene/chain/proposal_object.hpp>
+#include <graphene/chain/sport_object.hpp>
+#include <graphene/chain/event_group_object.hpp>
+#include <graphene/chain/event_object.hpp>
 #include <graphene/chain/tournament_object.hpp>
 
 #include <graphene/utilities/tempdir.hpp>
@@ -51,7 +59,7 @@
 
 using namespace graphene::chain::test;
 
-uint32_t GRAPHENE_TESTING_GENESIS_TIMESTAMP = 1431700000;
+uint32_t GRAPHENE_TESTING_GENESIS_TIMESTAMP = 1431700002;
 
 namespace graphene { namespace chain {
 
@@ -75,13 +83,17 @@ database_fixture::database_fixture()
 
    auto ahplugin = app.register_plugin<graphene::account_history::account_history_plugin>();
    auto mhplugin = app.register_plugin<graphene::market_history::market_history_plugin>();
+   auto bookieplugin = app.register_plugin<graphene::bookie::bookie_plugin>();
+   auto affiliateplugin = app.register_plugin<graphene::affiliate_stats::affiliate_stats_plugin>();
    init_account_pub_key = init_account_priv_key.get_public_key();
 
    boost::program_options::variables_map options;
 
    genesis_state.initial_timestamp = time_point_sec( GRAPHENE_TESTING_GENESIS_TIMESTAMP );
-   genesis_state.initial_timestamp = time_point_sec( (fc::time_point::now().sec_since_epoch() / GRAPHENE_DEFAULT_BLOCK_INTERVAL) * GRAPHENE_DEFAULT_BLOCK_INTERVAL );
-//   genesis_state.initial_parameters.witness_schedule_algorithm = GRAPHENE_WITNESS_SHUFFLED_ALGORITHM;
+   //int back_to_the_past = 0;
+   //back_to_the_past = 7 * 24 * 60 * 60; // week
+   //genesis_state.initial_timestamp = time_point_sec( (fc::time_point::now().sec_since_epoch() - back_to_the_past) / GRAPHENE_DEFAULT_BLOCK_INTERVAL * GRAPHENE_DEFAULT_BLOCK_INTERVAL );
+   genesis_state.initial_parameters.witness_schedule_algorithm = GRAPHENE_WITNESS_SHUFFLED_ALGORITHM;
 
    genesis_state.initial_active_witnesses = 10;
    for( unsigned i = 0; i < genesis_state.initial_active_witnesses; ++i )
@@ -102,9 +114,15 @@ database_fixture::database_fixture()
    ahplugin->plugin_initialize(options);
    mhplugin->plugin_set_app(&app);
    mhplugin->plugin_initialize(options);
+   bookieplugin->plugin_set_app(&app);
+   bookieplugin->plugin_initialize(options);
+   affiliateplugin->plugin_set_app(&app);
+   affiliateplugin->plugin_initialize(options);
 
    ahplugin->plugin_startup();
    mhplugin->plugin_startup();
+   bookieplugin->plugin_startup();
+   affiliateplugin->plugin_startup();
 
    generate_block();
 
@@ -152,8 +170,10 @@ string database_fixture::generate_anon_acct_name()
 void database_fixture::verify_asset_supplies( const database& db )
 {
    //wlog("*** Begin asset supply verification ***");
-   const asset_dynamic_data_object& core_asset_data = db.get_core_asset().dynamic_asset_data_id(db);
-   BOOST_CHECK(core_asset_data.fee_pool == 0);
+
+   // It seems peerplays by default DO have core fee pool in genesis so commenting this out
+   //const asset_dynamic_data_object& core_asset_data = db.get_core_asset().dynamic_asset_data_id(db);
+   //BOOST_CHECK(core_asset_data.fee_pool == 0);
 
    const simple_index<account_statistics_object>& statistics_index = db.get_index_type<simple_index<account_statistics_object>>();
    const auto& balance_index = db.get_index_type<account_balance_index>().indices();
@@ -194,20 +214,32 @@ void database_fixture::verify_asset_supplies( const database& db )
    }
    for( const asset_object& asset_obj : db.get_index_type<asset_index>().indices() )
    {
-      total_balances[asset_obj.id] += asset_obj.dynamic_asset_data_id(db).accumulated_fees;
-      if( asset_obj.id != asset_id_type() )
-         BOOST_CHECK_EQUAL(total_balances[asset_obj.id].value, asset_obj.dynamic_asset_data_id(db).current_supply.value);
-      total_balances[asset_id_type()] += asset_obj.dynamic_asset_data_id(db).fee_pool;
+      const auto& dasset_obj = asset_obj.dynamic_asset_data_id(db);
+      total_balances[asset_obj.id] += dasset_obj.accumulated_fees;
+      total_balances[asset_id_type()] += dasset_obj.fee_pool;
       if( asset_obj.is_market_issued() )
       {
          const auto& bad = asset_obj.bitasset_data(db);
          total_balances[bad.options.short_backing_asset] += bad.settlement_fund;
       }
+      total_balances[asset_obj.id] += dasset_obj.confidential_supply.value;
    }
    for( const vesting_balance_object& vbo : db.get_index_type< vesting_balance_index >().indices() )
       total_balances[ vbo.balance.asset_id ] += vbo.balance.amount;
    for( const fba_accumulator_object& fba : db.get_index_type< simple_index< fba_accumulator_object > >() )
       total_balances[ asset_id_type() ] += fba.accumulated_fba_fees;
+
+   for (const bet_object& o : db.get_index_type<bet_object_index>().indices())
+   {
+      total_balances[o.amount_to_bet.asset_id] += o.amount_to_bet.amount;
+   }
+   for (const betting_market_position_object& o : db.get_index_type<betting_market_position_index>().indices())
+   {
+      const betting_market_object& betting_market = o.betting_market_id(db);
+      const betting_market_group_object& betting_market_group = betting_market.group_id(db);
+      total_balances[betting_market_group.asset_id] += o.pay_if_canceled;
+      total_balances[betting_market_group.asset_id] += o.fees_collected;
+   }
 
    total_balances[asset_id_type()] += db.get_dynamic_global_properties().witness_budget;
 
@@ -216,8 +248,12 @@ void database_fixture::verify_asset_supplies( const database& db )
       BOOST_CHECK_EQUAL(item.first(db).dynamic_asset_data_id(db).current_supply.value, item.second.value);
    }
 
+   for( const asset_object& asset_obj : db.get_index_type<asset_index>().indices() )
+   {
+      BOOST_CHECK_EQUAL(total_balances[asset_obj.id].value, asset_obj.dynamic_asset_data_id(db).current_supply.value);
+   }
+
    BOOST_CHECK_EQUAL( core_in_orders.value , reported_core_in_orders.value );
-   BOOST_CHECK_EQUAL( total_balances[asset_id_type()].value , core_asset_data.current_supply.value - core_asset_data.confidential_supply.value);
 //   wlog("***  End  asset supply verification ***");
 }
 
@@ -422,7 +458,7 @@ const asset_object& database_fixture::get_asset( const string& symbol )const
 {
    const auto& idx = db.get_index_type<asset_index>().indices().get<by_symbol>();
    const auto itr = idx.find(symbol);
-   assert( itr != idx.end() );
+   FC_ASSERT( itr != idx.end() );
    return *itr;
 }
 
@@ -430,7 +466,7 @@ const account_object& database_fixture::get_account( const string& name )const
 {
    const auto& idx = db.get_index_type<account_index>().indices().get<by_name>();
    const auto itr = idx.find(name);
-   assert( itr != idx.end() );
+   FC_ASSERT( itr != idx.end() );
    return *itr;
 }
 
@@ -1082,6 +1118,407 @@ vector< operation_history_object > database_fixture::get_operation_history( acco
    return result;
 }
 
+void database_fixture::process_operation_by_witnesses(operation op)
+{
+   const flat_set<witness_id_type>& active_witnesses = db.get_global_properties().active_witnesses;
+
+   proposal_create_operation proposal_op;
+   proposal_op.fee_paying_account = (*active_witnesses.begin())(db).witness_account;
+   proposal_op.proposed_ops.emplace_back(op);
+   proposal_op.expiration_time =  db.head_block_time() + fc::days(1);
+
+   signed_transaction tx;
+   tx.operations.push_back(proposal_op);
+   set_expiration(db, tx);
+   sign(tx, init_account_priv_key);
+
+   processed_transaction processed_tx = db.push_transaction(tx);
+   proposal_id_type proposal_id = processed_tx.operation_results[0].get<object_id_type>();
+
+   for (const witness_id_type& witness_id : active_witnesses)
+   {
+      const witness_object& witness = witness_id(db);
+      const account_object& witness_account = witness.witness_account(db);
+
+      proposal_update_operation pup;
+      pup.proposal = proposal_id;
+      pup.fee_paying_account = witness_account.id;
+      pup.active_approvals_to_add.insert(witness_account.id);
+
+      signed_transaction tx;
+      tx.operations.push_back( pup );
+      set_expiration( db, tx );
+      sign(tx, init_account_priv_key);
+
+      db.push_transaction(tx, ~0);
+      const auto& proposal_idx = db.get_index_type<proposal_index>().indices().get<by_id>();
+      if (proposal_idx.find(proposal_id) == proposal_idx.end())
+         break;
+   }
+}
+
+void database_fixture::process_operation_by_committee(operation op)
+{
+   const vector<committee_member_id_type>& active_committee_members = db.get_global_properties().active_committee_members;
+
+   proposal_create_operation proposal_op;
+   proposal_op.fee_paying_account = (*active_committee_members.begin())(db).committee_member_account;
+   proposal_op.proposed_ops.emplace_back(op);
+   proposal_op.expiration_time =  db.head_block_time() + fc::days(1);
+
+   signed_transaction tx;
+   tx.operations.push_back(proposal_op);
+   set_expiration(db, tx);
+   sign(tx, init_account_priv_key);
+
+   processed_transaction processed_tx = db.push_transaction(tx);
+   proposal_id_type proposal_id = processed_tx.operation_results[0].get<object_id_type>();
+
+   for (const committee_member_id_type& committee_member_id : active_committee_members)
+   {
+      const committee_member_object& committee_member = committee_member_id(db);
+      const account_object& committee_member_account = committee_member.committee_member_account(db);
+
+      proposal_update_operation pup;
+      pup.proposal = proposal_id;
+      pup.fee_paying_account = committee_member_account.id;
+      pup.active_approvals_to_add.insert(committee_member_account.id);
+
+      signed_transaction tx;
+      tx.operations.push_back( pup );
+      set_expiration( db, tx );
+      sign(tx, init_account_priv_key);
+
+      db.push_transaction(tx, ~0);
+      const auto& proposal_idx = db.get_index_type<proposal_index>().indices().get<by_id>();
+      if (proposal_idx.find(proposal_id) == proposal_idx.end())
+         break;
+   }
+}
+
+void database_fixture::force_operation_by_witnesses(operation op)
+{
+   const chain_parameters& params = db.get_global_properties().parameters;
+   signed_transaction trx;
+   trx.operations = {op};
+   for( auto& op : trx.operations )
+       db.current_fee_schedule().set_fee(op);
+   trx.validate();
+   trx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
+   sign(trx, init_account_priv_key);
+   PUSH_TX(db, trx);
+}
+
+void database_fixture::set_is_proposed_trx(operation op)
+{
+    const flat_set<witness_id_type>& active_witnesses = db.get_global_properties().active_witnesses;
+
+    proposal_create_operation proposal_op;
+    proposal_op.fee_paying_account = (*active_witnesses.begin())(db).witness_account;
+    proposal_op.proposed_ops.emplace_back(op);
+    proposal_op.expiration_time =  db.head_block_time() + fc::days(1);
+
+    signed_transaction tx;
+    tx.operations.push_back(proposal_op);
+    set_expiration(db, tx);
+    sign(tx, init_account_priv_key);
+
+    processed_transaction processed_tx = db.push_transaction(tx);
+    proposal_id_type proposal_id = processed_tx.operation_results[0].get<object_id_type>();
+
+    for (const witness_id_type& witness_id : active_witnesses)
+    {
+       const witness_object& witness = witness_id(db);
+       const account_object& witness_account = witness.witness_account(db);
+
+       proposal_update_operation pup;
+       pup.proposal = proposal_id;
+       pup.fee_paying_account = witness_account.id;
+       pup.active_approvals_to_add.insert(witness_account.id);
+
+       db.push_proposal(pup.proposal(db));
+       break;
+    }
+}
+
+proposal_id_type database_fixture::propose_operation(operation op)
+{
+    const flat_set<witness_id_type>& active_witnesses = db.get_global_properties().active_witnesses;
+
+    proposal_create_operation proposal_op;
+    proposal_op.fee_paying_account = (*active_witnesses.begin())(db).witness_account;
+    proposal_op.proposed_ops.emplace_back(op);
+    proposal_op.expiration_time =  db.head_block_time() + fc::days(1);
+
+    signed_transaction tx;
+    tx.operations.push_back(proposal_op);
+    set_expiration(db, tx);
+    sign(tx, init_account_priv_key);
+
+    processed_transaction processed_tx = db.push_transaction(tx);
+    proposal_id_type proposal_id = processed_tx.operation_results[0].get<object_id_type>();
+
+    return proposal_id;
+}
+
+void database_fixture::process_proposal_by_witnesses(const std::vector<witness_id_type>& witnesses, proposal_id_type proposal_id, bool remove)
+{
+   const auto& proposal_idx = db.get_index_type<proposal_index>().indices().get<by_id>();
+
+   for (const witness_id_type& witness_id : witnesses)
+   {
+      if (proposal_idx.find(proposal_id) == proposal_idx.end())
+          break;
+
+      const witness_object& witness = witness_id(db);
+      const account_object& witness_account = witness.witness_account(db);
+
+      proposal_update_operation pup;
+      pup.proposal = proposal_id;
+      pup.fee_paying_account = witness_account.id;
+      if (remove)
+          pup.active_approvals_to_remove.insert(witness_account.id);
+      else
+          pup.active_approvals_to_add.insert(witness_account.id);
+
+      signed_transaction tx;
+      tx.operations.push_back( pup );
+      set_expiration( db, tx );
+      sign(tx, init_account_priv_key);
+
+      db.push_transaction(tx, ~0);
+   }
+}
+
+const sport_object& database_fixture::create_sport(internationalized_string_type name)
+{ try {
+   sport_create_operation sport_create_op;
+   sport_create_op.name = name;
+   process_operation_by_witnesses(sport_create_op);
+   const auto& sport_index = db.get_index_type<sport_object_index>().indices().get<by_id>();
+   return *sport_index.rbegin();
+} FC_CAPTURE_AND_RETHROW( (name) ) }
+
+void database_fixture::update_sport(sport_id_type sport_id, internationalized_string_type name)
+{ try {
+   sport_update_operation sport_update_op;
+   sport_update_op.sport_id = sport_id;
+   sport_update_op.new_name = name;
+   process_operation_by_witnesses(sport_update_op);
+} FC_CAPTURE_AND_RETHROW( (sport_id)(name) ) }
+
+void database_fixture::delete_sport(sport_id_type sport_id)
+{ try {
+    sport_delete_operation sport_delete_op;
+    sport_delete_op.sport_id = sport_id;
+    process_operation_by_witnesses(sport_delete_op);
+} FC_CAPTURE_AND_RETHROW( (sport_id) ) }
+    
+const event_group_object& database_fixture::create_event_group(internationalized_string_type name, sport_id_type sport_id)
+{ try {
+   event_group_create_operation event_group_create_op;
+   event_group_create_op.name = name;
+   event_group_create_op.sport_id = sport_id;
+   process_operation_by_witnesses(event_group_create_op);
+   const auto& event_group_index = db.get_index_type<event_group_object_index>().indices().get<by_id>();
+   return *event_group_index.rbegin();
+} FC_CAPTURE_AND_RETHROW( (name) ) }
+
+void database_fixture::update_event_group(event_group_id_type event_group_id,
+                                          fc::optional<object_id_type> sport_id,
+                                          fc::optional<internationalized_string_type> name)
+{ try {
+   event_group_update_operation event_group_update_op;
+   event_group_update_op.new_name = name;
+   event_group_update_op.new_sport_id = sport_id;
+   event_group_update_op.event_group_id = event_group_id;
+   process_operation_by_witnesses(event_group_update_op);
+} FC_CAPTURE_AND_RETHROW( (name) )
+}
+
+void database_fixture::delete_event_group(event_group_id_type event_group_id)
+{ try {
+    event_group_delete_operation event_group_delete_op;
+    event_group_delete_op.event_group_id = event_group_id;
+    process_operation_by_witnesses(event_group_delete_op);
+} FC_CAPTURE_AND_RETHROW( (event_group_id) )
+}
+    
+void database_fixture::try_update_event_group(event_group_id_type event_group_id,
+                                              fc::optional<object_id_type> sport_id,
+                                              fc::optional<internationalized_string_type> name,
+                                              bool dont_set_is_proposed_trx /* = false */)
+{
+   event_group_update_operation event_group_update_op;
+   event_group_update_op.new_name = name;
+   event_group_update_op.new_sport_id = sport_id;
+   event_group_update_op.event_group_id = event_group_id;
+
+   if (!dont_set_is_proposed_trx)
+        set_is_proposed_trx(event_group_update_op);
+
+   const chain_parameters& params = db.get_global_properties().parameters;
+   signed_transaction trx;
+   trx.operations = {event_group_update_op};
+   for( auto& op : trx.operations )
+       db.current_fee_schedule().set_fee(op);
+   trx.validate();
+   trx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
+   sign(trx, init_account_priv_key);
+   PUSH_TX(db, trx);
+}
+
+const event_object& database_fixture::create_event(internationalized_string_type name, internationalized_string_type season, event_group_id_type event_group_id)
+{ try {
+   event_create_operation event_create_op;
+   event_create_op.name = name;
+   event_create_op.season = season;
+   event_create_op.event_group_id = event_group_id;
+   process_operation_by_witnesses(event_create_op);
+   const auto& event_index = db.get_index_type<event_object_index>().indices().get<by_id>();
+   return *event_index.rbegin();
+} FC_CAPTURE_AND_RETHROW( (event_group_id) ) }
+
+void database_fixture::update_event_impl(event_id_type event_id,
+                                         fc::optional<object_id_type> event_group_id,
+                                         fc::optional<internationalized_string_type> name,
+                                         fc::optional<internationalized_string_type> season,
+                                         fc::optional<event_status> status, 
+                                         bool force)
+{ try {
+   event_update_operation event_update_op;
+   event_update_op.event_id = event_id;
+   event_update_op.new_event_group_id = event_group_id;
+   event_update_op.new_name = name;
+   event_update_op.new_season = season;
+   event_update_op.new_status = status;
+
+   if (force)
+     force_operation_by_witnesses(event_update_op);
+   else
+     process_operation_by_witnesses(event_update_op);
+} FC_CAPTURE_AND_RETHROW( (event_id) ) }
+
+const betting_market_rules_object& database_fixture::create_betting_market_rules(internationalized_string_type name, internationalized_string_type description)
+{ try {
+   betting_market_rules_create_operation betting_market_rules_create_op;
+   betting_market_rules_create_op.name = name;
+   betting_market_rules_create_op.description = description;
+   process_operation_by_witnesses(betting_market_rules_create_op);
+   const auto& betting_market_rules_index = db.get_index_type<betting_market_rules_object_index>().indices().get<by_id>();
+   return *betting_market_rules_index.rbegin();
+} FC_CAPTURE_AND_RETHROW( (name) ) }
+
+void database_fixture::update_betting_market_rules(betting_market_rules_id_type rules_id,
+                                                   fc::optional<internationalized_string_type> name,
+                                                   fc::optional<internationalized_string_type> description)
+{ try {
+   betting_market_rules_update_operation betting_market_rules_update_op;
+   betting_market_rules_update_op.betting_market_rules_id = rules_id;
+   betting_market_rules_update_op.new_name = name;
+   betting_market_rules_update_op.new_description = description;
+   process_operation_by_witnesses(betting_market_rules_update_op);
+} FC_CAPTURE_AND_RETHROW( (name)(description) ) }
+
+const betting_market_group_object& database_fixture::create_betting_market_group(internationalized_string_type description, 
+                                                                                 event_id_type event_id, 
+                                                                                 betting_market_rules_id_type rules_id, 
+                                                                                 asset_id_type asset_id,
+                                                                                 bool never_in_play,
+                                                                                 uint32_t delay_before_settling)
+{ try {
+   betting_market_group_create_operation betting_market_group_create_op;
+   betting_market_group_create_op.description = description;
+   betting_market_group_create_op.event_id = event_id;
+   betting_market_group_create_op.rules_id = rules_id;
+   betting_market_group_create_op.asset_id = asset_id;
+   betting_market_group_create_op.never_in_play = never_in_play;
+   betting_market_group_create_op.delay_before_settling = delay_before_settling;
+
+   process_operation_by_witnesses(betting_market_group_create_op);
+   const auto& betting_market_group_index = db.get_index_type<betting_market_group_object_index>().indices().get<by_id>();
+   return *betting_market_group_index.rbegin();
+} FC_CAPTURE_AND_RETHROW( (event_id) ) }
+
+
+void database_fixture::update_betting_market_group_impl(betting_market_group_id_type betting_market_group_id,
+                                                        fc::optional<internationalized_string_type> description,
+                                                        fc::optional<object_id_type> rules_id,
+                                                        fc::optional<betting_market_group_status> status,
+                                                        bool force)
+{ try {
+   betting_market_group_update_operation betting_market_group_update_op;
+   betting_market_group_update_op.betting_market_group_id = betting_market_group_id;
+   betting_market_group_update_op.new_description = description;
+   betting_market_group_update_op.new_rules_id = rules_id;
+   betting_market_group_update_op.status = status;
+
+   if (force)
+     force_operation_by_witnesses(betting_market_group_update_op);
+   else
+     process_operation_by_witnesses(betting_market_group_update_op);
+} FC_CAPTURE_AND_RETHROW( (betting_market_group_id)(description)(rules_id)(status)) }
+
+
+const betting_market_object& database_fixture::create_betting_market(betting_market_group_id_type group_id, internationalized_string_type payout_condition)
+{ try {
+   betting_market_create_operation betting_market_create_op;
+   betting_market_create_op.group_id = group_id;
+   betting_market_create_op.payout_condition = payout_condition;
+   process_operation_by_witnesses(betting_market_create_op);
+   const auto& betting_market_index = db.get_index_type<betting_market_object_index>().indices().get<by_id>();
+   return *betting_market_index.rbegin();
+} FC_CAPTURE_AND_RETHROW( (payout_condition) ) }
+
+void database_fixture::update_betting_market(betting_market_id_type betting_market_id,
+                                             fc::optional<object_id_type> group_id,
+                                             /*fc::optional<internationalized_string_type> description,*/
+                                             fc::optional<internationalized_string_type> payout_condition)
+{ try {
+   betting_market_update_operation betting_market_update_op;
+   betting_market_update_op.betting_market_id = betting_market_id;
+   betting_market_update_op.new_group_id = group_id;
+   //betting_market_update_op.new_description = description;
+   betting_market_update_op.new_payout_condition = payout_condition;
+   process_operation_by_witnesses(betting_market_update_op);
+} FC_CAPTURE_AND_RETHROW( (betting_market_id) (group_id) (payout_condition) ) }
+
+
+ bet_id_type database_fixture::place_bet(account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, asset amount_to_bet, bet_multiplier_type backer_multiplier)
+{ try {
+   bet_place_operation bet_place_op;
+   bet_place_op.bettor_id = bettor_id;
+   bet_place_op.betting_market_id = betting_market_id;
+   bet_place_op.amount_to_bet = amount_to_bet;
+   bet_place_op.backer_multiplier = backer_multiplier;
+   bet_place_op.back_or_lay = back_or_lay;
+   
+   trx.operations.push_back(bet_place_op);
+   trx.validate();
+   processed_transaction ptx = db.push_transaction(trx, ~0);
+   trx.operations.clear();
+   BOOST_CHECK_MESSAGE(ptx.operation_results.size() == 1, "Place Bet Transaction should have had exactly one operation result");
+   return ptx.operation_results.front().get<object_id_type>().as<bet_id_type>();
+} FC_CAPTURE_AND_RETHROW( (bettor_id)(back_or_lay)(amount_to_bet) ) }
+
+
+void database_fixture::resolve_betting_market_group(betting_market_group_id_type betting_market_group_id,
+                                                    std::map<betting_market_id_type, betting_market_resolution_type> resolutions)
+{ try {
+   betting_market_group_resolve_operation betting_market_group_resolve_op;
+   betting_market_group_resolve_op.betting_market_group_id = betting_market_group_id;
+   betting_market_group_resolve_op.resolutions = resolutions;
+   process_operation_by_witnesses(betting_market_group_resolve_op);
+} FC_CAPTURE_AND_RETHROW( (betting_market_group_id)(resolutions) ) }
+
+void database_fixture::cancel_unmatched_bets(betting_market_group_id_type betting_market_group_id)
+{ try {
+   betting_market_group_cancel_unmatched_bets_operation betting_market_group_cancel_unmatched_bets_op;
+   betting_market_group_cancel_unmatched_bets_op.betting_market_group_id = betting_market_group_id;
+   process_operation_by_witnesses(betting_market_group_cancel_unmatched_bets_op);
+} FC_CAPTURE_AND_RETHROW( (betting_market_group_id) ) }
+
+
 namespace test {
 
 void set_expiration( const database& db, transaction& tx )
@@ -1089,7 +1526,6 @@ void set_expiration( const database& db, transaction& tx )
    const chain_parameters& params = db.get_global_properties().parameters;
    tx.set_reference_block(db.head_block_id());
    tx.set_expiration( db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3 ) );
-   return;
 }
 
 bool _push_block( database& db, const signed_block& b, uint32_t skip_flags /* = 0 */ )

@@ -57,34 +57,36 @@ void_result asset_create_evaluator::do_evaluate( const asset_create_operation& o
 
    if( d.head_block_time() > HARDFORK_385_TIME )
    {
-
-   if( d.head_block_time() <= HARDFORK_409_TIME )
-   {
-      auto dotpos = op.symbol.find( '.' );
-      if( dotpos != std::string::npos )
+      if( d.head_block_time() <= HARDFORK_409_TIME )
       {
-         auto prefix = op.symbol.substr( 0, dotpos );
-         auto asset_symbol_itr = asset_indx.find( op.symbol );
-         FC_ASSERT( asset_symbol_itr != asset_indx.end(), "Asset ${s} may only be created by issuer of ${p}, but ${p} has not been registered",
-                    ("s",op.symbol)("p",prefix) );
-         FC_ASSERT( asset_symbol_itr->issuer == op.issuer, "Asset ${s} may only be created by issuer of ${p}, ${i}",
-                    ("s",op.symbol)("p",prefix)("i", op.issuer(d).name) );
+         auto dotpos = op.symbol.find( '.' );
+         if( dotpos != std::string::npos )
+         {
+            auto prefix = op.symbol.substr( 0, dotpos );
+            auto asset_symbol_itr = asset_indx.find( op.symbol );
+            FC_ASSERT( asset_symbol_itr != asset_indx.end(),
+                       "Asset ${s} may only be created by issuer of ${p}, but ${p} has not been registered",
+                       ("s",op.symbol)("p",prefix) );
+            FC_ASSERT( asset_symbol_itr->issuer == op.issuer,
+                       "Asset ${s} may only be created by issuer of ${p}, ${i}",
+                       ("s",op.symbol)("p",prefix)("i", op.issuer(d).name) );
+         }
       }
-   }
-   else
-   {
-      auto dotpos = op.symbol.rfind( '.' );
-      if( dotpos != std::string::npos )
+      else
       {
-         auto prefix = op.symbol.substr( 0, dotpos );
-         auto asset_symbol_itr = asset_indx.find( prefix );
-         FC_ASSERT( asset_symbol_itr != asset_indx.end(), "Asset ${s} may only be created by issuer of ${p}, but ${p} has not been registered",
-                    ("s",op.symbol)("p",prefix) );
-         FC_ASSERT( asset_symbol_itr->issuer == op.issuer, "Asset ${s} may only be created by issuer of ${p}, ${i}",
-                    ("s",op.symbol)("p",prefix)("i", op.issuer(d).name) );
+         auto dotpos = op.symbol.rfind( '.' );
+         if( dotpos != std::string::npos )
+         {
+            auto prefix = op.symbol.substr( 0, dotpos );
+            auto asset_symbol_itr = asset_indx.find( prefix );
+            FC_ASSERT( asset_symbol_itr != asset_indx.end(),
+                       "Asset ${s} may only be created by issuer of ${p}, but ${p} has not been registered",
+                       ("s",op.symbol)("p",prefix) );
+            FC_ASSERT( asset_symbol_itr->issuer == op.issuer,
+                       "Asset ${s} may only be created by issuer of ${p}, ${i}",
+                       ("s",op.symbol)("p",prefix)("i", op.issuer(d).name) );
+         }
       }
-   }
-
    }
    else
    {
@@ -92,8 +94,6 @@ void_result asset_create_evaluator::do_evaluate( const asset_create_operation& o
       if( dotpos != std::string::npos )
           wlog( "Asset ${s} has a name which requires hardfork 385", ("s",op.symbol) );
    }
-
-   core_fee_paid -= core_fee_paid.value/2;
 
    if( op.bitasset_opts )
    {
@@ -121,12 +121,19 @@ void_result asset_create_evaluator::do_evaluate( const asset_create_operation& o
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
+void asset_create_evaluator::pay_fee()
+{
+   fee_is_odd = core_fee_paid.value & 1;
+   core_fee_paid -= core_fee_paid.value/2;
+   generic_evaluator::pay_fee();
+}
+
 object_id_type asset_create_evaluator::do_apply( const asset_create_operation& op )
 { try {
    const asset_dynamic_data_object& dyn_asset =
       db().create<asset_dynamic_data_object>( [&]( asset_dynamic_data_object& a ) {
          a.current_supply = 0;
-         a.fee_pool = core_fee_paid; //op.calculate_fee(db().current_fee_schedule()).value / 2;
+         a.fee_pool = core_fee_paid - (fee_is_odd ? 1 : 0);
       });
 
    asset_bitasset_data_id_type bit_asset_id;

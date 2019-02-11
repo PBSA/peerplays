@@ -35,6 +35,7 @@
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/game_object.hpp>
+#include <graphene/chain/betting_market_object.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
@@ -186,6 +187,52 @@ void database::clear_expired_transactions()
    const auto& dedupe_index = transaction_idx.indices().get<by_expiration>();
    while( (!dedupe_index.empty()) && (head_block_time() > dedupe_index.begin()->trx.expiration) )
       transaction_idx.remove(*dedupe_index.begin());
+} FC_CAPTURE_AND_RETHROW() }
+
+void database::place_delayed_bets()
+{ try {
+   // If any bets have been placed during live betting where bets are delayed for a few seconds, see if there are
+   // any bets whose delays have expired.
+
+   // Delayed bets are sorted to the beginning of the order book, so if there are any bets that need placing, 
+   // they're right at the front of the book
+   const auto& bet_odds_idx = get_index_type<bet_object_index>().indices().get<by_odds>();
+   auto iter = bet_odds_idx.begin();
+
+   // we use an awkward looping mechanism here because there's a case where we are processing the
+   // last delayed bet before the "real" order book starts and `iter` was pointing at the first 
+   // real order.  The place_bet() call can cause the that real order to be deleted, so we need
+   // to decide whether this is the last delayed bet before `place_bet` is called.
+   bool last = iter == bet_odds_idx.end() || 
+               !iter->end_of_delay ||
+               *iter->end_of_delay > head_block_time();
+   while (!last)
+   {
+      const bet_object& bet_to_place = *iter;
+      ++iter;
+
+      last = iter == bet_odds_idx.end() || 
+             !iter->end_of_delay ||
+             *iter->end_of_delay > head_block_time();
+
+      // it's possible that the betting market was active when the bet was placed,
+      // but has been frozen before the delay expired.  If that's the case here,
+      // don't try to match the bet.
+      // Since this check happens every block, this could impact performance if a
+      // market with many delayed bets is frozen for a long time.
+      // Our current understanding is that the witnesses will typically cancel all unmatched
+      // bets on frozen markets to avoid this.
+      const betting_market_object& betting_market = bet_to_place.betting_market_id(*this);
+      if (betting_market.get_status() == betting_market_status::unresolved)
+      {
+         modify(bet_to_place, [](bet_object& bet_obj) {
+            // clear the end_of_delay,  which will re-sort the bet into its place in the book
+            bet_obj.end_of_delay.reset();
+         });
+
+         place_bet(bet_to_place);
+      }
+   }
 } FC_CAPTURE_AND_RETHROW() }
 
 void database::clear_expired_proposals()
@@ -606,6 +653,31 @@ void database::update_tournaments()
    process_in_progress_tournaments(*this);
    initiate_next_round_of_matches(*this);
    initiate_next_games(*this);
+}
+
+void process_settled_betting_markets(database& db, fc::time_point_sec current_block_time)
+{
+   // after a betting market is graded, it goes through a delay period in which it
+   // can be flagged for re-grading.  If it isn't flagged during this interval, 
+   // it is automatically settled (paid).  Process these now.
+   const auto& betting_market_group_index = db.get_index_type<betting_market_group_object_index>().indices().get<by_settling_time>();
+
+   // this index will be sorted with all bmgs with no settling time set first, followed by 
+   // ones with the settling time set by increasing time.  Start at the first bmg with a time set
+   auto betting_market_group_iter = betting_market_group_index.upper_bound(fc::optional<fc::time_point_sec>());
+   while (betting_market_group_iter != betting_market_group_index.end() && 
+          *betting_market_group_iter->settling_time <= current_block_time)
+   {
+      auto next_iter = std::next(betting_market_group_iter);
+      db.settle_betting_market_group(*betting_market_group_iter);
+      betting_market_group_iter = next_iter;
+   }
+}
+
+void database::update_betting_markets(fc::time_point_sec current_block_time)
+{
+   process_settled_betting_markets(*this, current_block_time);
+   remove_completed_events();
 }
 
 } }

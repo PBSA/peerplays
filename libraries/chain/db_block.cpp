@@ -26,17 +26,62 @@
 #include <graphene/chain/db_with.hpp>
 #include <graphene/chain/hardfork.hpp>
 
+#include <graphene/chain/protocol/operations.hpp>
+#include <graphene/chain/protocol/betting_market.hpp>
+
 #include <graphene/chain/block_summary_object.hpp>
 #include <graphene/chain/global_property_object.hpp>
 #include <graphene/chain/operation_history_object.hpp>
+
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/transaction_object.hpp>
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/evaluator.hpp>
+#include <fc/crypto/digest.hpp>
 
 #include <fc/smart_ref_impl.hpp>
+
+namespace {
+    
+   struct proposed_operations_digest_accumulator
+   {
+      typedef void result_type;
+      
+      void operator()(const graphene::chain::proposal_create_operation& proposal)
+      {
+         for (auto& operation: proposal.proposed_ops)
+         {
+            proposed_operations_digests.push_back(fc::digest(operation.op));
+         }
+      }
+       
+      //empty template method is needed for all other operation types
+      //we can ignore them, we are interested in only proposal_create_operation
+      template<class T>
+      void operator()(const T&) 
+      {}
+      
+      std::vector<fc::sha256> proposed_operations_digests;
+   };
+   
+   std::vector<fc::sha256> gather_proposed_operations_digests(const graphene::chain::transaction& trx)
+   {
+      proposed_operations_digest_accumulator digest_accumulator;
+      
+      for (auto& operation: trx.operations)
+      {
+         if( operation.which() != graphene::chain::operation::tag<graphene::chain::betting_market_group_create_operation>::value
+          && operation.which() != graphene::chain::operation::tag<graphene::chain::betting_market_create_operation>::value )
+            operation.visit(digest_accumulator);
+         else
+            edump( ("Found dup"));
+      }
+       
+      return digest_accumulator.proposed_operations_digests;
+   }
+}
 
 namespace graphene { namespace chain {
 
@@ -103,7 +148,7 @@ std::vector<block_id_type> database::get_block_ids_on_fork(block_id_type head_of
   result.emplace_back(branches.first.back()->previous_id());
   return result;
 }
-
+    
 /**
  * Push block "may fail" in which case every partial change is unwound.  After
  * push block is successful the block is appended to the chain database on disk.
@@ -241,7 +286,7 @@ processed_transaction database::_push_transaction( const signed_transaction& trx
    auto processed_trx = _apply_transaction( trx );
    _pending_tx.push_back(processed_trx);
 
-   notify_changed_objects();
+   // notify_changed_objects();
    // The transaction applied successfully. Merge its changes into the pending block session.
    temp_session.merge();
 
@@ -285,13 +330,13 @@ processed_transaction database::push_proposal(const proposal_object& proposal)
       {
          _applied_ops.resize( old_applied_ops_size );
       }
-      elog( "e", ("e",e.to_detail_string() ) );
+      edump((e));
       throw;
    }
 
    ptrx.operation_results = std::move(eval_state.operation_results);
    return ptrx;
-} FC_CAPTURE_AND_RETHROW( (proposal) ) }
+} FC_CAPTURE_AND_RETHROW() }
 
 signed_block database::generate_block(
    fc::time_point_sec when,
@@ -478,6 +523,10 @@ const vector<optional< operation_history_object > >& database::get_applied_opera
    return _applied_ops;
 }
 
+vector<optional< operation_history_object > >& database::get_applied_operations()
+{
+   return _applied_ops;
+}
 //////////////////// private methods ////////////////////
 
 void database::apply_block( const signed_block& next_block, uint32_t skip )
@@ -539,12 +588,14 @@ void database::_apply_block( const signed_block& next_block )
       perform_chain_maintenance(next_block, global_props);
 
    create_block_summary(next_block);
+   place_delayed_bets(); // must happen after update_global_dynamic_data() updates the time
    clear_expired_transactions();
    clear_expired_proposals();
    clear_expired_orders();
    update_expired_feeds();
    update_withdraw_permissions();
    update_tournaments();
+   update_betting_markets(next_block.timestamp);
 
    // n.b., update_maintenance_flag() happens this late
    // because get_slot_time() / get_slot_at_time() is needed above
@@ -562,27 +613,9 @@ void database::_apply_block( const signed_block& next_block )
    _applied_ops.clear();
 
    notify_changed_objects();
-
 } FC_CAPTURE_AND_RETHROW( (next_block.block_num()) )  }
 
-void database::notify_changed_objects()
-{ try {
-   if( _undo_db.enabled() ) 
-   {
-      const auto& head_undo = _undo_db.head();
-      vector<object_id_type> changed_ids;  changed_ids.reserve(head_undo.old_values.size());
-      for( const auto& item : head_undo.old_values ) changed_ids.push_back(item.first);
-      for( const auto& item : head_undo.new_ids ) changed_ids.push_back(item);
-      vector<const object*> removed;
-      removed.reserve( head_undo.removed.size() );
-      for( const auto& item : head_undo.removed )
-      {
-         changed_ids.push_back( item.first );
-         removed.emplace_back( item.second.get() );
-      }
-      changed_objects(changed_ids);
-   }
-} FC_CAPTURE_AND_RETHROW() }
+
 
 processed_transaction database::apply_transaction(const signed_transaction& trx, uint32_t skip)
 {
@@ -669,13 +702,10 @@ operation_result database::apply_operation(transaction_evaluation_state& eval_st
 { try {
    int i_which = op.which();
    uint64_t u_which = uint64_t( i_which );
-   if( i_which < 0 )
-      assert( "Negative operation tag" && false );
-   if( u_which >= _operation_evaluators.size() )
-      assert( "No registered evaluator for this operation" && false );
+   FC_ASSERT( i_which >= 0, "Negative operation tag in operation ${op}", ("op",op) );
+   FC_ASSERT( u_which < _operation_evaluators.size(), "No registered evaluator for operation ${op}", ("op",op) );
    unique_ptr<op_evaluator>& eval = _operation_evaluators[ u_which ];
-   if( !eval )
-      assert( "No registered evaluator for this operation" && false );
+   FC_ASSERT( eval, "No registered evaluator for operation ${op}", ("op",op) );
    auto op_id = push_applied_operation( op );
    auto result = eval->evaluate( eval_state, op, true );
    set_applied_operation_result( op_id, result );
