@@ -5,6 +5,7 @@
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/proposal_evaluator.hpp>
 #include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/bitcoin_transaction_object.hpp>
 
 using namespace sidechain;
 
@@ -242,6 +243,93 @@ BOOST_AUTO_TEST_CASE( not_account_auths_wit_try_to_approve_btc_send_test )
    } );
 
    BOOST_CHECK( !checker.check_witness_opportunity_to_approve( *itr, *proposal_idx.begin() ) );
+}
+
+void create_missing_bto( graphene::chain::database& db, uint32_t amount )
+{
+   BOOST_REQUIRE( amount < 9 );
+   while( amount-- > 0 ) {
+      std::set<fc::sha256> vins { fc::sha256( std::string( 64,'1' + amount ) ), fc::sha256( std::string( 64,'2' + amount ) ) };
+      sidechain::bitcoin_transaction_confirmations  btc_trx_conf ( fc::sha256( std::string( 64,'1' + amount ) ), vins );
+      btc_trx_conf.missing = true;
+      db.bitcoin_confirmations.insert( btc_trx_conf );
+
+      db.create<graphene::chain::bitcoin_transaction_object>( [&]( graphene::chain::bitcoin_transaction_object& obj ){
+         obj.transaction_id = fc::sha256( std::string( 64,'1' + amount ) );
+      } );
+   }
+}
+
+std::vector< revert_trx_info > get_transactions_info( graphene::chain::database& db, uint32_t amount )
+{
+   using iter_by_missing = btc_tx_confirmations_index::index<by_missing_first>::type::iterator;
+   std::vector< revert_trx_info > transactions_info;
+   const auto& btc_trx_idx = db.get_index_type<graphene::chain::bitcoin_transaction_index>().indices().get<graphene::chain::by_transaction_id>();
+   BOOST_CHECK_EQUAL( btc_trx_idx.size() , amount );
+
+   db.bitcoin_confirmations.safe_for<by_missing_first>([&]( iter_by_missing itr_b, iter_by_missing itr_e ){
+      for(auto iter = itr_b; iter != itr_e; iter++) {
+         if( !iter->missing ) return;
+         const auto& btc_tx = btc_trx_idx.find( iter->transaction_id );
+         if( btc_tx == btc_trx_idx.end() ) continue;
+         transactions_info.push_back( revert_trx_info( iter->transaction_id, iter->valid_vins ) ); 
+      }
+   });
+
+   return transactions_info;
+}
+
+BOOST_AUTO_TEST_CASE( bitcoin_transaction_revert_operation_checker_test )
+{
+   using namespace graphene::chain;
+   const uint32_t amount = 5;
+
+   create_missing_bto( db, amount );
+   sidechain_proposal_checker checker( db );
+
+   bitcoin_transaction_revert_operation op;
+
+   std::vector< revert_trx_info > transactions_info = get_transactions_info( db, amount );
+
+   op.transactions_info = transactions_info;
+
+   BOOST_CHECK_EQUAL( transactions_info.size(), amount );   
+   BOOST_CHECK( checker.check_bitcoin_transaction_revert_operation( op ) );
+}
+
+BOOST_AUTO_TEST_CASE( bitcoin_transaction_revert_operation_checker_failed_test )
+{
+   using namespace graphene::chain;
+   const uint32_t amount = 5;
+
+   create_missing_bto( db, amount );
+
+   std::set<fc::sha256> vins { fc::sha256( std::string( 64,'1' + 6 ) ), fc::sha256( std::string( 64,'1' + 8 ) ) };
+   fc::sha256 trx_id( std::string( 64,'1' + 8 ) );
+   sidechain::bitcoin_transaction_confirmations  btc_trx_conf ( trx_id, vins );
+   db.bitcoin_confirmations.insert( btc_trx_conf );
+   db.create<graphene::chain::bitcoin_transaction_object>( [&]( graphene::chain::bitcoin_transaction_object& obj ){
+      obj.transaction_id = fc::sha256( std::string( 64,'1' + 7 ) );
+   } );
+
+   sidechain_proposal_checker checker( db );
+
+   bitcoin_transaction_revert_operation op;
+   std::vector< revert_trx_info > transactions_info = get_transactions_info( db, amount + 1 );
+
+   op.transactions_info = transactions_info;
+   op.transactions_info.push_back( revert_trx_info( trx_id, vins) );
+
+   BOOST_CHECK_EQUAL( op.transactions_info.size(), amount + 1 );   
+   BOOST_CHECK( !checker.check_bitcoin_transaction_revert_operation( op ) );
+}
+
+BOOST_AUTO_TEST_CASE( no_btc_trx_to_revert_test )
+{
+   sidechain_proposal_checker checker( db );
+
+   bitcoin_transaction_revert_operation op;  
+   BOOST_CHECK( !checker.check_bitcoin_transaction_revert_operation( op ) );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

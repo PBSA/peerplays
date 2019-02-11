@@ -57,9 +57,21 @@ bool sidechain_proposal_checker::check_reuse( const operation& op )
    std::vector<fc::sha256> user_vin_identifiers;
    std::vector<info_for_vout_id_type> user_vout_ids;
 
+   auto get_bto_tx_info = [ & ]( fc::sha256 trx_id ) {
+      const auto& bto_itr_idx = db.get_index_type<bitcoin_transaction_index>().indices().get<graphene::chain::by_transaction_id>();
+      const auto& bto_itr = bto_itr_idx.find( trx_id );
+      if( bto_itr == bto_itr_idx.end() ) {
+         return false;
+      }
+      pw_vin_identifier = bto_itr->pw_vin;
+      user_vout_ids = bto_itr->vouts;
+      user_vin_identifiers = bto_itr->vins;
+
+      return true;
+   };
+
    if( op.which() == operation::tag<bitcoin_transaction_send_operation>::value ) {
       bitcoin_transaction_send_operation btc_tx_send_op = op.get<bitcoin_transaction_send_operation>();
-
       pw_vin_identifier = btc_tx_send_op.pw_vin.identifier;
       user_vout_ids = btc_tx_send_op.vouts;
       for( const auto& vin : btc_tx_send_op.vins ) {
@@ -67,17 +79,15 @@ bool sidechain_proposal_checker::check_reuse( const operation& op )
       }
    } else if ( op.which() == operation::tag<bitcoin_issue_operation>::value ) {
       bitcoin_issue_operation btc_issue_op = op.get<bitcoin_issue_operation>();
-      const auto& bto_itr_idx = db.get_index_type<bitcoin_transaction_index>().indices().get<graphene::chain::by_transaction_id>();
-
       for( const auto& id : btc_issue_op.transaction_ids ) {
-         const auto& bto_itr = bto_itr_idx.find( id );
-         if( bto_itr == bto_itr_idx.end() ) {
+         if ( !get_bto_tx_info( id ) )
             return false;
-         }
-
-         pw_vin_identifier = bto_itr->pw_vin;
-         user_vout_ids = bto_itr->vouts;
-         user_vin_identifiers = bto_itr->vins;
+      }
+   } else if ( op.which() == operation::tag<bitcoin_transaction_revert_operation>::value ) {
+      bitcoin_transaction_revert_operation btc_tx_revert_op = op.get<bitcoin_transaction_revert_operation>();
+      for( auto trx_info: btc_tx_revert_op.transactions_info ) {
+         if ( !get_bto_tx_info( trx_info.transaction_id ) )
+            return false;
       }
    }
 
@@ -157,6 +167,22 @@ bool sidechain_proposal_checker::check_witness_opportunity_to_approve( const wit
    };
 
    return is_active_witness() && does_the_witness_have_authority();
+}
+
+bool sidechain_proposal_checker::check_bitcoin_transaction_revert_operation( const bitcoin_transaction_revert_operation& op )
+{
+   const auto& btc_trx_idx = db.get_index_type<bitcoin_transaction_index>().indices().get<by_transaction_id>();
+
+   for( auto trx_info: op.transactions_info )
+   {
+      auto value = db.bitcoin_confirmations.find<sidechain::by_hash>( trx_info.transaction_id );
+      if( !value.valid() ||
+          btc_trx_idx.find( value->transaction_id ) == btc_trx_idx.end() ||
+          trx_info != revert_trx_info( value->transaction_id, value->valid_vins ) )
+         return false;
+   }
+
+   return !op.transactions_info.empty();
 }
 
 }

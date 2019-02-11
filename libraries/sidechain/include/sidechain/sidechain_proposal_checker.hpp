@@ -21,6 +21,8 @@ public:
    
    bool check_witness_opportunity_to_approve( const witness_object& current_witness, const proposal_object& proposal );
 
+   bool check_bitcoin_transaction_revert_operation( const bitcoin_transaction_revert_operation& op );
+
 private:
 
    bool check_info_for_pw_vin( const info_for_vin& info_for_vin );

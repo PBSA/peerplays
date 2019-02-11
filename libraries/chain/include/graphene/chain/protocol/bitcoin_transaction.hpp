@@ -55,6 +55,14 @@ namespace graphene { namespace chain {
 
       fc::sha256                transaction_id;
       std::set< fc::sha256 >    valid_vins;
+
+      bool operator ==( const revert_trx_info& trx_info ){
+         return this->transaction_id == trx_info.transaction_id && this->valid_vins == trx_info.valid_vins;
+      }
+
+      bool operator !=( const revert_trx_info& trx_info ){
+         return this->transaction_id != trx_info.transaction_id || this->valid_vins != trx_info.valid_vins;
+      }
    };
 
    struct bitcoin_transaction_revert_operation : public base_operation

@@ -132,6 +132,15 @@ void database::processing_sidechain_proposals( const witness_object& current_wit
 
    sidechain_proposal_checker checker( *this );
 
+   auto approve_propose = [ & ]( const proposal_id_type& id )
+   {
+      proposal_update_operation puo;
+      puo.fee_paying_account = current_witness.witness_account;
+      puo.proposal = id;
+      puo.active_approvals_to_add = { current_witness.witness_account };
+      _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( private_key, puo ) );
+   };
+
    for( auto& sidechain_proposal : sidechain_proposal_idx ) {
 
       const auto& proposal = proposal_idx.find( sidechain_proposal.proposal_id );
@@ -143,11 +152,7 @@ void database::processing_sidechain_proposals( const witness_object& current_wit
 
       switch( sidechain_proposal.proposal_type ) {
          case sidechain_proposal_type::ISSUE_BTC :{ 
-            proposal_update_operation puo;
-            puo.fee_paying_account = current_witness.witness_account;
-            puo.proposal = proposal->id;
-            puo.active_approvals_to_add = { current_witness.witness_account };
-            _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( private_key, puo ) );
+            approve_propose( proposal->id );
             break;
           }
          case sidechain_proposal_type::SEND_BTC_TRANSACTION :{
@@ -159,7 +164,12 @@ void database::processing_sidechain_proposals( const witness_object& current_wit
             }
             break;
          }
-         case sidechain_proposal_type::RETURN_PBTC_BACK :{}
+         case sidechain_proposal_type::REVERT_BTC_TRANSACTION :{
+            bitcoin_transaction_revert_operation op = proposal->proposed_transaction.operations.back().get<bitcoin_transaction_revert_operation>();
+            if( checker.check_bitcoin_transaction_revert_operation( op ) )
+               approve_propose( proposal->id );
+            break;
+         }
       }
    }
 }
