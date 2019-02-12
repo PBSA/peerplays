@@ -62,7 +62,7 @@ std::vector<uint64_t> input_withdrawal_info::get_amounts( const std::vector<info
 fc::optional<info_for_vin> input_withdrawal_info::get_info_for_pw_vin()
 {
    fc::optional< primary_wallet_vout_object > vout = db.pw_vout_manager.get_latest_unused_vout();
-   if( !vout.valid() ) {
+   if( !vout.valid() || db.pw_vout_manager.is_max_vouts() ) {
       return fc::optional<info_for_vin>();
    }
 

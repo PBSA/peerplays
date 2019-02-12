@@ -17,7 +17,7 @@ class primary_wallet_vout_manager
 public:
    primary_wallet_vout_manager( graphene::chain::database& _db ) : db( _db ) {}
 
-   bool is_reach_max_unconfirmaed_vout() const;
+   bool is_max_vouts() const;
 
    fc::optional< primary_wallet_vout_object > get_latest_unused_vout() const;
 

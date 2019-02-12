@@ -35,7 +35,7 @@ BOOST_AUTO_TEST_CASE( check_max_pw_vout_objects )
 
    create_primary_wallet_vouts( pw_vout_manager, db, 24 );
    BOOST_CHECK( idx.size() == 25 );
-   BOOST_CHECK( pw_vout_manager.is_reach_max_unconfirmaed_vout() == true );
+   BOOST_CHECK( pw_vout_manager.is_max_vouts() == true );
 }
 
 BOOST_AUTO_TEST_CASE( check_pw_vout_objects_chain )
