@@ -565,6 +565,8 @@ namespace graphene { namespace chain {
 
        private:
 
+         void restore_bitcoin_transaction_status(); // db_sidechain
+
          vector< processed_transaction >        _pending_tx;
          fork_database                          _fork_db;
 

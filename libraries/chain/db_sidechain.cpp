@@ -378,4 +378,17 @@ fc::optional<operation> database::create_bitcoin_revert_proposals( const witness
    return fc::optional<operation>();
 }
 
+
+void database::restore_bitcoin_transaction_status()
+{
+   const auto& btc_tx_idx = get_index_type<bitcoin_transaction_index>().indices().get<by_id>();
+   for( const auto& bto : btc_tx_idx ) {
+      std::set<fc::sha256> valid_vins;
+      for( const auto& v : bto.transaction.vin ) {
+         valid_vins.insert( v.prevout.hash );
+      }
+      bitcoin_confirmations.insert( bitcoin_transaction_confirmations( bto.transaction.get_txid(), valid_vins ) );
+   }
+}
+
 } }
