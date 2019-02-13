@@ -530,7 +530,7 @@ namespace graphene { namespace chain {
          int64_t get_estimated_fee( size_t tx_vsize, uint64_t estimated_feerate );
 
          void processing_sidechain_proposals( const witness_object& current_witness, const private_key& signing_private_key );
-
+         
          sidechain::full_btc_transaction create_btc_transaction( const std::vector<info_for_vin>& info_vins,
                                                                  const std::vector<info_for_vout>& info_vouts,
                                                                  const info_for_vin& info_pw_vin );

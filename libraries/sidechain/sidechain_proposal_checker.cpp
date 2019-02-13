@@ -169,6 +169,32 @@ bool sidechain_proposal_checker::check_witness_opportunity_to_approve( const wit
    return is_active_witness() && does_the_witness_have_authority();
 }
 
+bool sidechain_proposal_checker::check_witnesses_keys( const witness_object& current_witness, const proposal_object& proposal ) 
+{
+   bitcoin_transaction_send_operation op = proposal.proposed_transaction.operations.back().get<bitcoin_transaction_send_operation>();
+
+   auto vins = op.vins;
+   if( op.pw_vin.identifier.str().compare( 0, 48, SIDECHAIN_NULL_VIN_IDENTIFIER ) != 0 ) {
+      vins.insert( vins.begin(), op.pw_vin );
+   }
+
+   const auto& bitcoin_address_idx = db.get_index_type<bitcoin_address_index>().indices().get< by_address >();
+   
+   for ( const auto& info_vins : vins ) {
+      const auto& address_itr = bitcoin_address_idx.find( info_vins.address );
+      if ( address_itr != bitcoin_address_idx.end() ) {
+         const auto& witness_key = current_witness.signing_key;
+         const auto& witnesses_keys = address_itr->address.witnesses_keys;
+         const auto& witnesses_keys_itr = witnesses_keys.find( current_witness.witness_account );
+         if ( witnesses_keys_itr == witnesses_keys.end() || witnesses_keys_itr->second != witness_key ) {
+            return false;
+         }
+      }
+   }
+
+   return true;
+}
+
 bool sidechain_proposal_checker::check_bitcoin_transaction_revert_operation( const bitcoin_transaction_revert_operation& op )
 {
    const auto& btc_trx_idx = db.get_index_type<bitcoin_transaction_index>().indices().get<by_transaction_id>();

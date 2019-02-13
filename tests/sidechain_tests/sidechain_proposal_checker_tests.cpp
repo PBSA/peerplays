@@ -5,6 +5,7 @@
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/proposal_evaluator.hpp>
 #include <graphene/chain/witness_object.hpp>
+#include <graphene/chain/bitcoin_address_object.hpp>
 #include <graphene/chain/bitcoin_transaction_object.hpp>
 
 using namespace sidechain;
@@ -243,6 +244,83 @@ BOOST_AUTO_TEST_CASE( not_account_auths_wit_try_to_approve_btc_send_test )
    } );
 
    BOOST_CHECK( !checker.check_witness_opportunity_to_approve( *itr, *proposal_idx.begin() ) );
+}
+
+BOOST_AUTO_TEST_CASE ( check_witness_keys_test_normal ) 
+{
+   sidechain_proposal_checker checker( db );
+
+   auto witnesses_keys = db.get_latest_PW().address.witnesses_keys;
+   const auto& bitcoin_address = db.create<bitcoin_address_object>( [&]( bitcoin_address_object& obj ) {
+         witnesses_keys.erase( ++witnesses_keys.begin() );
+         obj.address = sidechain::btc_multisig_segwit_address( SIDECHAIN_DEFAULT_NUMBER_SIG_MULTISIG, witnesses_keys );
+         obj.owner = account_id_type( 13 );
+   } );
+
+   info_for_vin vin;
+   vin.address = bitcoin_address.address.address;
+
+   bitcoin_transaction_send_operation op;
+   op.vins = { vin };
+
+   proposal_object proposal;
+   proposal.proposed_transaction.operations.push_back( op );
+
+   const witness_id_type& witness_id = *db.get_global_properties().active_witnesses.begin();
+   const witness_object witness = witness_id( db );
+
+   BOOST_CHECK( checker.check_witnesses_keys( witness, proposal ) );
+} 
+
+BOOST_AUTO_TEST_CASE ( check_witnesses_keys_incorrect_witness_test )
+{
+   sidechain_proposal_checker checker( db );
+
+   auto witnesses_keys = db.get_latest_PW().address.witnesses_keys;
+   const auto& bitcoin_address = db.create<bitcoin_address_object>( [&]( bitcoin_address_object& obj ) {
+         witnesses_keys.erase( ++witnesses_keys.begin() );
+         obj.address = sidechain::btc_multisig_segwit_address( SIDECHAIN_DEFAULT_NUMBER_SIG_MULTISIG, witnesses_keys );
+         obj.owner = account_id_type( 13 );
+   } );
+
+   info_for_vin vin;
+   vin.address = bitcoin_address.address.address;
+
+   bitcoin_transaction_send_operation op;   
+   op.vins = { vin };
+
+   proposal_object proposal;
+   proposal.proposed_transaction.operations.push_back( op );
+
+   const witness_object witness;
+
+   BOOST_CHECK( !checker.check_witnesses_keys( witness, proposal ) );
+}
+
+BOOST_AUTO_TEST_CASE ( check_witnesses_keys_nonexistent_witness_test ) 
+{
+   sidechain_proposal_checker checker( db );
+
+   auto witnesses_keys = db.get_latest_PW().address.witnesses_keys;
+   const auto& bitcoin_address = db.create<bitcoin_address_object>( [&]( bitcoin_address_object& obj ) {
+         witnesses_keys.erase( ++witnesses_keys.begin() );
+         obj.address = sidechain::btc_multisig_segwit_address( SIDECHAIN_DEFAULT_NUMBER_SIG_MULTISIG, witnesses_keys );
+         obj.owner = account_id_type( 13 );
+   } );
+
+   info_for_vin vin;
+   vin.address = bitcoin_address.address.address;
+
+   bitcoin_transaction_send_operation op;   
+   op.vins = { vin };
+
+   proposal_object proposal;
+   proposal.proposed_transaction.operations.push_back( op );
+
+   const witness_id_type& witness_id = *++db.get_global_properties().active_witnesses.begin();
+   const witness_object witness = witness_id( db );
+
+   BOOST_CHECK( !checker.check_witnesses_keys( witness, proposal ) );
 }
 
 void create_missing_bto( graphene::chain::database& db, uint32_t amount )
