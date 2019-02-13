@@ -19,6 +19,8 @@ public:
    bitcoin_address( const std::string& addr ) : address( addr ), type( determine_type() ),
       raw_address( determine_raw_address() ) {}
 
+   bool operator==( const bitcoin_address& btc_addr ) const;
+
    payment_type get_type() const { return type; }
 
    std::string get_address() const { return address; }

@@ -30,7 +30,7 @@ std::map< account_id_type, public_key_type> database::get_active_witnesses_keys(
 bool database::is_sidechain_fork_needed() const
 {
    const auto& params = get_global_properties().parameters.extensions.value.sidechain_parameters;
-   return !params.valid();
+   return !params;
 }
 
 void database::perform_sidechain_fork()
@@ -275,7 +275,8 @@ void database::remove_sidechain_proposal_object( const proposal_object& proposal
 { try {
    if( proposal.proposed_transaction.operations.size() == 1 &&
      ( proposal.proposed_transaction.operations.back().which() == operation::tag<bitcoin_transaction_send_operation>::value  || 
-       proposal.proposed_transaction.operations.back().which() == operation::tag<bitcoin_issue_operation>::value ) )
+       proposal.proposed_transaction.operations.back().which() == operation::tag<bitcoin_issue_operation>::value ||
+       proposal.proposed_transaction.operations.back().which() == operation::tag<bitcoin_transaction_revert_operation>::value ) )
    {
       const auto& sidechain_proposal_idx = get_index_type<sidechain_proposal_index>().indices().get<by_proposal>();
       auto sidechain_proposal_itr = sidechain_proposal_idx.find( proposal.id );

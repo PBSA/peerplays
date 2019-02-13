@@ -6,6 +6,12 @@
 
 namespace sidechain {
 
+bool bitcoin_address::operator==( const bitcoin_address& btc_addr ) const {
+   return ( this->address == btc_addr.address ) &&
+          ( this->type == btc_addr.type ) &&
+          ( this->raw_address == btc_addr.raw_address );
+}
+
 bytes bitcoin_address::get_script() const
 {
    switch ( type ) {

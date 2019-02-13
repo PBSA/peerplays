@@ -25,16 +25,28 @@ void create_primary_wallet_vouts( primary_wallet_vout_manager& pw_vout_manager, 
    }
 }
 
+fc::sha256 create_hash_id( const std::string& hash_tx, const uint32_t& n_vout, const uint64_t& id )
+{
+   std::stringstream ss;
+   ss << std::hex << id;
+   std::string id_hex = std::string( 16 - ss.str().size(), '0' ) + ss.str();
+
+   std::string hash_str = fc::sha256::hash( hash_tx + std::to_string( n_vout ) ).str();
+   std::string final_hash_id = std::string( hash_str.begin(), hash_str.begin() + 48 ) + id_hex;
+
+   return fc::sha256( final_hash_id );
+}
+
 BOOST_AUTO_TEST_CASE( check_max_pw_vout_objects )
 {
    const auto& idx = db.get_index_type<primary_wallet_vout_index>().indices().get< graphene::chain::by_id >();
 
    primary_wallet_vout_manager pw_vout_manager( db );
    create_primary_wallet_vouts( pw_vout_manager, db, 1 );
-   BOOST_CHECK( idx.size() == 1 );
+   BOOST_CHECK( idx.size() == 2 );
 
-   create_primary_wallet_vouts( pw_vout_manager, db, 24 );
-   BOOST_CHECK( idx.size() == 25 );
+   create_primary_wallet_vouts( pw_vout_manager, db, 25 );
+   BOOST_CHECK( idx.size() == 27 );
    BOOST_CHECK( pw_vout_manager.is_max_vouts() == true );
 }
 
@@ -44,19 +56,17 @@ BOOST_AUTO_TEST_CASE( check_pw_vout_objects_chain )
    primary_wallet_vout_manager pw_vout_manager( db );
    create_primary_wallet_vouts( pw_vout_manager, db, 24 );
 
-   auto itr = idx.begin();
-   for( size_t i = 0; i < idx.size(); i++ ) {
-      BOOST_CHECK( itr->hash_id == fc::sha256::hash( std::to_string( i ) + std::to_string( i )));
-      itr++;
+   for( auto itr: idx ) {
+      BOOST_CHECK( itr.hash_id == create_hash_id( itr.vout.hash_tx, itr.vout.n_vout, itr.id.instance() ) );
    }
 
    BOOST_CHECK( pw_vout_manager.get_latest_unused_vout().valid() );
 
    auto pw_vout = *pw_vout_manager.get_latest_unused_vout();
 
-   BOOST_CHECK( pw_vout.vout.hash_tx == "23" );
-   BOOST_CHECK( pw_vout.vout.n_vout == 23 );
-   BOOST_CHECK( pw_vout.hash_id == fc::sha256::hash( "23" + std::to_string( 23 )));
+   BOOST_CHECK_EQUAL( pw_vout.vout.hash_tx, "24" );
+   BOOST_CHECK_EQUAL( pw_vout.vout.n_vout, 24 );
+   BOOST_CHECK( pw_vout.hash_id ==  create_hash_id( "24", 24, pw_vout.id.instance() ) );
 }
 
 BOOST_AUTO_TEST_CASE( delete_pw_vout_objects )
@@ -65,57 +75,56 @@ BOOST_AUTO_TEST_CASE( delete_pw_vout_objects )
    primary_wallet_vout_manager pw_vout_manager( db );
    create_primary_wallet_vouts( pw_vout_manager, db, 24 );
 
-   BOOST_CHECK( idx.size() == 24 );
+   BOOST_CHECK_EQUAL( idx.size(), 25 );
 
-   pw_vout_manager.delete_vout_with_newer( fc::sha256::hash( "123" + std::to_string( 123 )));
-   BOOST_CHECK( idx.size() == 24 );
+   auto pw_vout = *pw_vout_manager.get_latest_unused_vout();
+   pw_vout_manager.delete_vout_with_newer( create_hash_id( pw_vout.vout.hash_tx, pw_vout.vout.n_vout, pw_vout.id.instance() ) );
+   BOOST_CHECK_EQUAL( idx.size(), 24 );
+   
+   pw_vout_manager.delete_vout_with_newer( create_hash_id( "13", 13, 13 ) );
 
-   pw_vout_manager.delete_vout_with_newer( fc::sha256::hash( "13" + std::to_string( 13 )));
-   BOOST_CHECK( idx.size() == 13 );
+   BOOST_CHECK_EQUAL( idx.size(), 13 );
 
-   auto itr = idx.begin();
-   for( size_t i = 0; i < idx.size(); i++ ) {
-      BOOST_CHECK( itr->hash_id == fc::sha256::hash( std::to_string( i ) + std::to_string( i )));
-      itr++;
+   for( auto itr: idx ) {
+      BOOST_CHECK( itr.hash_id == create_hash_id( itr.vout.hash_tx, itr.vout.n_vout, itr.id.instance() ) );
    }
 
-   create_primary_wallet_vouts( pw_vout_manager, db, 8 );
-   pw_vout_manager.delete_vout_with_newer( fc::sha256::hash( "20" + std::to_string( 20 )));
-   BOOST_CHECK( idx.size() == 20 );
+   create_primary_wallet_vouts( pw_vout_manager, db, 8 );   
+   pw_vout_manager.delete_vout_with_newer( create_hash_id( "20", 20, 20 ) );
+   BOOST_CHECK_EQUAL( idx.size(), 21 );
 
-   itr = idx.begin();
-   for( size_t i = 0; i < idx.size(); i++ ) {
-      BOOST_CHECK( itr->hash_id == fc::sha256::hash( std::to_string( i ) + std::to_string( i )));
-      itr++;
+   for( auto itr: idx ) {
+      BOOST_CHECK( itr.hash_id == create_hash_id( itr.vout.hash_tx, itr.vout.n_vout, itr.id.instance() ) );
    }
 
-   pw_vout_manager.delete_vout_with_newer( fc::sha256::hash( "0" + std::to_string( 0 )));
-   BOOST_CHECK( idx.size() == 0 );
+   auto itr_primary_wallet = idx.begin();
+   pw_vout_manager.delete_vout_with_newer( create_hash_id( itr_primary_wallet->vout.hash_tx, itr_primary_wallet->vout.n_vout, itr_primary_wallet->id.instance() ) );
+   BOOST_CHECK_EQUAL( idx.size(), 0 );
 }
 
 BOOST_AUTO_TEST_CASE( confirm_pw_vout_objects )
 {
    const auto& idx = db.get_index_type<primary_wallet_vout_index>().indices().get< graphene::chain::by_id >();
    primary_wallet_vout_manager pw_vout_manager( db );
-   create_primary_wallet_vouts( pw_vout_manager, db, 2 );
-
-   pw_vout_manager.confirm_vout( fc::sha256::hash( "0" + std::to_string( 0 )));
+   create_primary_wallet_vouts( pw_vout_manager, db, 1 );
 
    auto itr = idx.begin();
-   BOOST_CHECK( itr->confirmed == true );
+   pw_vout_manager.confirm_vout( create_hash_id( itr->vout.hash_tx, itr->vout.n_vout, itr->id.instance() ) );
 
-   pw_vout_manager.confirm_vout( fc::sha256::hash( "1" + std::to_string( 1 )));
+   BOOST_CHECK( itr->confirmed == true );
 
    itr++;
+   pw_vout_manager.confirm_vout( create_hash_id( itr->vout.hash_tx, itr->vout.n_vout, itr->id.instance() ) );
+
    BOOST_CHECK( itr->confirmed == true );
-   BOOST_CHECK( idx.size() == 1 );
+   BOOST_CHECK_EQUAL( idx.size(), 1 );
 
    create_primary_wallet_vouts( pw_vout_manager, db, 1 );
    itr++;
-   pw_vout_manager.confirm_vout( fc::sha256::hash( "2" + std::to_string( 2 )));
+   pw_vout_manager.confirm_vout( create_hash_id( itr->vout.hash_tx, itr->vout.n_vout, itr->id.instance() ) );
 
    BOOST_CHECK( itr->confirmed == true );
-   BOOST_CHECK( idx.size() == 1 );
+   BOOST_CHECK_EQUAL( idx.size(), 1 );
 
    GRAPHENE_REQUIRE_THROW( pw_vout_manager.confirm_vout( fc::sha256::hash( "4" + std::to_string( 4 ))), fc::exception );
    GRAPHENE_REQUIRE_THROW( pw_vout_manager.confirm_vout( fc::sha256::hash( "123" + std::to_string( 123 ))), fc::exception );
@@ -126,23 +135,24 @@ BOOST_AUTO_TEST_CASE( use_pw_vout_objects )
    const auto& idx = db.get_index_type<primary_wallet_vout_index>().indices().get< graphene::chain::by_id >();
    primary_wallet_vout_manager pw_vout_manager( db );
 
-   create_primary_wallet_vouts( pw_vout_manager, db, 1 );
-   pw_vout_manager.mark_as_used_vout( fc::sha256::hash( "0" + std::to_string( 0 )));
-
    auto itr = idx.begin();
+   pw_vout_manager.mark_as_used_vout( create_hash_id( itr->vout.hash_tx, itr->vout.n_vout, itr->id.instance() ) );
+
    BOOST_CHECK( !pw_vout_manager.get_latest_unused_vout().valid() );
    BOOST_CHECK( itr->used == true );
 
    create_primary_wallet_vouts( pw_vout_manager, db, 1 );
-   pw_vout_manager.mark_as_used_vout( fc::sha256::hash( "1" + std::to_string( 1 )));
    itr++;
+   pw_vout_manager.mark_as_used_vout( create_hash_id( itr->vout.hash_tx, itr->vout.n_vout, itr->id.instance() ) );
 
    BOOST_CHECK( !pw_vout_manager.get_latest_unused_vout().valid() );
    BOOST_CHECK( itr->used == true );
 
    create_primary_wallet_vouts( pw_vout_manager, db, 2 );
+   itr++;
+   itr++;
 
-   GRAPHENE_REQUIRE_THROW( pw_vout_manager.mark_as_used_vout( fc::sha256::hash( "3" + std::to_string( 3 ))), fc::exception );
+   GRAPHENE_REQUIRE_THROW( pw_vout_manager.mark_as_used_vout( create_hash_id( itr->vout.hash_tx, itr->vout.n_vout, itr->id.instance() ) ), fc::exception );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

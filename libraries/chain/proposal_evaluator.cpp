@@ -182,6 +182,23 @@ void sidechain_hardfork_visitor::operator()( const bitcoin_issue_operation &v )
    }
 }
 
+void sidechain_hardfork_visitor::operator()( const bitcoin_transaction_revert_operation &v )
+{
+   db.create<sidechain_proposal_object>([&]( sidechain_proposal_object& sch_prop ) {
+      sch_prop.proposal_type = sidechain::sidechain_proposal_type::REVERT_BTC_TRANSACTION;
+      sch_prop.proposal_id = prop_id;
+   });
+
+   for( const auto& trx : v.transactions_info ) {
+      const auto& trx_confirmations = db.bitcoin_confirmations.find<sidechain::by_hash>( trx.transaction_id );
+      if( trx_confirmations.valid() ) {
+         db.bitcoin_confirmations.modify<sidechain::by_hash>( trx.transaction_id, [&]( sidechain::bitcoin_transaction_confirmations& obj ) {
+            obj.used = true;
+         });
+      }
+   }
+}
+
 void_result proposal_create_evaluator::do_evaluate(const proposal_create_operation& o)
 { try {
    const database& d = db();
@@ -198,7 +215,8 @@ void_result proposal_create_evaluator::do_evaluate(const proposal_create_operati
               "Proposal review period must be less than its overall lifetime." );
 
    bool pbtc_op = ( o.proposed_ops[0].op.which() == operation::tag<bitcoin_transaction_send_operation>::value ) ||
-                  ( o.proposed_ops[0].op.which() == operation::tag<bitcoin_issue_operation>::value );
+                  ( o.proposed_ops[0].op.which() == operation::tag<bitcoin_issue_operation>::value ) ||
+                  ( o.proposed_ops[0].op.which() == operation::tag<bitcoin_transaction_revert_operation>::value );
 
    if( d.is_sidechain_fork_needed() && pbtc_op ) {
       FC_THROW( "Currently the operation is unavailable." );

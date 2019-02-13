@@ -21,6 +21,12 @@ class info_for_vout_object : public abstract_object<info_for_vout_object>
          }
       };
 
+      bool operator==( const info_for_vout_object& ifv ) const {
+         return ( this->payer == ifv.payer ) &&
+                ( this->address == ifv.address ) &&
+                ( this->amount == ifv.amount );
+      }
+
       info_for_vout_id_type get_id()const { return id; }
 
       account_id_type            payer;

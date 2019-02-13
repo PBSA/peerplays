@@ -203,6 +203,8 @@ BOOST_AUTO_TEST_CASE( bitcoin_transaction_revert_operation_test )
    create_bitcoin_issue_operation_environment( db );
    db.bitcoin_confirmations.insert( sidechain::bitcoin_transaction_confirmations( fc::sha256( std::string( 64, '1' ) ), std::set<fc::sha256>() ) );
 
+   auto vin = *vins_info_idx.find( fc::sha256( std::string( 64, '1' ) ) );
+
    bitcoin_transaction_revert_operation revert_op;
    revert_trx_info info;
    info.transaction_id = fc::sha256( std::string( 64, '1' ) );
@@ -211,21 +213,11 @@ BOOST_AUTO_TEST_CASE( bitcoin_transaction_revert_operation_test )
 
    db.apply_operation( context, revert_op );
 
-   BOOST_CHECK( vins_info_idx.size() == 1 );
+   BOOST_CHECK_EQUAL( vins_info_idx.size(), 0 );
+   BOOST_CHECK_EQUAL( btc_tx_idx.size(), 0 );
 
-   auto vin_itr = vins_info_idx.find( fc::sha256( std::string( 64, '1' ) ) );
-
-   BOOST_CHECK( vin_itr != vins_info_idx.end() );
-   BOOST_CHECK( vouts_info_idx.size() == 3 );
-
-   auto vout_itr = vouts_info_idx.begin();
-   while( vout_itr == vouts_info_idx.end() ) {
-
-      BOOST_CHECK( !vout_itr->used );
-      vout_itr++;
-   }
-
-   BOOST_CHECK( btc_tx_idx.size() == 0 );
+   auto vin_info = db.i_w_info.find_info_for_vin( fc::sha256::hash( vin.out.hash_tx + std::to_string( vin.out.n_vout ) ) );
+   BOOST_CHECK( vin_info.valid() );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

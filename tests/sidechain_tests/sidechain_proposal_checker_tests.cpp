@@ -12,33 +12,6 @@ using namespace sidechain;
 
 BOOST_FIXTURE_TEST_SUITE( sidechain_proposal_checker_tests, database_fixture )
 
-class test_environment
-{
-
-public:
-
-   test_environment( database& db )
-   {
-
-      for( size_t i = 1; i < 6; i++ ) {
-         prev_out out{ std::string( 64, std::to_string( i )[0] ), static_cast<uint32_t>( i ), static_cast<uint64_t>( i * 10000 ) };
-         db.i_w_info.insert_info_for_vin( out, std::to_string( i ), { 0x00, 0x01, 0x02 } );
-         db.i_w_info.insert_info_for_vout( account_id_type( i ), "2Mt57VSFqBe7UpDad9QaYHev21E1VscAZMU", i * 5000 );
-      }
-
-      vins = db.i_w_info.get_info_for_vins();
-      pw_vin = *db.i_w_info.get_info_for_pw_vin();
-      vouts = db.i_w_info.get_info_for_vouts();
-      full_tx = db.create_btc_transaction( vins, vouts, pw_vin );
-   }
-
-   std::vector<info_for_vin> vins;
-   info_for_vin pw_vin;
-   std::vector<info_for_vout> vouts;
-   full_btc_transaction full_tx;
-
-};
-
 BOOST_AUTO_TEST_CASE( check_reuse_normal_test )
 {
    sidechain_proposal_checker checker( db );
