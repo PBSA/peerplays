@@ -16,6 +16,8 @@ public:
    sidechain_net_manager( graphene::chain::database* _db, std::string _ip, 
                          uint32_t _zmq, uint32_t _rpc, std::string _user, std::string _password );
 
+   ~sidechain_net_manager() { db = nullptr; }
+
    void initialize_manager( graphene::chain::database* _db, std::string _ip, 
                            uint32_t _zmq, uint32_t _rpc, std::string _user, std::string _password );
 
@@ -43,7 +45,7 @@ private:
 
    std::unique_ptr<zmq_listener> listener;
    std::unique_ptr<bitcoin_rpc_client> bitcoin_client;
-   std::unique_ptr<graphene::chain::database> db;
+   graphene::chain::database* db;
 
 };
 
