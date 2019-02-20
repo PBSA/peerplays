@@ -44,7 +44,7 @@ void primary_wallet_vout_manager::create_new_vout( const sidechain::prev_out& ou
    });
 }
 
-void primary_wallet_vout_manager::delete_vout_with_newer( fc::sha256 hash_id )
+void primary_wallet_vout_manager::delete_vouts_after( fc::sha256 hash_id )
 {
    const auto& PW_vout_by_id = db.get_index_type<graphene::chain::primary_wallet_vout_index>().indices().get< graphene::chain::by_id >();
    auto vout_id = get_vout_id( hash_id );
@@ -52,6 +52,7 @@ void primary_wallet_vout_manager::delete_vout_with_newer( fc::sha256 hash_id )
       return;
 
    auto itr = PW_vout_by_id.find( *vout_id );
+   itr++;
 
    while( itr != PW_vout_by_id.end() )
    {

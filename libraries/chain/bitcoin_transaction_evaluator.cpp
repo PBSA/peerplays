@@ -247,6 +247,8 @@ void_result bitcoin_transaction_revert_evaluator::do_apply( const bitcoin_transa
 
    for( auto trx_info: op.transactions_info ) {
       const auto& btc_trx_obj = *btc_trx_idx.find( trx_info.transaction_id );
+      d.pw_vout_manager.delete_vouts_after( btc_trx_obj.pw_vin );
+      d.pw_vout_manager.mark_as_unused_vout( btc_trx_obj.pw_vin );
    
       for( const auto& vout_id : btc_trx_obj.vouts ) {
          const auto& vout_obj = *vouts_info_idx.find( vout_id );

@@ -35,6 +35,7 @@ struct bitcoin_transaction_confirmations
    uint64_t id;
 
    bool is_confirmed_and_not_used() const { return !used && confirmed; }
+   bool is_missing_and_not_used() const { return !used && missing; }
 
    fc::sha256 transaction_id;
    std::set<fc::sha256> valid_vins;
@@ -47,13 +48,13 @@ struct bitcoin_transaction_confirmations
 
 struct by_hash;
 struct by_confirmed_and_not_used;
-struct by_missing_first;
+struct by_missing_and_not_used;
 
 using btc_tx_confirmations_index = boost::multi_index_container<bitcoin_transaction_confirmations,
    indexed_by<
       ordered_unique<tag<by_hash>, member<bitcoin_transaction_confirmations, fc::sha256, &bitcoin_transaction_confirmations::transaction_id>>,
       ordered_non_unique<tag<by_confirmed_and_not_used>, identity< bitcoin_transaction_confirmations >, bitcoin_transaction_confirmations::comparer >,
-      ordered_non_unique<tag<by_missing_first>, member<bitcoin_transaction_confirmations, bool, &bitcoin_transaction_confirmations::missing>, std::greater<bool>>
+      ordered_non_unique<tag<by_missing_and_not_used>, identity< bitcoin_transaction_confirmations >, bitcoin_transaction_confirmations::comparer >
    >
 >;
 

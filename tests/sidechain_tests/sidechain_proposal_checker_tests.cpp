@@ -313,14 +313,14 @@ void create_missing_bto( graphene::chain::database& db, uint32_t amount )
 
 std::vector< revert_trx_info > get_transactions_info( graphene::chain::database& db, uint32_t amount )
 {
-   using iter_by_missing = btc_tx_confirmations_index::index<by_missing_first>::type::iterator;
+   using iter_by_missing = btc_tx_confirmations_index::index<by_missing_and_not_used>::type::iterator;
    std::vector< revert_trx_info > transactions_info;
    const auto& btc_trx_idx = db.get_index_type<graphene::chain::bitcoin_transaction_index>().indices().get<graphene::chain::by_transaction_id>();
    BOOST_CHECK_EQUAL( btc_trx_idx.size() , amount );
 
-   db.bitcoin_confirmations.safe_for<by_missing_first>([&]( iter_by_missing itr_b, iter_by_missing itr_e ){
+   db.bitcoin_confirmations.safe_for<by_missing_and_not_used>([&]( iter_by_missing itr_b, iter_by_missing itr_e ){
       for(auto iter = itr_b; iter != itr_e; iter++) {
-         if( !iter->missing ) return;
+         if( !iter->is_missing_and_not_used() ) return;
          const auto& btc_tx = btc_trx_idx.find( iter->transaction_id );
          if( btc_tx == btc_trx_idx.end() ) continue;
          transactions_info.push_back( revert_trx_info( iter->transaction_id, iter->valid_vins ) ); 

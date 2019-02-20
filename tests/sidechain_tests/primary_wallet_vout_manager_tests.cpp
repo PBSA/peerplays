@@ -78,28 +78,28 @@ BOOST_AUTO_TEST_CASE( delete_pw_vout_objects )
    BOOST_CHECK_EQUAL( idx.size(), 25 );
 
    auto pw_vout = *pw_vout_manager.get_latest_unused_vout();
-   pw_vout_manager.delete_vout_with_newer( create_hash_id( pw_vout.vout.hash_tx, pw_vout.vout.n_vout, pw_vout.id.instance() ) );
-   BOOST_CHECK_EQUAL( idx.size(), 24 );
+   pw_vout_manager.delete_vouts_after( create_hash_id( pw_vout.vout.hash_tx, pw_vout.vout.n_vout, pw_vout.id.instance() ) );
+   BOOST_CHECK_EQUAL( idx.size(), 25 );
    
-   pw_vout_manager.delete_vout_with_newer( create_hash_id( "13", 13, 13 ) );
+   pw_vout_manager.delete_vouts_after( create_hash_id( "13", 13, 13 ) );
 
-   BOOST_CHECK_EQUAL( idx.size(), 13 );
+   BOOST_CHECK_EQUAL( idx.size(), 14 );
 
    for( auto itr: idx ) {
       BOOST_CHECK( itr.hash_id == create_hash_id( itr.vout.hash_tx, itr.vout.n_vout, itr.id.instance() ) );
    }
 
    create_primary_wallet_vouts( pw_vout_manager, db, 8 );   
-   pw_vout_manager.delete_vout_with_newer( create_hash_id( "20", 20, 20 ) );
-   BOOST_CHECK_EQUAL( idx.size(), 21 );
+   pw_vout_manager.delete_vouts_after( create_hash_id( "20", 20, 20 ) );
+   BOOST_CHECK_EQUAL( idx.size(), 22 );
 
    for( auto itr: idx ) {
       BOOST_CHECK( itr.hash_id == create_hash_id( itr.vout.hash_tx, itr.vout.n_vout, itr.id.instance() ) );
    }
 
    auto itr_primary_wallet = idx.begin();
-   pw_vout_manager.delete_vout_with_newer( create_hash_id( itr_primary_wallet->vout.hash_tx, itr_primary_wallet->vout.n_vout, itr_primary_wallet->id.instance() ) );
-   BOOST_CHECK_EQUAL( idx.size(), 0 );
+   pw_vout_manager.delete_vouts_after( create_hash_id( itr_primary_wallet->vout.hash_tx, itr_primary_wallet->vout.n_vout, itr_primary_wallet->id.instance() ) );
+   BOOST_CHECK_EQUAL( idx.size(), 1 );
 }
 
 BOOST_AUTO_TEST_CASE( confirm_pw_vout_objects )

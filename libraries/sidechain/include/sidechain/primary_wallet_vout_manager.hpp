@@ -25,7 +25,7 @@ public:
    
    void create_new_vout( const sidechain::prev_out& out );
 
-   void delete_vout_with_newer( fc::sha256 hash_id );
+   void delete_vouts_after( fc::sha256 hash_id );
 
    void confirm_vout( fc::sha256 hash_id );
 

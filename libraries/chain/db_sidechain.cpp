@@ -349,12 +349,12 @@ fc::optional<operation> database::create_bitcoin_issue_proposals( const witness_
 
 fc::optional<operation> database::create_bitcoin_revert_proposals( const witness_object& current_witness )
 {
-   using iter_by_missing = btc_tx_confirmations_index::index<by_missing_first>::type::iterator;
+   using iter_by_missing = btc_tx_confirmations_index::index<by_missing_and_not_used>::type::iterator;
    std::vector<revert_trx_info> trx_info;
 
-   bitcoin_confirmations.safe_for<by_missing_first>([&]( iter_by_missing itr_b, iter_by_missing itr_e ){
+   bitcoin_confirmations.safe_for<by_missing_and_not_used>([&]( iter_by_missing itr_b, iter_by_missing itr_e ){
       for(auto iter = itr_b; iter != itr_e; iter++) {
-         if( !iter->missing ) return;
+         if( !iter->is_missing_and_not_used() ) return;
 
          const auto& btc_trx_idx = get_index_type<bitcoin_transaction_index>().indices().get<by_transaction_id>();
          const auto& btc_tx = btc_trx_idx.find( iter->transaction_id );
