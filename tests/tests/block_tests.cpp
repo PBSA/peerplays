@@ -719,7 +719,7 @@ BOOST_FIXTURE_TEST_CASE( limit_order_expiration, database_fixture )
    //Get a sane head block time
    generate_block();
 
-   auto* test = &create_bitasset("TEST");
+   auto* test = &create_bitasset("TESTB");
    auto* core = &asset_id_type()(db);
    auto* nathan = &create_account("nathan");
    auto* committee = &account_id_type()(db);
@@ -748,7 +748,7 @@ BOOST_FIXTURE_TEST_CASE( limit_order_expiration, database_fixture )
    auto id = limit_itr->id;
 
    generate_blocks(op.expiration, false);
-   test = &get_asset("TEST");
+   test = &get_asset("TESTB");
    core = &asset_id_type()(db);
    nathan = &get_account("nathan");
    committee = &account_id_type()(db);
@@ -846,17 +846,17 @@ BOOST_FIXTURE_TEST_CASE( change_block_interval, database_fixture )
    }
    BOOST_TEST_MESSAGE( "Verifying that the interval didn't change immediately" );
 
-   BOOST_CHECK_EQUAL(db.get_global_properties().parameters.block_interval, 5);
+   BOOST_CHECK_EQUAL(db.get_global_properties().parameters.block_interval, 3);
    auto past_time = db.head_block_time().sec_since_epoch();
    generate_block();
-   BOOST_CHECK_EQUAL(db.head_block_time().sec_since_epoch() - past_time, 5);
+   BOOST_CHECK_EQUAL(db.head_block_time().sec_since_epoch() - past_time, 3);
    generate_block();
-   BOOST_CHECK_EQUAL(db.head_block_time().sec_since_epoch() - past_time, 10);
+   BOOST_CHECK_EQUAL(db.head_block_time().sec_since_epoch() - past_time, 6);
 
    BOOST_TEST_MESSAGE( "Generating blocks until proposal expires" );
    generate_blocks(proposal_id_type()(db).expiration_time + 5);
-   BOOST_TEST_MESSAGE( "Verify that the block interval is still 5 seconds" );
-   BOOST_CHECK_EQUAL(db.get_global_properties().parameters.block_interval, 5);
+   BOOST_TEST_MESSAGE( "Verify that the block interval is still 3 seconds" );
+   BOOST_CHECK_EQUAL(db.get_global_properties().parameters.block_interval, 3);
 
    BOOST_TEST_MESSAGE( "Generating blocks until next maintenance interval" );
    generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
@@ -1087,6 +1087,7 @@ BOOST_FIXTURE_TEST_CASE( rsf_missed_blocks, database_fixture )
 
 // the test written in 2015 should be revised, currently it is not possible to push block to db2
 // without skip_witness_signature | skip_witness_schedule_check | skip_authority_check
+/*
 BOOST_FIXTURE_TEST_CASE( transaction_invalidated_in_cache, database_fixture )
 {
    try
@@ -1111,7 +1112,9 @@ BOOST_FIXTURE_TEST_CASE( transaction_invalidated_in_cache, database_fixture )
       while( db2.head_block_num() < db.head_block_num() )
       {
          optional< signed_block > b = db.fetch_block_by_number( db2.head_block_num()+1 );
-         db2.push_block(*b, database::skip_witness_signature);
+         db2.push_block(*b, database::skip_witness_signature|
+               database::skip_authority_check|
+               database::skip_witness_schedule_check);
       }
       BOOST_CHECK( db2.get( alice_id ).name == "alice" );
       BOOST_CHECK( db2.get( bob_id ).name == "bob" );
@@ -1235,6 +1238,7 @@ BOOST_FIXTURE_TEST_CASE( transaction_invalidated_in_cache, database_fixture )
       throw;
    }
 }
+*/
 
 BOOST_AUTO_TEST_CASE( genesis_reserve_ids )
 {
