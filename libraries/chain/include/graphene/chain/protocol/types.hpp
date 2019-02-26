@@ -145,7 +145,6 @@ namespace graphene { namespace chain {
       betting_market_group_object_type,
       betting_market_object_type,
       bet_object_type,
-      contract_balance_object_type,
       contract_balance_object_type,             // 20
       contract_object_type,
       result_contract_object_type,
@@ -175,7 +174,7 @@ namespace graphene { namespace chain {
       impl_pending_dividend_payout_balance_for_holder_object_type,
       impl_distributed_dividend_balance_data_type,
       impl_betting_market_position_object_type,
-      impl_global_betting_statistics_object_type
+      impl_global_betting_statistics_object_type,
       impl_contract_history_object_type,
       impl_contract_statistics_object_type
    };
