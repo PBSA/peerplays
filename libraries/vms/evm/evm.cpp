@@ -12,7 +12,7 @@ evm::evm( const std::string& path, adapters adapter ) : vm_interface( adapter ),
                                                         state( fs::path( path ), adapter.get<evm_adapter>() )
 {
    dev::eth::Ethash::init();
-   se = std::unique_ptr< SealEngineFace >( dev::eth::ChainParams(dev::eth::genesisInfo(dev::eth::Network::ExeBlockNetwork)).createSealEngine() );
+   se = std::unique_ptr< SealEngineFace >( dev::eth::ChainParams(dev::eth::genesisInfo(dev::eth::Network::PeerPlaysNetwork)).createSealEngine() );
 }
 
 std::pair<uint64_t, bytes> evm::exec( const bytes& data, const bool commit )

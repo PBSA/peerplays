@@ -23,12 +23,13 @@ set(HUNTER_JOBS_NUMBER 4 CACHE STRING "Hunter jobs number")
 set(HUNTER_CACHE_SERVERS "https://github.com/ethereum/hunter-cache" CACHE STRING "Hunter cache servers")
 set(HUNTER_PASSWORDS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/aleth/cmake/Hunter/passwords.cmake CACHE STRING "Hunter password path")
 
-include(aleth/cmake/HunterGate.cmake)
+include(HunterGate)
 HunterGate(
-    URL "https://github.com/ruslo/hunter/archive/v0.21.16.tar.gz"
-    SHA1 "aa1faccd24f33dd2c368f85a4e9ca2e5d9c249cb"
+    URL "https://github.com/ruslo/hunter/archive/v0.23.44.tar.gz"
+    SHA1 "c4cfcc0cd39fdae8de08f6205b7f34cab4a7ba79"
     LOCAL
 )
+
 ########################################################## PP end
 
 project( BitShares )
