@@ -370,6 +370,7 @@ namespace graphene { namespace chain {
       at_least_one_betting_market_group_settled(false),
       my(new impl(this))
    {
+      manager = account_id_type(1);
    }
 
    event_object::event_object(const event_object& rhs) : 
@@ -380,6 +381,7 @@ namespace graphene { namespace chain {
       event_group_id(rhs.event_group_id),
       at_least_one_betting_market_group_settled(rhs.at_least_one_betting_market_group_settled),
       scores(rhs.scores),
+      manager(rhs.manager),
       my(new impl(this))
    {
       my->state_machine = rhs.my->state_machine;
@@ -396,6 +398,7 @@ namespace graphene { namespace chain {
       event_group_id = rhs.event_group_id;
       at_least_one_betting_market_group_settled = rhs.at_least_one_betting_market_group_settled;
       scores = rhs.scores;
+      manager = rhs.manager;
 
       my->state_machine = rhs.my->state_machine;
       my->state_machine.event_obj = this;

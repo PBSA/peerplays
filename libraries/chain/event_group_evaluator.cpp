@@ -24,18 +24,19 @@
 #include <graphene/chain/event_group_evaluator.hpp>
 #include <graphene/chain/event_group_object.hpp>
 #include <graphene/chain/event_object.hpp>
+#include <graphene/chain/sport_object.hpp>
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/hardfork.hpp>
 #include <graphene/chain/is_authorized_asset.hpp>
+#include <graphene/chain/manager.hpp>
 
 namespace graphene { namespace chain {
 
 void_result event_group_create_evaluator::do_evaluate(const event_group_create_operation& op)
 { try {
    FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
-   FC_ASSERT(trx_state->_is_proposed_trx);
 
    // the sport id in the operation can be a relative id.  If it is,
    // resolve it and verify that it is truly a sport
@@ -49,6 +50,15 @@ void_result event_group_create_evaluator::do_evaluate(const event_group_create_o
 
    FC_ASSERT( db().find_object(sport_id), "Invalid sport specified" );
 
+   if( db().head_block_time() < HARDFORK_MANAGER_TIME ) { // remove after HARDFORK_MANAGER_TIME
+      FC_ASSERT( trx_state->_is_proposed_trx );
+      FC_ASSERT( !op.extensions.value.new_manager && !op.extensions.value.fee_paying_account );
+   }
+   else {
+      FC_ASSERT( is_manager( db(), sport_id, op.fee_payer() ),
+         "fee_payer is not the manager of this object" );
+   }
+
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -58,6 +68,8 @@ object_id_type event_group_create_evaluator::do_apply(const event_group_create_o
      db().create<event_group_object>( [&]( event_group_object& event_group_obj ) {
          event_group_obj.name = op.name;
          event_group_obj.sport_id = sport_id;
+         if( op.extensions.value.new_manager ) 
+            event_group_obj.manager = *op.extensions.value.new_manager;
      });
    return new_event_group.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -65,9 +77,18 @@ object_id_type event_group_create_evaluator::do_apply(const event_group_create_o
 void_result event_group_update_evaluator::do_evaluate(const event_group_update_operation& op)
 { try {
    FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
-   FC_ASSERT(trx_state->_is_proposed_trx);
-   FC_ASSERT(op.new_sport_id.valid() || op.new_name.valid(), "nothing to change");
-   if( op.new_sport_id.valid() )
+   if( db().head_block_time() < HARDFORK_MANAGER_TIME ) { // remove after HARDFORK_MANAGER_TIME
+      FC_ASSERT( trx_state->_is_proposed_trx );
+      FC_ASSERT( !op.extensions.value.new_manager && !op.extensions.value.fee_paying_account );
+      FC_ASSERT( op.new_sport_id || op.new_name, "nothing to change" );
+   }
+   else {
+      FC_ASSERT( is_manager( db(), op.event_group_id, op.fee_payer() ),
+         "fee_payer is not the manager of this object" );
+      FC_ASSERT( op.new_sport_id || op.new_name || op.extensions.value.new_manager, "nothing to change" );
+   }
+      
+   if( op.new_sport_id )
    {
        object_id_type resolved_id = *op.new_sport_id;
        if (is_relative(*op.new_sport_id))
@@ -78,6 +99,12 @@ void_result event_group_update_evaluator::do_evaluate(const event_group_update_o
        sport_id = resolved_id;
 
        FC_ASSERT( db().find_object(sport_id), "invalid sport specified" );
+       
+       if( db().head_block_time() >= HARDFORK_MANAGER_TIME )
+       {
+          FC_ASSERT( is_manager( db(), sport_id, op.fee_payer() ),
+             "no manager permission for the new_sport_id" );
+       }
    }
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -93,6 +120,8 @@ void_result event_group_update_evaluator::do_apply(const event_group_update_oper
               ego.name = *op.new_name;
           if( op.new_sport_id.valid() )
               ego.sport_id = sport_id;
+          if( op.extensions.value.new_manager )
+              ego.manager = *op.extensions.value.new_manager;
        });
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -101,8 +130,15 @@ void_result event_group_update_evaluator::do_apply(const event_group_update_oper
 void_result event_group_delete_evaluator::do_evaluate(const event_group_delete_operation& op)
 { try {
     FC_ASSERT(db().head_block_time() >= HARDFORK_1001_TIME);
-    FC_ASSERT(trx_state->_is_proposed_trx);
-    
+    if( db().head_block_time() < HARDFORK_MANAGER_TIME ) { // remove after HARDFORK_MANAGER_TIME
+      FC_ASSERT( trx_state->_is_proposed_trx );
+      FC_ASSERT( !op.extensions.value.fee_paying_account );
+    }
+    else {
+      FC_ASSERT( is_manager( db(), op.event_group_id, op.fee_payer() ),
+        "fee_payer is not the manager of this object" );
+    }
+
     //check for event group existence
     _event_group = &op.event_group_id(db());
     

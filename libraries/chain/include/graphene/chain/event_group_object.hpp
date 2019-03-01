@@ -41,7 +41,8 @@ class event_group_object : public graphene::db::abstract_object< event_group_obj
 
       internationalized_string_type name;
       sport_id_type sport_id;
-    
+      account_id_type manager = account_id_type(1);
+      
       void cancel_events(database& db) const;
 };
 
@@ -55,4 +56,4 @@ typedef multi_index_container<
 typedef generic_index<event_group_object, event_group_object_multi_index_type> event_group_object_index;
 } } // graphene::chain
 
-FC_REFLECT_DERIVED( graphene::chain::event_group_object, (graphene::db::object), (name)(sport_id) )
+FC_REFLECT_DERIVED( graphene::chain::event_group_object, (graphene::db::object), (name)(sport_id)(manager) )

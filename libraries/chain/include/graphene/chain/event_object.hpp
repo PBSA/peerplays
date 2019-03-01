@@ -60,6 +60,8 @@ class event_object : public graphene::db::abstract_object< event_object >
 
       event_group_id_type event_group_id;
 
+      account_id_type manager = account_id_type(1);
+      
       bool at_least_one_betting_market_group_settled;
 
       event_status get_status() const;
@@ -151,5 +153,5 @@ typedef generic_index<event_object, event_object_multi_index_type> event_object_
       return s;
    }
 } } // graphene::chain
-FC_REFLECT(graphene::chain::event_object, (name))
+FC_REFLECT(graphene::chain::event_object, (name) (manager) )
 
