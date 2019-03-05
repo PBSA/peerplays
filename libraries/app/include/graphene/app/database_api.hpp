@@ -114,6 +114,12 @@ struct market_trade
    double                     value;
 };
 
+struct gpos_info {
+   double vesting_factor;
+   asset award;
+   share_type total_amount;
+};
+
 /**
  * @brief The database_api class implements the RPC API for the chain database.
  *
@@ -645,7 +651,17 @@ class database_api
        */
       vector<tournament_id_type> get_registered_tournaments(account_id_type account_filter, uint32_t limit) const;
 
-   private:
+      //////////
+      // GPOS //
+      //////////
+      /**
+       * @return account and network GPOS information
+       */
+      gpos_info get_gpos_info(const account_id_type account) const;
+
+
+
+private:
       std::shared_ptr< database_api_impl > my;
 };
 
@@ -656,6 +672,8 @@ FC_REFLECT( graphene::app::order_book, (base)(quote)(bids)(asks) );
 FC_REFLECT( graphene::app::market_ticker, (base)(quote)(latest)(lowest_ask)(highest_bid)(percent_change)(base_volume)(quote_volume) );
 FC_REFLECT( graphene::app::market_volume, (base)(quote)(base_volume)(quote_volume) );
 FC_REFLECT( graphene::app::market_trade, (date)(price)(amount)(value) );
+FC_REFLECT( graphene::app::gpos_info, (vesting_factor)(award)(total_amount) );
+
 
 FC_API(graphene::app::database_api,
    // Objects
@@ -765,4 +783,7 @@ FC_API(graphene::app::database_api,
    (get_tournaments_by_state)
    (get_tournaments )
    (get_registered_tournaments)
+
+   // gpos
+   (get_gpos_info)
 )

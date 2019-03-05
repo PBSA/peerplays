@@ -725,14 +725,14 @@ void deprecate_annual_members( database& db )
    return;
 }
 
-double calculate_vesting_factor(const database& d, const account_object& stake_account)
+double database::calculate_vesting_factor(const account_object& stake_account)
 {
    // get last time voted form stats
-   const auto &stats = stake_account.statistics(d);
+   const auto &stats = stake_account.statistics(*this);
    fc::time_point_sec last_date_voted = stats.last_vote_time;
 
    // get global data related to gpos
-   const auto &gpo = d.get_global_properties();
+   const auto &gpo = this->get_global_properties();
    const auto vesting_period = gpo.parameters.gpos_period();
    const auto vesting_subperiod = gpo.parameters.gpos_subperiod();
    const auto period_start = fc::time_point_sec(gpo.parameters.gpos_period_start());
@@ -740,7 +740,7 @@ double calculate_vesting_factor(const database& d, const account_object& stake_a
    //  variables needed
    const fc::time_point_sec period_end = period_start + vesting_period;
    const auto number_of_subperiods = vesting_period / vesting_subperiod;
-   const auto now = d.head_block_time();
+   const auto now = this->head_block_time();
    double vesting_factor;
    auto seconds_since_period_start = now.sec_since_epoch() - period_start.sec_since_epoch();
 
@@ -1071,7 +1071,7 @@ void schedule_pending_dividend_balances(database& db,
                         vesting_balances_begin, vesting_balances_end)) {
                      if (holder_balance_object.owner == dividend_data.dividend_distribution_account) continue;
 
-                     auto vesting_factor = calculate_vesting_factor(db, holder_balance_object.owner(db));
+                     auto vesting_factor = db.calculate_vesting_factor(holder_balance_object.owner(db));
 
                      auto holder_balance = holder_balance_object.balance;
 
@@ -1463,7 +1463,7 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
                if (itr == vesting_amounts.end())
                   return;
 
-               auto vesting_factor = calculate_vesting_factor(d, stake_account);
+               auto vesting_factor = d.calculate_vesting_factor(stake_account);
                voting_stake = (uint64_t)floor(voting_stake * vesting_factor);
             }
             else

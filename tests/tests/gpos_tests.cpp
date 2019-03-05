@@ -32,6 +32,8 @@
 
 #include "../common/database_fixture.hpp"
 
+#include <graphene/app/database_api.hpp>
+
 using namespace graphene::chain;
 using namespace graphene::chain::test;
 
@@ -340,6 +342,7 @@ BOOST_AUTO_TEST_CASE( voting )
 {
    ACTORS((alice)(bob));
    try {
+
       // move to hardfork
       generate_blocks( HARDFORK_GPOS_TIME );
       generate_block();
@@ -638,15 +641,14 @@ BOOST_AUTO_TEST_CASE( worker_dividends_voting )
 BOOST_AUTO_TEST_CASE( account_multiple_vesting )
 {
    try {
-
-      // update default gpos global parameters to 4 days
-      auto now = db.head_block_time();
-      update_gpos_global(345600, 86400, now);
-
       // advance to HF
       generate_blocks(HARDFORK_GPOS_TIME);
       generate_block();
       set_expiration(db, trx);
+
+      // update default gpos global parameters to 4 days
+      auto now = db.head_block_time();
+      update_gpos_global(345600, 86400, now);
 
       ACTORS((sam)(patty));
 
@@ -832,6 +834,115 @@ BOOST_AUTO_TEST_CASE( proxy_voting )
 {
    try {
 
+   }
+   catch (fc::exception &e) {
+      edump((e.to_detail_string()));
+      throw;
+   }
+}
+
+BOOST_AUTO_TEST_CASE( no_proposal )
+{
+   try {
+
+   }
+   catch (fc::exception &e) {
+      edump((e.to_detail_string()));
+      throw;
+   }
+}
+BOOST_AUTO_TEST_CASE( database_api )
+{
+   ACTORS((alice)(bob));
+   try {
+
+      // move to hardfork
+      generate_blocks( HARDFORK_GPOS_TIME );
+      generate_block();
+
+      // database api
+      graphene::app::database_api db_api(db);
+
+      const auto& core = asset_id_type()(db);
+
+      // send some asset to alice and bob
+      transfer( committee_account, alice_id, core.amount( 1000 ) );
+      transfer( committee_account, bob_id, core.amount( 1000 ) );
+      generate_block();
+
+      // add some vesting to alice and bob
+      create_vesting(alice_id, core.amount(100), vesting_balance_type::gpos);
+      generate_block();
+
+      // total balance is 100 rest of data at 0
+      auto gpos_info = db_api.get_gpos_info(alice_id);
+      BOOST_CHECK_EQUAL(gpos_info.vesting_factor, 0);
+      BOOST_CHECK_EQUAL(gpos_info.award.amount.value, 0);
+      BOOST_CHECK_EQUAL(gpos_info.total_amount.value, 100);
+
+      create_vesting(bob_id, core.amount(100), vesting_balance_type::gpos);
+      generate_block();
+
+      // total gpos balance is now 200
+      gpos_info = db_api.get_gpos_info(alice_id);
+      BOOST_CHECK_EQUAL(gpos_info.total_amount.value, 200);
+
+      // update default gpos and dividend interval to 10 days
+      auto now = db.head_block_time();
+      update_gpos_global(5184000, 864000, now); // 10 days subperiods
+      update_payout_interval(core.symbol, fc::time_point::now() + fc::minutes(1), 60 * 60 * 24 * 10); // 10 days
+
+      generate_block();
+
+      // no votes for witness 1
+      auto witness1 = witness_id_type(1)(db);
+      BOOST_CHECK_EQUAL(witness1.total_votes, 0);
+
+      // no votes for witness 2
+      auto witness2 = witness_id_type(2)(db);
+      BOOST_CHECK_EQUAL(witness2.total_votes, 0);
+
+      // transfering some coins to distribution account.
+      const auto& dividend_holder_asset_object = get_asset(GRAPHENE_SYMBOL);
+      const auto& dividend_data = dividend_holder_asset_object.dividend_data(db);
+      const account_object& dividend_distribution_account = dividend_data.dividend_distribution_account(db);
+      transfer( committee_account, dividend_distribution_account.id, core.amount( 100 ) );
+      generate_block();
+
+      // award balance is now 100
+      gpos_info = db_api.get_gpos_info(alice_id);
+      BOOST_CHECK_EQUAL(gpos_info.vesting_factor, 0);
+      BOOST_CHECK_EQUAL(gpos_info.award.amount.value, 100);
+      BOOST_CHECK_EQUAL(gpos_info.total_amount.value, 200);
+
+      // vote for witness1
+      vote_for(alice_id, witness1.vote_id, alice_private_key);
+      vote_for(bob_id, witness1.vote_id, bob_private_key);
+
+      // go to maint
+      generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
+
+      // payment for alice and bob is done, distribution account is back in 0
+      gpos_info = db_api.get_gpos_info(alice_id);
+      BOOST_CHECK_EQUAL(gpos_info.vesting_factor, 1);
+      BOOST_CHECK_EQUAL(gpos_info.award.amount.value, 0);
+      BOOST_CHECK_EQUAL(gpos_info.total_amount.value, 200);
+
+      advance_x_maint(10);
+
+      // alice vesting coeffcient decay
+      gpos_info = db_api.get_gpos_info(alice_id);
+      BOOST_CHECK_EQUAL(gpos_info.vesting_factor, 0.83333333333333337);
+      BOOST_CHECK_EQUAL(gpos_info.award.amount.value, 0);
+      BOOST_CHECK_EQUAL(gpos_info.total_amount.value, 200);
+
+      advance_x_maint(10);
+
+      // vesting factor for alice decaying more
+      gpos_info = db_api.get_gpos_info(alice_id);
+      BOOST_CHECK_EQUAL(gpos_info.vesting_factor, 0.66666666666666663);
+      BOOST_CHECK_EQUAL(gpos_info.award.amount.value, 0);
+      BOOST_CHECK_EQUAL(gpos_info.total_amount.value, 200);
    }
    catch (fc::exception &e) {
       edump((e.to_detail_string()));
