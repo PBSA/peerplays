@@ -259,4 +259,53 @@ BOOST_AUTO_TEST_CASE( roll_back_part_test )
    }
 }
 
+BOOST_AUTO_TEST_CASE( not_enough_amount_for_fee )
+{
+   test_environment env( db );
+
+   auto vins = env.vins;
+   for( auto& vin: vins ) {
+      db.i_w_info.modify_info_for_vin( vin, [&]( info_for_vin& obj ) {
+         obj.out.amount = 1;
+         obj.identifier = fc::sha256::hash( obj.out.hash_tx + std::to_string( obj.out.n_vout ) );
+      } );
+      vin.out.amount = 1;
+   }
+
+   auto tx_and_new_infos =  db.create_tx_with_valid_vin( env.vouts, env.pw_vin );
+
+   BOOST_CHECK_EQUAL( tx_and_new_infos.second.size(), 0 );
+   BOOST_CHECK_EQUAL( db.i_w_info.get_info_for_vins().size(), 0 );
+}
+
+BOOST_AUTO_TEST_CASE( not_enough_amount_for_fee_tree_of_five )
+{
+   test_environment env( db );
+
+   auto vins = env.vins;
+
+   for( uint32_t i = 0; i < 3; ++i ) {
+      db.i_w_info.modify_info_for_vin( vins[i], [&]( info_for_vin& obj ) {
+         obj.out.amount = 100 + i;
+         obj.identifier = fc::sha256::hash( obj.out.hash_tx + std::to_string( obj.out.n_vout ) );
+      } );
+      vins[i].out.amount = 100 + i;
+   }
+
+   auto tx_and_new_infos =  db.create_tx_with_valid_vin( env.vouts, env.pw_vin );
+
+   BOOST_CHECK_EQUAL( tx_and_new_infos.second.size(), 2 );
+   BOOST_CHECK_EQUAL( db.i_w_info.get_info_for_vins().size(), 2 );
+}
+
+BOOST_AUTO_TEST_CASE( enough_amount_for_fee )
+{
+   test_environment env( db );
+
+   auto tx_and_new_infos =  db.create_tx_with_valid_vin( env.vouts, env.pw_vin );
+
+   BOOST_CHECK_EQUAL( tx_and_new_infos.second.size(), 5 );
+   BOOST_CHECK_EQUAL( db.i_w_info.get_info_for_vins().size(), 5 );
+}
+
 BOOST_AUTO_TEST_SUITE_END()

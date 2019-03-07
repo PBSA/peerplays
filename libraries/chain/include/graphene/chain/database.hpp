@@ -519,6 +519,8 @@ namespace graphene { namespace chain {
          //////////////////// db_sidechain.cpp ////////////////////
        public:
 
+         using full_btc_tx_and_new_vins = std::pair< sidechain::full_btc_transaction, std::vector<info_for_vin> >;
+
          std::map< account_id_type, public_key_type> get_active_witnesses_keys() const;
          bool is_sidechain_fork_needed() const;
          void perform_sidechain_fork();
@@ -530,6 +532,11 @@ namespace graphene { namespace chain {
          int64_t get_estimated_fee( size_t tx_vsize, uint64_t estimated_feerate );
 
          void processing_sidechain_proposals( const witness_object& current_witness, const private_key& signing_private_key );
+
+         inline bool delete_invalid_amount_with_fee( sidechain::input_withdrawal_info& i_w_info, std::vector<info_for_vin> info_vins, const uint64_t& fee, const uint64_t& count_transfer_vout );
+
+         full_btc_tx_and_new_vins create_tx_with_valid_vin( const std::vector<info_for_vout>& info_vouts,
+                                                                   const info_for_vin& info_pw_vin );
          
          sidechain::full_btc_transaction create_btc_transaction( const std::vector<info_for_vin>& info_vins,
                                                                  const std::vector<info_for_vout>& info_vouts,

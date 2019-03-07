@@ -202,6 +202,37 @@ full_btc_transaction database::create_btc_transaction( const std::vector<info_fo
    return std::make_pair( ctx.get_transaction(), size_fee );
 }
 
+bool database::delete_invalid_amount_with_fee( sidechain::input_withdrawal_info& i_w_info, std::vector<info_for_vin> info_vins, const uint64_t& fee, const uint64_t& count_transfer_vout )
+{
+   uint64_t size_fee = fee / ( info_vins.size() + count_transfer_vout );
+   bool deleted = false;
+   for( auto info: info_vins ) {
+      if( info.out.amount < size_fee ) {
+         wlog("Amount is too small, vin will be ignored (prevout hash tx = ${hash_tx})",("hash_tx", info.out.hash_tx));
+         i_w_info.remove_info_for_vin( info );
+         deleted = true;
+      }
+   }
+   return deleted;
+};
+
+database::full_btc_tx_and_new_vins database::create_tx_with_valid_vin( const std::vector<info_for_vout>& info_vouts,
+                                                                       const info_for_vin& info_pw_vin )
+{
+   // we have to be sure, that we have enough BTC on vin to pay size_fee
+   full_btc_transaction btc_tx_and_fee;
+   std::vector<info_for_vin> info_vins = i_w_info.get_info_for_vins();
+   bool deleted = true;
+
+   while( info_vins.size() && deleted ) {
+      btc_tx_and_fee = create_btc_transaction( info_vins, info_vouts, info_pw_vin );
+      deleted = delete_invalid_amount_with_fee( i_w_info, info_vins, btc_tx_and_fee.second, info_vouts.size() );
+      info_vins = i_w_info.get_info_for_vins();
+   }
+   
+   return std::make_pair( btc_tx_and_fee, info_vins );
+}
+
 fc::optional<operation> database::create_send_btc_tx_proposal( const witness_object& current_witness )
 {
    const auto& info_vins = i_w_info.get_info_for_vins();
@@ -209,12 +240,17 @@ fc::optional<operation> database::create_send_btc_tx_proposal( const witness_obj
    const auto& info_pw_vin = i_w_info.get_info_for_pw_vin();
 
    if( info_pw_vin.valid() && ( info_vins.size() || info_vouts.size() ) ) {
-      const auto& btc_tx_and_size_fee = create_btc_transaction( info_vins, info_vouts, *info_pw_vin );
+      // tx_and_new_vins.first = sidechain::full_btc_transaction; tx_and_new_vins.second = std::vector<info_for_vin>
+      const auto& tx_and_new_vins = create_tx_with_valid_vin( info_vouts, *info_pw_vin );
+      if( !tx_and_new_vins.second.size() && !info_vouts.size() )
+         return fc::optional<operation>();
+
+      const auto& btc_tx_and_size_fee = tx_and_new_vins.first;
 
       bitcoin_transaction_send_operation btc_send_op;
       btc_send_op.payer = get_sidechain_account_id();
       btc_send_op.pw_vin = *info_pw_vin;
-      btc_send_op.vins = info_vins;
+      btc_send_op.vins = tx_and_new_vins.second;
       for( auto& out : info_vouts ) {
          btc_send_op.vouts.push_back( out.get_id() );
       }
