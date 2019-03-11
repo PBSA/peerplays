@@ -83,8 +83,6 @@ public:
 
    void publishContractTransfers() override;
 
-   bool getObjectProperty(const std::string& location, dev::bytes& result) override;
-
    void clear_temporary_variables();
 
 ///////////////////////////////////////////////////////////////////////////////////// // DB result;
@@ -165,34 +163,5 @@ namespace ethbit{
         }
     }
 }
-
-class BlockChainInformations
-{
-
-public:
-
-//    BlockChainInformations(database& _db) : btsDB(_db){}
-
-   bool getObjectProperty(const std::string& location, dev::bytes& result);
-
-   bool checkLocationProperty(const std::string& locationProperty);
-
-private:
-
-   uint64_t stringToUint64(std::string str);
-
-   std::vector<std::string> getAllMatches(const std::string& str, const std::regex& regex);
-
-//    fc::optional<object_id_type> parseId(const std::string& location);
-
-   std::vector<std::string> parseLocationProperty(const std::string& locationProperty);
-
-//    fc::optional<dev::bytes> getValue(const std::string& json, const std::vector<std::string>& locationProperty);
-
-//    std::string getJSONObject(const object_id_type& id);
-
-//    database& btsDB;
-
-};
 
 } }
