@@ -70,6 +70,7 @@ class account_history_plugin_impl
    private:
       /** add one history record, then check and remove the earliest history record */
       void add_account_history( const account_id_type account_id, const operation_history_id_type op_id );
+      void add_contract_history( const contract_id_type contract_id, const operation_history_id_type op_id );
 
 };
 
@@ -86,13 +87,17 @@ void account_history_plugin_impl::update_account_histories( const signed_block& 
       optional<operation_history_object> oho;
 
       auto create_oho = [&]() {
-         operation_history_object result = db.create<operation_history_object>( [&]( operation_history_object& h )
+         return optional<operation_history_object>( db.create<operation_history_object>( [&]( operation_history_object& h )
          {
-            if( o_op.valid() )
-               h = *o_op;
-         } );
-         o_op->id = result.id;
-         return optional<operation_history_object>(result);
+            if( o_op.valid() ) {
+               h.op = o_op->op;
+               h.result = o_op->result;
+               h.block_num = o_op->block_num;
+               h.trx_in_block = o_op->trx_in_block;
+               h.op_in_trx = o_op->op_in_trx;
+               h.virtual_op = o_op->virtual_op;
+            }
+         }));
       };
 
       if( !o_op.valid() || ( _max_ops_per_account == 0 && _partial_operations ) )
@@ -110,13 +115,24 @@ void account_history_plugin_impl::update_account_histories( const signed_block& 
 
       // get the set of accounts this operation applies to
       flat_set<account_id_type> impacted;
+      flat_set<contract_id_type> impacted_contracts;
       vector<authority> other;
       operation_get_required_authorities( op.op, impacted, impacted, other ); // fee_payer is added here
 
-      if( op.op.which() == operation::tag< account_create_operation >::value )
+      if( op.op.which() == operation::tag< account_create_operation >::value ) {
          impacted.insert( op.result.get<object_id_type>() );
-      else
+      } else if( op.op.which() == operation::tag< contract_transfer_operation >::value ) {
+         auto operation = op.op.get< contract_transfer_operation >();
+         impacted_contracts.insert( operation.from );
+
+         if( operation.to.is<account_id_type>() ) {
+            impacted.insert( operation.to );
+         } else if( operation.to.is<contract_id_type>() ) {
+            impacted_contracts.insert( operation.to );
+         }
+      } else {
          graphene::app::operation_get_impacted_accounts( op.op, impacted );
+      }
 
       for( auto& a : other )
          for( auto& item : a.account_auths )
@@ -171,6 +187,12 @@ void account_history_plugin_impl::update_account_histories( const signed_block& 
             }
          }
       }
+
+      for( auto contract_id : impacted_contracts )
+      {
+         add_contract_history( contract_id, oho->id );
+      }
+
       if (_partial_operations && ! oho.valid())
          _oho_index->use_next_id();
    }
@@ -235,6 +257,23 @@ void account_history_plugin_impl::add_account_history( const account_id_type acc
    }
 }
 
+void account_history_plugin_impl::add_contract_history( const contract_id_type contract_id, const operation_history_id_type op_id )
+{
+   graphene::chain::database& db = database();
+   const auto& stats_obj = contract_id(db).statistics(db);
+   // add new entry
+   const auto& ath = db.create<contract_history_object>( [&]( contract_history_object& obj ){
+       obj.operation_id = op_id;
+       obj.contract = contract_id;
+       obj.sequence = stats_obj.total_ops + 1;
+       obj.next = stats_obj.most_recent_op;
+   });
+   db.modify( stats_obj, [&]( contract_statistics_object& obj ){
+       obj.most_recent_op = ath.id;
+       obj.total_ops = ath.sequence;
+   });
+}
+
 } // end namespace detail
 
 
@@ -276,6 +315,7 @@ void account_history_plugin::plugin_initialize(const boost::program_options::var
    database().add_index< primary_index< account_transaction_history_index > >();
    database().add_index< primary_index< contract_history_index > >();
 
+   database().create<contract_history_object>([](contract_history_object& cho){});
    LOAD_VALUE_SET(options, "track-account", my->_tracked_accounts, graphene::chain::account_id_type);
    if (options.count("partial-operations")) {
        my->_partial_operations = options["partial-operations"].as<bool>();
