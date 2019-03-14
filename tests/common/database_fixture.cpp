@@ -175,6 +175,7 @@ void database_fixture::verify_asset_supplies( const database& db )
 
    const simple_index<account_statistics_object>& statistics_index = db.get_index_type<simple_index<account_statistics_object>>();
    const auto& balance_index = db.get_index_type<account_balance_index>().indices();
+   const auto& contr_balance_index = db.get_index_type<contract_balance_index>().indices();
    const auto& settle_index = db.get_index_type<force_settlement_index>().indices();
    const auto& tournaments_index = db.get_index_type<tournament_index>().indices();
 
@@ -188,6 +189,8 @@ void database_fixture::verify_asset_supplies( const database& db )
         total_balances[t.options.buy_in.asset_id] += t.prize_pool;
 
    for( const account_balance_object& b : balance_index )
+      total_balances[b.asset_type] += b.balance;
+   for( const contract_balance_object& b : contr_balance_index )
       total_balances[b.asset_type] += b.balance;
    for( const force_settlement_object& s : settle_index )
       total_balances[s.balance.asset_id] += s.balance.amount;
@@ -1116,6 +1119,24 @@ vector< operation_history_object > database_fixture::get_operation_history( acco
    return result;
 }
 
+vector< operation_history_object > database_fixture::get_operation_history( contract_id_type contract_id )const
+{
+   vector< operation_history_object > result;
+   const auto& stats = contract_id(db).statistics(db);
+   if(stats.most_recent_op == contract_history_id_type())
+      return result;
+
+   const contract_history_object* node = &stats.most_recent_op(db);
+   while( true )
+   {
+      result.push_back( node->operation_id(db) );
+      if(node->next == contract_history_id_type())
+         break;
+      node = db.find(node->next);
+   }
+   return result;
+}
+
 void database_fixture::process_operation_by_witnesses(operation op)
 {
    const flat_set<witness_id_type>& active_witnesses = db.get_global_properties().active_witnesses;
@@ -1515,6 +1536,23 @@ void database_fixture::cancel_unmatched_bets(betting_market_group_id_type bettin
    betting_market_group_cancel_unmatched_bets_op.betting_market_group_id = betting_market_group_id;
    process_operation_by_witnesses(betting_market_group_cancel_unmatched_bets_op);
 } FC_CAPTURE_AND_RETHROW( (betting_market_group_id) ) }
+
+const vms::evm::pp_state& database_fixture::get_evm_state() const{
+   return dynamic_cast< vms::evm::evm* > ( db._executor->registered_vms.at( 1 ).get() )->state;
+}
+
+void database_fixture::execute_contract(transaction_evaluation_state& cont, database& db, account_id_type registrar_id,
+                                                     uint64_t value, std::string code, asset_id_type asset_id,
+                                                     asset fee, optional<contract_id_type> receiver_id) {
+   contract_operation contract_op;
+   contract_op.version_vm = 1;
+   contract_op.registrar = registrar_id;
+   contract_op.fee = fee;
+   contract_op.data = fc::raw::pack( eth_op{ registrar_id, receiver_id, asset_id, value, 1, 2000000, code } );
+   db._evaluating_from_apply_block = true;
+   db.apply_operation( cont, contract_op );
+   db._evaluating_from_apply_block = false;
+}
 
 
 namespace test {

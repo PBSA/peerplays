@@ -6,6 +6,8 @@
 
 #include <aleth/libethereum/LastBlockHashesFace.h>
 
+namespace graphene { namespace chain { struct database_fixture; } }
+
 namespace vms { namespace evm {
 
 using namespace vms::base;
@@ -28,6 +30,8 @@ public:
    std::string get_state_root() const override;
 
    void set_state_root( const std::string& hash ) override;
+
+   friend struct graphene::chain::database_fixture;
 
 private:
 

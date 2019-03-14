@@ -3,7 +3,7 @@
 #include <map>
 #include <vm_interface.hpp>
 
-namespace graphene { namespace chain { class contract_operation; } }
+namespace graphene { namespace chain { class contract_operation; struct database_fixture; } }
 
 namespace vms { namespace base {
 
@@ -23,6 +23,8 @@ public:
    std::string get_state_root_evm() const;
 
    void set_state_root_evm( const std::string& hash );
+
+   friend struct graphene::chain::database_fixture;
 
 private:
 

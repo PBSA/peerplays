@@ -41,7 +41,7 @@ public:
 
    u256 balance(Address const& _id) const override;
 
-   u256 balance(Address const& _id, const std::string& _callIdAsset) const override;
+   u256 balance(Address const& _id, const u256& _callIdAsset) const override;
 
    void incNonce(Address const& _addr) override;
 

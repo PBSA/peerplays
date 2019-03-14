@@ -27,6 +27,8 @@
 #include <graphene/chain/database.hpp>
 #include <fc/io/json.hpp>
 #include <fc/smart_ref_impl.hpp>
+#include <pp_state.hpp>
+#include <evm.hpp>
 
 #include <graphene/chain/operation_history_object.hpp>
 
@@ -369,6 +371,13 @@ struct database_fixture {
 
    proposal_id_type propose_operation(operation op);
    void process_proposal_by_witnesses(const std::vector<witness_id_type>& witnesses, proposal_id_type proposal_id, bool remove = false);
+   
+   const vms::evm::pp_state& get_evm_state() const;
+   vector< operation_history_object > get_operation_history( contract_id_type contract_id ) const;
+   
+   void execute_contract(transaction_evaluation_state& cont, database& db, account_id_type registrar_id,
+                         uint64_t value, std::string code, asset_id_type asset_id,
+                         asset fee, optional<contract_id_type> receiver_id);
 };
 
 namespace test {

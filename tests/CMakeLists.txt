@@ -41,4 +41,8 @@ file(GLOB RANDOM_SOURCES "random/*.cpp")
 add_executable( random_test ${RANDOM_SOURCES} ${COMMON_SOURCES} )
 target_link_libraries( random_test graphene_chain graphene_app graphene_egenesis_none fc ${PLATFORM_SPECIFIC_LIBS} )
 
+file(GLOB UNIT_TESTS "evm_tests/*.cpp")
+add_executable( evm_test ${UNIT_TESTS} ${COMMON_SOURCES} )
+target_link_libraries( evm_test graphene_chain graphene_app graphene_account_history graphene_egenesis_none fc ${PLATFORM_SPECIFIC_LIBS} )
+
 add_subdirectory( generate_empty_blocks )

@@ -79,16 +79,13 @@ u256 pp_state::balance(Address const& _id) const
    }
 }
 
-u256 pp_state::balance(Address const& _id, const std::string& _callIdAsset) const
+u256 pp_state::balance(Address const& _id, const u256& _callIdAsset) const
 {
-   auto idAssetTemp = create_object_id_type(_callIdAsset);
-   if( idAssetTemp ) {
-      auto obj_id = address_to_id(_id);
-      if( obj_id.first ) {
-         return u256( adapter.get_contract_balance( obj_id.second, asset_id ) );
-      } else {
-         return u256( adapter.get_account_balance( obj_id.second, asset_id ) );
-      }
+   auto obj_id = address_to_id(_id);
+   if( obj_id.first ) {
+      return u256( adapter.get_contract_balance( obj_id.second, static_cast<uint64_t>( _callIdAsset ) ) );
+   } else {
+     return u256( adapter.get_account_balance( obj_id.second, static_cast<uint64_t>( _callIdAsset ) ) );
    }
    return u256(0);
 }
