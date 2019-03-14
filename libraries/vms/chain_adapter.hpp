@@ -2,12 +2,16 @@
 
 #include <cstdint>
 #include <memory>
+#include <libdevcore/Common.h>
+#include <libdevcore/FixedHash.h>
 
 namespace graphene { namespace chain { class database; } }
 
 using namespace graphene::chain;
 
 namespace vms { namespace base {
+
+using namespace dev;
 
 class chain_adapter {
 
@@ -44,6 +48,12 @@ public:
    uint32_t head_block_time() const;
 
    bool evaluating_from_apply_block() const;
+
+   void add_result( const std::string& id, bytes res );
+
+   void commit_cache();
+
+   void commit();
 
 protected:
 

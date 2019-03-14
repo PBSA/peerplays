@@ -64,9 +64,6 @@ pp_state::pp_state( fs::path data_dir, vms::evm::evm_adapter _adapter ) : State(
    setRoot(dev::sha3(dev::rlp("")));
    author = id_to_address(0, 1);
 
-   db_res = State::openDB((data_dir / "result_db").string(), sha3(rlp("")), WithExisting::Trust);
-	state_results = SecureTrieDB<h160, OverlayDB>(&db_res);
-   setRootResults(dev::sha3(dev::rlp("")));
 }
 
 u256 pp_state::balance(Address const& _id) const
@@ -201,60 +198,6 @@ void pp_state::clear_temporary_variables() {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-void pp_state::addResult( const std::string& id, std::pair<dev::eth::ExecutionResult, dev::eth::TransactionReceipt>& res)
-{
-   cache_results.insert(std::make_pair(right160(sha3(id)), res));
-}
-
-std::pair<ExecutionResult, TransactionReceipt> const* pp_state::getResult( const std::string& _id ) const
-{
-   return const_cast<pp_state*>(this)->getResult(right160(sha3(_id)), true);
-}
-
-std::pair<ExecutionResult, TransactionReceipt>* pp_state::getResult(h160 const& idResult, bool a)
-{
-   std::pair<ExecutionResult, TransactionReceipt>* result = nullptr;
-   auto it = cache_results.find(idResult);
-	if (it != cache_results.end())
-   	result = &it->second;
-	else
-	{
-		// populate basic info.
-		std::string stateBack = state_results.at(idResult);
-		if (stateBack.empty())
-			return nullptr;
-
-		RLP state(stateBack);
-      ExecutionResult res;
-      res.gasUsed = state[0].toInt<u256>();
-      res.excepted = static_cast<TransactionException>(state[1].toInt<uint32_t>());
-      res.newAddress = state[2].toHash<h160>();
-      res.output = state[3].toBytes();
-      res.codeDeposit = static_cast<CodeDeposit>(state[4].toInt<uint32_t>());
-      res.gasRefunded = state[5].toInt<u256>();
-      res.depositSize = state[6].toInt<unsigned>();
-      res.gasForDeposit = state[7].toInt<u256>();
-
-      LogEntries log;
-      std::vector<dev::bytes> logEntries = state[10].toVector<dev::bytes>();
-      for(size_t i = 0; i < logEntries.size(); i++){
-         RLP stateTemp(logEntries[i]);
-         log.push_back(LogEntry(stateTemp));
-      }
-        
-      TransactionReceipt tr(state[8].toInt<uint8_t>(), state[9].toInt<u256>(), log);
-      cache_results.insert(std::make_pair(idResult, std::make_pair(res, tr)));
-        
-      result = &cache_results.at(idResult);
-	}
-	return result;
-}
-
-void pp_state::commitResults()
-{
-   ethbit::commit(cache_results, state_results);
-   cache_results.clear();
-}
 
 dev::Address pp_state::getNewAddress() const
 {

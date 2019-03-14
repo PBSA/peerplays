@@ -33,6 +33,7 @@
 
 #include <graphene/chain/contract_object.hpp>
 #include <vm_executor.hpp>
+#include <db_result.hpp>
 
 #include <graphene/db/object_database.hpp>
 #include <graphene/db/object.hpp>
@@ -454,6 +455,8 @@ namespace graphene { namespace chain {
          std::deque< signed_transaction >       _popped_tx;
 
          std::unique_ptr<vms::base::vm_executor> _executor;
+
+         vms::base::db_result                    db_res;
 
          bool                                   _evaluating_from_apply_block = false;
 

@@ -219,6 +219,7 @@ bool database::_push_block(const signed_block& new_block)
 
             auto head_block = fetch_block_by_id( head_block_id() );
             _executor->set_state_root_evm( head_block->state_root_hash.str() );
+            db_res.set_root( head_block->result_root_hash.str() );
 
             // push all blocks on the new fork
             for( auto ritr = branches.first.rbegin(); ritr != branches.first.rend(); ++ritr )
@@ -471,6 +472,7 @@ signed_block database::_generate_block(
    pending_block.witness = witness_id;
 
    pending_block.state_root_hash = fc::sha256( _executor->get_state_root_evm() );
+   pending_block.result_root_hash = fc::sha256( db_res.root_hash() );
    _executor->set_state_root_evm( old_state );
 
    // Genesis witnesses start with a default initial secret        

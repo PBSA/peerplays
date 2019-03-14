@@ -87,4 +87,19 @@ bool chain_adapter::evaluating_from_apply_block() const
    return db._evaluating_from_apply_block;
 }
 
+void chain_adapter::add_result( const std::string& id, bytes res )
+{
+   db.db_res.add_result( id, res ); 
+}
+
+void chain_adapter::commit_cache()
+{
+   db.db_res.commit_cache();
+}
+
+void chain_adapter::commit()
+{
+   db.db_res.commit();
+}
+
 } }

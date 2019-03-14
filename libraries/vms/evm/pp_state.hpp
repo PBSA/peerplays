@@ -1,6 +1,8 @@
 #pragma once
 
+#include <fc/io/raw.hpp>
 #include <boost/filesystem.hpp>
+#include <fc/reflect/reflect.hpp>
 
 #include <evm_adapter.hpp>
 #include <libethereum/State.h>
@@ -85,24 +87,7 @@ public:
 
    void clear_temporary_variables();
 
-///////////////////////////////////////////////////////////////////////////////////// // DB result;
-   void setRootResults(dev::h256 const& _r) { cache_results.clear(); state_results.setRoot(_r); }
-
-   dev::h256 rootHashResults() const { return state_results.root(); }
-
-   dev::OverlayDB const& dbResults() const { return db_res; }
-
-   dev::OverlayDB& dbResults() { return db_res; }
-
-
-   void addResult(const std::string& id, std::pair<ExecutionResult, TransactionReceipt>& res);
-
-   std::pair<ExecutionResult, TransactionReceipt> const* getResult(const std::string& _id) const;
-
-   std::pair<ExecutionResult, TransactionReceipt>* getResult(h160 const& idResult, bool a);
-
-   void commitResults();
-
+///////////////////////////////////////////////////////////////////////////////////// // DB result
    static LogEntriesSerializ logEntriesSerialization(LogEntries const& _logs);
 
    static LogEntries logEntriesDeserialize(LogEntriesSerializ const& _logs);
@@ -126,42 +111,6 @@ private:
 
    size_t stack_size;
 
-///////////////////////////////////////////////////////////////////////////////////// // DB result;
-   dev::OverlayDB db_res;
-
-   dev::eth::SecureTrieDB<h160, dev::OverlayDB> state_results;
-
-   ExecResult cache_results;
-
 };
-
-namespace ethbit{
-    template <class DB>
-    void commit(ExecResult const& cache_results, dev::eth::SecureTrieDB<h160, DB>& state_results)
-    {
-        if(cache_results.size()){        
-            for (auto const& i: cache_results){
-                RLPStream streamRLP(11);
-                streamRLP << i.second.first.gasUsed << static_cast<uint32_t>(i.second.first.excepted) << i.second.first.newAddress;
-                streamRLP.append(i.second.first.output);
-                streamRLP << static_cast<uint32_t>(i.second.first.codeDeposit) << i.second.first.gasRefunded;
-                streamRLP << i.second.first.depositSize << i.second.first.gasForDeposit;
-                streamRLP << i.second.second.statusCode() << i.second.second.cumulativeGasUsed();
-
-                const LogEntries& log = i.second.second.log();
-                std::vector<dev::bytes> logEntries;
-                for(size_t i = 0; i < log.size(); i++){
-                    const LogEntry& logTemp = log[i];
-                    RLPStream s(3);
-                    s << logTemp.address << logTemp.topics << logTemp.data;
-                    logEntries.push_back(s.out());
-                }
-                streamRLP.append(logEntries);
-
-                state_results.insert(i.first, &streamRLP.out());
-            }
-        }
-    }
-}
 
 } }

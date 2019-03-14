@@ -3159,7 +3159,7 @@ public:
       contract_create_op.version_vm = 1;
       eth_op eth_create = eth_op{registrar_account_id, optional<contract_id_type>(),
                                  get_asset_id(asset_type), value, gasPrice, gas, code};
-      contract_create_op.data = fc::raw::pack( eth_create );
+      contract_create_op.data = fc::raw::unsigned_pack( eth_create );
 
       signed_transaction tx;
       tx.operations.push_back( contract_create_op );
@@ -3182,7 +3182,7 @@ public:
       contract_create_op.version_vm = 1;
       eth_op eth_create = eth_op{registrar_account_id, receiver, contract_create_op.fee.asset_id,
                                  value, gasPrice, gas, code};
-      contract_create_op.data = fc::raw::pack( eth_create );
+      contract_create_op.data = fc::raw::unsigned_pack( eth_create );
 
       signed_transaction tx;
       tx.operations.push_back( contract_create_op );

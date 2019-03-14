@@ -147,6 +147,9 @@ void database::open(
       _executor->init( data_dir.string() );
       _executor->set_state_root_evm( dev::sha3( dev::rlp("") ).hex() );
 
+      db_res.init( data_dir.string() );
+      db_res.set_root( dev::sha3( dev::rlp("") ).hex() );
+
       if( !find(global_property_id_type()) )
          init_genesis(genesis_loader());
 
@@ -163,6 +166,7 @@ void database::open(
          }
 
          _executor->set_state_root_evm( last_block->state_root_hash.str() );
+         db_res.set_root( last_block->result_root_hash.str() );
 
       }
    }

@@ -25,7 +25,7 @@ namespace graphene { namespace chain {
         account_id_type     registrar;
 
         uint8_t             version_vm;
-        std::vector<char>   data;
+        std::vector<unsigned char>   data;
 
         account_id_type fee_payer()const { return registrar; }
         void            validate()const;

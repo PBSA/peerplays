@@ -23,8 +23,6 @@ public:
 
    std::vector< uint64_t > get_attracted_contracts( ) const override { return attracted_contracts; };
 
-   bytes get_execute_result(/*result_obj_id*/) override {}
-
    void roll_back_db(/*hash or number block*/) override {}
 
    std::string get_state_root() const override;
@@ -79,3 +77,54 @@ private:
 };
 
 } }
+
+FC_REFLECT_ENUM( dev::eth::TransactionException, 
+                 (None)
+                 (Unknown)
+                 (BadRLP)
+                 (InvalidFormat)
+                 (OutOfGasIntrinsic)
+                 (InvalidSignature)
+                 (InvalidNonce)
+                 (NotEnoughCash)
+                 (OutOfGasBase)
+                 (BlockGasLimitReached)
+                 (BadInstruction)
+                 (BadJumpDestination)
+                 (OutOfGas)
+                 (OutOfStack)
+                 (StackUnderflow)
+                 (RevertInstruction)
+                 (InvalidZeroSignatureFormat)
+                 (AddressAlreadyUsed) )
+
+FC_REFLECT_ENUM( dev::eth::CodeDeposit,
+                 (None)
+                 (Failed)
+                 (Success) )
+
+FC_REFLECT( dev::Address, (m_data) )
+FC_REFLECT( dev::h2048, (m_data) )
+FC_REFLECT( dev::h256, (m_data) )
+
+FC_REFLECT( dev::eth::LogEntry,
+            (address)
+            (topics)
+            (data) )
+
+FC_REFLECT( dev::eth::TransactionReceipt,
+            (m_statusCodeOrStateRoot)
+            (m_gasUsed)
+            (m_bloom)
+            (m_log) )
+
+FC_REFLECT( dev::eth::ExecutionResult, 
+            (gasUsed)
+            (excepted)
+            (newAddress)
+            (output)
+            (codeDeposit)
+            (gasRefunded)
+            (depositSize)
+            (gasForDeposit) )
+

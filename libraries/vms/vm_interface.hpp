@@ -7,8 +7,7 @@
 namespace vms { namespace base {
 
 using namespace vms::evm;
-
-using bytes = std::vector<char>;
+using namespace dev;
 using adapters = fc::static_variant<chain_adapter, evm_adapter>;
 
 class vm_interface {
@@ -20,7 +19,6 @@ public:
 
    virtual std::pair<uint64_t, bytes> exec( const bytes& data, const bool commit ) = 0;
    virtual std::vector< uint64_t > get_attracted_contracts() const = 0;
-   virtual bytes get_execute_result(/*result_obj_id*/) = 0;
    virtual void roll_back_db(/*hash or number block*/) = 0;
 
    virtual std::string get_state_root() const { return std::string(""); }

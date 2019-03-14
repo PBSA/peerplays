@@ -16,7 +16,7 @@ evm::evm( const std::string& path, adapters adapter ) : vm_interface( adapter ),
 }
 
 std::pair<uint64_t, bytes> evm::exec( const bytes& data, const bool commit )
-{
+{ 
    clear_temporary_variables();
 
    eth_op eth = fc::raw::unpack<eth_op>( data );
@@ -46,10 +46,12 @@ std::pair<uint64_t, bytes> evm::exec( const bytes& data, const bool commit )
 
    attracted_contracts = select_attracted_contracts(attracted_contr_and_acc);
 
+   bytes serialize_result = fc::raw::unsigned_pack( res );
+
    if( get_adapter().evaluating_from_apply_block() ){
-      state.addResult( get_adapter().get_next_result_id(), res);
-      state.commitResults();
-      state.dbResults().commit();
+      get_adapter().add_result( get_adapter().get_next_result_id(), serialize_result );
+      get_adapter().commit_cache();
+      get_adapter().commit();
    }
 
    return std::make_pair( static_cast<uint64_t>( state.getFee() ), bytes() );
@@ -67,9 +69,7 @@ void evm::set_state_root( const std::string& hash )
 
 Transaction evm::create_eth_transaction(const eth_op& eth) const
 {   
-   
-   bytes code( eth.code.size() / 2, 0 );
-   fc::from_hex( eth.code, code.data(), code.size() );
+   bytes code = dev::fromHex( eth.code );
 
    Transaction tx;
    if( eth.receiver.valid() ) {
