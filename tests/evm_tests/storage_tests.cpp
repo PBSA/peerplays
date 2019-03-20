@@ -22,20 +22,85 @@ string u256_to_string(u256& data){
 }
 
 BOOST_FIXTURE_TEST_SUITE( storage_tests, database_fixture )
+/*
+    pragma solidity >=0.4.22 <0.6.0;
+    contract solidityAdd {
+        uint a = 26;
+        function add() public {
+            a = a + 1;
+        }
+        function() external payable {}
+        constructor () public payable {}
+    }
+*/
+std::string solidityAddCode = "6080604052601a60005560898060166000396000f3fe6080604052600436106039576000357c0100000000000000000000000000000000000000000000000000000000900480634f2be91f14603b575b005b348015604657600080fd5b50604d604f565b005b60016000540160008190555056fea165627a7a72305820ca7373d84858554566f0336168b09e3e765186ac38e4cf18cc584bcec4bd7fe20029";
+
+/*
+    pragma solidity >=0.4.22 <0.6.0;
+    contract solidityPayable {
+        function() external payable {}
+    }
+*/
+std::string solidityPayableCode = "6080604052348015600f57600080fd5b50603280601d6000396000f3fe608060405200fea165627a7a72305820b860bcee58741a7fceefcfb571356ef0a5da01abba6d9fdb7e6bc160c8cd402f0029";
+
+/*
+    pragma solidity >=0.4.22 <0.6.0;
+    contract soliditySuicide {
+        address payable addr = 0x0100000000000000000000000000000000000000;
+        function sui() public {
+            selfdestruct(addr);
+        }
+        function() external payable {}
+        constructor () public payable {}
+    }
+*/
+std::string soliditySuicideCode = "60806040527301000000000000000000000000000000000000006000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555060b5806100666000396000f3fe6080604052600436106039576000357c010000000000000000000000000000000000000000000000000000000090048063c421249a14603b575b005b348015604657600080fd5b50604d604f565b005b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16fffea165627a7a72305820480d2be102167c8ebd7c740c33277236ae0ec15bc7a84e106f80de2780c0d9560029";
+
+/*
+    pragma solidity >=0.4.22 <0.6.0;
+    
+    contract Contract {
+        uint Name;
+    
+        constructor(uint name) public {
+            Name = name;
+        }
+    }
+    
+    contract Factory {
+        uint name = 0;
+        function createContract() public {
+            Contract newContract = new Contract(name);
+            name += 1;
+        } 
+    }
+*/
+std::string solidityFactoryCode = "60806040526000805534801561001457600080fd5b50610163806100246000396000f3fe608060405234801561001057600080fd5b5060043610610048576000357c010000000000000000000000000000000000000000000000000000000090048063412a5a6d1461004d575b600080fd5b610055610057565b005b60008054604051610067906100a3565b80828152602001915050604051809103906000f08015801561008d573d6000803e3d6000fd5b5090506001600080828254019250508190555050565b6088806100b08339019056fe6080604052348015600f57600080fd5b50604051602080608883398101806040526020811015602d57600080fd5b8101908080519060200190929190505050806000819055505060358060536000396000f3fe6080604052600080fdfea165627a7a72305820a80f36f6424d98a4d04470934d8fc703539b49448199a262c854afb14abe0f6f0029a165627a7a72305820133cfecea043f1084c7a476f7a21ef3eb2be393714cc2528a373492217b9cfb50029";
+
+/*
+    pragma solidity >=0.4.22 <0.6.0;
+    
+    contract ContractReturn {
+        function retFunc() public returns (uint){
+            return 0x1a;
+        }
+    }
+*/
+std::string solidityReturnCode = "6080604052348015600f57600080fd5b50609b8061001e6000396000f3fe6080604052348015600f57600080fd5b50600436106045576000357c0100000000000000000000000000000000000000000000000000000000900480632f74848214604a575b600080fd5b60506066565b6040518082815260200191505060405180910390f35b6000601a90509056fea165627a7a7230582068db50066b6123e7cc36df93844beff5302de144be65a895b971fc44910fcf790029";
 
 BOOST_AUTO_TEST_CASE( storage_test ){
     transfer(account_id_type(0),account_id_type(5),asset(1000000000, asset_id_type()));
     transaction_evaluation_state context(&db);
 
     asset fee(0, asset_id_type());
-    std::string code = "6060604052346000575b600d6000819055505b5b6052806100206000396000f360606040526000357c0100000000000000000000000000000000000000000000000000000000900480634f2be91f146036575b6000565b603c603e565b005b600d6000600082825401925050819055505b56";
-    execute_contract(context, db, account_id_type(5), 0, code, asset_id_type(), fee, optional<contract_id_type>());
+  
+    execute_contract(context, db, account_id_type(5), 0, solidityAddCode, asset_id_type(), fee, optional<contract_id_type>());
     execute_contract(context, db, account_id_type(5), 0, "4f2be91f", asset_id_type(), fee, contract_id_type(0));
 
     auto storage = get_evm_state().storage(id_to_address(contract_id_type(0).instance.value, 1));
     for (auto e : storage) {
         if (u256_to_string(e.second.first) == "0") {
-            BOOST_CHECK(u256_to_string(e.second.second) == "26");
+            BOOST_CHECK(u256_to_string(e.second.second) == "27");
         }
     }
 }
@@ -45,11 +110,9 @@ BOOST_AUTO_TEST_CASE( suicide_test ){
     transaction_evaluation_state context(&db);
 
     asset fee(0, asset_id_type());
-    std::string code1 = "6060604052346000575b60108060156000396000f360606040523615505b600e5b5b565b00";
-    std::string code2 = "6060604052730100000000000000000000000000000000000001600060006101000a81548173ffffffffffffffffffffffffffffffffffffffff02191690836c0100000000000000000000000090810204021790555034610000575b6084806100686000396000f3606060405236156037576000357c01000000000000000000000000000000000000000000000000000000009004806341c0e1b514603f575b603d5b5b565b005b60456047565b005b600060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16ff5b56";
-    execute_contract(context, db, account_id_type(5), 0, code1, asset_id_type(), fee, optional<contract_id_type>());
-    execute_contract(context, db, account_id_type(5), 0, code1, asset_id_type(), fee, optional<contract_id_type>());
-    execute_contract(context, db, account_id_type(5), 0, code2, asset_id_type(), fee, optional<contract_id_type>());
+    execute_contract(context, db, account_id_type(5), 0, solidityAddCode, asset_id_type(), fee, optional<contract_id_type>());
+    execute_contract(context, db, account_id_type(5), 0, solidityAddCode, asset_id_type(), fee, optional<contract_id_type>());
+    execute_contract(context, db, account_id_type(5), 0, soliditySuicideCode, asset_id_type(), fee, optional<contract_id_type>());
     execute_contract(context, db, account_id_type(5), 0, "4f2be91f", asset_id_type(), fee, contract_id_type(0));
 
     auto& index = db.get_index_type<contract_index>().indices().get<by_id>();
@@ -58,7 +121,7 @@ BOOST_AUTO_TEST_CASE( suicide_test ){
     BOOST_CHECK(index.end() != index.find(contract_id_type(1)));
     BOOST_CHECK(index.end() != index.find(contract_id_type(2)));
 
-    execute_contract(context, db, account_id_type(5), 0, "41c0e1b5", asset_id_type(), fee, contract_id_type(2));
+    execute_contract(context, db, account_id_type(5), 0, "c421249a", asset_id_type(), fee, contract_id_type(2));
 
     BOOST_CHECK(get_evm_state().addresses().size() == 2);
     BOOST_CHECK(index.end() != index.find(contract_id_type(0)));
@@ -71,13 +134,12 @@ BOOST_AUTO_TEST_CASE( contract_create_contract_test ){
     transaction_evaluation_state context(&db);
 
     asset fee(0, asset_id_type());
-    std::string code = "606060405234610000575b6102ca806100186000396000f360606040526000357c0100000000000000000000000000000000000000000000000000000000900480633f811b80146100435780636b8ff57414610060575b610000565b346100005761005e600480803590602001909190505061007d565b005b346100005761007b6004808035906020019091905050610149565b005b60008160405160a6806102248339018082600019168152602001915050604051809103906000f08015610000579050600180548060010182818154818355818115116100f5578183600052602060002091820191016100f491905b808211156100f05760008160009055506001016100d8565b5090565b5b505050916000526020600020900160005b83909190916101000a81548173ffffffffffffffffffffffffffffffffffffffff02191690836c01000000000000000000000000908102040217905550505b5050565b6000600182815481101561000057906000526020600020900160005b9054906101000a900473ffffffffffffffffffffffffffffffffffffffff1690508073ffffffffffffffffffffffffffffffffffffffff16638052474d600060405160200152604051817c0100000000000000000000000000000000000000000000000000000000028152600401809050602060405180830381600087803b156100005760325a03f1156100005750505060405180519060200150600083815481101561000057906000526020600020900160005b50819055505b505056606060405234610000576040516020806100a6833981016040528080519060200190919050505b806000819055505b505b60698061003d6000396000f3606060405236156037576000357c0100000000000000000000000000000000000000000000000000000000900480638052474d14603f575b603d5b5b565b005b3460005760496063565b604051808260001916815260200191505060405180910390f35b6000548156";
-    execute_contract(context, db, account_id_type(5), 0, code, asset_id_type(), fee, optional<contract_id_type>());
+    execute_contract(context, db, account_id_type(5), 0, solidityFactoryCode, asset_id_type(), fee, optional<contract_id_type>());
 
     BOOST_CHECK(get_evm_state().addresses().size() == 1);
 
     for(size_t i = 0; i < 10; i++) {
-        execute_contract(context, db, account_id_type(5), 0, "3f811b80", asset_id_type(), fee, contract_id_type(0));
+        execute_contract(context, db, account_id_type(5), 0, "412a5a6d", asset_id_type(), fee, contract_id_type(0));
     }
 
     auto& index = db.get_index_type<contract_index>().indices().get<by_id>();
@@ -92,18 +154,17 @@ BOOST_AUTO_TEST_CASE( fee_test ){
     transaction_evaluation_state context(&db);
 
     asset fee(0, asset_id_type());
-    std::string code = "6060604052346000575b600d6000819055505b5b6052806100206000396000f360606040526000357c0100000000000000000000000000000000000000000000000000000000900480634f2be91f146036575b6000565b603c603e565b005b600d6000600082825401925050819055505b56";
-    execute_contract(context, db, account_id_type(5), 0, code, asset_id_type(), fee, optional<contract_id_type>());
+    execute_contract(context, db, account_id_type(5), 0, solidityAddCode, asset_id_type(), fee, optional<contract_id_type>());
 
     const simple_index<account_statistics_object>& statistics_index = db.get_index_type<simple_index<account_statistics_object>>();
     auto iter = statistics_index.begin();
     for(size_t i = 0; i < 5; i++)
         iter++;
     const account_statistics_object& a = *iter;
-    BOOST_CHECK(a.pending_fees + a.pending_vested_fees == 94797);
+    BOOST_CHECK(a.pending_fees + a.pending_vested_fees == 108843);
 
     asset balance_sender = db.get_balance(account_id_type(5), asset_id_type());
-    BOOST_CHECK(1000000000 - 94797 == balance_sender.amount);
+    BOOST_CHECK(1000000000 - 108843 == balance_sender.amount);
 }
 
 BOOST_AUTO_TEST_CASE( not_CORE_fee_test ){
@@ -122,8 +183,7 @@ BOOST_AUTO_TEST_CASE( not_CORE_fee_test ){
     contract_op.version_vm = 1;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type(1));
-    std::string code_sol = string("6060604052346000575b600d6000819055505b5b6052806100206000396000f360606040526000357c0100000000000000000000000000000000000000000000000000000000900480634f2be91f146036575b6000565b603c603e565b005b600d6000600082825401925050819055505b56");
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(1), 0, 1, 1000000, code_sol } );
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(1), 0, 1, 1000000, solidityAddCode } );
 
     db._evaluating_from_apply_block = true;
     result = db.apply_operation( context, contract_op );
@@ -139,10 +199,10 @@ BOOST_AUTO_TEST_CASE( not_CORE_fee_test ){
         iter++;
     const account_statistics_object& a = *iter;
 
-    BOOST_CHECK(a.pending_fees + a.pending_vested_fees == 94797);
+    BOOST_CHECK(a.pending_fees + a.pending_vested_fees == 108843);
     BOOST_CHECK(balance1.amount.value == 1000000000000000 - 1000000);
     BOOST_CHECK(balance2.amount.value == 0);
-    BOOST_CHECK(balance3.amount.value == 1000000 - 94797);
+    BOOST_CHECK(balance3.amount.value == 1000000 - 108843);
 }
 
 BOOST_AUTO_TEST_CASE( many_asset_contract_test ){
@@ -158,14 +218,11 @@ BOOST_AUTO_TEST_CASE( many_asset_contract_test ){
     operation_result result = db.apply_operation( context, op_fund_fee_pool );
 
     asset fee(0, asset_id_type(1));
-    std::string code1 = "6060604052346000575b60108060156000396000f360606040523615505b600e5b5b565b00";
-    std::string code2 = "6060604052730100000000000000000000000000000000000000600060006101000a81548173ffffffffffffffffffffffffffffffffffffffff02191690836c010000000000000000000000009081020402179055505b5b5b6084806100656000396000f3606060405236156037576000357c01000000000000000000000000000000000000000000000000000000009004806341c0e1b514603f575b603d5b5b565b005b60456047565b005b600060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16ff5b56";
-    std::string code3 = "6060604052730100000000000000000000000000000000000000600060006101000a81548173ffffffffffffffffffffffffffffffffffffffff02191690836c010000000000000000000000009081020402179055505b5b5b6084806100656000396000f3606060405236156037576000357c01000000000000000000000000000000000000000000000000000000009004806341c0e1b514603f575b603d5b5b565b005b60456047565b005b600060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16ff5b56";
-    execute_contract(context, db, account_id_type(5), 0, code1, asset_id_type(1), fee, optional<contract_id_type>());
-    execute_contract(context, db, account_id_type(5), 50000, code2, asset_id_type(1), fee, optional<contract_id_type>());
+    execute_contract(context, db, account_id_type(5), 0, solidityPayableCode, asset_id_type(1), fee, optional<contract_id_type>());
+    execute_contract(context, db, account_id_type(5), 50000, soliditySuicideCode, asset_id_type(1), fee, optional<contract_id_type>());
 
     fee = asset(0, asset_id_type(1));
-    execute_contract(context, db, account_id_type(5), 50000, code3, asset_id_type(1), fee, optional<contract_id_type>());
+    execute_contract(context, db, account_id_type(5), 50000, solidityPayableCode, asset_id_type(1), fee, optional<contract_id_type>());
     fee = asset(0, asset_id_type());
     execute_contract(context, db, account_id_type(5), 50000, "00", asset_id_type(), fee, contract_id_type(1));
 
@@ -174,7 +231,7 @@ BOOST_AUTO_TEST_CASE( many_asset_contract_test ){
 
     // suicide contract_id_type(1)
     // All assets must transfer to contract_id_type(0)
-    execute_contract(context, db, account_id_type(5), 0, "41c0e1b5", asset_id_type(), fee, contract_id_type(1));
+    execute_contract(context, db, account_id_type(5), 0, "c421249a", asset_id_type(), fee, contract_id_type(1));
 
     auto& index = db.get_index_type<result_contract_index>().indices().get<by_id>();
     auto itr = index.find(contract_id_type(1));
@@ -188,9 +245,10 @@ BOOST_AUTO_TEST_CASE( result_contract_object_test ){
     transaction_evaluation_state context(&db);
 
     asset fee(0, asset_id_type());
-    std::string code = "6060604052346000575b600d6000819055505b5b606e806100206000396000f360606040526000357c0100000000000000000000000000000000000000000000000000000000900480634f2be91f146036575b6000565b603c6052565b6040518082815260200191505060405180910390f35b6000600d60006000828254019250508190555060005490505b9056";
-    execute_contract(context, db, account_id_type(5), 0, code, asset_id_type(), fee, optional<contract_id_type>());
-    execute_contract(context, db, account_id_type(5), 0, "4f2be91f", asset_id_type(), fee, contract_id_type(0));
+    execute_contract(context, db, account_id_type(5), 0, solidityReturnCode, asset_id_type(), fee, optional<contract_id_type>());
+    asset balance1 = db.get_balance(account_id_type(5), asset_id_type());
+    execute_contract(context, db, account_id_type(5), 0, "2f748482", asset_id_type(), fee, contract_id_type(0));
+    asset balance2 = db.get_balance(account_id_type(5), asset_id_type());
 
     auto& index = db.get_index_type<result_contract_index>().indices().get<by_id>();
     auto itr = index.find(result_contract_id_type(1));
@@ -202,55 +260,61 @@ BOOST_AUTO_TEST_CASE( result_contract_object_test ){
     auto res = fc::raw::unpack< std::pair< ExecutionResult, TransactionReceipt > >( *raw_res );
 
     BOOST_CHECK(object.contracts_id.size() == 1);
-    BOOST_CHECK(res.first.gasUsed == u256(26854));
+    BOOST_CHECK(res.first.gasUsed == u256(21468));
     BOOST_CHECK(res.first.newAddress == Address("0000000000000000000000000000000000000000"));
     BOOST_CHECK(res.first.codeDeposit == CodeDeposit::None);
     BOOST_CHECK(res.first.excepted == TransactionException::None);
     BOOST_CHECK(res.first.output == dev::bytes({0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
                                             0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x1a}));
-    BOOST_CHECK(res.second.cumulativeGasUsed() == u256(26854));
+    BOOST_CHECK(res.second.cumulativeGasUsed() == u256(21468));
+    idump(( balance1 - balance2 ));
     BOOST_CHECK(res.second.log().size() == 0);
 }
 
 /*
-    contract solidity {
-        function() payable {}
+    pragma solidity >=0.4.22 <0.6.0;
+    contract solidityPayable {
+        function() external payable {}
     }
 */
-std::string solidityCode = "60606040523415600b57fe5b5b60398060196000396000f3006060604052";
+std::string solidityCode = "6080604052348015600f57600080fd5b50603280601d6000396000f3fe608060405200fea165627a7a72305820b860bcee58741a7fceefcfb571356ef0a5da01abba6d9fdb7e6bc160c8cd402f0029";
 
 /*
+    pragma solidity >=0.4.22 <0.6.0;
     contract solidityTransfer {
-    function tr() {
-        address addr = 0x0000000000000000000000000000000000000003;
+      function tr() public {
+        address payable addr = 0x0000000000000000000000000000000000000003;
         addr.transfer(10000);
+      }
+      function() external payable {}
     }
-    function() payable {}
-}
 */
-std::string solidityTransferCode = "6060604052341561000c57fe5b5b60cb8061001b6000396000f30060606040523615603d576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063c5917cbd146045575b60435b5b565b005b3415604c57fe5b60526054565b005b6000600390508073ffffffffffffffffffffffffffffffffffffffff166108fc6127109081150290604051809050600060405180830381858888f193505050501515609b57fe5b5b505600a165627a7a723058201f685dedd138d48bce571a1cf3c2809eaeb12a02414c9eedc9d19cad55accea70029";
+std::string solidityTransferCode = "608060405234801561001057600080fd5b5060cc8061001f6000396000f3fe6080604052600436106039576000357c010000000000000000000000000000000000000000000000000000000090048063c5917cbd14603b575b005b348015604657600080fd5b50604d604f565b005b6000600390508073ffffffffffffffffffffffffffffffffffffffff166108fc6127109081150290604051600060405180830381858888f19350505050158015609c573d6000803e3d6000fd5b505056fea165627a7a72305820ca0e36f1a07ff7552acf00484ca8a92f408d9dfde989a895524b271dfca93ba00029";
 
 /*
+    pragma solidity >=0.4.22 <0.6.0;
     contract soliditySend {
-        function se() {
-            address addr = 0x0100000000000000000000000000000000000000;
-            addr.call(bytes4(sha3("tr()")));
+        function se() public {
+            address payable addr = 0x0100000000000000000000000000000000000000;
+            (bool success,) = addr.call(abi.encodeWithSignature("tr()"));
+            require(success);
         }
-        function() payable {}
+        function() external payable {}
     }
 */
-std::string soliditySendCode = "6060604052341561000c57fe5b5b6101588061001c6000396000f3006060604052361561003f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063178a18fe14610048575b6100465b5b565b005b341561005057fe5b61005861005a565b005b600073010000000000000000000000000000000000000090508073ffffffffffffffffffffffffffffffffffffffff1660405180807f7472282900000000000000000000000000000000000000000000000000000000815250600401905060405180910390207c010000000000000000000000000000000000000000000000000000000090046040518163ffffffff167c010000000000000000000000000000000000000000000000000000000002815260040180905060006040518083038160008761646e5a03f192505050505b505600a165627a7a72305820f6d92b18e5e36a9eec335e89fe12d977f0e07b85685f6cfff2b6a0bcd28228e70029";
+std::string soliditySendCode = "608060405234801561001057600080fd5b506101e1806100206000396000f3fe60806040526004361061003b576000357c010000000000000000000000000000000000000000000000000000000090048063178a18fe1461003d575b005b34801561004957600080fd5b50610052610054565b005b6000730100000000000000000000000000000000000000905060008173ffffffffffffffffffffffffffffffffffffffff166040516024016040516020818303038152906040527fc5917cbd000000000000000000000000000000000000000000000000000000007bffffffffffffffffffffffffffffffffffffffffffffffffffffffff19166020820180517bffffffffffffffffffffffffffffffffffffffffffffffffffffffff83818316178352505050506040518082805190602001908083835b6020831061013c5780518252602082019150602081019050602083039250610119565b6001836020036101000a0380198251168184511680821785525050505050509050019150506000604051808303816000865af19150503d806000811461019e576040519150601f19603f3d011682016040523d82523d6000602084013e6101a3565b606091505b50509050806101b157600080fd5b505056fea165627a7a72305820c1e392e6a523ec0ec71ea73780ba8290ddb295a0c7f9d0b1437a99e25174fb160029";
 
 /*
+    pragma solidity >=0.4.22 <0.6.0;
     contract solidityTest {
-        function addAmount() payable {}
+        function addAmount() external payable {}
         function send() public {
-            msg.sender.transfer(this.balance);
+            msg.sender.transfer(address(this).balance);
         }
     }
 */
 
-std::string solidityTestCode = "6060604052341561000c57fe5b5b60e38061001b6000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063b46300ec146044578063b9c14577146053575bfe5b3415604b57fe5b6051605b565b005b605960b4565b005b3373ffffffffffffffffffffffffffffffffffffffff166108fc3073ffffffffffffffffffffffffffffffffffffffff16319081150290604051809050600060405180830381858888f19350505050151560b157fe5b5b565b5b5600a165627a7a723058209dc04782d603c1970f823bf002af9e600b8c4938141ef67717d89986476216a10029";
+std::string solidityTestCode = "608060405234801561001057600080fd5b5060f18061001f6000396000f3fe6080604052600436106043576000357c010000000000000000000000000000000000000000000000000000000090048063b46300ec146048578063b9c1457714605c575b600080fd5b348015605357600080fd5b50605a6064565b005b606260c3565b005b3373ffffffffffffffffffffffffffffffffffffffff166108fc3073ffffffffffffffffffffffffffffffffffffffff16319081150290604051600060405180830381858888f1935050505015801560c0573d6000803e3d6000fd5b50565b56fea165627a7a723058202818d6274b168dd38ea21e98f1d8e7893bc43d783176b937edd88861f188e0270029";
 
 BOOST_AUTO_TEST_CASE( transfer_money_many_asset_acc_to_contr_test ){
 

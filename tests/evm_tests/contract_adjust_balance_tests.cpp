@@ -15,13 +15,21 @@ genesis_state_type create_example_genesis();
 
 BOOST_FIXTURE_TEST_SUITE( contract_adjust_balance_tests, database_fixture )
 
+/*
+    pragma solidity >=0.4.22 <0.6.0;
+    contract soliditySend {
+      function() external payable {}
+    }
+*/
+auto contract_code = "6080604052348015600f57600080fd5b50603280601d6000396000f3fe608060405200fea165627a7a723058207b2b25058622910280a2634280772cbe0f3a64d254ea81a99b45145cd6439cdf0029";
+
 BOOST_AUTO_TEST_CASE( contract_adjust_banalce ){
+
     transfer(account_id_type(0),account_id_type(5),asset(1000000000, asset_id_type()));
     contract_operation contract_op;
     contract_op.version_vm = 1;
     contract_op.registrar = account_id_type(5);
-    auto contract_code = string("6060604052346000575b600d6000819055505b5b6052806100206000396000f360606040526000357c0100000000000000000000000000000000000000000000000000000000900480634f2be91f146036575b6000565b603c603e565b005b600d6000600082825401925050819055505b56");
-    
+
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(), 0, 1, 100000, contract_code } );
 
     transaction_evaluation_state context(&db);
@@ -43,7 +51,6 @@ BOOST_AUTO_TEST_CASE( contract_adjust_banalce_neg ){
     contract_operation contract_op;
     contract_op.version_vm = 1;
     contract_op.registrar = account_id_type(5);
-    auto contract_code = string("6060604052346000575b600d6000819055505b5b6052806100206000396000f360606040526000357c0100000000000000000000000000000000000000000000000000000000900480634f2be91f146036575b6000565b603c603e565b005b600d6000600082825401925050819055505b56");
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(), 0, 1, 100000, contract_code } );
     transaction_evaluation_state context(&db);
 

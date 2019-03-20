@@ -13,39 +13,42 @@ using namespace graphene::chain::test;
 namespace graphene { namespace app { namespace detail {
 genesis_state_type create_example_genesis();
 } } }
-// TODO: not working suite (2 failures)
+
 BOOST_FIXTURE_TEST_SUITE( contract_transfer_operation_tests, database_fixture )
 
 /*
+    pragma solidity >=0.4.22 <0.6.0;
     contract solidity {
-        function addAmount() payable {}
+        function addAmount() external payable {}
 
         function send() public {
-            msg.sender.transfer(this.balance);
+            msg.sender.transfer(address(this).balance);
         }
     }
 */
 
-std::string solidityCode = "6060604052341561000c57fe5b5b60e38061001b6000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063b46300ec146044578063b9c14577146053575bfe5b3415604b57fe5b6051605b565b005b605960b4565b005b3373ffffffffffffffffffffffffffffffffffffffff166108fc3073ffffffffffffffffffffffffffffffffffffffff16319081150290604051809050600060405180830381858888f19350505050151560b157fe5b5b565b5b5600a165627a7a72305820547c493469f888f1601628b24c96c98dd1e6be0e48b7c2f2d4ba10e7288a40850029";
+std::string solidityCode = "608060405234801561001057600080fd5b5060f18061001f6000396000f3fe6080604052600436106043576000357c010000000000000000000000000000000000000000000000000000000090048063b46300ec146048578063b9c1457714605c575b600080fd5b348015605357600080fd5b50605a6064565b005b606260c3565b005b3373ffffffffffffffffffffffffffffffffffffffff166108fc3073ffffffffffffffffffffffffffffffffffffffff16319081150290604051600060405180830381858888f1935050505015801560c0573d6000803e3d6000fd5b50565b56fea165627a7a7230582032657a7dd53143a653361fe021665b8be9e075bf3a9644e542e703fd07478c020029";
 
 /*
+    pragma solidity >=0.4.22 <0.6.0;
     contract soliditySuicide {
-        function sui(address addr) {
-            suicide(addr);
+        function sui(address payable addr) public {
+            selfdestruct(addr);
         }
-        function() payable {}
+        function() external payable {}
     }
 */
 
-std::string soliditySuicideCode = "6060604052341561000c57fe5b5b60c08061001b6000396000f30060606040523615603d576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806365d2db53146045575b60435b5b565b005b3415604c57fe5b6076600480803573ffffffffffffffffffffffffffffffffffffffff169060200190919050506078565b005b8073ffffffffffffffffffffffffffffffffffffffff16ff5b505600a165627a7a7230582038011d5383f869ea33c339a1b0f8556ac6f18e33d5258a16ccd18b4d3de5b5e30029";
+std::string soliditySuicideCode = "608060405234801561001057600080fd5b5060cd8061001f6000396000f3fe6080604052600436106039576000357c01000000000000000000000000000000000000000000000000000000009004806365d2db5314603b575b005b348015604657600080fd5b50608660048036036020811015605b57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff1690602001909291905050506088565b005b8073ffffffffffffffffffffffffffffffffffffffff16fffea165627a7a72305820a8877a5ef185d8bd7d3316ce1bbc717d5bd6cc425aaa752ee38585be06efa85f0029";
 
 /*
+    pragma solidity >=0.4.22 <0.6.0;
     contract solidityPayable {
-        function() payable {}
+        function() external payable {}
     }
 */
 
-std::string solidityPayableCode = "60606040523415600b57fe5b5b60398060196000396000f30060606040525b600b5b5b565b0000a165627a7a72305820b78de2de40744ce26d408c09eb352691ee05ca2570a58eb869764c9fceb274f30029";
+std::string solidityPayableCode = "6080604052348015600f57600080fd5b50603280601d6000396000f3fe608060405200fea165627a7a72305820b860bcee58741a7fceefcfb571356ef0a5da01abba6d9fdb7e6bc160c8cd402f0029";
 
 BOOST_AUTO_TEST_CASE( transfer_CORE_acc_to_contr_and_contr_to_acc ) {
     transfer(account_id_type(0),account_id_type(5),asset(1000000000, asset_id_type()));
