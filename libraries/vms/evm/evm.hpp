@@ -23,11 +23,13 @@ public:
 
    std::vector< uint64_t > get_attracted_contracts( ) const override { return attracted_contracts; };
 
-   void roll_back_db(/*hash or number block*/) override {}
+   void roll_back_db( const uint32_t& block_number ) override;
 
-   std::string get_state_root() const override;
+   std::vector<bytes> get_contracts() const override;
 
-   void set_state_root( const std::string& hash ) override;
+   bytes get_state_root() const;
+
+   void set_state_root( const std::string& hash );
 
    friend struct graphene::chain::database_fixture;
 

@@ -34,4 +34,5 @@ namespace graphene { namespace chain {
    typedef generic_index<result_contract_object, result_contract_multi_index_type> result_contract_index;
 
 }}
+
 FC_REFLECT_DERIVED( graphene::chain::result_contract_object, (graphene::db::object),(vm_type)(contracts_ids) )

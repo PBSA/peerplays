@@ -19,12 +19,10 @@ public:
    vm_interface( adapters _adapter ) : adapter(_adapter) {}
    virtual ~vm_interface() {}
 
-   virtual std::pair<uint64_t, bytes> exec( const bytes& data, const bool commit ) = 0;
+   virtual std::pair<uint64_t, bytes> exec( const bytes&, const bool ) = 0;
    virtual std::vector< uint64_t > get_attracted_contracts() const = 0;
-   virtual void roll_back_db(/*hash or number block*/) = 0;
-
-   virtual std::string get_state_root() const { return std::string(""); }
-   virtual void set_state_root( const std::string& hash  ) {}
+   virtual void roll_back_db( const uint32_t& ) = 0;
+   virtual std::vector<bytes> get_contracts() const = 0;
 
 protected:
 

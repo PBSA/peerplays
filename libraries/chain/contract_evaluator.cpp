@@ -32,7 +32,7 @@ namespace graphene { namespace chain {
 
       auto out = db()._executor->execute( o, true );
 
-      result_contract_object result = db().create<result_contract_object>( [&]( result_contract_object& obj ){
+      result_contract_object result = db().create<result_contract_object>( [&]( result_contract_object& obj ) {
          obj.vm_type = o.vm_type;
          obj.contracts_ids = db()._executor->get_attracted_contracts( o.vm_type );
       });

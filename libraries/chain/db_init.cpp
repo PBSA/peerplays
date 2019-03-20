@@ -601,6 +601,8 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       }
    }
 
+   create<contracts_results_in_block_object>([](contracts_results_in_block_object& obj){});
+
    // Helper function to get account ID by name
    const auto& accounts_by_name = get_index_type<account_index>().indices().get<by_name>();
    auto get_account_id = [&accounts_by_name](const string& name) {

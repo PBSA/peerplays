@@ -20,9 +20,9 @@ public:
 
    std::vector< uint64_t > get_attracted_contracts( const vms::base::vm_types& vm_type ) const;
 
-   std::string get_state_root_evm() const;
+   void roll_back_db( const uint32_t& block_number );
 
-   void set_state_root_evm( const std::string& hash );
+   std::vector<bytes> get_contracts( const vms::base::vm_types& vm_type ) const;
 
    friend struct graphene::chain::database_fixture;
 

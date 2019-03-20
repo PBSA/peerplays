@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include <fc/crypto/sha256.hpp>
+
 namespace vms { namespace evm {
 
 using namespace vms::base;
@@ -30,6 +32,8 @@ public:
    void delete_contract_balances( const uint64_t& id );
 
    void contract_suicide( const uint64_t& id );
+
+   fc::optional<fc::sha256> get_last_valid_state_root( const uint32_t& block_number );
 
 private:
 

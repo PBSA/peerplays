@@ -87,13 +87,7 @@ public:
 
    void clear_temporary_variables();
 
-///////////////////////////////////////////////////////////////////////////////////// // DB result
-   static LogEntriesSerializ logEntriesSerialization(LogEntries const& _logs);
-
-   static LogEntries logEntriesDeserialize(LogEntriesSerializ const& _logs);
-
    dev::Address getNewAddress() const override;
-/////////////////////////////////////////////////////////////////////////////////////
 
 private:
 

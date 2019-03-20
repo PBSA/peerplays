@@ -33,12 +33,11 @@ fc::optional<bytes> db_result::get_results( const std::string& id )
    fc::optional<bytes> result;
    auto address = right160( sha3(id) );
    auto it = cache.find( address );
-	if (it != cache.end()) {
-   	result = it->second;
+   if(it != cache.end()) {
+      result = it->second;
    } else {
       std::string state_back = state_db.at( address );
-      std::cout << state_back << std::endl;
-      if (state_back.empty())
+      if(state_back.empty())
 			return fc::optional<bytes>();
 
       RLP state(state_back);

@@ -20,14 +20,16 @@ std::vector< uint64_t > vm_executor::get_attracted_contracts( const vms::base::v
    return registered_vms.at( vm_type )->get_attracted_contracts();
 }
 
-std::string vm_executor::get_state_root_evm() const
+void vm_executor::roll_back_db( const uint32_t& block_number )
 {
-   return registered_vms.at( vms::base::vm_types::EVM )->get_state_root();
+   for( const auto& vm : registered_vms ) {
+      vm.second->roll_back_db( block_number );
+   }
 }
 
-void vm_executor::set_state_root_evm( const std::string& hash )
+std::vector<bytes> vm_executor::get_contracts( const vms::base::vm_types& vm_type ) const
 {
-   registered_vms.at( vms::base::vm_types::EVM )->set_state_root( hash );
+   return registered_vms.at( vm_type )->get_contracts();
 }
 
 } }

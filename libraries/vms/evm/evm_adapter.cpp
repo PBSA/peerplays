@@ -1,6 +1,7 @@
 #include <evm_adapter.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/result_contract_object.hpp>
+#include <graphene/chain/contracts_results_in_block_object.hpp>
 
 namespace vms { namespace evm {
    
@@ -54,6 +55,30 @@ void evm_adapter::contract_suicide( const uint64_t& id )
    db.modify(*itr, [&] (contract_object& co) {
       co.suicided = true;
    });
+}
+
+fc::optional<fc::sha256> evm_adapter::get_last_valid_state_root( const uint32_t& block_number )
+{
+   const auto& contracts_results_in_block_idx = db.get_index_type<contracts_results_in_block_index>().indices().get<by_id>();
+   const auto& result_contract_idx = db.get_index_type<result_contract_index>().indices().get<by_id>();
+
+   for( size_t i = block_number; i > 0; i-- ) {
+      const auto& contracts_results_in_block_itr = contracts_results_in_block_idx.find( contracts_results_in_block_id_type( i ) );
+      if( contracts_results_in_block_itr == contracts_results_in_block_idx.end() ) {
+         return fc::optional<fc::sha256>();
+      }
+
+      for( auto itr = contracts_results_in_block_itr->results_id.rbegin(); itr != contracts_results_in_block_itr->results_id.rend(); itr++ ) {
+         const auto& result_itr = result_contract_idx.find( *itr );
+         if( result_itr != result_contract_idx.end() && result_itr->vm_type == vms::base::vm_types::EVM ) {
+            const auto& res = db.db_res.get_results( std::string(result_itr->id) );
+            std::vector<char> temp_res( res->begin(), res->end() );
+            return fc::sha256( temp_res.data(), 32 );
+         }
+      }
+   }
+
+   return fc::optional<fc::sha256>();
 }
 
 } }

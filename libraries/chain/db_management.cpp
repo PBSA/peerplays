@@ -65,7 +65,6 @@ void database::reindex(fc::path data_dir, const genesis_state_type& initial_allo
    }
 
    _evaluating_from_apply_block = true;
-   _executor->set_state_root_evm( dev::sha3( dev::rlp("") ).hex() );
 
    const auto last_block_num = last_block->block_num();
 
@@ -145,7 +144,6 @@ void database::open(
       _block_id_to_block.open(data_dir / "database" / "block_num_to_block");
 
       _executor->init( data_dir.string() );
-      _executor->set_state_root_evm( dev::sha3( dev::rlp("") ).hex() );
 
       db_res.init( data_dir.string() );
       db_res.set_root( dev::sha3( dev::rlp("") ).hex() );
@@ -165,7 +163,7 @@ void database::open(
                          ("last_block->id", last_block->id())("head_block_num",head_block_num()) );
          }
 
-         _executor->set_state_root_evm( last_block->state_root_hash.str() );
+        _executor->roll_back_db( last_block->block_num() );
          db_res.set_root( last_block->result_root_hash.str() );
 
       }

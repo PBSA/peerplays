@@ -218,7 +218,7 @@ bool database::_push_block(const signed_block& new_block)
                pop_block();
 
             auto head_block = fetch_block_by_id( head_block_id() );
-            _executor->set_state_root_evm( head_block->state_root_hash.str() );
+            _executor->roll_back_db( head_block->block_num() );
             db_res.set_root( head_block->result_root_hash.str() );
 
             // push all blocks on the new fork
@@ -419,8 +419,6 @@ signed_block database::_generate_block(
    _pending_tx_session.reset();
    _pending_tx_session = _undo_db.start_undo_session();
 
-   auto old_state = _executor->get_state_root_evm();
-
    uint64_t postponed_tx_count = 0;
    // pop pending state (reset to head block state)
    for( const processed_transaction& tx : _pending_tx )
@@ -471,9 +469,8 @@ signed_block database::_generate_block(
    pending_block.transaction_merkle_root = pending_block.calculate_merkle_root();
    pending_block.witness = witness_id;
 
-   pending_block.state_root_hash = fc::sha256( _executor->get_state_root_evm() );
    pending_block.result_root_hash = fc::sha256( db_res.root_hash() );
-   _executor->set_state_root_evm( old_state );
+   _executor->roll_back_db( head_block_num() );
 
    // Genesis witnesses start with a default initial secret        
    if( witness_obj.next_secret_hash == secret_hash_type::hash( secret_hash_type() ) )     

@@ -532,8 +532,6 @@ namespace graphene { namespace chain {
          ///@}
          ///@}
 
-
-
          vector< processed_transaction >        _pending_tx;
          fork_database                          _fork_db;
 

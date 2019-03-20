@@ -257,7 +257,9 @@ BOOST_AUTO_TEST_CASE( result_contract_object_test ){
     auto raw_res = db.db_res.get_results( std::string( (object_id_type)result_contract_id_type(1) ) );
 
     BOOST_CHECK( raw_res.valid() );
-    auto res = fc::raw::unpack< std::pair< ExecutionResult, TransactionReceipt > >( *raw_res );
+    bytes result( *raw_res );
+    result.erase( result.begin(), result.begin() + 32 );
+    auto res = fc::raw::unpack< std::pair< ExecutionResult, TransactionReceipt > >( result );
 
     BOOST_CHECK(object.contracts_ids.size() == 1);
     BOOST_CHECK(res.first.gasUsed == u256(21468));
@@ -340,7 +342,9 @@ BOOST_AUTO_TEST_CASE( transfer_money_many_asset_acc_to_contr_test ){
 
         auto raw_res = db.db_res.get_results( std::string( (object_id_type)result_contract_id_type(i+1) ) );
         BOOST_CHECK( raw_res.valid() );
-        auto res = fc::raw::unpack< std::pair< ExecutionResult, TransactionReceipt > >( *raw_res );
+        bytes result( *raw_res );
+        result.erase( result.begin(), result.begin() + 32 );
+        auto res = fc::raw::unpack< std::pair< ExecutionResult, TransactionReceipt > >( result );
 
         BOOST_CHECK(db.get_balance(contract_id_type(0), asset_id_type(i)) == asset(50000, asset_id_type(i)));
         BOOST_CHECK(db.get_balance(account_id_type(5), asset_id_type(i)) == asset(assetSender.amount - 50000 - res.first.gasUsed, asset_id_type(i)));
@@ -370,7 +374,9 @@ BOOST_AUTO_TEST_CASE( transfer_money_many_asset_contr_to_acc_test ){
 
         auto raw_res = db.db_res.get_results( std::string( (object_id_type)result_contract_id_type(i+1) ) );
         BOOST_CHECK( raw_res.valid() );
-        auto res = fc::raw::unpack< std::pair< ExecutionResult, TransactionReceipt > >( *raw_res );
+        bytes result( *raw_res );
+        result.erase( result.begin(), result.begin() + 32 );
+        auto res = fc::raw::unpack< std::pair< ExecutionResult, TransactionReceipt > >( result );
 
         BOOST_CHECK(db.get_balance(contract_id_type(0), asset_id_type(i)) == asset(50000, asset_id_type(i)));
         BOOST_CHECK(db.get_balance(account_id_type(5), asset_id_type(i)) == asset(assetSender.amount - 50000 - res.first.gasUsed, asset_id_type(i)));
@@ -408,7 +414,9 @@ BOOST_AUTO_TEST_CASE( transfer_money_many_asset_contr_to_acc_depth_test ){
 
         auto raw_res = db.db_res.get_results( std::string( (object_id_type)result_contract_id_type(i+2) ) );
         BOOST_CHECK( raw_res.valid() );
-        auto res = fc::raw::unpack< std::pair< ExecutionResult, TransactionReceipt > >( *raw_res );
+        bytes result( *raw_res );
+        result.erase( result.begin(), result.begin() + 32 );
+        auto res = fc::raw::unpack< std::pair< ExecutionResult, TransactionReceipt > >( result );
 
         BOOST_CHECK(db.get_balance(contract_id_type(0), asset_id_type(i)) == asset(50000, asset_id_type(i)));
         BOOST_CHECK(db.get_balance(account_id_type(5), asset_id_type(i)) == asset(assetSender.amount - 50000 - res.first.gasUsed, asset_id_type(i)));
@@ -442,7 +450,9 @@ BOOST_AUTO_TEST_CASE( transfer_asset_contr_to_acc_method_transfer ){
 
     auto raw_res = db.db_res.get_results( std::string( (object_id_type)result_contract_id_type(1) ) );
     BOOST_CHECK( raw_res.valid() );
-    auto res = fc::raw::unpack< std::pair< ExecutionResult, TransactionReceipt > >( *raw_res );
+    bytes result_temp( *raw_res );
+    result_temp.erase( result_temp.begin(), result_temp.begin() + 32 );
+    auto res = fc::raw::unpack< std::pair< ExecutionResult, TransactionReceipt > >( result_temp );
 
     asset expectedBalance(assetAccount.amount.value - (500000 + uint64_t(res.first.gasUsed)), asset_id_type(1));
     BOOST_CHECK(db.get_balance(contract_id_type(0), asset_id_type(1)) == asset(500000, asset_id_type(1)));
@@ -453,7 +463,9 @@ BOOST_AUTO_TEST_CASE( transfer_asset_contr_to_acc_method_transfer ){
 
     raw_res = db.db_res.get_results( std::string( (object_id_type)result_contract_id_type(2) ) );
     BOOST_CHECK( raw_res.valid() );
-    res = fc::raw::unpack< std::pair< ExecutionResult, TransactionReceipt > >( *raw_res );
+    result_temp = *raw_res;
+    result_temp.erase( result_temp.begin(), result_temp.begin() + 32 );
+    res = fc::raw::unpack< std::pair< ExecutionResult, TransactionReceipt > >( result_temp );
 
     expectedBalance = asset((assetAccount.amount.value - uint64_t(res.first.gasUsed)) + 500000, asset_id_type(1));
     BOOST_CHECK(db.get_balance(contract_id_type(0), asset_id_type(1)) == asset(0, asset_id_type(1)));
