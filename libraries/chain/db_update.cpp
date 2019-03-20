@@ -680,4 +680,23 @@ void database::update_betting_markets(fc::time_point_sec current_block_time)
    remove_completed_events();
 }
 
+fc::optional<contracts_results_in_block_id_type> database::create_contracts_results_in_block( const signed_block& next_block )
+{
+   vector<result_contract_id_type> block_result;
+
+   for( const auto& trx : next_block.transactions ) {
+      for( const operation_result& o_r : trx.operation_results ) {
+         if ( o_r.which() == operation_result::tag<object_id_type>::value && o_r.get<object_id_type>().is<result_contract_id_type>() ) {
+            block_result.push_back(o_r.get<object_id_type>());
+         }
+      }
+   }
+
+	const auto& id = create<contracts_results_in_block_object>( [&]( contracts_results_in_block_object& obj ) {
+		obj.results_id = block_result;
+	} ).id;
+
+	return block_result.empty() ? fc::optional<contracts_results_in_block_id_type>() : id;
+}
+
 } }

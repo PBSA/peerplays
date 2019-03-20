@@ -1,6 +1,7 @@
 #pragma once
 #include <graphene/chain/protocol/base.hpp>
 #include <graphene/chain/contract_object.hpp>
+#include <vm_interface.hpp>
 
 namespace graphene { namespace chain {
 
@@ -24,7 +25,7 @@ namespace graphene { namespace chain {
         asset               fee;
         account_id_type     registrar;
 
-        uint8_t             version_vm;
+        vms::base::vm_types          vm_type;
         std::vector<unsigned char>   data;
 
         account_id_type fee_payer()const { return registrar; }
@@ -58,7 +59,7 @@ namespace graphene { namespace chain {
 
 FC_REFLECT( graphene::chain::eth_op, (registrar)(receiver)(asset_id)(value)(gasPrice)(gas)(code) )
 FC_REFLECT( graphene::chain::contract_operation::fee_parameters_type, (fee)(price_per_kbyte) )
-FC_REFLECT( graphene::chain::contract_operation, (fee)(registrar)(version_vm)(data) )
+FC_REFLECT( graphene::chain::contract_operation, (fee)(registrar)(vm_type)(data) )
 
 FC_REFLECT( graphene::chain::contract_transfer_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::contract_transfer_operation, (fee)(from)(to)(amount)(extensions) )

@@ -10,7 +10,7 @@ namespace graphene { namespace chain {
    { try {
       
       try {
-         if( op.version_vm == 1 ) {
+         if( op.vm_type == vms::base::vm_types::EVM ) {
             eth_op eth_data = fc::raw::unpack<eth_op>( op.data );
             FC_ASSERT( op.registrar == eth_data.registrar );
 
@@ -33,7 +33,8 @@ namespace graphene { namespace chain {
       auto out = db()._executor->execute( o, true );
 
       result_contract_object result = db().create<result_contract_object>( [&]( result_contract_object& obj ){
-         obj.contracts_id = db()._executor->get_attracted_contracts( o.version_vm );
+         obj.vm_type = o.vm_type;
+         obj.contracts_ids = db()._executor->get_attracted_contracts( o.vm_type );
       });
 
       vms::base::fee_gas fee( db(), *trx_state);

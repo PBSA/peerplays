@@ -10,6 +10,8 @@ using namespace vms::evm;
 using namespace dev;
 using adapters = fc::static_variant<chain_adapter, evm_adapter>;
 
+enum class vm_types { NULL_TYPE, EVM };
+
 class vm_interface {
 
 public:
@@ -31,3 +33,5 @@ protected:
 };
 
 } }
+
+FC_REFLECT_ENUM(vms::base::vm_types, (NULL_TYPE)(EVM) )

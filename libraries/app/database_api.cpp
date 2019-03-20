@@ -41,6 +41,9 @@
 #include <cfenv>
 #include <iostream>
 
+#include <graphene/chain/contracts_results_in_block_object.hpp>
+#include <graphene/chain/result_contract_object.hpp>
+
 #define GET_REQUIRED_FEES_MAX_RECURSION 4
 
 typedef std::map< std::pair<graphene::chain::asset_id_type, graphene::chain::asset_id_type>, std::vector<fc::variant> > market_queue_type;
@@ -112,6 +115,13 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       vector<betting_market_object>       list_betting_markets(betting_market_group_id_type) const;
       vector<bet_object> get_unmatched_bets_for_bettor(betting_market_id_type, account_id_type) const;
       vector<bet_object> get_all_unmatched_bets_for_bettor(account_id_type) const;
+
+		inline fc::optional<dev::eth::LogEntries> get_logs_from_result(const result_contract_id_type& res, const std::set<contract_id_type>& ids) const;
+		inline fc::optional<block_logs>  get_logs_from_block(const contracts_results_in_block_id_type& res, const std::set<contract_id_type>& ids) const;
+		std::vector<block_logs> get_logs_in_interval( const std::set<contract_id_type>& ids, const uint64_t& from_block, const uint64_t& to_block ) const;
+		std::vector<block_logs> subscribe_contracts_logs( std::function<void(const variant&)> cb, const std::vector<contract_id_type>& ids, const uint64_t& from );
+
+		std::set<contract_id_type> contracts_subscription;
 
       // Markets / feeds
       vector<limit_order_object>         get_limit_orders(asset_id_type a, asset_id_type b, uint32_t limit)const;
@@ -226,13 +236,15 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       std::function<void(const fc::variant&)> _subscribe_callback;
       std::function<void(const fc::variant&)> _pending_trx_callback;
       std::function<void(const fc::variant&)> _block_applied_callback;
+		std::function<void(const fc::variant&)> _created_block_results_callback;
 
-      boost::signals2::scoped_connection                                                                                           _new_connection;
-      boost::signals2::scoped_connection                                                                                           _change_connection;
-      boost::signals2::scoped_connection                                                                                           _removed_connection;
-      boost::signals2::scoped_connection                                                                                           _applied_block_connection;
-      boost::signals2::scoped_connection                                                                                           _pending_trx_connection;
-      map< pair<asset_id_type,asset_id_type>, std::function<void(const variant&)> >      _market_subscriptions;
+      boost::signals2::scoped_connection _new_connection;
+      boost::signals2::scoped_connection _change_connection;
+      boost::signals2::scoped_connection _removed_connection;
+      boost::signals2::scoped_connection _applied_block_connection;
+      boost::signals2::scoped_connection _pending_trx_connection;
+		boost::signals2::scoped_connection _created_block_results_connection;
+      map< pair<asset_id_type,asset_id_type>, std::function<void(const variant&)> > _market_subscriptions;
       graphene::chain::database&                                                                                                            _db;
 };
 
@@ -251,19 +263,29 @@ database_api_impl::database_api_impl( graphene::chain::database& db ):_db(db)
 {
    wlog("creating database api ${x}", ("x",int64_t(this)) );
    _new_connection = _db.new_objects.connect([this](const vector<object_id_type>& ids, const flat_set<account_id_type>& impacted_accounts) {
-                                on_objects_new(ids, impacted_accounts);
-                                });
+      on_objects_new(ids, impacted_accounts);
+   });
    _change_connection = _db.changed_objects.connect([this](const vector<object_id_type>& ids, const flat_set<account_id_type>& impacted_accounts) {
-                                on_objects_changed(ids, impacted_accounts);
-                                });
+      on_objects_changed(ids, impacted_accounts);
+   });
    _removed_connection = _db.removed_objects.connect([this](const vector<object_id_type>& ids, const vector<const object*>& objs, const flat_set<account_id_type>& impacted_accounts) {
-                                on_objects_removed(ids, objs, impacted_accounts);
-                                });
+      on_objects_removed(ids, objs, impacted_accounts);
+   });
    _applied_block_connection = _db.applied_block.connect([this](const signed_block&){ on_applied_block(); });
 
-   _pending_trx_connection = _db.on_pending_transaction.connect([this](const signed_transaction& trx ){
-                         if( _pending_trx_callback ) _pending_trx_callback( fc::variant(trx) );
-                      });
+   _pending_trx_connection = _db.on_pending_transaction.connect([this](const signed_transaction& trx ) {
+      if( _pending_trx_callback ) _pending_trx_callback( fc::variant(trx) );
+   });
+    
+   _created_block_results_connection = _db.created_block_results.connect([this](const contracts_results_in_block_id_type& res ) {
+      if( _created_block_results_callback )
+      {
+			const auto& logs = get_logs_from_block( res, contracts_subscription );
+			if( logs.valid() ) {
+			   _created_block_results_callback( fc::variant( logs ) );
+			}
+		}
+   });
 }
 
 database_api_impl::~database_api_impl()
@@ -1090,6 +1112,86 @@ vector<bet_object> database_api_impl::get_all_unmatched_bets_for_bettor(account_
 {
    const auto& bet_idx = _db.get_index_type<bet_object_index>().indices().get<by_bettor_and_odds>();
    return boost::copy_range<vector<bet_object> >(bet_idx.equal_range(std::make_tuple(bettor_id)));
+}
+
+inline fc::optional<dev::eth::LogEntries> database_api_impl::get_logs_from_result(const result_contract_id_type& res, const std::set<contract_id_type>& ids) const
+{
+	const auto& contract_res_idx = _db.get_index_type<result_contract_index>().indices().get<by_id>();
+	auto contract_res_itr = contract_res_idx.find( res );
+   if( contract_res_itr == contract_res_idx.end() ) {
+		return fc::optional<dev::eth::LogEntries>();
+	}
+
+	const auto& result_bytes = _db.db_res.get_results( std::string( object_id_type( contract_res_itr->get_id() ) ) );
+	if( !result_bytes ) {
+      return fc::optional<dev::eth::LogEntries>();
+	}
+
+	const auto& result = fc::raw::unpack<std::pair< dev::eth::ExecutionResult, dev::eth::TransactionReceipt >>( *result_bytes );
+	const auto& logs = result.second.log();
+
+	if( ids.empty() ) {
+		return logs.empty() ? fc::optional<dev::eth::LogEntries>() : logs;
+	}
+
+	dev::eth::LogEntries results;
+	for( const auto& l : logs ) {
+	   if( ids.count( contract_id_type( vms::evm::address_to_id( l.address ).second ) ) ) {
+	      results.push_back( l );
+	   }
+	}
+
+	return results.empty() ? fc::optional<dev::eth::LogEntries>() : results;
+}
+
+inline fc::optional<block_logs> database_api_impl::get_logs_from_block(const contracts_results_in_block_id_type& res, const std::set<contract_id_type>& ids) const
+{
+	block_logs result;
+	const auto& contracts_results_in_block_idx = _db.get_index_type<contracts_results_in_block_index>().indices().get<by_id>();
+	const auto& contracts_results_in_block_itr = contracts_results_in_block_idx.find( res );
+
+	if( contracts_results_in_block_itr != contracts_results_in_block_idx.end() ) {
+		result.block_number = static_cast<uint64_t>( contracts_results_in_block_itr->get_id().instance );
+	   for ( const auto& res_id : contracts_results_in_block_itr->results_id ) {
+	      const auto& logs = get_logs_from_result( res_id, ids );
+	      if( logs.valid() ) {
+	         result.logs.push_back( *logs );
+	      }
+	   }
+	}
+
+	return result.logs.empty() ? fc::optional<block_logs>() : result;
+}
+
+std::vector<block_logs> database_api_impl::get_logs_in_interval( const std::set<contract_id_type>& ids, const uint64_t& from_block, const uint64_t& to_block ) const
+{
+	const auto& contracts_results_in_block_idx = _db.get_index_type<contracts_results_in_block_index>().indices().get<by_id>();
+	auto contracts_results_in_block_itr = contracts_results_in_block_idx.find( contracts_results_in_block_id_type( from_block ) );
+
+	std::vector<block_logs> results;
+	while( contracts_results_in_block_itr != contracts_results_in_block_idx.end() &&
+	   contracts_results_in_block_itr->get_id() != contracts_results_in_block_id_type( to_block ) )
+	{
+	   const auto& logs = get_logs_from_block( contracts_results_in_block_itr->get_id(), ids );
+		if( logs.valid() ) {
+		   results.push_back( *logs );
+		}
+      ++contracts_results_in_block_itr;
+	}
+
+	return results;
+}
+
+std::vector<block_logs> database_api::subscribe_contracts_logs( std::function<void(const variant&)> cb, const std::vector<contract_id_type>& ids, const uint64_t& from )
+{
+   return my->subscribe_contracts_logs( cb, ids, from );
+}
+
+std::vector<block_logs> database_api_impl::subscribe_contracts_logs( std::function<void(const variant&)> cb, const std::vector<contract_id_type>& ids, const uint64_t& from )
+{
+   _created_block_results_callback = cb;
+	contracts_subscription.insert( ids.begin(), ids.end() );
+	return get_logs_in_interval( contracts_subscription, from, std::numeric_limits<uint32_t>::max() );
 }
 
 //////////////////////////////////////////////////////////////////////

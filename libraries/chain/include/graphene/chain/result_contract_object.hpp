@@ -12,9 +12,10 @@ namespace graphene { namespace chain {
          static const uint8_t space_id = protocol_ids;
          static const uint8_t type_id  = result_contract_object_type;
 
-         vector<uint64_t> contracts_id;
+         vms::base::vm_types vm_type;
+         vector<uint64_t>    contracts_ids;
          
-         contract_id_type get_id()const { return id; }
+         result_contract_id_type get_id()const { return id; }
    };
 
    /**
@@ -33,4 +34,4 @@ namespace graphene { namespace chain {
    typedef generic_index<result_contract_object, result_contract_multi_index_type> result_contract_index;
 
 }}
-FC_REFLECT_DERIVED( graphene::chain::result_contract_object, (graphene::db::object),(contracts_id) )
+FC_REFLECT_DERIVED( graphene::chain::result_contract_object, (graphene::db::object),(vm_type)(contracts_ids) )

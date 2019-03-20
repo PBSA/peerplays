@@ -613,6 +613,11 @@ void database::_apply_block( const signed_block& next_block )
       ++_current_trx_in_block;
    }
 
+   const auto& block_results = create_contracts_results_in_block( next_block );
+   if( block_results.valid() ) {
+      created_block_results( *block_results );
+   }
+
    if (global_props.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
        update_witness_schedule(next_block);
    update_global_dynamic_data(next_block);

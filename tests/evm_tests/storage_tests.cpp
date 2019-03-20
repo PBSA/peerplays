@@ -180,7 +180,7 @@ BOOST_AUTO_TEST_CASE( not_CORE_fee_test ){
     operation_result result = db.apply_operation( context, op_fund_fee_pool );
 
     contract_operation contract_op;
-    contract_op.version_vm = 1;
+    contract_op.vm_type = vms::base::vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type(1));
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(1), 0, 1, 1000000, solidityAddCode } );
@@ -259,7 +259,7 @@ BOOST_AUTO_TEST_CASE( result_contract_object_test ){
     BOOST_CHECK( raw_res.valid() );
     auto res = fc::raw::unpack< std::pair< ExecutionResult, TransactionReceipt > >( *raw_res );
 
-    BOOST_CHECK(object.contracts_id.size() == 1);
+    BOOST_CHECK(object.contracts_ids.size() == 1);
     BOOST_CHECK(res.first.gasUsed == u256(21468));
     BOOST_CHECK(res.first.newAddress == Address("0000000000000000000000000000000000000000"));
     BOOST_CHECK(res.first.codeDeposit == CodeDeposit::None);

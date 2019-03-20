@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE( transfer_CORE_acc_to_contr_and_contr_to_acc ) {
     set_expiration( db, trx );
 
     contract_operation contract_op;
-    contract_op.version_vm = 1;
+    contract_op.vm_type = vms::base::vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type());
 
@@ -113,7 +113,7 @@ BOOST_AUTO_TEST_CASE( transfer_asset_acc_to_contr_and_contr_to_acc ) {
     trx.operations.push_back(op_fund_fee_pool);
 
     contract_operation contract_op;
-    contract_op.version_vm = 1;
+    contract_op.vm_type = vms::base::vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type(1));
 
@@ -158,7 +158,7 @@ BOOST_AUTO_TEST_CASE( suicide_contr_to_acc_and_contr_to_contr_CORE ) {
     set_expiration( db, trx );
 
     contract_operation contract_op;
-    contract_op.version_vm = 1;
+    contract_op.vm_type = vms::base::vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type());
     contract_op.data = fc::raw::unsigned_pack( eth_op{  contract_op.registrar, optional<contract_id_type>(), asset_id_type(), 0, 1, 2000000, soliditySuicideCode } );
@@ -223,7 +223,7 @@ BOOST_AUTO_TEST_CASE( suicide_contr_to_acc_and_contr_to_contr_ASSET ) {
     trx.operations.push_back(op_fund_fee_pool);
 
     contract_operation contract_op;
-    contract_op.version_vm = 1;
+    contract_op.vm_type = vms::base::vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, temp_asset.id);
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), temp_asset.id, 0, 1, 2000000, soliditySuicideCode });

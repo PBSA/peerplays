@@ -63,6 +63,8 @@
 #include <memory>
 #include <vector>
 
+#include <evm.hpp>
+
 namespace graphene { namespace app {
 
 using namespace graphene::chain;
@@ -112,6 +114,12 @@ struct market_trade
    double                     price;
    double                     amount;
    double                     value;
+};
+
+struct block_logs
+{
+  uint64_t block_number = 0;
+  std::vector<dev::eth::LogEntries> logs;
 };
 
 /**
@@ -387,6 +395,8 @@ class database_api
        */
       vector<bet_object> get_all_unmatched_bets_for_bettor(account_id_type) const;
 
+      std::vector<block_logs> subscribe_contracts_logs( std::function<void(const variant&)> cb, const std::vector<contract_id_type>& ids, const uint64_t& from );
+
       /////////////////////
       // Markets / feeds //
       /////////////////////
@@ -656,6 +666,7 @@ FC_REFLECT( graphene::app::order_book, (base)(quote)(bids)(asks) );
 FC_REFLECT( graphene::app::market_ticker, (base)(quote)(latest)(lowest_ask)(highest_bid)(percent_change)(base_volume)(quote_volume) );
 FC_REFLECT( graphene::app::market_volume, (base)(quote)(base_volume)(quote_volume) );
 FC_REFLECT( graphene::app::market_trade, (date)(price)(amount)(value) );
+FC_REFLECT( graphene::app::block_logs, (block_number)(logs) );
 
 FC_API(graphene::app::database_api,
    // Objects
@@ -715,6 +726,7 @@ FC_API(graphene::app::database_api,
    (list_betting_markets)
    (get_unmatched_bets_for_bettor)
    (get_all_unmatched_bets_for_bettor)
+   (subscribe_contracts_logs)
 
    // Markets / feeds
    (get_order_book)

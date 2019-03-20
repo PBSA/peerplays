@@ -1538,14 +1538,14 @@ void database_fixture::cancel_unmatched_bets(betting_market_group_id_type bettin
 } FC_CAPTURE_AND_RETHROW( (betting_market_group_id) ) }
 
 const vms::evm::pp_state& database_fixture::get_evm_state() const{
-   return dynamic_cast< vms::evm::evm* > ( db._executor->registered_vms.at( 1 ).get() )->state;
+   return dynamic_cast< vms::evm::evm* > ( db._executor->registered_vms.at( vms::base::vm_types::EVM ).get() )->state;
 }
 
 void database_fixture::execute_contract(transaction_evaluation_state& cont, database& db, account_id_type registrar_id,
                                                      uint64_t value, std::string code, asset_id_type asset_id,
                                                      asset fee, optional<contract_id_type> receiver_id) {
    contract_operation contract_op;
-   contract_op.version_vm = 1;
+   contract_op.vm_type = vms::base::vm_types::EVM;
    contract_op.registrar = registrar_id;
    contract_op.fee = fee;
    contract_op.data = fc::raw::unsigned_pack( eth_op{ registrar_id, receiver_id, asset_id, value, 1, 2000000, code } );

@@ -108,7 +108,7 @@ BOOST_AUTO_TEST_CASE( many_asset_assetbalance_test ){
     }
 
     contract_operation contract_op;
-    contract_op.version_vm = 1;
+    contract_op.vm_type = vms::base::vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type(0));
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(0), 0, 0, 4000000, solidityCode } );
@@ -152,7 +152,7 @@ BOOST_AUTO_TEST_CASE( many_asset_assetbalance_depth_test ){
     }
 
     contract_operation contract_op;
-    contract_op.version_vm = 1;
+    contract_op.vm_type = vms::base::vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type(0));
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(0), 0, 0, 4000000, solidityCode } );

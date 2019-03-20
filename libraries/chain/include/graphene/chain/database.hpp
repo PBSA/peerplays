@@ -454,11 +454,17 @@ namespace graphene { namespace chain {
           * can be reapplied at the proper time */
          std::deque< signed_transaction >       _popped_tx;
 
+         //////////////////// vms ////////////////////
+         
+         fc::optional<contracts_results_in_block_id_type> create_contracts_results_in_block( const signed_block& next_block );
+
          std::unique_ptr<vms::base::vm_executor> _executor;
 
          vms::base::db_result                    db_res;
 
          bool                                   _evaluating_from_apply_block = false;
+
+         fc::signal<void(const contracts_results_in_block_id_type&)>     created_block_results;
 
          /**
           * @}
@@ -525,6 +531,8 @@ namespace graphene { namespace chain {
          void perform_account_maintenance(std::tuple<Types...> helpers);
          ///@}
          ///@}
+
+
 
          vector< processed_transaction >        _pending_tx;
          fork_database                          _fork_db;

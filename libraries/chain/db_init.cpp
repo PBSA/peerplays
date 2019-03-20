@@ -78,6 +78,7 @@
 #include <graphene/chain/tournament_evaluator.hpp>
 #include <graphene/chain/contract_evaluator.hpp>
 #include <graphene/chain/result_contract_object.hpp>
+#include <graphene/chain/contracts_results_in_block_object.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
@@ -308,6 +309,7 @@ void database::initialize_indexes()
    add_index< primary_index<contract_balance_index> >();
    add_index< primary_index<contract_index> >();
    add_index< primary_index<result_contract_index> >();
+   add_index< primary_index<contracts_results_in_block_index> >();
 
    add_index< primary_index<simple_index<contract_statistics_object >> >();
 }

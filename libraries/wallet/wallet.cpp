@@ -3156,7 +3156,7 @@ public:
       account_id_type registrar_account_id = registrar_account_object.id;
       contract_operation contract_create_op;
       contract_create_op.registrar = registrar_account_id;
-      contract_create_op.version_vm = 1;
+      contract_create_op.vm_type = vms::base::vm_types::EVM;
       eth_op eth_create = eth_op{registrar_account_id, optional<contract_id_type>(),
                                  get_asset_id(asset_type), value, gasPrice, gas, code};
       contract_create_op.data = fc::raw::unsigned_pack( eth_create );
@@ -3179,7 +3179,7 @@ public:
 
       contract_operation contract_create_op;
       contract_create_op.registrar = registrar_account_id;
-      contract_create_op.version_vm = 1;
+      contract_create_op.vm_type = vms::base::vm_types::EVM;
       eth_op eth_create = eth_op{registrar_account_id, receiver, contract_create_op.fee.asset_id,
                                  value, gasPrice, gas, code};
       contract_create_op.data = fc::raw::unsigned_pack( eth_create );

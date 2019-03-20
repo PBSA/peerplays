@@ -148,6 +148,7 @@ namespace graphene { namespace chain {
       contract_balance_object_type,             // 20
       contract_object_type,
       result_contract_object_type,
+      contracts_results_in_block_object_type,
       OBJECT_TYPE_COUNT ///< Sentry value which contains the number of different object types
    };
 
@@ -210,6 +211,7 @@ namespace graphene { namespace chain {
    class contract_balance_object;
    class contract_object;
    class result_contract_object;
+   class contracts_results_in_block_object;
 
    typedef object_id< protocol_ids, account_object_type,            account_object>               account_id_type;
    typedef object_id< protocol_ids, asset_object_type,              asset_object>                 asset_id_type;
@@ -239,6 +241,7 @@ namespace graphene { namespace chain {
    typedef object_id< protocol_ids, contract_balance_object_type,   contract_balance_object>      contract_balance_id_type;
    typedef object_id< protocol_ids, contract_object_type,           contract_object>              contract_id_type;
    typedef object_id< protocol_ids, result_contract_object_type,    result_contract_object>       result_contract_id_type;
+   typedef object_id< protocol_ids, contracts_results_in_block_object_type,    contracts_results_in_block_object>  contracts_results_in_block_id_type;
 
    // implementation types
    class global_property_object;
@@ -420,6 +423,7 @@ FC_REFLECT_ENUM( graphene::chain::object_type,
                  (contract_balance_object_type)
                  (contract_object_type)
                  (result_contract_object_type)
+                 (contracts_results_in_block_object_type)
                  (OBJECT_TYPE_COUNT)
                )
 FC_REFLECT_ENUM( graphene::chain::impl_object_type,
