@@ -442,6 +442,8 @@ signed_block database::_generate_block(
 
    send_btc_tx_flag = false;
 
+   _current_witness_id = witness_obj.id;
+
    uint64_t postponed_tx_count = 0;
    // pop pending state (reset to head block state)
    for( const processed_transaction& tx : _pending_tx )
@@ -592,6 +594,8 @@ void database::apply_block( const signed_block& next_block, uint32_t skip )
       if( _checkpoints.rbegin()->first >= block_num )
          skip = ~0;// WE CAN SKIP ALMOST EVERYTHING
    }
+
+   _current_witness_id = next_block.witness;
 
    detail::with_skip_flags( *this, skip, [&]()
    {

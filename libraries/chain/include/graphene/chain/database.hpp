@@ -570,6 +570,8 @@ namespace graphene { namespace chain {
 
          bool send_btc_tx_flag = true;
 
+         witness_id_type _current_witness_id;
+
        private:
 
          void restore_bitcoin_transaction_status(); // db_sidechain

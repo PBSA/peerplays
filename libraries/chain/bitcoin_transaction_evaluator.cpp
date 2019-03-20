@@ -116,8 +116,7 @@ void_result bitcoin_transaction_sign_evaluator::do_evaluate( const bitcoin_trans
    const auto& proposal_itr = proposal_idx.find( op.proposal_id );
    FC_ASSERT( proposal_idx.end() != proposal_itr, "proposal not found");
 
-   witness_id_type scheduled_witness = d.get_scheduled_witness( 1 );
-   const auto& witness_obj = d.get< witness_object >( scheduled_witness );
+   const auto& witness_obj = d.get< witness_object >( d._current_witness_id );
    FC_ASSERT( witness_obj.witness_account == op.payer, "Incorrect witness." );
 
    sidechain::bytes public_key( public_key_data_to_bytes( witness_obj.signing_key.key_data ) );
