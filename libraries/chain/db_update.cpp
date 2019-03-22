@@ -694,11 +694,14 @@ fc::optional<contracts_results_in_block_id_type> database::create_contracts_resu
       }
    }
 
-	const auto& id = create<contracts_results_in_block_object>( [&]( contracts_results_in_block_object& obj ) {
-		obj.results_id = block_result;
-	} ).id;
+   if( !block_result.empty() ) {
+	   return create<contracts_results_in_block_object>( [&]( contracts_results_in_block_object& obj ) {
+	      obj.block_num  = next_block.block_num();
+         obj.results_id = block_result;
+	   } ).id;
+   }
 
-	return block_result.empty() ? fc::optional<contracts_results_in_block_id_type>() : id;
+   return fc::optional<contracts_results_in_block_id_type>();
 }
 
 } }

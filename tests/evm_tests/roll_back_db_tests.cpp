@@ -2,6 +2,9 @@
 #include "../common/database_fixture.hpp"
 
 #include <graphene/chain/contracts_results_in_block_object.hpp>
+#include <graphene/chain/result_contract_object.hpp>
+#include <evm_adapter.hpp>
+#include <evm_result.hpp>
 
 using namespace graphene::chain::test;
 
@@ -15,7 +18,28 @@ std::string solidityPayableCode = "60606040523415600b57fe5b5b6039806019600039600
 
 BOOST_FIXTURE_TEST_SUITE( roll_back_db_tests, database_fixture )
 
-BOOST_AUTO_TEST_CASE( sequential_rollback_test ) {
+void create_result( database& db, uint64_t block_num, std::string hash ) {
+   std::vector<result_contract_id_type> results_contracts;
+   for( size_t i = 0; i < 5; i++ ) {
+      result_contract_id_type id = db.create<result_contract_object>( [&]( result_contract_object& obj ) {
+         obj.vm_type = vm_types::EVM;
+      }).id;
+
+      vms::evm::evm_result evm_res;
+      evm_res.state_root = hash;
+      db.db_res.add_result( std::string( object_id_type( id ) ), fc::raw::unsigned_pack( evm_res ) );
+
+      results_contracts.push_back( id );
+   }
+
+   db.create<contracts_results_in_block_object>( [&]( contracts_results_in_block_object& obj ) {
+      obj.block_num  = block_num;
+      obj.results_id = results_contracts;
+   } );
+}
+
+BOOST_AUTO_TEST_CASE( sequential_rollback_test )
+{
    transfer(account_id_type(0),account_id_type(5),asset(1000000000, asset_id_type()));
    
    signed_transaction trx;
@@ -51,7 +75,8 @@ BOOST_AUTO_TEST_CASE( sequential_rollback_test ) {
    BOOST_CHECK( db._executor->get_contracts( vm_types::EVM ).size() == 5 );
 }
 
-BOOST_AUTO_TEST_CASE( not_sequential_rollback_test ) {
+BOOST_AUTO_TEST_CASE( not_sequential_rollback_test )
+{
    transfer(account_id_type(0),account_id_type(5),asset(1000000000, asset_id_type()));
    
    signed_transaction trx;
@@ -91,7 +116,8 @@ BOOST_AUTO_TEST_CASE( not_sequential_rollback_test ) {
    BOOST_CHECK( db._executor->get_contracts( vm_types::EVM ).size() == 0 );
 }
 
-BOOST_AUTO_TEST_CASE( switch_to_late_block_test ) {
+BOOST_AUTO_TEST_CASE( switch_to_late_block_test )
+{
    transfer(account_id_type(0),account_id_type(5),asset(1000000000, asset_id_type()));
    
    signed_transaction trx;
@@ -126,6 +152,36 @@ BOOST_AUTO_TEST_CASE( switch_to_late_block_test ) {
    BOOST_CHECK( db._executor->get_contracts( vm_types::EVM ).size() == 10 );
    db._executor->roll_back_db( block3.block_num() );
    BOOST_CHECK( db._executor->get_contracts( vm_types::EVM ).size() == 15 );
+}
+
+BOOST_AUTO_TEST_CASE( no_results_test )
+{
+   vms::evm::evm_adapter adapter(db);
+
+   BOOST_CHECK( !adapter.get_last_valid_state_root(0) );
+
+   BOOST_CHECK( !adapter.get_last_valid_state_root(13) );
+}
+
+BOOST_AUTO_TEST_CASE( border_conditions_test )
+{
+   vms::evm::evm_adapter adapter(db);
+
+   std::string hash1(64, 'a');
+   create_result( db, 5, hash1 );
+   BOOST_CHECK( !adapter.get_last_valid_state_root( 0 ) );
+   BOOST_CHECK( *adapter.get_last_valid_state_root( 5 ) == fc::sha256( hash1 ) );
+
+   std::string hash2(64, 'b');
+   create_result( db, 0, hash2 );
+   BOOST_CHECK( *adapter.get_last_valid_state_root( 0 ) == fc::sha256( hash2 ) );
+   BOOST_CHECK( *adapter.get_last_valid_state_root( 13 ) == fc::sha256( hash1 ) );
+
+   std::string hash3(64, 'c');
+   create_result( db, 13, hash3 );
+   BOOST_CHECK( *adapter.get_last_valid_state_root(13) == fc::sha256( hash3 ) );
+   BOOST_CHECK( *adapter.get_last_valid_state_root(130) == fc::sha256( hash3 ) );
+   BOOST_CHECK( *adapter.get_last_valid_state_root(12) == fc::sha256( hash1 ) );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

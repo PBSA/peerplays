@@ -3,6 +3,7 @@
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/result_contract_object.hpp>
 #include <graphene/chain/contracts_results_in_block_object.hpp>
+#include <boost/range/adaptor/reversed.hpp>
 
 namespace vms { namespace evm {
    
@@ -70,16 +71,14 @@ signed_block evm_adapter::get_current_block() const
 
 fc::optional<fc::sha256> evm_adapter::get_last_valid_state_root( const uint32_t& block_number )
 {
-   const auto& contracts_results_in_block_idx = db.get_index_type<contracts_results_in_block_index>().indices().get<by_id>();
+   const auto& contracts_results_in_block_idx = db.get_index_type<contracts_results_in_block_index>().indices().get<by_block_num>();
    const auto& result_contract_idx = db.get_index_type<result_contract_index>().indices().get<by_id>();
 
-   for( size_t i = block_number; i > 0; i-- ) {
-      const auto& contracts_results_in_block_itr = contracts_results_in_block_idx.find( contracts_results_in_block_id_type( i ) );
-      if( contracts_results_in_block_itr == contracts_results_in_block_idx.end() ) {
-         return fc::optional<fc::sha256>();
-      }
+   auto it0 = contracts_results_in_block_idx.lower_bound( 0 );
+   auto it1 = contracts_results_in_block_idx.upper_bound( block_number );
 
-      for( auto itr = contracts_results_in_block_itr->results_id.rbegin(); itr != contracts_results_in_block_itr->results_id.rend(); itr++ ) {
+   for( const auto& obj : boost::adaptors::reverse( boost::make_iterator_range( it0, it1 ) ) ) {
+      for( auto itr = obj.results_id.rbegin(); itr != obj.results_id.rend(); itr++ ) {
          const auto& result_itr = result_contract_idx.find( *itr );
          if( result_itr != result_contract_idx.end() && result_itr->vm_type == vm_types::EVM ) {
             const auto& res = db.db_res.get_results( std::string(result_itr->id) );
