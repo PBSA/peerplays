@@ -37,14 +37,14 @@ inline const account_statistics_object& test_contract_deploy( database& db, asse
     db.apply_operation( context, op_fund_fee_pool );
 
     contract_operation contract_op;
-    contract_op.vm_type = vms::base::vm_types::EVM;
+    contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, first_asset);
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), second_asset, 50000, first_asset, 1, 1000000, solidityAddCode } );
 
-    db._evaluating_from_apply_block = true;
+    db._evaluating_from_block = true;
     db.apply_operation( context, contract_op );
-    db._evaluating_from_apply_block = false;
+    db._evaluating_from_block = false;
 
     const simple_index<account_statistics_object>& statistics_index = db.get_index_type<simple_index<account_statistics_object>>();
     auto iter = statistics_index.begin();
@@ -92,14 +92,14 @@ BOOST_AUTO_TEST_CASE( mixed_assets_test ){
 
     transaction_evaluation_state context(&db);
     contract_operation contract_op;
-    contract_op.vm_type = vms::base::vm_types::EVM;
+    contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type());
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(), asset_id_type(1), 50000, asset_id_type(), 1, 1000000 } );
 
-    db._evaluating_from_apply_block = true;
+    db._evaluating_from_block = true;
     db.apply_operation( context, contract_op );
-    db._evaluating_from_apply_block = false;
+    db._evaluating_from_block = false;
 
     BOOST_CHECK( db.get_balance(contract_id_type(), asset_id_type()).amount.value == 50000 );
     BOOST_CHECK( db.get_balance(contract_id_type(), asset_id_type(1)).amount.value == 50000 );
@@ -121,14 +121,14 @@ BOOST_AUTO_TEST_CASE( not_enough_asset_for_fee_test ){
     db.apply_operation( context, op_fund_fee_pool );
 
     contract_operation contract_op;
-    contract_op.vm_type = vms::base::vm_types::EVM;
+    contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type(1));
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(), 50000, asset_id_type(1), 1, 1000000, solidityAddCode } );
 
-    db._evaluating_from_apply_block = true;
+    db._evaluating_from_block = true;
     GRAPHENE_REQUIRE_THROW( db.apply_operation( context, contract_op ), fc::exception );
-    db._evaluating_from_apply_block = false;
+    db._evaluating_from_block = false;
 }
 
 BOOST_AUTO_TEST_CASE( not_enough_asset_for_transfer_test ){
@@ -145,14 +145,14 @@ BOOST_AUTO_TEST_CASE( not_enough_asset_for_transfer_test ){
     db.apply_operation( context, op_fund_fee_pool );
 
     contract_operation contract_op;
-    contract_op.vm_type = vms::base::vm_types::EVM;
+    contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type());
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(1), 50000, asset_id_type(), 1, 300000, solidityAddCode } );
 
-    db._evaluating_from_apply_block = true;
+    db._evaluating_from_block = true;
     GRAPHENE_REQUIRE_THROW( db.apply_operation( context, contract_op ), fc::exception );
-    db._evaluating_from_apply_block = false;
+    db._evaluating_from_block = false;
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -2,7 +2,6 @@
 
 #include <vm_interface.hpp>
 #include <pp_state.hpp>
-#include <graphene/chain/protocol/contract.hpp>
 
 #include <aleth/libethereum/LastBlockHashesFace.h>
 
@@ -11,6 +10,29 @@ namespace graphene { namespace chain { struct database_fixture; } }
 namespace vms { namespace evm {
 
 using namespace vms::base;
+
+class last_block_hashes: public dev::eth::LastBlockHashesFace {
+
+public:
+
+   explicit last_block_hashes( const vector<block_id_type>& _hashes ): hashes(_hashes) {}
+
+   h256s precedingHashes(h256 const& _mostRecentHash) const override
+   {
+      h256s result;
+      result.resize(256);
+      for (unsigned i = 0; i < 255; ++i)
+         result[i] = ( hashes[i] == block_id_type() ) ? h256() : h256( hashes[i].str(), FixedHash<32>::ConstructFromStringType::FromHex, FixedHash<32>::ConstructFromHashType::AlignRight );
+
+      return result;
+   }
+
+   void clear() override {}
+
+private:
+   vector<block_id_type> hashes;
+
+};
 
 class evm : public vm_interface
 {
@@ -27,7 +49,7 @@ public:
 
    std::vector<bytes> get_contracts() const override;
 
-   bytes get_state_root() const;
+   std::string get_state_root() const;
 
    void set_state_root( const std::string& hash );
 
@@ -39,7 +61,7 @@ private:
 
    Transaction create_eth_transaction(const eth_op& eth) const;
 
-   EnvInfo create_environment();
+   EnvInfo create_environment( last_block_hashes const& last_hashes );
 
    void transfer_suicide_balances(const std::vector< std::pair< Address, Address > >& suicide_transfer);
 
@@ -57,76 +79,4 @@ private:
 
 };
 
-class last_block_hashes: public dev::eth::LastBlockHashesFace {
-
-public:
-
-   explicit last_block_hashes(){ m_lastHashes.clear(); }
-
-   h256s precedingHashes(h256 const& _mostRecentHash) const override
-   {
-      if (m_lastHashes.empty() || m_lastHashes.front() != _mostRecentHash)
-         m_lastHashes.resize(256);
-      return m_lastHashes;
-   }
-
-   void clear() override { m_lastHashes.clear(); }
-
-private:
-
-   mutable h256s m_lastHashes;
-
-};
-
 } }
-
-FC_REFLECT_ENUM( dev::eth::TransactionException, 
-                 (None)
-                 (Unknown)
-                 (BadRLP)
-                 (InvalidFormat)
-                 (OutOfGasIntrinsic)
-                 (InvalidSignature)
-                 (InvalidNonce)
-                 (NotEnoughCash)
-                 (OutOfGasBase)
-                 (BlockGasLimitReached)
-                 (BadInstruction)
-                 (BadJumpDestination)
-                 (OutOfGas)
-                 (OutOfStack)
-                 (StackUnderflow)
-                 (RevertInstruction)
-                 (InvalidZeroSignatureFormat)
-                 (AddressAlreadyUsed) )
-
-FC_REFLECT_ENUM( dev::eth::CodeDeposit,
-                 (None)
-                 (Failed)
-                 (Success) )
-
-FC_REFLECT( dev::Address, (m_data) )
-FC_REFLECT( dev::h2048, (m_data) )
-FC_REFLECT( dev::h256, (m_data) )
-
-FC_REFLECT( dev::eth::LogEntry,
-            (address)
-            (topics)
-            (data) )
-
-FC_REFLECT( dev::eth::TransactionReceipt,
-            (m_statusCodeOrStateRoot)
-            (m_gasUsed)
-            (m_bloom)
-            (m_log) )
-
-FC_REFLECT( dev::eth::ExecutionResult, 
-            (gasUsed)
-            (excepted)
-            (newAddress)
-            (output)
-            (codeDeposit)
-            (gasRefunded)
-            (depositSize)
-            (gasForDeposit) )
-

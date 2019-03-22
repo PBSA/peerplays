@@ -106,6 +106,8 @@ void database::update_global_dynamic_data( const signed_block& b )
            (dgp.recent_slots_filled << 1)
            + 1) << missed_blocks;
       dgp.current_aslot += missed_blocks+1;
+      dgp.last_block_hashes.insert( dgp.last_block_hashes.begin(), b.id() );
+      dgp.last_block_hashes.resize(256);
    });
 
    if( !(get_node_properties().skip_flags & skip_undo_history_check) )

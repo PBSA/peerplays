@@ -109,6 +109,8 @@ namespace graphene { namespace chain {
 
          uint32_t last_irreversible_block_num = 0;
 
+         std::vector< block_id_type > last_block_hashes;
+
          enum dynamic_flag_bits
          {
             /**
@@ -140,6 +142,7 @@ FC_REFLECT_DERIVED( graphene::chain::dynamic_global_property_object, (graphene::
                     (recent_slots_filled)
                     (dynamic_flags)
                     (last_irreversible_block_num)
+                    (last_block_hashes)
                   )
 
 FC_REFLECT_DERIVED( graphene::chain::global_property_object, (graphene::db::object),

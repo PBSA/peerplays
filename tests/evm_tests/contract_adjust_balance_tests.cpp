@@ -27,16 +27,16 @@ BOOST_AUTO_TEST_CASE( contract_adjust_banalce ){
 
     transfer(account_id_type(0),account_id_type(5),asset(1000000000, asset_id_type()));
     contract_operation contract_op;
-    contract_op.vm_type = vms::base::vm_types::EVM;
+    contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
 
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(), 0, asset_id_type(), 1, 100000, contract_code } );
 
     transaction_evaluation_state context(&db);
 
-    db._evaluating_from_apply_block = true;
+    db._evaluating_from_block = true;
     auto res = db.apply_operation( context, contract_op );
-    db._evaluating_from_apply_block = false;
+    db._evaluating_from_block = false;
 
     result_contract_id_type cid = res.get<object_id_type>();
 
@@ -49,14 +49,14 @@ BOOST_AUTO_TEST_CASE( contract_adjust_banalce ){
 BOOST_AUTO_TEST_CASE( contract_adjust_banalce_neg ){
     transfer(account_id_type(0),account_id_type(5),asset(1000000000, asset_id_type()));
     contract_operation contract_op;
-    contract_op.vm_type = vms::base::vm_types::EVM;
+    contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(), 0, asset_id_type(), 1, 100000, contract_code } );
     transaction_evaluation_state context(&db);
 
-    db._evaluating_from_apply_block = true;
+    db._evaluating_from_block = true;
     auto res = db.apply_operation( context, contract_op );
-    db._evaluating_from_apply_block = false;
+    db._evaluating_from_block = false;
 
     result_contract_id_type cid = res.get<object_id_type>();
 

@@ -418,6 +418,11 @@ signed_block database::_generate_block(
    //
    _pending_tx_session.reset();
    _pending_tx_session = _undo_db.start_undo_session();
+   _evaluating_from_block = true;
+
+   _current_block.timestamp = when;
+   _current_block.previous = head_block_id();
+   _current_block.witness = witness_id;
 
    uint64_t postponed_tx_count = 0;
    // pop pending state (reset to head block state)
@@ -457,6 +462,7 @@ signed_block database::_generate_block(
    }
 
    _pending_tx_session.reset();
+   _evaluating_from_block = false;
 
    // We have temporarily broken the invariant that
    // _pending_tx_session is the result of applying _pending_tx, as
@@ -575,9 +581,9 @@ void database::apply_block( const signed_block& next_block, uint32_t skip )
 
    detail::with_skip_flags( *this, skip, [&]()
    {
-      _evaluating_from_apply_block = true;
+      _evaluating_from_block = true;
       _apply_block( next_block );
-      _evaluating_from_apply_block = false;
+      _evaluating_from_block = false;
    } );
    return;
 }

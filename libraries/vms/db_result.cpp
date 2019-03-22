@@ -37,6 +37,7 @@ fc::optional<bytes> db_result::get_results( const std::string& id )
       result = it->second;
    } else {
       std::string state_back = state_db.at( address );
+
       if(state_back.empty())
 			return fc::optional<bytes>();
 

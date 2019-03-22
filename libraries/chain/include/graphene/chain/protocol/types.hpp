@@ -84,6 +84,8 @@ namespace graphene { namespace chain {
    typedef fc::ecc::private_key        private_key_type;
    typedef fc::sha256 chain_id_type;
 
+   enum class vm_types { NULL_TYPE, EVM };
+
    enum asset_issuer_permission_flags
    {
       charge_market_fee    = 0x01, /**< an issuer-specified percentage of all market trades in this asset is paid to the issuer */
@@ -391,6 +393,8 @@ FC_REFLECT( graphene::chain::extended_public_key_type, (key_data) )
 FC_REFLECT( graphene::chain::extended_public_key_type::binary_key, (check)(data) )
 FC_REFLECT( graphene::chain::extended_private_key_type, (key_data) )
 FC_REFLECT( graphene::chain::extended_private_key_type::binary_key, (check)(data) )
+
+FC_REFLECT_ENUM(graphene::chain::vm_types, (NULL_TYPE)(EVM) )
 
 FC_REFLECT_ENUM( graphene::chain::object_type,
                  (null_object_type)

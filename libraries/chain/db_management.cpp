@@ -64,7 +64,7 @@ void database::reindex(fc::path data_dir, const genesis_state_type& initial_allo
       return;
    }
 
-   _evaluating_from_apply_block = true;
+   _evaluating_from_block = true;
 
    const auto last_block_num = last_block->block_num();
 
@@ -116,7 +116,7 @@ void database::reindex(fc::path data_dir, const genesis_state_type& initial_allo
                              skip_authority_check);
    }
 
-   _evaluating_from_apply_block = false;
+   _evaluating_from_block = false;
    if (!_slow_replays)
      _undo_db.enable();
 

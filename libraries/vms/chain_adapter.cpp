@@ -64,7 +64,7 @@ void chain_adapter::sub_contract_balance( const uint64_t& contract_id, const uin
 uint64_t chain_adapter::get_id_author_block() const
 {
    auto& index = db.get_index_type< witness_index >().indices().get< by_id >();
-   auto itr = index.find( db.get_dynamic_global_properties().current_witness );
+   auto itr = index.find( db.get_current_block().witness );
    witness_object witness = *itr;
    if( index.end() != itr ){
        return witness.witness_account.instance.value;
@@ -84,7 +84,7 @@ uint32_t chain_adapter::head_block_time() const
 
 bool chain_adapter::evaluating_from_apply_block() const
 {
-   return db._evaluating_from_apply_block;
+   return db._evaluating_from_block;
 }
 
 void chain_adapter::add_result( const std::string& id, bytes res )

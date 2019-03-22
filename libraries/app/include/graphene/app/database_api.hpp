@@ -64,6 +64,7 @@
 #include <vector>
 
 #include <evm.hpp>
+#include <evm_result.hpp>
 
 namespace graphene { namespace app {
 

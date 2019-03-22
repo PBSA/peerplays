@@ -4,6 +4,8 @@
 #include <chain_adapter.hpp>
 #include <string>
 #include <vector>
+#include <graphene/chain/protocol/types.hpp>
+#include <graphene/chain/protocol/block.hpp>
 
 #include <fc/crypto/sha256.hpp>
 
@@ -32,6 +34,10 @@ public:
    void delete_contract_balances( const uint64_t& id );
 
    void contract_suicide( const uint64_t& id );
+
+   vector<graphene::chain::block_id_type> get_last_block_hashes() const;
+
+   signed_block get_current_block() const;
 
    fc::optional<fc::sha256> get_last_valid_state_root( const uint32_t& block_number );
 

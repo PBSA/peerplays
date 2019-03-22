@@ -71,8 +71,6 @@ public:
 
    std::unordered_map<Address, Account> getResultAccounts() { return result_accounts; }
 
-   void clearResultAccount() { result_accounts.clear(); }
-
    Account const* getAccount(Address const& _a) const { return account(_a); } // TODO temp
 
    Account* getAccount(Address const& _a) { return account(_a); } // TODO temp

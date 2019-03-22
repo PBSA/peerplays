@@ -1,4 +1,6 @@
 #include <evm.hpp>
+#include <evm_result.hpp>
+
 #include <fc/crypto/hex.hpp>
 
 #include <aleth/libethcore/SealEngine.h>
@@ -22,11 +24,12 @@ std::pair<uint64_t, bytes> evm::exec( const bytes& data, const bool commit )
 
    eth_op eth = fc::raw::unpack<eth_op>( data );
 
+   last_block_hashes last_hashes( get_adapter().get_last_block_hashes() );
    OnOpFunc const& _onOp = OnOpFunc();
-   EnvInfo ei = create_environment();
+
+   EnvInfo ei = create_environment( last_hashes );
    state.setAuthor( ei.author() );
    state.setAssetType( eth.asset_id_gas.instance.value );
-   state.clearResultAccount();
 
    Transaction tx = create_eth_transaction( eth );
    auto permanence = get_adapter().evaluating_from_apply_block() ? Permanence::Committed : Permanence::Reverted;
@@ -48,12 +51,11 @@ std::pair<uint64_t, bytes> evm::exec( const bytes& data, const bool commit )
    attracted_contracts = select_attracted_contracts(attracted_contr_and_acc);
 
    if( get_adapter().evaluating_from_apply_block() ){
-      bytes serialize_result = fc::raw::unsigned_pack( res );
-	  const auto& state_root = get_state_root();
-	  serialize_result.insert( serialize_result.begin(), state_root.begin(), state_root.end() );
+      evm_result result { res.first, res.second, get_state_root() };
+      bytes serialize_result = fc::raw::unsigned_pack( result );
 
-	  get_adapter().add_result( get_adapter().get_next_result_id(), serialize_result );
-	  get_adapter().commit_cache();
+      get_adapter().add_result( get_adapter().get_next_result_id(), serialize_result );
+      get_adapter().commit_cache();
       get_adapter().commit();
    }
 
@@ -76,9 +78,9 @@ std::vector<bytes> evm::get_contracts() const
    return results;
 }
 
-bytes evm::get_state_root() const
+std::string evm::get_state_root() const
 {
-   return state.rootHash().asBytes();
+   return state.rootHash().hex();
 }
 
 void evm::set_state_root( const std::string& hash )
@@ -105,14 +107,20 @@ Transaction evm::create_eth_transaction(const eth_op& eth) const
    return tx;
 }
 
-EnvInfo evm::create_environment()
+EnvInfo evm::create_environment( last_block_hashes const& last_hashes )
 {
    BlockHeader header;
-   header.setNumber( static_cast<int64_t>( get_adapter().head_block_num() ) );
+   auto current_block = get_adapter().get_current_block();
+   header.setNumber( static_cast<int64_t>( current_block.block_num() ) );
    header.setAuthor( id_to_address( get_adapter().get_id_author_block(), 0 ) );
-   header.setTimestamp( static_cast<int64_t>( get_adapter().head_block_time() ) );
+   header.setTimestamp( static_cast<int64_t>( current_block.timestamp.sec_since_epoch() ) );
    header.setGasLimit( 1 << 30 );
-   EnvInfo result(header, last_block_hashes(), u256());
+   if( current_block.block_num() > 1 )
+      header.setParentHash( h256( current_block.previous.str() ) );
+   else
+      header.setParentHash( h256() );
+
+   EnvInfo result(header, last_hashes, u256());
 
    return result;
 };

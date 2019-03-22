@@ -289,6 +289,8 @@ namespace graphene { namespace chain {
 
 
          uint32_t last_non_undoable_block_num() const;
+         vector< block_id_type > get_last_block_hashes() const;
+         signed_block            get_current_block() const;
          //////////////////// db_init.cpp ////////////////////
 
          void initialize_evaluators();
@@ -462,7 +464,7 @@ namespace graphene { namespace chain {
 
          vms::base::db_result                    db_res;
 
-         bool                                   _evaluating_from_apply_block = false;
+         bool                                   _evaluating_from_block = false;
 
          fc::signal<void(const contracts_results_in_block_id_type&)>     created_block_results;
 
@@ -545,6 +547,7 @@ namespace graphene { namespace chain {
           *  the fork tree relatively simple.
           */
          block_database   _block_id_to_block;
+         signed_block     _current_block;
 
          /**
           * Contains the set of ops that are in the process of being applied from

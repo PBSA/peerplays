@@ -1116,32 +1116,32 @@ vector<bet_object> database_api_impl::get_all_unmatched_bets_for_bettor(account_
 
 inline fc::optional<dev::eth::LogEntries> database_api_impl::get_logs_from_result(const result_contract_id_type& res, const std::set<contract_id_type>& ids) const
 {
-	const auto& contract_res_idx = _db.get_index_type<result_contract_index>().indices().get<by_id>();
-	auto contract_res_itr = contract_res_idx.find( res );
+   const auto& contract_res_idx = _db.get_index_type<result_contract_index>().indices().get<by_id>();
+   auto contract_res_itr = contract_res_idx.find( res );
    if( contract_res_itr == contract_res_idx.end() ) {
-		return fc::optional<dev::eth::LogEntries>();
-	}
+	   return fc::optional<dev::eth::LogEntries>();
+   }
 
-	const auto& result_bytes = _db.db_res.get_results( std::string( object_id_type( contract_res_itr->get_id() ) ) );
-	if( !result_bytes ) {
+   const auto& result_bytes = _db.db_res.get_results( std::string( object_id_type( contract_res_itr->get_id() ) ) );
+   if( !result_bytes.valid() ) {
       return fc::optional<dev::eth::LogEntries>();
-	}
+   }
 
-	const auto& result = fc::raw::unpack<std::pair< dev::eth::ExecutionResult, dev::eth::TransactionReceipt >>( *result_bytes );
-	const auto& logs = result.second.log();
+   const auto& result = fc::raw::unpack< vms::evm::evm_result >( *result_bytes );
+   const auto& logs = result.receipt.log();
 
-	if( ids.empty() ) {
-		return logs.empty() ? fc::optional<dev::eth::LogEntries>() : logs;
-	}
+   if( ids.empty() ) {
+      return logs.empty() ? fc::optional<dev::eth::LogEntries>() : logs;
+   }
 
-	dev::eth::LogEntries results;
-	for( const auto& l : logs ) {
-	   if( ids.count( contract_id_type( vms::evm::address_to_id( l.address ).second ) ) ) {
-	      results.push_back( l );
-	   }
-	}
+   dev::eth::LogEntries results;
+   for( const auto& l : logs ) {
+      if( ids.count( contract_id_type( vms::evm::address_to_id( l.address ).second ) ) ) {
+         results.push_back( l );
+      }
+   }
 
-	return results.empty() ? fc::optional<dev::eth::LogEntries>() : results;
+   return results.empty() ? fc::optional<dev::eth::LogEntries>() : results;
 }
 
 inline fc::optional<block_logs> database_api_impl::get_logs_from_block(const contracts_results_in_block_id_type& res, const std::set<contract_id_type>& ids) const

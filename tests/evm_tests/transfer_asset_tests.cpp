@@ -70,11 +70,11 @@ BOOST_AUTO_TEST_CASE( many_asset_transferasset_test ){
     }
 
     contract_operation contract_op;
-    contract_op.vm_type = vms::base::vm_types::EVM;
+    contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type(0));
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(0), 0, asset_id_type(0), 1, 2000000, solidityCode } );
-    db._evaluating_from_apply_block = true;
+    db._evaluating_from_block = true;
     db.apply_operation( context, contract_op );
 
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), asset_id_type(), 50000, asset_id_type(), 1, 2000000 } );
@@ -119,11 +119,11 @@ BOOST_AUTO_TEST_CASE( many_asset_transferasset_from_contract_test ){
     }
 
     contract_operation contract_op;
-    contract_op.vm_type = vms::base::vm_types::EVM;
+    contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type(0));
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(0), 0, asset_id_type(0), 1, 2000000, solidityTransferCode } );
-    db._evaluating_from_apply_block = true;
+    db._evaluating_from_block = true;
     db.apply_operation( context, contract_op );
 
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), asset_id_type(0), 50000, asset_id_type(0), 1, 2000000 } );
@@ -167,11 +167,11 @@ BOOST_AUTO_TEST_CASE( many_asset_transferasset_depth_test ){
     }
 
     contract_operation contract_op;
-    contract_op.vm_type = vms::base::vm_types::EVM;
+    contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type(0));
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(0), 0, asset_id_type(0), 1, 2000000, solidityTransferCode } );
-    db._evaluating_from_apply_block = true;
+    db._evaluating_from_block = true;
     db.apply_operation( context, contract_op );
 
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(0), 0, asset_id_type(0), 1, 2000000, soliditySendCode } );
@@ -214,10 +214,10 @@ BOOST_AUTO_TEST_CASE( many_asset_transferasset_CORE_test ){
     }
 
     contract_operation contract_op;
-    contract_op.vm_type = vms::base::vm_types::EVM;
+    contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(0), 0, asset_id_type(0), 1, 2000000, solidityCode } );
-    db._evaluating_from_apply_block = true;
+    db._evaluating_from_block = true;
     db.apply_operation( context, contract_op );
 
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), asset_id_type(0), 50000, asset_id_type(0), 1, 2000000 } );
@@ -260,11 +260,11 @@ BOOST_AUTO_TEST_CASE( many_asset_transferasset_not_CORE_test ){
     }
 
     contract_operation contract_op;
-    contract_op.vm_type = vms::base::vm_types::EVM;
+    contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type(1));
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(1), 0, asset_id_type(1), 1, 2000000, solidityCode } );
-    db._evaluating_from_apply_block = true;
+    db._evaluating_from_block = true;
     db.apply_operation( context, contract_op );
 
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), asset_id_type(1), 50000, asset_id_type(1), 1, 2000000 } );
