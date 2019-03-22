@@ -175,7 +175,6 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
 
          if( !is_subscribed_to_item(i) )
          {
-            idump((i));
             _subscribe_filter.insert( vec.data(), vec.size() );//(vecconst char*)&i, sizeof(i) );
          }
       }
