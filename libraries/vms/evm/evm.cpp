@@ -25,7 +25,7 @@ std::pair<uint64_t, bytes> evm::exec( const bytes& data, const bool commit )
    OnOpFunc const& _onOp = OnOpFunc();
    EnvInfo ei = create_environment();
    state.setAuthor( ei.author() );
-   state.setAssetType( eth.asset_id.instance.value );
+   state.setAssetType( eth.asset_id_gas.instance.value );
    state.clearResultAccount();
 
    Transaction tx = create_eth_transaction( eth );
@@ -100,7 +100,7 @@ Transaction evm::create_eth_transaction(const eth_op& eth) const
 
     Address sender = id_to_address( eth.registrar.instance.value, 0 );
     tx.forceSender( sender );
-    tx.setIdAsset( static_cast<uint64_t>( eth.asset_id.instance.value ) );
+    tx.setIdAsset( static_cast<uint64_t>( eth.asset_id_transfer.instance.value ) );
 
    return tx;
 }

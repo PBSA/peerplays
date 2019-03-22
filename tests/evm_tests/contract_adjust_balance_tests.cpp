@@ -30,7 +30,7 @@ BOOST_AUTO_TEST_CASE( contract_adjust_banalce ){
     contract_op.vm_type = vms::base::vm_types::EVM;
     contract_op.registrar = account_id_type(5);
 
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(), 0, 1, 100000, contract_code } );
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(), 0, asset_id_type(), 1, 100000, contract_code } );
 
     transaction_evaluation_state context(&db);
 
@@ -51,7 +51,7 @@ BOOST_AUTO_TEST_CASE( contract_adjust_banalce_neg ){
     contract_operation contract_op;
     contract_op.vm_type = vms::base::vm_types::EVM;
     contract_op.registrar = account_id_type(5);
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(), 0, 1, 100000, contract_code } );
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(), 0, asset_id_type(), 1, 100000, contract_code } );
     transaction_evaluation_state context(&db);
 
     db._evaluating_from_apply_block = true;

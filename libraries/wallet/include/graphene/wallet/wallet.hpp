@@ -1825,12 +1825,13 @@ class wallet_api
       void encrypt_keys();
 
 ////////////////////////////////////////////////////////////////////////////// // evm begin
-      signed_transaction create_contract(string registrar_account, string asset_type, string code, uint64_t value,
-                                         uint64_t gasPrice, uint64_t gas, bool broadcast = false,
-                                         bool save_wallet = true);
+      signed_transaction create_contract(string registrar_account, string asset_type_transfer, uint64_t value, 
+                                         string code, string asset_type_gas, uint64_t gasPrice, 
+                                         uint64_t gas, bool broadcast = false, bool save_wallet = true);
 
       signed_transaction call_contract(string registrar_account, contract_id_type receiver,
-                                       string code, uint64_t value, uint64_t gasPrice, uint64_t gas,
+                                       string code, string asset_type_transfer, uint64_t value,
+                                       string asset_type_gas, uint64_t gasPrice, uint64_t gas,
                                        bool broadcast = false, bool save_wallet = true);
 ////////////////////////////////////////////////////////////////////////////// // evm end
 };

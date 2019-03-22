@@ -8,21 +8,31 @@ namespace graphene { namespace chain {
 
    void_result contract_evaluator::do_evaluate( const contract_operation& op )
    { try {
-      
-      try {
-         if( op.vm_type == vms::base::vm_types::EVM ) {
-            eth_op eth_data = fc::raw::unpack<eth_op>( op.data );
-            FC_ASSERT( op.registrar == eth_data.registrar );
+   
+      if( op.vm_type == vms::base::vm_types::EVM ) {
+         eth_op eth_data;
+         try {
+            eth_data = fc::raw::unpack<eth_op>( op.data );
+         } catch ( ... ) {
+            FC_ASSERT( "Data does not match the virtual machine." );
+         }
+         FC_ASSERT( op.registrar == eth_data.registrar );
 
-            vms::base::fee_gas check(db(), *trx_state);
-            check.prepare_fee(op.fee.amount + share_type( eth_data.gas * eth_data.gasPrice + eth_data.value), op );
-            FC_ASSERT( op.fee.asset_id == eth_data.asset_id );
-            if( eth_data.receiver )
-               FC_ASSERT( !( *eth_data.receiver )( db() ).suicided );
-            }
-      } catch ( ... ) {
-         FC_ASSERT( "Data does not match the virtual machine." );
-      }
+         vms::base::fee_gas check(db(), *trx_state);
+         FC_ASSERT( op.fee.asset_id == eth_data.asset_id_gas );
+
+         auto check_sum = op.fee + asset( eth_data.gasPrice * eth_data.gas, eth_data.asset_id_gas );
+         if( eth_data.asset_id_gas == eth_data.asset_id_transfer ) {
+            check.prepare_fee( check_sum.amount + share_type( eth_data.value ), op );
+            FC_ASSERT( db().get_balance( op.registrar, eth_data.asset_id_gas) >= ( check_sum + asset( eth_data.value, eth_data.asset_id_gas ) ) );
+         } else {
+            FC_ASSERT( db().get_balance( op.registrar, eth_data.asset_id_gas ) >= check_sum );
+            FC_ASSERT( db().get_balance( op.registrar, eth_data.asset_id_transfer ) >= asset( eth_data.value, eth_data.asset_id_transfer ) );
+         }
+
+         if( eth_data.receiver )
+            FC_ASSERT( !( *eth_data.receiver )( db() ).suicided );
+         }
 
       return void_result();
    } FC_CAPTURE_AND_RETHROW( (op) ) }
