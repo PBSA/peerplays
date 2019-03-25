@@ -398,6 +398,9 @@ class database_api
 
       std::vector<block_logs> subscribe_contracts_logs( std::function<void(const variant&)> cb, const std::vector<contract_id_type>& ids, const uint64_t& from );
 
+      void unsubscribe_all_contracts_logs();
+
+      void unsubscribe_contracts_logs( const std::vector<contract_id_type>& ids );
       /////////////////////
       // Markets / feeds //
       /////////////////////
@@ -728,6 +731,8 @@ FC_API(graphene::app::database_api,
    (get_unmatched_bets_for_bettor)
    (get_all_unmatched_bets_for_bettor)
    (subscribe_contracts_logs)
+   (unsubscribe_all_contracts_logs)
+   (unsubscribe_contracts_logs)
 
    // Markets / feeds
    (get_order_book)

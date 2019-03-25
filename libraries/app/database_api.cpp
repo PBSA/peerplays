@@ -120,6 +120,8 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
 		inline fc::optional<block_logs>  get_logs_from_block(const contracts_results_in_block_id_type& res, const std::set<contract_id_type>& ids) const;
 		std::vector<block_logs> get_logs_in_interval( const std::set<contract_id_type>& ids, const uint64_t& from_block, const uint64_t& to_block ) const;
 		std::vector<block_logs> subscribe_contracts_logs( std::function<void(const variant&)> cb, const std::vector<contract_id_type>& ids, const uint64_t& from );
+      void unsubscribe_all_contracts_logs();
+      void unsubscribe_contracts_logs( const std::vector<contract_id_type>& ids );
 
 		std::set<contract_id_type> contracts_subscription;
 
@@ -1192,6 +1194,31 @@ std::vector<block_logs> database_api_impl::subscribe_contracts_logs( std::functi
    _created_block_results_callback = cb;
 	contracts_subscription.insert( ids.begin(), ids.end() );
 	return get_logs_in_interval( contracts_subscription, from, std::numeric_limits<uint32_t>::max() );
+}
+
+void database_api::unsubscribe_all_contracts_logs()
+{
+   my->unsubscribe_all_contracts_logs();
+}
+
+void database_api_impl::unsubscribe_all_contracts_logs()
+{
+   _created_block_results_callback = std::function<void(const fc::variant&)>();
+   contracts_subscription.clear();
+}
+
+void database_api::unsubscribe_contracts_logs( const std::vector<contract_id_type>& ids )
+{
+   my->unsubscribe_contracts_logs( ids );
+}
+
+void database_api_impl::unsubscribe_contracts_logs( const std::vector<contract_id_type>& ids )
+{
+   for( auto id: ids ){
+      contracts_subscription.erase( id );
+   }
+   if( contracts_subscription.empty() )
+      _created_block_results_callback = std::function<void(const fc::variant&)>();
 }
 
 //////////////////////////////////////////////////////////////////////
