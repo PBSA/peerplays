@@ -34,6 +34,8 @@ boost::unit_test::test_suite* init_unit_test_suite(int argc, char* argv[]) {
    if( genesis_timestamp_str != nullptr )
    {
       GRAPHENE_TESTING_GENESIS_TIMESTAMP = std::stoul( genesis_timestamp_str );
+   } else {
+      GRAPHENE_TESTING_GENESIS_TIMESTAMP = 1550000001;
    }
    std::cout << "GRAPHENE_TESTING_GENESIS_TIMESTAMP is " << GRAPHENE_TESTING_GENESIS_TIMESTAMP << std::endl;
    return nullptr;

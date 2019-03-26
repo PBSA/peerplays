@@ -1,0 +1,4 @@
+// sidechain fardfork
+#ifndef HARDFORK_SIDECHAIN_TIME
+#define HARDFORK_SIDECHAIN_TIME (fc::time_point_sec( 1550000000 ))
+#endif

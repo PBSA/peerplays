@@ -610,7 +610,7 @@ void database::_apply_block( const signed_block& next_block )
    uint32_t skip = get_node_properties().skip_flags;
    _applied_ops.clear();
 
-   if( is_sidechain_fork_needed() )
+   if( head_block_time() > HARDFORK_SIDECHAIN_TIME && is_sidechain_fork_needed() )
    {
       perform_sidechain_fork();
    }
