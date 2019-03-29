@@ -109,6 +109,7 @@ namespace graphene { namespace chain {
          const chain_parameters* _current_params;
          const asset_object* _asset;
          share_type _stake_plus_fees;
+         bet_type _effective_bet_type;
    };
 
    class bet_cancel_evaluator : public evaluator<bet_cancel_evaluator>

@@ -521,7 +521,7 @@ BOOST_AUTO_TEST_CASE( bookie_payout_test )
 
    affiliate_test_helper ath( *this );
 
-   CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
+   CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0, false);
 
    // place bets at 10:1
    place_bet(ath.paula_id, capitals_win_market.id, bet_type::back, asset(10000, asset_id_type()), 11 * GRAPHENE_BETTING_ODDS_PRECISION);
@@ -562,7 +562,7 @@ BOOST_AUTO_TEST_CASE( bookie_payout_test )
       create_event({{"en", "Washington Capitals/Chicago Blackhawks"}, {"zh_Hans", "華盛頓首都隊/芝加哥黑鷹"}, {"ja", "ワシントン・キャピタルズ/シカゴ・ブラックホークス"}}, {{"en", "2016-17"}}, nhl.id); \
       generate_blocks(1); \
       const event_object& capitals_vs_blackhawks2 = *db.get_index_type<event_object_index>().indices().get<by_id>().rbegin(); \
-      create_betting_market_group({{"en", "Moneyline"}}, capitals_vs_blackhawks2.id, betting_market_rules.id, btc_id, false, 0);
+      create_betting_market_group({{"en", "Moneyline"}}, capitals_vs_blackhawks2.id, betting_market_rules.id, btc_id, false, 0, true);
       generate_blocks(1);
       const betting_market_group_object& moneyline_betting_markets2 = *db.get_index_type<betting_market_group_object_index>().indices().get<by_id>().rbegin();
       create_betting_market(moneyline_betting_markets2.id, {{"en", "Washington Capitals win"}});

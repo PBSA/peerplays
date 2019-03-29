@@ -51,7 +51,7 @@ struct by_event_id;
 struct by_settling_time;
 struct by_betting_market_group_id;
 
-class betting_market_rules_object : public graphene::db::abstract_object< betting_market_rules_object >
+class betting_market_rules_object : public graphene::db::abstract_object<betting_market_rules_object>
 {
    public:
       static const uint8_t space_id = protocol_ids;
@@ -62,7 +62,7 @@ class betting_market_rules_object : public graphene::db::abstract_object< bettin
       internationalized_string_type description;
 };
 
-class betting_market_group_object : public graphene::db::abstract_object< betting_market_group_object >
+class betting_market_group_object : public graphene::db::abstract_object<betting_market_group_object>
 {
    public:
       static const uint8_t space_id = protocol_ids;
@@ -87,6 +87,8 @@ class betting_market_group_object : public graphene::db::abstract_object< bettin
 
       uint32_t delay_before_settling;
 
+      betting_market_resolution_constraint resolution_constraint;
+
       fc::optional<fc::time_point_sec> settling_time;  // the time the payout will occur (set after grading)
 
       bool bets_are_allowed() const { 
@@ -99,6 +101,8 @@ class betting_market_group_object : public graphene::db::abstract_object< bettin
       }
 
       betting_market_group_status get_status() const;
+      unsigned get_number_of_betting_markets() const;
+      unsigned get_number_of_market_positions() const;
 
       // serialization functions:
       // for serializing to raw, go through a temporary sstream object to avoid
@@ -130,7 +134,7 @@ class betting_market_group_object : public graphene::db::abstract_object< bettin
       std::unique_ptr<impl> my;
 };
 
-class betting_market_object : public graphene::db::abstract_object< betting_market_object >
+class betting_market_object : public graphene::db::abstract_object<betting_market_object>
 {
    public:
       static const uint8_t space_id = protocol_ids;
@@ -182,7 +186,21 @@ class betting_market_object : public graphene::db::abstract_object< betting_mark
       std::unique_ptr<impl> my;
 };
 
-class bet_object : public graphene::db::abstract_object< bet_object >
+
+// Uncomment to enable the incomplete support for simple cross-market matching.
+// When enabled on a market group with two markets, we collapse the markets into
+// one order book (backing in one market is really betting on the same outcome as
+// laying in the other market).  We will convert any bets in the second market into
+// the corresponding bets in the first, thus a back in the first market could be
+// matched against a back in the second market.
+// There are some problems to work out though.  Ones that come to mind are:
+// - we don't permit the inverse odds for every odds you can bet.  
+//   (we allow odds of 5.5 (2:9), but we don't allow the inverse 9:2, which would be 1.222222)
+// - we would need to fake up an order book for the second market either in the bookie
+//   plugin or the UI
+// #define ENABLE_SIMPLE_CROSS_MARKET_MATCHING
+
+class bet_object : public graphene::db::abstract_object<bet_object>
 {
    public:
       static const uint8_t space_id = protocol_ids;
@@ -197,6 +215,10 @@ class bet_object : public graphene::db::abstract_object< bet_object >
       bet_multiplier_type backer_multiplier;
 
       bet_type back_or_lay;
+      
+#ifdef ENABLE_SIMPLE_CROSS_MARKET_MATCHING
+      bet_type placed_as_back_or_lay;
+#endif
 
       fc::optional<fc::time_point_sec> end_of_delay;
 
@@ -217,47 +239,53 @@ class bet_object : public graphene::db::abstract_object< bet_object >
       share_type get_minimum_matching_amount() const;
 };
 
-class betting_market_position_object : public graphene::db::abstract_object< betting_market_position_object >
+class betting_market_position {
+   public:
+      share_type pay_if_payout_condition;
+      share_type pay_required_by_unmatched_bets;
+};
+
+class betting_market_group_position_object : public graphene::db::abstract_object<betting_market_group_position_object>
 {
    public:
       static const uint8_t space_id = implementation_ids;
-      static const uint8_t type_id = impl_betting_market_position_object_type;
+      static const uint8_t type_id = impl_betting_market_group_position_object_type;
 
       account_id_type bettor_id;
       
-      betting_market_id_type betting_market_id;
+      betting_market_group_id_type betting_market_group_id;
 
-      share_type pay_if_payout_condition;
-      share_type pay_if_not_payout_condition;
       share_type pay_if_canceled;
-      share_type pay_if_not_canceled;
-      share_type fees_collected;
+      std::vector<betting_market_position> market_positions;
       
-      share_type reduce();
+      bool is_empty() const;
 };
 
 typedef multi_index_container<
    betting_market_rules_object,
    indexed_by<
-      ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >
-   > > betting_market_rules_object_multi_index_type;
+      ordered_unique<tag<by_id>, member<object, object_id_type, &object::id>>
+  >> betting_market_rules_object_multi_index_type;
 typedef generic_index<betting_market_rules_object, betting_market_rules_object_multi_index_type> betting_market_rules_object_index;
 
 typedef multi_index_container<
    betting_market_group_object,
    indexed_by<
-      ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
-      ordered_non_unique< tag<by_event_id>, member<betting_market_group_object, event_id_type, &betting_market_group_object::event_id> >,
-      ordered_non_unique< tag<by_settling_time>, member<betting_market_group_object, fc::optional<fc::time_point_sec>, &betting_market_group_object::settling_time> >
-   > > betting_market_group_object_multi_index_type;
+      ordered_unique<tag<by_id>, member<object, object_id_type, &object::id>>,
+      ordered_non_unique<tag<by_event_id>, member<betting_market_group_object, event_id_type, &betting_market_group_object::event_id>>,
+      ordered_non_unique<tag<by_settling_time>, member<betting_market_group_object, fc::optional<fc::time_point_sec>, &betting_market_group_object::settling_time>>
+  >> betting_market_group_object_multi_index_type;
 typedef generic_index<betting_market_group_object, betting_market_group_object_multi_index_type> betting_market_group_object_index;
 
 typedef multi_index_container<
    betting_market_object,
    indexed_by<
-      ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
-      ordered_non_unique< tag<by_betting_market_group_id>, member<betting_market_object, betting_market_group_id_type, &betting_market_object::group_id> >
-   > > betting_market_object_multi_index_type;
+      ordered_unique<tag<by_id>, member<object, object_id_type, &object::id>>,
+      ordered_unique<tag<by_betting_market_group_id>, 
+                     composite_key<betting_market_object,
+                                   member<betting_market_object, betting_market_group_id_type, &betting_market_object::group_id>, 
+                                   member<object, object_id_type, &object::id>>>
+  >> betting_market_object_multi_index_type;
 
 typedef generic_index<betting_market_object, betting_market_object_multi_index_type> betting_market_object_index;
 
@@ -591,31 +619,31 @@ struct by_bettor_and_odds {};
 typedef multi_index_container<
    bet_object,
    indexed_by<
-      ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
-      ordered_unique< tag<by_odds>, identity<bet_object>, compare_bet_by_odds >,
-      ordered_non_unique< tag<by_betting_market_id>, member<bet_object, betting_market_id_type, &bet_object::betting_market_id> >,
-      ordered_unique< tag<by_bettor_and_odds>, identity<bet_object>, compare_bet_by_bettor_then_odds > > > bet_object_multi_index_type;
+      ordered_unique<tag<by_id>, member<object, object_id_type, &object::id>>,
+      ordered_unique<tag<by_odds>, identity<bet_object>, compare_bet_by_odds>,
+      ordered_non_unique<tag<by_betting_market_id>, member<bet_object, betting_market_id_type, &bet_object::betting_market_id>>,
+      ordered_unique<tag<by_bettor_and_odds>, identity<bet_object>, compare_bet_by_bettor_then_odds>>> bet_object_multi_index_type;
 typedef generic_index<bet_object, bet_object_multi_index_type> bet_object_index;
 
-struct by_bettor_betting_market{};
-struct by_betting_market_bettor{};
+struct by_bettor_betting_market_group{};
+struct by_betting_market_group_bettor{};
 typedef multi_index_container<
-   betting_market_position_object,
+   betting_market_group_position_object,
    indexed_by<
-      ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
-      ordered_unique< tag<by_bettor_betting_market>, 
+      ordered_unique<tag<by_id>, member<object, object_id_type, &object::id>>,
+      ordered_unique<tag<by_bettor_betting_market_group>, 
             composite_key<
-               betting_market_position_object,
-               member<betting_market_position_object, account_id_type, &betting_market_position_object::bettor_id>,
-               member<betting_market_position_object, betting_market_id_type, &betting_market_position_object::betting_market_id> > >,
-      ordered_unique< tag<by_betting_market_bettor>, 
+               betting_market_group_position_object,
+               member<betting_market_group_position_object, account_id_type, &betting_market_group_position_object::bettor_id>,
+               member<betting_market_group_position_object, betting_market_group_id_type, &betting_market_group_position_object::betting_market_group_id>>>,
+      ordered_unique<tag<by_betting_market_group_bettor>, 
             composite_key<
-               betting_market_position_object,
-               member<betting_market_position_object, betting_market_id_type, &betting_market_position_object::betting_market_id>,
-               member<betting_market_position_object, account_id_type, &betting_market_position_object::bettor_id> > >
-  > > betting_market_position_multi_index_type;
+               betting_market_group_position_object,
+               member<betting_market_group_position_object, betting_market_group_id_type, &betting_market_group_position_object::betting_market_group_id>,
+               member<betting_market_group_position_object, account_id_type, &betting_market_group_position_object::bettor_id>>>
+ >> betting_market_group_position_multi_index_type;
 
-typedef generic_index<betting_market_position_object, betting_market_position_multi_index_type> betting_market_position_index;
+typedef generic_index<betting_market_group_position_object, betting_market_group_position_multi_index_type> betting_market_group_position_index;
 
 
 template<typename Stream>
@@ -623,7 +651,7 @@ inline Stream& operator<<( Stream& s, const betting_market_object& betting_marke
 { 
    // pack all fields exposed in the header in the usual way
    // instead of calling the derived pack, just serialize the one field in the base class
-   //   fc::raw::pack<Stream, const graphene::db::abstract_object<betting_market_object> >(s, betting_market_obj);
+   //   fc::raw::pack<Stream, const graphene::db::abstract_object<betting_market_object>>(s, betting_market_obj);
    fc::raw::pack(s, betting_market_obj.id);
    fc::raw::pack(s, betting_market_obj.group_id);
    fc::raw::pack(s, betting_market_obj.description);
@@ -642,7 +670,7 @@ template<typename Stream>
 inline Stream& operator>>( Stream& s, betting_market_object& betting_market_obj )
 { 
    // unpack all fields exposed in the header in the usual way
-   //fc::raw::unpack<Stream, graphene::db::abstract_object<betting_market_object> >(s, betting_market_obj);
+   //fc::raw::unpack<Stream, graphene::db::abstract_object<betting_market_object>>(s, betting_market_obj);
    fc::raw::unpack(s, betting_market_obj.id);
    fc::raw::unpack(s, betting_market_obj.group_id);
    fc::raw::unpack(s, betting_market_obj.description);
@@ -664,7 +692,7 @@ inline Stream& operator<<( Stream& s, const betting_market_group_object& betting
 { 
    // pack all fields exposed in the header in the usual way
    // instead of calling the derived pack, just serialize the one field in the base class
-   //   fc::raw::pack<Stream, const graphene::db::abstract_object<betting_market_group_object> >(s, betting_market_group_obj);
+   //   fc::raw::pack<Stream, const graphene::db::abstract_object<betting_market_group_object>>(s, betting_market_group_obj);
    fc::raw::pack(s, betting_market_group_obj.id);
    fc::raw::pack(s, betting_market_group_obj.description);
    fc::raw::pack(s, betting_market_group_obj.event_id);
@@ -673,6 +701,7 @@ inline Stream& operator<<( Stream& s, const betting_market_group_object& betting
    fc::raw::pack(s, betting_market_group_obj.total_matched_bets_amount);
    fc::raw::pack(s, betting_market_group_obj.never_in_play);
    fc::raw::pack(s, betting_market_group_obj.delay_before_settling);
+   fc::raw::pack(s, betting_market_group_obj.resolution_constraint);
    fc::raw::pack(s, betting_market_group_obj.settling_time);
    // fc::raw::pack the contents hidden in the impl class
    std::ostringstream stream;
@@ -686,7 +715,7 @@ template<typename Stream>
 inline Stream& operator>>( Stream& s, betting_market_group_object& betting_market_group_obj )
 { 
    // unpack all fields exposed in the header in the usual way
-   //fc::raw::unpack<Stream, graphene::db::abstract_object<betting_market_group_object> >(s, betting_market_group_obj);
+   //fc::raw::unpack<Stream, graphene::db::abstract_object<betting_market_group_object>>(s, betting_market_group_obj);
    fc::raw::unpack(s, betting_market_group_obj.id);
    fc::raw::unpack(s, betting_market_group_obj.description);
    fc::raw::unpack(s, betting_market_group_obj.event_id);
@@ -695,6 +724,7 @@ inline Stream& operator>>( Stream& s, betting_market_group_object& betting_marke
    fc::raw::unpack(s, betting_market_group_obj.total_matched_bets_amount);
    fc::raw::unpack(s, betting_market_group_obj.never_in_play);
    fc::raw::unpack(s, betting_market_group_obj.delay_before_settling);
+   fc::raw::unpack(s, betting_market_group_obj.resolution_constraint);
    fc::raw::unpack(s, betting_market_group_obj.settling_time);
 
    // fc::raw::unpack the contents hidden in the impl class
@@ -711,6 +741,11 @@ inline Stream& operator>>( Stream& s, betting_market_group_object& betting_marke
 FC_REFLECT_DERIVED( graphene::chain::betting_market_rules_object, (graphene::db::object), (name)(description) )
 FC_REFLECT_DERIVED( graphene::chain::betting_market_group_object, (graphene::db::object), (description) )
 FC_REFLECT_DERIVED( graphene::chain::betting_market_object, (graphene::db::object), (group_id) )
-FC_REFLECT_DERIVED( graphene::chain::bet_object, (graphene::db::object), (bettor_id)(betting_market_id)(amount_to_bet)(backer_multiplier)(back_or_lay)(end_of_delay) )
+FC_REFLECT_DERIVED( graphene::chain::bet_object, (graphene::db::object), (bettor_id)(betting_market_id)(amount_to_bet)(backer_multiplier)(back_or_lay)
+#ifdef ENABLE_SIMPLE_CROSS_MARKET_MATCHING
+                    (placed_as_back_or_lay)
+#endif
+                    (end_of_delay) )
 
-FC_REFLECT_DERIVED( graphene::chain::betting_market_position_object, (graphene::db::object), (bettor_id)(betting_market_id)(pay_if_payout_condition)(pay_if_not_payout_condition)(pay_if_canceled)(pay_if_not_canceled)(fees_collected) )
+FC_REFLECT(graphene::chain::betting_market_position, (pay_if_payout_condition)(pay_required_by_unmatched_bets))
+FC_REFLECT_DERIVED( graphene::chain::betting_market_group_position_object, (graphene::db::object), (bettor_id)(betting_market_group_id)(pay_if_canceled)(market_positions) )

@@ -1676,6 +1676,7 @@ class wallet_api
               event_id_type event_id,
               betting_market_rules_id_type rules_id,
               asset_id_type asset_id,
+              betting_market_resolution_constraint constraint,
               bool broadcast = false);
 
       signed_transaction propose_update_betting_market_group(
@@ -1722,8 +1723,8 @@ class wallet_api
                                    bool broadcast = false);
 
       signed_transaction cancel_bet(string betting_account,
-                                                bet_id_type bet_id,
-                                                bool broadcast = false);
+                                    bet_id_type bet_id,
+                                    bool broadcast = false);
 
       signed_transaction propose_resolve_betting_market_group(
               const string& proposing_account,

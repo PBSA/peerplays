@@ -122,24 +122,6 @@ share_type bet_object::get_minimum_matching_amount() const
    return (back_or_lay == bet_type::lay ? GRAPHENE_BETTING_ODDS_PRECISION : backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION) / gcd;
 }
 
-
-share_type betting_market_position_object::reduce()
-{
-   share_type additional_not_cancel_balance = std::min(pay_if_payout_condition, pay_if_not_payout_condition);
-   if (additional_not_cancel_balance == 0)
-      return 0;
-   pay_if_payout_condition -= additional_not_cancel_balance;
-   pay_if_not_payout_condition -= additional_not_cancel_balance;
-   pay_if_not_canceled += additional_not_cancel_balance;
-   
-   share_type immediate_winnings = std::min(pay_if_canceled, pay_if_not_canceled);
-   if (immediate_winnings == 0)
-      return 0;
-   pay_if_canceled -= immediate_winnings;
-   pay_if_not_canceled -= immediate_winnings;
-   return immediate_winnings;
-}
-
 // betting market object implementation
 namespace 
 {

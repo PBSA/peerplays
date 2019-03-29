@@ -71,12 +71,12 @@ struct betting_market_rules_update_operation : public base_operation
 
 enum class betting_market_status
 {
-  unresolved, /// no grading  has been published for this betting market
-  frozen, /// bets are suspended, no bets allowed
-  graded, /// grading of win or not_win has been published
-  canceled, /// the betting market is canceled, no further bets are allowed
-  settled, /// the betting market has been paid out
-  BETTING_MARKET_STATUS_COUNT
+   unresolved, /// no grading  has been published for this betting market
+   frozen, /// bets are suspended, no bets allowed
+   graded, /// grading of win or not_win has been published
+   canceled, /// the betting market is canceled, no further bets are allowed
+   settled, /// the betting market has been paid out
+   BETTING_MARKET_STATUS_COUNT
 };
 
 
@@ -97,6 +97,18 @@ enum class betting_market_group_status
    BETTING_MARKET_GROUP_STATUS_COUNT
 };
 
+/**
+ * The constraint on they resolutions of the betting markets in a group.
+ * The blockchain will have different rules for calculating how much 
+ * guaranteed profits bettors are allowed to use when placing additional
+ * bets on markets in this group.
+ */
+enum class betting_market_resolution_constraint
+{
+  exactly_one_winner, /// one market will win, or the market group will be canceled
+  at_most_one_winner, /// no markets will win, one market will win, or the market group will be canceled
+  BETTING_MARKET_RESOLUTION_CONSTRAINT_COUNT
+};
 
 struct betting_market_group_create_operation : public base_operation
 {
@@ -139,6 +151,8 @@ struct betting_market_group_create_operation : public base_operation
     * group is re-graded (not implemented)
     */
    uint32_t delay_before_settling;
+
+   betting_market_resolution_constraint resolution_constraint; 
 
    extensions_type   extensions;
 
@@ -233,7 +247,6 @@ struct betting_market_group_resolved_operation : public base_operation
 
    account_id_type bettor_id;
    betting_market_group_id_type betting_market_group_id;
-   std::map<betting_market_id_type, betting_market_resolution_type> resolutions;
 
    share_type winnings; // always the asset type of the betting market group
    share_type fees_paid; // always the asset type of the betting market group
@@ -243,12 +256,10 @@ struct betting_market_group_resolved_operation : public base_operation
    betting_market_group_resolved_operation() {}
    betting_market_group_resolved_operation(account_id_type bettor_id,
                                            betting_market_group_id_type betting_market_group_id,
-                                           const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions,
                                            share_type winnings,
                                            share_type fees_paid) :
       bettor_id(bettor_id),
       betting_market_group_id(betting_market_group_id),
-      resolutions(resolutions),
       winnings(winnings),
       fees_paid(fees_paid)
    {
@@ -442,11 +453,15 @@ FC_REFLECT_ENUM( graphene::chain::betting_market_group_status,
                  (frozen)
                  (canceled)
                  (BETTING_MARKET_GROUP_STATUS_COUNT) )
+FC_REFLECT_ENUM( graphene::chain::betting_market_resolution_constraint, 
+                 (exactly_one_winner)
+                 (at_most_one_winner)
+                 (BETTING_MARKET_RESOLUTION_CONSTRAINT_COUNT))
 
 FC_REFLECT( graphene::chain::betting_market_group_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_group_create_operation, 
             (fee)(description)(event_id)(rules_id)(asset_id)
-            (never_in_play)(delay_before_settling)
+            (never_in_play)(delay_before_settling)(resolution_constraint)
             (extensions) )
 
 FC_REFLECT( graphene::chain::betting_market_group_update_operation::fee_parameters_type, (fee) )
@@ -469,7 +484,7 @@ FC_REFLECT( graphene::chain::betting_market_group_resolve_operation,
 
 FC_REFLECT( graphene::chain::betting_market_group_resolved_operation::fee_parameters_type, )
 FC_REFLECT( graphene::chain::betting_market_group_resolved_operation,
-            (bettor_id)(betting_market_group_id)(resolutions)(winnings)(fees_paid)(fee) )
+            (bettor_id)(betting_market_group_id)(winnings)(fees_paid)(fee) )
 
 FC_REFLECT( graphene::chain::betting_market_group_cancel_unmatched_bets_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_group_cancel_unmatched_bets_operation,

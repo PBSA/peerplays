@@ -77,6 +77,11 @@ void_result betting_market_group_create_evaluator::do_evaluate(const betting_mar
    FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
 
+   FC_ASSERT(op.resolution_constraint == betting_market_resolution_constraint::exactly_one_winner ||
+             op.resolution_constraint == betting_market_resolution_constraint::at_most_one_winner, 
+             "invalid value for resolution_constraint");
+
+
    // the event_id in the operation can be a relative id.  If it is,
    // resolve it and verify that it is truly an event
    object_id_type resolved_event_id = op.event_id;
@@ -115,7 +120,11 @@ object_id_type betting_market_group_create_evaluator::do_apply(const betting_mar
          betting_market_group_obj.asset_id = op.asset_id;
          betting_market_group_obj.never_in_play = op.never_in_play;
          betting_market_group_obj.delay_before_settling = op.delay_before_settling;
+         betting_market_group_obj.resolution_constraint = op.resolution_constraint;
       });
+
+   fc_ddump(fc::logger::get("betting"), (op)(new_betting_market_group));
+
    return new_betting_market_group.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -186,7 +195,7 @@ void_result betting_market_group_update_evaluator::do_apply(const betting_market
                   bet_obj.end_of_delay.reset();
                });
 
-               d.place_bet(delayed_bet);
+               d.try_to_match_bet(delayed_bet);
             }
          }
       }
@@ -196,7 +205,8 @@ void_result betting_market_group_update_evaluator::do_apply(const betting_market
 
 void_result betting_market_create_evaluator::do_evaluate(const betting_market_create_operation& op)
 { try {
-   FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
+   database& d = db();
+   FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
 
    // the betting_market_group_id in the operation can be a relative id.  If it is,
@@ -209,7 +219,13 @@ void_result betting_market_create_evaluator::do_evaluate(const betting_market_cr
              resolved_betting_market_group_id.type() == betting_market_group_id_type::type_id, 
              "betting_market_group_id must refer to a betting_market_group_id_type");
    _group_id = resolved_betting_market_group_id;
-   FC_ASSERT(db().find_object(_group_id), "Invalid betting_market_group specified");
+   FC_ASSERT(d.find_object(_group_id), "Invalid betting_market_group specified");
+
+   // you can't add a betting market to a group that already has active bets in it
+   auto& position_index = d.get_index_type<betting_market_group_position_index>().indices().get<by_betting_market_group_bettor>();
+   auto position_iter = position_index.lower_bound(_group_id);
+   FC_ASSERT(position_iter == position_index.end(), 
+             "You cannot add a betting market to a group which already has bets placed in it");
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -231,9 +247,9 @@ void_result betting_market_update_evaluator::do_evaluate(const betting_market_up
    FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
    FC_ASSERT(trx_state->_is_proposed_trx);
    _betting_market = &op.betting_market_id(d);
-   FC_ASSERT(op.new_group_id.valid() || op.new_description.valid() || op.new_payout_condition.valid(), "nothing to change");
+   FC_ASSERT(op.new_group_id || op.new_description || op.new_payout_condition, "nothing to change");
 
-   if (op.new_group_id.valid())
+   if (op.new_group_id)
    {
       // the betting_market_group_id in the operation can be a relative id.  If it is,
       // resolve it and verify that it is truly an betting_market_group
@@ -246,6 +262,15 @@ void_result betting_market_update_evaluator::do_evaluate(const betting_market_up
                 "betting_market_group_id must refer to a betting_market_group_id_type");
       _group_id = resolved_betting_market_group_id;
       FC_ASSERT(d.find_object(_group_id), "invalid betting_market_group specified");
+
+      // you can't move a betting market to or from a group that already has active bets in it
+      auto& position_index = d.get_index_type<betting_market_group_position_index>().indices().get<by_betting_market_group_bettor>();
+      auto position_iter = position_index.lower_bound(_betting_market->group_id);
+      FC_ASSERT(position_iter == position_index.end(), 
+                "You cannot move a betting market out of a group which already has bets placed in it");
+      position_iter = position_index.lower_bound(_group_id);
+      FC_ASSERT(position_iter == position_index.end(), 
+                "You cannot move a betting market into a group which already has bets placed in it");
    }
 
    return void_result();
@@ -274,7 +299,7 @@ void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
    FC_ASSERT( op.amount_to_bet.asset_id == _betting_market_group->asset_id,
               "Asset type bet does not match the market's asset type" );
 
-   ddump((_betting_market_group->get_status()));
+   //ddump((_betting_market_group->get_status()));
    FC_ASSERT( _betting_market_group->get_status() != betting_market_group_status::frozen, 
               "Unable to place bets while the market is frozen" );
    FC_ASSERT( _betting_market_group->get_status() != betting_market_group_status::closed, 
@@ -308,6 +333,39 @@ void_result bet_place_evaluator::do_evaluate(const bet_place_operation& op)
 
    FC_ASSERT(op.amount_to_bet.amount > share_type(), "Cannot place a bet with zero amount");
 
+#ifdef ENABLE_SIMPLE_CROSS_MARKET_MATCHING
+   // As a special case, when we have a betting market group with two markets that has exactly 
+   // one winner, we treat it as one market, with backs in the second market going on the order books
+   // as lays in the first, and lays in the second market becoming backs on the first.
+   auto& betting_market_index = d.get_index_type<betting_market_object_index>().indices().get<by_betting_market_group_id>();
+   auto betting_markets_in_group = boost::make_iterator_range(betting_market_index.equal_range(_betting_market_group->id));
+   if (boost::size(betting_markets_in_group) == 2 &&
+       _betting_market->id == betting_markets_in_group.back().id && 
+       _betting_market_group->resolution_constraint == betting_market_resolution_constraint::exactly_one_winner)
+   {
+      _betting_market = &betting_markets_in_group.front();
+      _effective_bet_type = op.back_or_lay == bet_type::back ? bet_type::lay : bet_type::back;
+      _new_odds = GRAPHENE_BETTING_ODDS_PRECISION + GRAPHENE_BETTING_ODDS_PRECISION * GRAPHENE_BETTING_ODDS_PRECISION / (op.backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION);
+   }
+   else
+      _effective_bet_type = op.back_or_lay;
+#endif
+
+   // if this is the first bet in the betting market group, do sanity checks
+   // if there are already other bets, then we don't need to do them because we know 
+   // that we did the check on the first bet and we prevented anything important from 
+   // changing while those bets existed.
+   auto& position_index = d.get_index_type<betting_market_group_position_index>().indices().get<by_betting_market_group_bettor>();
+   auto position_iter = position_index.lower_bound(_betting_market_group->id);
+   if (position_iter == position_index.end())
+   {
+      auto& betting_market_index = d.get_index_type<betting_market_object_index>().indices().get<by_betting_market_group_id>();
+      auto betting_markets_in_group = boost::make_iterator_range(betting_market_index.equal_range(_betting_market_group->id));
+      FC_ASSERT(boost::size(betting_markets_in_group) > 1 || 
+                _betting_market_group->resolution_constraint == betting_market_resolution_constraint::at_most_one_winner,
+                "A betting market group with only one market must be set to at_most_one_winner");
+   }
+
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -317,10 +375,16 @@ object_id_type bet_place_evaluator::do_apply(const bet_place_operation& op)
    const bet_object& new_bet =
       d.create<bet_object>([&](bet_object& bet_obj) {
          bet_obj.bettor_id = op.bettor_id;
-         bet_obj.betting_market_id = op.betting_market_id;
+         bet_obj.betting_market_id = _betting_market->id;
          bet_obj.amount_to_bet = op.amount_to_bet;
          bet_obj.backer_multiplier = op.backer_multiplier;
+#ifdef ENABLE_SIMPLE_CROSS_MARKET_MATCHING
+         bet_obj.back_or_lay = _effective_bet_type;
+         bet_obj.placed_as_back_or_lay =  op.back_or_lay;
+#else
          bet_obj.back_or_lay = op.back_or_lay;
+#endif
+
          if (_betting_market_group->bets_are_delayed()) {
             // the bet will be included in the block at time `head_block_time() + block_interval`, so make the delay relative 
             // to the time it's included in a block
@@ -329,18 +393,16 @@ object_id_type bet_place_evaluator::do_apply(const bet_place_operation& op)
       });
 
    bet_id_type new_bet_id = new_bet.id; // save the bet id here, new_bet may be deleted during place_bet()
+   
+   // call place_bet() which pays for the bet and adjusts the position, but leaves the bet unmatched.
+   // the bet could be canceled here if it was too small to ever match
+   bool bet_was_removed = d.place_bet(new_bet);
 
-   // place the bet, this may return guaranteed winnings
+   // this may return guaranteed winnings
    ddump((_betting_market_group->bets_are_delayed())(_current_params->live_betting_delay_time()));
-   if (!_betting_market_group->bets_are_delayed() || _current_params->live_betting_delay_time() <= 0)
-      d.place_bet(new_bet);
-
-   // now that their guaranteed winnings have been returned, check whether they have enough in their account to place the bet
-   FC_ASSERT( d.get_balance( *fee_paying_account, *_asset ).amount  >= op.amount_to_bet.amount, "insufficient balance",
-              ("balance", d.get_balance(*fee_paying_account, *_asset))("amount_to_bet", op.amount_to_bet.amount)  );
-
-   // pay for it
-   d.adjust_balance(fee_paying_account->id, -op.amount_to_bet);
+   if (!bet_was_removed &&
+       (!_betting_market_group->bets_are_delayed() || _current_params->live_betting_delay_time() <= 0))
+      d.try_to_match_bet(new_bet);
 
    return new_bet_id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }

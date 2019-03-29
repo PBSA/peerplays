@@ -510,7 +510,7 @@ namespace graphene { namespace app {
                   break;
                  case impl_fba_accumulator_object_type:
                   break;
-                 case impl_betting_market_position_object_type:
+                 case impl_betting_market_group_position_object_type:
                   break;
                  case impl_global_betting_statistics_object_type:
                   break;

@@ -341,7 +341,8 @@ struct database_fixture {
                                                                   betting_market_rules_id_type rules_id, 
                                                                   asset_id_type asset_id,
                                                                   bool never_in_play,
-                                                                  uint32_t delay_before_settling);
+                                                                  uint32_t delay_before_settling,
+                                                                  bool exactly_one_winner);
    void update_betting_market_group_impl(betting_market_group_id_type betting_market_group_id,
                                          fc::optional<internationalized_string_type> description,
                                          fc::optional<object_id_type> rules_id,
