@@ -133,14 +133,16 @@ namespace graphene { namespace chain {
       tournament_object,
       indexed_by<
          ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
-         ordered_non_unique< tag<by_registration_deadline>, 
+         ordered_unique< tag<by_registration_deadline>, 
             composite_key<tournament_object, 
                const_mem_fun<tournament_object, tournament_state, &tournament_object::get_state>, 
-               const_mem_fun<tournament_object, time_point_sec, &tournament_object::get_registration_deadline> > >,
-         ordered_non_unique< tag<by_start_time>, 
+               const_mem_fun<tournament_object, time_point_sec, &tournament_object::get_registration_deadline>,
+               member< object, object_id_type, &object::id > > >,
+         ordered_unique< tag<by_start_time>, 
             composite_key<tournament_object, 
                const_mem_fun<tournament_object, tournament_state, &tournament_object::get_state>, 
-               member<tournament_object, optional<time_point_sec>, &tournament_object::start_time> > >
+               member<tournament_object, optional<time_point_sec>, &tournament_object::start_time>,
+               member< object, object_id_type, &object::id > > >
       >
    > tournament_object_multi_index_type;
    typedef generic_index<tournament_object, tournament_object_multi_index_type> tournament_index;
