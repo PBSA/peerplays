@@ -1,5 +1,5 @@
 #include "pp_state.hpp"
-#include <boost/optional.hpp>
+#include <libevm/VMFace.h>
 
 namespace vms { namespace evm {
 
@@ -87,15 +87,6 @@ u256 pp_state::balance(Address const& _id, const u256& _callIdAsset) const
    return u256(0);
 }
 
-void pp_state::createContract(Address const& _address)
-{
-   uint64_t next_id = adapter.get_next_contract_id();
-   Address addr = id_to_address( next_id, 1 );
-   const_cast<Address&>(_address) = std::move(addr);
-
-   createAccount(addr, {requireAccountStartNonce(), 0});
-}
-
 void pp_state::addBalance(Address const& _id, u256 const& _amount)
 {
    if( _id == author ){
@@ -105,7 +96,7 @@ void pp_state::addBalance(Address const& _id, u256 const& _amount)
    auto receiver_id = address_to_id( _id );
    if ( receiver_id.first ) {
       if( !adapter.is_there_contract( receiver_id.second ) ) {
-         adapter.create_contract_obj();
+         adapter.create_contract_obj( allowed_assets );
       }
       adapter.add_contract_balance( receiver_id.second, asset_id, static_cast<int64_t>( _amount ) );
    } else {
@@ -131,6 +122,19 @@ void pp_state::subBalance(Address const& _id, u256 const& _amount)
 
 void pp_state::transferBalance( Address const& _from, Address const& _to, u256 const& _value )
 {
+   const auto& assets = adapter.get_allowed_assets( address_to_id( _to ).second );
+   if( !assets.empty() && _value != 0 && assets.count( asset_id ) == 0 ) {
+      BOOST_THROW_EXCEPTION(dev::eth::ProhibitedAssetType());
+   }
+
+   const auto& sender = address_to_id( _from );
+   if( sender.first == 1 ) {
+      const auto& assets = adapter.get_allowed_assets( sender.second );
+      if( !assets.empty() ) {
+         set_allowed_assets( assets );
+      }
+   }
+
    transfers_stack.push(TransfersStruct(_from, _to, _value));
    subBalance(_from, _value);
    addBalance(_to, _value);
@@ -146,9 +150,15 @@ void pp_state::transferBalance(Address const& _from, Address const& _to, u256 co
 
 void pp_state::transferBalanceSuicide(Address const& _from, Address const& _to)
 {
-   transfers_stack.push(TransfersStruct(_from, _to, balance(_from)));
-   addBalance(_to, balance(_from));
-   subBalance(_from, balance(_from));
+   const auto& sender_balance = balance(_from);
+   const auto& assets = adapter.get_allowed_assets( address_to_id( _to ).second );
+   if( !assets.empty() && sender_balance != 0 && assets.count( asset_id ) == 0 ) {
+      BOOST_THROW_EXCEPTION(dev::eth::ProhibitedAssetType());
+   }
+
+   transfers_stack.push(TransfersStruct(_from, _to, sender_balance));
+   addBalance(_to, sender_balance);
+   subBalance(_from, sender_balance);
 }
 
 void pp_state::incNonce(Address const& _addr)
@@ -165,12 +175,6 @@ void pp_state::commit(CommitBehaviour _commitBehaviour)
 {
    result_accounts = m_cache;
    State::commit(_commitBehaviour);
-}
-
-void pp_state::revertStack() 
-{
-   while( transfers_stack.size() > stack_size )
-      transfers_stack.pop();
 }
 
 void pp_state::publishContractTransfers() 
@@ -195,6 +199,7 @@ void pp_state::clear_temporary_variables() {
    author = Address();
    asset_id = 0;
    result_accounts.clear();
+   allowed_assets.clear();
 }
 
 /////////////////////////////////////////////////////////////////////////////

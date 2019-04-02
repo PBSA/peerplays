@@ -41,6 +41,8 @@ public:
 
    fc::optional<fc::sha256> get_last_valid_state_root( const uint32_t& block_number );
 
+   std::set<uint64_t> get_allowed_assets( const uint64_t& id );
+
 private:
 
 };

@@ -62,14 +62,14 @@ BOOST_AUTO_TEST_CASE( transfer_CORE_acc_to_contr_and_contr_to_acc ) {
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type());
 
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(0), 0, asset_id_type(0), 0, 4000000, solidityCode });
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 0, 4000000, solidityCode });
 
     trx.operations.push_back( contract_op );
 
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), asset_id_type(), 500000, asset_id_type(), 1, 2000000, "b9c14577" });
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), std::set<uint64_t>(), asset_id_type(), 500000, asset_id_type(), 1, 2000000, "b9c14577" });
 
     trx.operations.push_back( contract_op );
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), asset_id_type(), 0, asset_id_type(), 1, 2000000, "b46300ec" });
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), std::set<uint64_t>(), asset_id_type(), 0, asset_id_type(), 1, 2000000, "b46300ec" });
     
     trx.operations.push_back( contract_op );
 
@@ -117,13 +117,13 @@ BOOST_AUTO_TEST_CASE( transfer_asset_acc_to_contr_and_contr_to_acc ) {
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type(1));
 
-    contract_op.data = fc::raw::unsigned_pack( eth_op{  contract_op.registrar, optional<contract_id_type>(), asset_id_type(1), 0, asset_id_type(1), 1, 2000000, solidityCode });
+    contract_op.data = fc::raw::unsigned_pack( eth_op{  contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(1), 0, asset_id_type(1), 1, 2000000, solidityCode });
     trx.operations.push_back( contract_op );
 
-    contract_op.data = fc::raw::unsigned_pack( eth_op{  contract_op.registrar, contract_id_type(0), asset_id_type(1), 500000, asset_id_type(1), 1, 2000000, "b9c14577" });
+    contract_op.data = fc::raw::unsigned_pack( eth_op{  contract_op.registrar, contract_id_type(0), std::set<uint64_t>(), asset_id_type(1), 500000, asset_id_type(1), 1, 2000000, "b9c14577" });
     trx.operations.push_back( contract_op );
 
-    contract_op.data = fc::raw::unsigned_pack( eth_op{  contract_op.registrar, contract_id_type(0), asset_id_type(1), 0, asset_id_type(1), 1, 2000000, "b46300ec" });
+    contract_op.data = fc::raw::unsigned_pack( eth_op{  contract_op.registrar, contract_id_type(0), std::set<uint64_t>(), asset_id_type(1), 0, asset_id_type(1), 1, 2000000, "b46300ec" });
     trx.operations.push_back( contract_op );
 
     PUSH_TX( db, trx, ~0 );
@@ -161,26 +161,26 @@ BOOST_AUTO_TEST_CASE( suicide_contr_to_acc_and_contr_to_contr_CORE ) {
     contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type());
-    contract_op.data = fc::raw::unsigned_pack( eth_op{  contract_op.registrar, optional<contract_id_type>(), asset_id_type(), 0, asset_id_type(), 1, 2000000, soliditySuicideCode } );
+    contract_op.data = fc::raw::unsigned_pack( eth_op{  contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(), 0, asset_id_type(), 1, 2000000, soliditySuicideCode } );
     trx.operations.push_back(contract_op);
     trx.operations.push_back(contract_op);
 
-    contract_op.data = fc::raw::unsigned_pack( eth_op{  contract_op.registrar, optional<contract_id_type>(), asset_id_type(), 0, asset_id_type(), 1, 2000000, solidityPayableCode } );
+    contract_op.data = fc::raw::unsigned_pack( eth_op{  contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(), 0, asset_id_type(), 1, 2000000, solidityPayableCode } );
     trx.operations.push_back(contract_op);
 
-    contract_op.data = fc::raw::unsigned_pack( eth_op{  contract_op.registrar, contract_id_type(0), asset_id_type(), 500000, asset_id_type(), 1, 2000000 } );
+    contract_op.data = fc::raw::unsigned_pack( eth_op{  contract_op.registrar, contract_id_type(0), std::set<uint64_t>(), asset_id_type(), 500000, asset_id_type(), 1, 2000000 } );
     trx.operations.push_back( contract_op );
 
-    contract_op.data = fc::raw::unsigned_pack( eth_op{  contract_op.registrar, contract_id_type(1), asset_id_type(), 500000, asset_id_type(), 1, 2000000 } );
+    contract_op.data = fc::raw::unsigned_pack( eth_op{  contract_op.registrar, contract_id_type(1), std::set<uint64_t>(), asset_id_type(), 500000, asset_id_type(), 1, 2000000 } );
     trx.operations.push_back( contract_op );
 
     std::string code_one = "65d2db530000000000000000000000000000000000000000000000000000000000000005"; // function sui(address addr)
-    contract_op.data = fc::raw::unsigned_pack( eth_op{  contract_op.registrar, contract_id_type(), asset_id_type(), 0, asset_id_type(), 1, 2000000, code_one });
+    contract_op.data = fc::raw::unsigned_pack( eth_op{  contract_op.registrar, contract_id_type(), std::set<uint64_t>(), asset_id_type(), 0, asset_id_type(), 1, 2000000, code_one });
 
     trx.operations.push_back( contract_op );
 
     std::string code_two = "65d2db530000000000000000000000000100000000000000000000000000000000000002"; // function sui(address addr)
-    contract_op.data = fc::raw::unsigned_pack( eth_op{  contract_op.registrar, contract_id_type(1), asset_id_type(), 0, asset_id_type(), 1, 2000000, code_two });
+    contract_op.data = fc::raw::unsigned_pack( eth_op{  contract_op.registrar, contract_id_type(1), std::set<uint64_t>(), asset_id_type(), 0, asset_id_type(), 1, 2000000, code_two });
 
     trx.operations.push_back( contract_op );
 
@@ -226,27 +226,27 @@ BOOST_AUTO_TEST_CASE( suicide_contr_to_acc_and_contr_to_contr_ASSET ) {
     contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, temp_asset.id);
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), temp_asset.id, 0, temp_asset.id, 1, 2000000, soliditySuicideCode });
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), temp_asset.id, 0, temp_asset.id, 1, 2000000, soliditySuicideCode });
     trx.operations.push_back(contract_op);
     trx.operations.push_back(contract_op);
 
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), temp_asset.id, 0, temp_asset.id, 1, 2000000, solidityPayableCode });
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), temp_asset.id, 0, temp_asset.id, 1, 2000000, solidityPayableCode });
     trx.operations.push_back(contract_op);
 
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), temp_asset.id, 500000, temp_asset.id, 1, 2000000 });
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), std::set<uint64_t>(), temp_asset.id, 500000, temp_asset.id, 1, 2000000 });
 
     trx.operations.push_back( contract_op );
 
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(1), temp_asset.id, 500000, temp_asset.id, 1, 2000000 });
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(1), std::set<uint64_t>(), temp_asset.id, 500000, temp_asset.id, 1, 2000000 });
 
     trx.operations.push_back( contract_op );
 
     std::string str_code_one = "65d2db530000000000000000000000000000000000000000000000000000000000000005"; // function sui(address addr)
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(), temp_asset.id, 0, temp_asset.id, 1, 2000000, str_code_one });
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(), std::set<uint64_t>(), temp_asset.id, 0, temp_asset.id, 1, 2000000, str_code_one });
     trx.operations.push_back( contract_op );
 
     std::string str_code_two = "65d2db530000000000000000000000000100000000000000000000000000000000000002"; // function sui(address addr)
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(1), temp_asset.id, 0, temp_asset.id, 1, 2000000, str_code_two });
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(1), std::set<uint64_t>(), temp_asset.id, 0, temp_asset.id, 1, 2000000, str_code_two });
     trx.operations.push_back( contract_op );
 
     PUSH_TX( db, trx, ~0 );

@@ -18,11 +18,11 @@ bool chain_adapter::is_there_contract( const uint64_t& contract_id ) const
    return !(itr == index.end());
 }
 
-uint32_t chain_adapter::create_contract_obj()
+uint32_t chain_adapter::create_contract_obj( const std::set<uint64_t>& allowed_assets )
 {
    return db.create<contract_object>( [&]( contract_object& obj ){
       obj.statistics = db.create<contract_statistics_object>([&](contract_statistics_object& s){s.owner = obj.id;}).id;
-      // obj.name = vm::webassemblyvm::encode_eth_contract_id(uint64_t(obj.id.instance()));
+      obj.allowed_assets = allowed_assets;
    }).get_id().instance.value;
 }
 

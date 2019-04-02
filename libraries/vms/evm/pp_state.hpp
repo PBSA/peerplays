@@ -47,8 +47,6 @@ public:
 
    void incNonce(Address const& _addr) override;
 
-   void createContract(Address const& _address) override;
-
    void addBalance(Address const& _id, u256 const& _amount) override;
 
    void subBalance(Address const& _addr, u256 const& _value) override;
@@ -77,15 +75,13 @@ public:
 
    void commit(CommitBehaviour _commitBehaviour) override;
     
-   void saveStackSize() override { stack_size = transfers_stack.size(); }
-
-   void revertStack() override;
-
    void publishContractTransfers() override;
 
    void clear_temporary_variables();
 
    dev::Address getNewAddress() const override;
+
+   void set_allowed_assets( const std::set<uint64_t>& _allowed_assets ) { allowed_assets = _allowed_assets; }
 
 private:
 
@@ -102,6 +98,8 @@ private:
    std::stack<TransfersStruct> transfers_stack;
 
    size_t stack_size;
+
+   std::set<uint64_t> allowed_assets;
 
 };
 

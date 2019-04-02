@@ -91,4 +91,11 @@ fc::optional<fc::sha256> evm_adapter::get_last_valid_state_root( const uint32_t&
    return fc::optional<fc::sha256>();
 }
 
+std::set<uint64_t> evm_adapter::get_allowed_assets( const uint64_t& id )
+{
+   auto& index = db.get_index_type<contract_index>().indices().get<by_id>();
+   auto itr = index.find( contract_id_type( id ) );
+   return itr != index.end() ? itr->allowed_assets : std::set<uint64_t>();
+}
+
 } }

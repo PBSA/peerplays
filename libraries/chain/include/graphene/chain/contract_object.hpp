@@ -27,7 +27,8 @@ namespace graphene { namespace chain {
          static const uint8_t space_id = protocol_ids;
          static const uint8_t type_id  = contract_object_type;
 
-         contract_statistics_id_type   statistics;
+         contract_statistics_id_type statistics;
+         std::set<uint64_t> allowed_assets;
          bool suicided = false;
 
          // eosio::chain::name name;
@@ -121,6 +122,7 @@ namespace graphene { namespace chain {
 FC_REFLECT_DERIVED( graphene::chain::contract_object,
                     (graphene::db::object),
                     (statistics)
+                    (allowed_assets)
                     (suicided)
                   )
 

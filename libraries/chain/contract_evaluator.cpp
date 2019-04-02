@@ -20,6 +20,8 @@ namespace graphene { namespace chain {
 
          vms::base::fee_gas check(db(), *trx_state);
          FC_ASSERT( op.fee.asset_id == eth_data.asset_id_gas );
+         FC_ASSERT( !eth_data.allowed_assets.empty() && eth_data.value != 0 ?
+            eth_data.allowed_assets.count( static_cast<uint64_t>( eth_data.asset_id_transfer.instance ) ) : true );
 
          auto check_sum = op.fee + asset( eth_data.gasPrice * eth_data.gas, eth_data.asset_id_gas );
          if( eth_data.asset_id_gas == eth_data.asset_id_transfer ) {

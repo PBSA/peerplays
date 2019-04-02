@@ -30,6 +30,7 @@ std::pair<uint64_t, bytes> evm::exec( const bytes& data, const bool commit )
    EnvInfo ei = create_environment( last_hashes );
    state.setAuthor( ei.author() );
    state.setAssetType( eth.asset_id_gas.instance.value );
+   state.set_allowed_assets( eth.allowed_assets );
 
    Transaction tx = create_eth_transaction( eth );
    auto permanence = get_adapter().evaluating_from_apply_block() ? Permanence::Committed : Permanence::Reverted;

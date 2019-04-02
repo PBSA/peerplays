@@ -51,7 +51,7 @@ void create_block_prop_contract( database_fixture& df )
    contract_op.vm_type = vm_types::EVM;
    contract_op.registrar = account_id_type(5);
    contract_op.fee = asset(0, asset_id_type());
-   contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), asset_id_type(0), 0, asset_id_type(0), 1, 2000000, BlockProperiesCode });
+   contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 1, 2000000, BlockProperiesCode });
    trx.operations.push_back( contract_op );
 
    PUSH_TX( df.db, trx, ~0 );
@@ -68,7 +68,7 @@ dev::bytes execute_block_prop_contract( database_fixture& df, std::string code, 
    contract_op.vm_type = vm_types::EVM;
    contract_op.registrar = account_id_type(5);
    contract_op.fee = asset(0, asset_id_type());
-   contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), asset_id_type(0), 0, asset_id_type(0), 1, 2000000, code });
+   contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 1, 2000000, code });
    trx.operations.push_back( contract_op );
 
    PUSH_TX( df.db, trx, ~0 );

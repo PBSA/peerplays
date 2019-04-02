@@ -34,7 +34,8 @@ FC_REFLECT_ENUM( dev::eth::TransactionException,
                  (StackUnderflow)
                  (RevertInstruction)
                  (InvalidZeroSignatureFormat)
-                 (AddressAlreadyUsed) )
+                 (AddressAlreadyUsed)
+                 (ProhibitedAssetType) )
 
 FC_REFLECT_ENUM( dev::eth::CodeDeposit,
                  (None)

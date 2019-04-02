@@ -1548,7 +1548,7 @@ void database_fixture::execute_contract(transaction_evaluation_state& cont, data
    contract_op.vm_type = vm_types::EVM;
    contract_op.registrar = registrar_id;
    contract_op.fee = fee;
-   contract_op.data = fc::raw::unsigned_pack( eth_op{ registrar_id, receiver_id, asset_id, value, asset_id, 1, 2000000, code } );
+   contract_op.data = fc::raw::unsigned_pack( eth_op{ registrar_id, receiver_id, std::set<uint64_t>(), asset_id, value, asset_id, 1, 2000000, code } );
    db._evaluating_from_block = true;
    db.apply_operation( cont, contract_op );
    db._evaluating_from_block = false;

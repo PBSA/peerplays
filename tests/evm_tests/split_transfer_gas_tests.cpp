@@ -46,7 +46,7 @@ inline const account_statistics_object& test_contract_deploy( database& db, asse
     contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, first_asset);
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), second_asset, transfer_amount, first_asset, 1, gas_limit_amount, solidityAddCode } );
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), second_asset, transfer_amount, first_asset, 1, gas_limit_amount, solidityAddCode } );
 
     db._evaluating_from_block = true;
     db.apply_operation( context, contract_op );
@@ -110,7 +110,7 @@ BOOST_AUTO_TEST_CASE( mixed_assets_test ){
     contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type());
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(), asset_id_type(1), transfer_amount, asset_id_type(), 1, gas_limit_amount } );
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(), std::set<uint64_t>(), asset_id_type(1), transfer_amount, asset_id_type(), 1, gas_limit_amount } );
 
     db._evaluating_from_block = true;
     db.apply_operation( context, contract_op );
@@ -141,7 +141,7 @@ inline void not_enough_cash_call( database_fixture& df, asset_id_type transfer, 
     contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, gas);
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), transfer, transfer_amount, gas, 1, gas_limit_amount, solidityAddCode } );
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), transfer, transfer_amount, gas, 1, gas_limit_amount, solidityAddCode } );
 
     df.db._evaluating_from_block = true;
     GRAPHENE_REQUIRE_THROW( df.db.apply_operation( context, contract_op ), fc::exception );

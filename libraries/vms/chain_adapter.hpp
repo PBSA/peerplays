@@ -25,7 +25,7 @@ public:
 
    bool is_there_contract( const uint64_t& contract_id ) const;
 
-   uint32_t create_contract_obj();
+   uint32_t create_contract_obj( const std::set<uint64_t>& allowed_assets );
 
    uint64_t get_next_contract_id() const;
 

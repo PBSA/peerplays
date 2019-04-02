@@ -7,6 +7,7 @@ namespace graphene { namespace chain {
     struct eth_op {
         account_id_type registrar;
         optional<contract_id_type> receiver;
+        std::set<uint64_t> allowed_assets;
         asset_id_type asset_id_transfer;
         uint64_t value;
         asset_id_type asset_id_gas;
@@ -57,7 +58,7 @@ namespace graphene { namespace chain {
 
 } } // graphene::chain
 
-FC_REFLECT( graphene::chain::eth_op, (registrar)(receiver)(asset_id_transfer)(value)(asset_id_gas)(gasPrice)(gas)(code) )
+FC_REFLECT( graphene::chain::eth_op, (registrar)(receiver)(allowed_assets)(asset_id_transfer)(value)(asset_id_gas)(gasPrice)(gas)(code) )
 FC_REFLECT( graphene::chain::contract_operation::fee_parameters_type, (fee)(price_per_kbyte) )
 FC_REFLECT( graphene::chain::contract_operation, (fee)(registrar)(vm_type)(data) )
 
