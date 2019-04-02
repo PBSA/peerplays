@@ -317,6 +317,8 @@ class database_api
 
       vector<vesting_balance_object> get_vesting_balances( account_id_type account_id )const;
 
+      vector<asset> get_contract_balances(contract_id_type id, const flat_set<asset_id_type>& assets)const;
+
       /**
        * @brief Get the total number of accounts registered with the blockchain
        */
@@ -396,7 +398,17 @@ class database_api
        */
       vector<bet_object> get_all_unmatched_bets_for_bettor(account_id_type) const;
 
+      std::vector<block_logs> get_logs_in_interval( const std::set<contract_id_type>& ids, const uint64_t& from_block, const uint64_t& to_block ) const;
+
+      dev::bytes get_contract_code( const contract_id_type& id ) const;
+
       std::vector<block_logs> subscribe_contracts_logs( std::function<void(const variant&)> cb, const std::vector<contract_id_type>& ids, const uint64_t& from );
+
+      std::map<contract_id_type, vms::evm::evm_account_info> get_contracts(const vector<contract_id_type>& contract_ids)const;
+
+      vms::evm::evm_result get_result( result_contract_id_type result_id ) const;
+
+      dev::bytes call_contract_without_changing_state( const dev::bytes& data );
 
       void unsubscribe_all_contracts_logs();
 
@@ -715,6 +727,7 @@ FC_API(graphene::app::database_api,
    (get_balance_objects)
    (get_vested_balances)
    (get_vesting_balances)
+   (get_contract_balances)
 
    // Assets
    (get_assets)
@@ -730,7 +743,12 @@ FC_API(graphene::app::database_api,
    (list_betting_markets)
    (get_unmatched_bets_for_bettor)
    (get_all_unmatched_bets_for_bettor)
+   (get_logs_in_interval)
+   (get_contract_code)
    (subscribe_contracts_logs)
+   (get_contracts)
+   (get_result)
+   (call_contract_without_changing_state)
    (unsubscribe_all_contracts_logs)
    (unsubscribe_contracts_logs)
 

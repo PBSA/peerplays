@@ -92,32 +92,29 @@ void pp_state::addBalance(Address const& _id, u256 const& _amount)
    if( _id == author ){
       fee = _amount;
    }
+   u256 init_balance = balance( _id, asset_id );
 
    auto receiver_id = address_to_id( _id );
-   if ( receiver_id.first ) {
-      if( !adapter.is_there_contract( receiver_id.second ) ) {
-         adapter.create_contract_obj( allowed_assets );
-      }
-      adapter.add_contract_balance( receiver_id.second, asset_id, static_cast<int64_t>( _amount ) );
-   } else {
-      // try {
-      //    auto account = account_id_type( receiver_id )( bts_db );
-      // } FC_CAPTURE_AND_RETHROW( ("transfer to invalid account") )
-      if( !adapter.is_there_account( receiver_id.second ) ) {
-         throw;
-      }
-      adapter.add_account_balance( receiver_id.second, asset_id, static_cast<int64_t>( _amount ) );
+
+   if ( receiver_id.first && !adapter.is_there_contract( receiver_id.second ) ) {
+      adapter.create_contract_obj( allowed_assets );
+      m_changeLog.emplace_back(Change::Create, _id);
+   } else if( !adapter.is_there_account( receiver_id.second ) ) {
+      throw;
    }
+
+   adapter.change_balance( receiver_id, asset_id, static_cast<int64_t>( _amount ) );
+   m_changeLog.emplace_back(Change::Balance, _id, init_balance, asset_id);
 }
 
 void pp_state::subBalance(Address const& _id, u256 const& _amount)
 {
+   u256 init_balance = balance( _id, asset_id );
+
    auto obj_id = address_to_id( _id );
-   if( obj_id.first ) {
-      adapter.sub_contract_balance( obj_id.second, asset_id, static_cast<int64_t>( _amount ) );
-   } else {
-      adapter.sub_account_balance( obj_id.second, asset_id, static_cast<int64_t>( _amount ) );
-   }
+
+   adapter.change_balance( obj_id, asset_id, 0 - static_cast<int64_t>( _amount ) );
+   m_changeLog.emplace_back(Change::Balance, _id, init_balance, asset_id);
 }
 
 void pp_state::transferBalance( Address const& _from, Address const& _to, u256 const& _value )
@@ -136,6 +133,7 @@ void pp_state::transferBalance( Address const& _from, Address const& _to, u256 c
    }
 
    transfers_stack.push(TransfersStruct(_from, _to, _value));
+   m_changeLog.emplace_back(Change::TransferStack, _from);
    subBalance(_from, _value);
    addBalance(_to, _value);
 }
@@ -157,6 +155,7 @@ void pp_state::transferBalanceSuicide(Address const& _from, Address const& _to)
    }
 
    transfers_stack.push(TransfersStruct(_from, _to, sender_balance));
+	m_changeLog.emplace_back(Change::TransferStack, _from);
    addBalance(_to, sender_balance);
    subBalance(_from, sender_balance);
 }
@@ -190,7 +189,6 @@ void pp_state::publishContractTransfers()
 }
 
 void pp_state::clear_temporary_variables() {
-   stack_size = 0;
    size_t size = transfers_stack.size();
    for( size_t i = 0; i < size; i++ ) {
       transfers_stack.pop();
@@ -200,6 +198,54 @@ void pp_state::clear_temporary_variables() {
    asset_id = 0;
    result_accounts.clear();
    allowed_assets.clear();
+}
+
+void pp_state::rollback(size_t _savepoint)
+{
+    while (_savepoint != m_changeLog.size())
+    {
+        auto& change = m_changeLog.back();
+        auto& account = m_cache[change.address];
+
+        // Public State API cannot be used here because it will add another
+        // change log entry.
+        switch (change.kind)
+        {
+        case Change::Storage:
+            account.setStorage(change.key, change.value);
+            break;
+        case Change::StorageRoot:
+            account.setStorageRoot(change.value);
+            break;
+        case Change::Balance: {
+            u256 acc_balance = balance(change.address, change.key);
+            auto obj_id = address_to_id( change.address );
+            if( acc_balance > change.value )
+               adapter.change_balance( obj_id, static_cast<uint64_t>(change.key), 0 - static_cast<int64_t>( acc_balance - change.value ) );
+            else
+               adapter.change_balance( obj_id, static_cast<uint64_t>(change.key), static_cast<int64_t>( change.value - acc_balance ) );
+            break;
+        }
+        case Change::Nonce:
+            account.setNonce(change.value);
+            break;
+        case Change::Create:
+            m_cache.erase(change.address);
+            adapter.delete_contract_obj( address_to_id( change.address ).second );
+            break;
+        case Change::Code:
+            account.setCode(std::move(change.oldCode));
+            break;
+        case Change::Touch:
+            account.untouch();
+            m_unchangedCacheEntries.emplace_back(change.address);
+            break;
+		case Change::TransferStack:
+            transfers_stack.pop();
+            break;
+        }
+        m_changeLog.pop_back();
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////

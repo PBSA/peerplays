@@ -44,12 +44,16 @@ namespace graphene { namespace chain {
    object_id_type contract_evaluator::do_apply( const contract_operation& o )
    { try {
       if( db()._evaluating_from_block ) {
-         auto out = db()._executor->execute( o, true );
+         auto out = db()._executor->execute( o );
 
          result_contract_object result = db().create<result_contract_object>( [&]( result_contract_object& obj ) {
             obj.vm_type = o.vm_type;
             obj.contracts_ids = db()._executor->get_attracted_contracts( o.vm_type );
          });
+
+         db().db_res.add_result( std::string( result.id ), out.second );
+         db().db_res.commit_cache();
+         db().db_res.commit();
 
          vms::base::fee_gas fee( db(), *trx_state);
          fee.process_fee( out.first, o);

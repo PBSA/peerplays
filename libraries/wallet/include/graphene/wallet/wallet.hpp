@@ -25,6 +25,7 @@
 
 #include <graphene/app/api.hpp>
 #include <graphene/utilities/key_conversion.hpp>
+#include <evm_result.hpp>
 
 using namespace graphene::app;
 using namespace graphene::chain;
@@ -1833,6 +1834,22 @@ class wallet_api
                                        string code, string asset_type_transfer, uint64_t value,
                                        string asset_type_gas, uint64_t gasPrice, uint64_t gas,
                                        bool broadcast = false, bool save_wallet = true);
+
+      vector<asset> list_contract_balances(const contract_id_type& id);
+
+      std::vector<block_logs> get_logs_in_interval( const std::set<contract_id_type>& ids, const uint64_t& from_block,
+                                                    const uint64_t& to_block ) const;
+
+      std::map<contract_id_type, vms::evm::evm_account_info> get_contracts(const vector<contract_id_type>& contract_ids) const;
+
+      dev::bytes get_contract_code( const contract_id_type& id ) const;
+                                                    
+      vms::evm::evm_result get_result( result_contract_id_type result_id ) const;
+
+      vms::evm::evm_result call_contract_without_changing_state(string registrar_account, contract_id_type receiver, string code, 
+                                    string asset_type_transfer, uint64_t value, string asset_type_gas, uint64_t gasPrice,
+                                    uint64_t gas);
+
 ////////////////////////////////////////////////////////////////////////////// // evm end
 };
 
@@ -2055,5 +2072,11 @@ FC_API( graphene::wallet::wallet_api,
 ////////////////////////////////////////////////////////////////////////////// // evm begin
         (create_contract)
         (call_contract)
+        (list_contract_balances)
+        (get_logs_in_interval)
+        (get_contracts)
+        (get_contract_code)
+        (get_result)
+        (call_contract_without_changing_state)
 ////////////////////////////////////////////////////////////////////////////// // evm end
       )

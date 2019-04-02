@@ -7,10 +7,19 @@
 
 namespace vms { namespace evm {
 
-struct evm_result {
+struct evm_result
+{
    dev::eth::ExecutionResult exec_result;
    dev::eth::TransactionReceipt receipt;
    std::string state_root;
+};
+
+struct evm_account_info
+{
+   dev::Address address;
+   dev::h256 storage_root;
+   bytes code;
+   std::map<h256, std::pair<u256, u256>> storage;
 };
 
 } }
@@ -72,3 +81,8 @@ FC_REFLECT( vms::evm::evm_result,
             (receipt)
             (state_root) )
 
+FC_REFLECT( vms::evm::evm_account_info,
+            (address)
+            (storage_root)
+            (code)
+            (storage) )

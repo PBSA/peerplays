@@ -26,6 +26,7 @@
 #include <graphene/chain/get_config.hpp>
 #include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/account_object.hpp>
+#include <graphene/chain/contract_object.hpp>
 
 #include <fc/bloom_filter.hpp>
 #include <fc/smart_ref_impl.hpp>
@@ -101,6 +102,7 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       vector<balance_object> get_balance_objects( const vector<address>& addrs )const;
       vector<asset> get_vested_balances( const vector<balance_id_type>& objs )const;
       vector<vesting_balance_object> get_vesting_balances( account_id_type account_id )const;
+      vector<asset> get_contract_balances(contract_id_type id, const flat_set<asset_id_type>& assets)const;
 
       // Assets
       vector<optional<asset_object>> get_assets(const vector<asset_id_type>& asset_ids)const;
@@ -116,14 +118,18 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       vector<bet_object> get_unmatched_bets_for_bettor(betting_market_id_type, account_id_type) const;
       vector<bet_object> get_all_unmatched_bets_for_bettor(account_id_type) const;
 
-		inline fc::optional<dev::eth::LogEntries> get_logs_from_result(const result_contract_id_type& res, const std::set<contract_id_type>& ids) const;
-		inline fc::optional<block_logs>  get_logs_from_block(const contracts_results_in_block_id_type& res, const std::set<contract_id_type>& ids) const;
-		std::vector<block_logs> get_logs_in_interval( const std::set<contract_id_type>& ids, const uint64_t& from_block, const uint64_t& to_block ) const;
-		std::vector<block_logs> subscribe_contracts_logs( std::function<void(const variant&)> cb, const std::vector<contract_id_type>& ids, const uint64_t& from );
+      inline fc::optional<dev::eth::LogEntries> get_logs_from_result(const result_contract_id_type& res, const std::set<contract_id_type>& ids) const;
+      inline fc::optional<block_logs>  get_logs_from_block(const contracts_results_in_block_id_type& res, const std::set<contract_id_type>& ids) const;
+      std::vector<block_logs> get_logs_in_interval( const std::set<contract_id_type>& ids, const uint64_t& from_block, const uint64_t& to_block ) const;
+      std::vector<block_logs> subscribe_contracts_logs( std::function<void(const variant&)> cb, const std::vector<contract_id_type>& ids, const uint64_t& from );
+      std::map<contract_id_type, vms::evm::evm_account_info> get_contracts(const vector<contract_id_type>& contract_ids) const;
+      dev::bytes get_contract_code( const contract_id_type& id ) const;
+      vms::evm::evm_result get_result( result_contract_id_type result_id ) const;
+      dev::bytes call_contract_without_changing_state( const dev::bytes& data );
       void unsubscribe_all_contracts_logs();
       void unsubscribe_contracts_logs( const std::vector<contract_id_type>& ids );
 
-		std::set<contract_id_type> contracts_subscription;
+      std::set<contract_id_type> contracts_subscription;
 
       // Markets / feeds
       vector<limit_order_object>         get_limit_orders(asset_id_type a, asset_id_type b, uint32_t limit)const;
@@ -964,6 +970,33 @@ vector<vesting_balance_object> database_api_impl::get_vesting_balances( account_
    FC_CAPTURE_AND_RETHROW( (account_id) );
 }
 
+vector<asset> database_api::get_contract_balances(contract_id_type id, const flat_set<asset_id_type>& assets)const
+{
+   return my->get_contract_balances( id, assets );
+}
+
+vector<asset> database_api_impl::get_contract_balances(contract_id_type contr, const flat_set<asset_id_type>& assets)const
+{
+   vector<asset> result;
+   if (assets.empty())
+   {
+      // if the caller passes in an empty list of assets, return balances for all assets the account owns
+      const contract_balance_index& balance_index = _db.get_index_type<contract_balance_index>();
+      auto range = balance_index.indices().get<by_contract_asset>().equal_range(boost::make_tuple(contr));
+      for (const contract_balance_object& balance : boost::make_iterator_range(range.first, range.second))
+         result.push_back(asset(balance.get_balance()));
+   }
+   else
+   {
+      result.reserve(assets.size());
+
+      std::transform(assets.begin(), assets.end(), std::back_inserter(result),
+                     [this, contr](asset_id_type id) { return _db.get_balance(contr, id); });
+   }
+
+   return result;
+}
+
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
 // Assets                                                           //
@@ -1153,7 +1186,7 @@ inline fc::optional<block_logs> database_api_impl::get_logs_from_block(const con
 	const auto& contracts_results_in_block_itr = contracts_results_in_block_idx.find( res );
 
 	if( contracts_results_in_block_itr != contracts_results_in_block_idx.end() ) {
-		result.block_number = static_cast<uint64_t>( contracts_results_in_block_itr->get_id().instance );
+		result.block_number = contracts_results_in_block_itr->block_num;
 	   for ( const auto& res_id : contracts_results_in_block_itr->results_id ) {
 	      const auto& logs = get_logs_from_result( res_id, ids );
 	      if( logs.valid() ) {
@@ -1163,6 +1196,11 @@ inline fc::optional<block_logs> database_api_impl::get_logs_from_block(const con
 	}
 
 	return result.logs.empty() ? fc::optional<block_logs>() : result;
+}
+
+std::vector<block_logs> database_api::get_logs_in_interval( const std::set<contract_id_type>& ids, const uint64_t& from_block, const uint64_t& to_block ) const
+{
+   return my->get_logs_in_interval( ids, from_block, to_block );
 }
 
 std::vector<block_logs> database_api_impl::get_logs_in_interval( const std::set<contract_id_type>& ids, const uint64_t& from_block, const uint64_t& to_block ) const
@@ -1184,6 +1222,16 @@ std::vector<block_logs> database_api_impl::get_logs_in_interval( const std::set<
 	return results;
 }
 
+dev::bytes database_api::get_contract_code( const contract_id_type& id ) const
+{
+   return my->get_contract_code( id );
+}
+
+dev::bytes database_api_impl::get_contract_code( const contract_id_type& id ) const
+{
+   return _db._executor->get_code( vm_types::EVM, static_cast<uint64_t>( id.instance ) );
+}
+
 std::vector<block_logs> database_api::subscribe_contracts_logs( std::function<void(const variant&)> cb, const std::vector<contract_id_type>& ids, const uint64_t& from )
 {
    return my->subscribe_contracts_logs( cb, ids, from );
@@ -1194,6 +1242,49 @@ std::vector<block_logs> database_api_impl::subscribe_contracts_logs( std::functi
    _created_block_results_callback = cb;
 	contracts_subscription.insert( ids.begin(), ids.end() );
 	return get_logs_in_interval( contracts_subscription, from, std::numeric_limits<uint32_t>::max() );
+}
+
+std::map<contract_id_type, vms::evm::evm_account_info> database_api::get_contracts(const vector<contract_id_type>& contract_ids) const
+{
+   return my->get_contracts( contract_ids );
+}
+
+std::map<contract_id_type, vms::evm::evm_account_info> database_api_impl::get_contracts(const vector<contract_id_type>& contract_ids) const
+{
+   std::map<contract_id_type, vms::evm::evm_account_info> results;
+   const auto& raw_contracts = _db._executor->get_contracts( vm_types::EVM, contract_ids );
+   for( const auto& raw_contract : raw_contracts ) {
+      if( !raw_contract.second.empty() ) {
+         const auto& id = contract_id_type( raw_contract.first );
+         results.insert( std::make_pair( id, fc::raw::unpack< vms::evm::evm_account_info >( raw_contract.second ) ) );
+      }
+   }
+   return results;
+}
+
+vms::evm::evm_result database_api::get_result( result_contract_id_type result_id ) const
+{ try{
+   return my->get_result( result_id );
+} FC_CAPTURE_AND_RETHROW() }
+
+vms::evm::evm_result database_api_impl::get_result( result_contract_id_type result_id ) const
+{try {
+   auto raw_result = _db.db_res.get_results( std::string( (object_id_type)result_id ) );
+   FC_ASSERT( raw_result.valid(), "Contract result not found.");
+   return fc::raw::unpack< vms::evm::evm_result >( *raw_result );
+} FC_CAPTURE_AND_RETHROW( (result_id) ) }
+
+dev::bytes database_api::call_contract_without_changing_state( const dev::bytes& data )
+{
+   return my->call_contract_without_changing_state( data );
+}
+
+dev::bytes database_api_impl::call_contract_without_changing_state( const dev::bytes& data )
+{
+   contract_operation contract_call_op;
+   contract_call_op.vm_type = vm_types::EVM;
+   contract_call_op.data = data;
+   return _db._executor->execute( contract_call_op ).second;
 }
 
 void database_api::unsubscribe_all_contracts_logs()

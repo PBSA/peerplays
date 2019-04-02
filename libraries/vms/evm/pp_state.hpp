@@ -74,7 +74,9 @@ public:
    Account* getAccount(Address const& _a) { return account(_a); } // TODO temp
 
    void commit(CommitBehaviour _commitBehaviour) override;
-    
+
+   void rollback(size_t _savepoint) override;
+
    void publishContractTransfers() override;
 
    void clear_temporary_variables();
@@ -96,8 +98,6 @@ private:
    u256 fee;
 
    std::stack<TransfersStruct> transfers_stack;
-
-   size_t stack_size;
 
    std::set<uint64_t> allowed_assets;
 

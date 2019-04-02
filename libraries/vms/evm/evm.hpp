@@ -41,13 +41,15 @@ public:
 
    evm( const std::string& path, adapters adapter );
 
-   std::pair<uint64_t, bytes> exec( const bytes& data, const bool commit ) override;
+   std::pair<uint64_t, bytes> exec( const bytes& data ) override;
 
    std::vector< uint64_t > get_attracted_contracts( ) const override { return attracted_contracts; };
 
    void roll_back_db( const uint32_t& block_number ) override;
 
-   std::vector<bytes> get_contracts() const override;
+   std::map<uint64_t, bytes> get_contracts( const std::vector<uint64_t>& ids ) const override;
+
+   bytes get_code( const uint64_t& id ) const override;
 
    std::string get_state_root() const;
 

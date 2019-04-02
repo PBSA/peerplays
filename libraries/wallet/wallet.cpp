@@ -3196,6 +3196,43 @@ public:
 
       return sign_transaction(tx, broadcast);
    } FC_CAPTURE_AND_RETHROW( (registrar_account)(broadcast) ) }
+
+   std::vector<block_logs> get_logs_in_interval( const std::set<contract_id_type>& ids, const uint64_t& from_block, const uint64_t& to_block ) const
+   { try {
+      return _remote_db->get_logs_in_interval( ids, from_block, to_block );
+   } FC_CAPTURE_AND_RETHROW( (ids)(from_block)(to_block) ) }
+
+   std::map<contract_id_type, vms::evm::evm_account_info> get_contracts(const vector<contract_id_type>& contract_ids) const
+   { try {
+      return _remote_db->get_contracts( contract_ids );
+   } FC_CAPTURE_AND_RETHROW( (contract_ids) ) }
+
+   dev::bytes get_contract_code( const contract_id_type& id ) const
+   { try {
+      return _remote_db->get_contract_code( id );
+   } FC_CAPTURE_AND_RETHROW( (id) ) }
+   
+   vms::evm::evm_result get_result( result_contract_id_type result_id ) const
+   {
+      return _remote_db->get_result( result_id );
+   } 
+
+   vms::evm::evm_result call_contract_without_changing_state(string registrar_account, contract_id_type receiver, string code, 
+                                    string asset_type_transfer, uint64_t value, string asset_type_gas, uint64_t gasPrice,
+                                    uint64_t gas)
+   { try {
+      account_object registrar_account_object = get_account( registrar_account );
+      auto fee_asset = get_asset_id( asset_type_gas );
+
+      eth_op eth_create = eth_op{registrar_account_object.id, receiver, std::set<uint64_t>(), get_asset_id( asset_type_transfer ),
+                                 value, fee_asset, gasPrice, gas, code};
+
+      auto data = fc::raw::unsigned_pack( eth_create );
+      auto out_raw = _remote_db->call_contract_without_changing_state( data );
+
+      auto result = fc::raw::unpack< vms::evm::evm_result >( out_raw );
+      return result;
+   } FC_CAPTURE_AND_RETHROW( (registrar_account) ) }
 ////////////////////////////////////////////////////////////////////////////// // evm end
 
    operation get_prototype_operation( string operation_name )
@@ -5818,6 +5855,39 @@ signed_transaction wallet_api::call_contract(string registrar_account, contract_
                                              uint64_t gas, bool broadcast, bool save_wallet)
 {
    return my->call_contract(registrar_account, receiver, code, asset_type_transfer, value, asset_type_gas, gasPrice, gas, broadcast, save_wallet);
+}
+
+vector<asset> wallet_api::list_contract_balances(const contract_id_type& id)
+{
+   return my->_remote_db->get_contract_balances( id, flat_set<asset_id_type>() );
+}
+
+std::vector<block_logs> wallet_api::get_logs_in_interval( const std::set<contract_id_type>& ids, const uint64_t& from_block,
+                                                          const uint64_t& to_block ) const
+{
+   return my->get_logs_in_interval( ids, from_block, to_block );
+}
+
+std::map<contract_id_type, vms::evm::evm_account_info> wallet_api::get_contracts(const vector<contract_id_type>& contract_ids) const
+{
+   return my->get_contracts( contract_ids );
+}
+
+dev::bytes wallet_api::get_contract_code( const contract_id_type& id ) const
+{
+   return my->get_contract_code( id );
+}
+
+vms::evm::evm_result wallet_api::get_result( result_contract_id_type result_id ) const
+{
+   return my->get_result( result_id );
+} 
+
+vms::evm::evm_result wallet_api::call_contract_without_changing_state(string registrar_account, contract_id_type receiver, string code, 
+                                    string asset_type_transfer, uint64_t value, string asset_type_gas, uint64_t gasPrice,
+                                    uint64_t gas)
+{
+   return my->call_contract_without_changing_state(registrar_account, receiver, code, asset_type_transfer, value, asset_type_gas, gasPrice, gas);
 }
 ////////////////////////////////////////////////////////////////////////////// // evm end
 

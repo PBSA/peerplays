@@ -16,13 +16,15 @@ public:
 
    void init( const std::string& path );
 
-   std::pair<uint64_t, bytes> execute( const contract_operation& o, const bool& commit );
+   std::pair<uint64_t, bytes> execute( const contract_operation& o);
 
    std::vector< uint64_t > get_attracted_contracts( const vm_types& vm_type ) const;
 
    void roll_back_db( const uint32_t& block_number );
 
-   std::vector<bytes> get_contracts( const vm_types& vm_type ) const;
+   std::map<uint64_t, bytes> get_contracts( const vm_types& vm_type, const std::vector<contract_id_type>& ids ) const;
+
+   bytes get_code( const vm_types& vm_type, const uint64_t& id ) const;
 
    friend struct graphene::chain::database_fixture;
 

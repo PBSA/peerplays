@@ -8,6 +8,22 @@
 
 using namespace graphene::chain::test;
 
+std::vector<contract_id_type> ids { contract_id_type(0),
+                                    contract_id_type(1),
+                                    contract_id_type(2),
+                                    contract_id_type(3),
+                                    contract_id_type(4),
+                                    contract_id_type(5),
+                                    contract_id_type(6),
+                                    contract_id_type(7),
+                                    contract_id_type(8),
+                                    contract_id_type(9),
+                                    contract_id_type(10),
+                                    contract_id_type(11),
+                                    contract_id_type(12),
+                                    contract_id_type(13),
+                                    contract_id_type(14) };
+
 /*
     contract solidityPayable {
         function() payable {}
@@ -38,6 +54,19 @@ void create_result( database& db, uint64_t block_num, std::string hash ) {
    } );
 }
 
+std::map<contract_id_type, vms::evm::evm_account_info> get_contracts( database& db, const vector<contract_id_type>& contract_ids)
+{
+   std::map<contract_id_type, vms::evm::evm_account_info> results;
+   const auto& raw_contracts = db._executor->get_contracts( vm_types::EVM, contract_ids );
+   for( const auto& raw_contract : raw_contracts ) {
+      if( !raw_contract.second.empty() ) {
+         const auto& id = contract_id_type( raw_contract.first );
+         results.insert( std::make_pair( id, fc::raw::unpack< vms::evm::evm_account_info >( raw_contract.second ) ) );
+      }
+   }
+   return results;
+}
+
 BOOST_AUTO_TEST_CASE( sequential_rollback_test )
 {
    transfer(account_id_type(0),account_id_type(5),asset(1000000000, asset_id_type()));
@@ -59,20 +88,20 @@ BOOST_AUTO_TEST_CASE( sequential_rollback_test )
 
    PUSH_TX( db, trx, ~0 );
    const auto block1 = generate_block();
-   BOOST_CHECK( db._executor->get_contracts( vm_types::EVM ).size() == 5 );
+   BOOST_CHECK( get_contracts( db, ids ).size() == 5 );
 
    PUSH_TX( db, trx, ~0 );
    const auto block2 = generate_block();
-   BOOST_CHECK( db._executor->get_contracts( vm_types::EVM ).size() == 10 );
+   BOOST_CHECK( get_contracts( db, ids ).size() == 10 );
 
    PUSH_TX( db, trx, ~0 );
    const auto block3 = generate_block();
-   BOOST_CHECK( db._executor->get_contracts( vm_types::EVM ).size() == 15 );
+   BOOST_CHECK( get_contracts( db, ids ).size() == 15 );
 
    db._executor->roll_back_db( block2.block_num() );
-   BOOST_CHECK( db._executor->get_contracts( vm_types::EVM ).size() == 10 );
+   BOOST_CHECK( get_contracts( db, ids ).size() == 10 );
    db._executor->roll_back_db( block1.block_num() );
-   BOOST_CHECK( db._executor->get_contracts( vm_types::EVM ).size() == 5 );
+   BOOST_CHECK( get_contracts( db, ids ).size() == 5 );
 }
 
 BOOST_AUTO_TEST_CASE( not_sequential_rollback_test )
@@ -105,15 +134,15 @@ BOOST_AUTO_TEST_CASE( not_sequential_rollback_test )
    const auto interval2 = interval1 + 10;
 
    db._executor->roll_back_db( block2.block_num() );
-   BOOST_CHECK( db._executor->get_contracts( vm_types::EVM ).size() == 10 );
+   BOOST_CHECK( get_contracts( db, ids ).size() == 10 );
    db._executor->roll_back_db( interval2 - 3 );
-   BOOST_CHECK( db._executor->get_contracts( vm_types::EVM ).size() == 10 );
+   BOOST_CHECK( get_contracts( db, ids ).size() == 10 );
    db._executor->roll_back_db( block1.block_num() );
-   BOOST_CHECK( db._executor->get_contracts( vm_types::EVM ).size() == 5 );
+   BOOST_CHECK( get_contracts( db, ids ).size() == 5 );
    db._executor->roll_back_db( interval1 - 3 );
-   BOOST_CHECK( db._executor->get_contracts( vm_types::EVM ).size() == 5 );
+   BOOST_CHECK( get_contracts( db, ids ).size() == 5 );
    db._executor->roll_back_db( 1 );
-   BOOST_CHECK( db._executor->get_contracts( vm_types::EVM ).size() == 0 );
+   BOOST_CHECK( get_contracts( db, ids ).size() == 0 );
 }
 
 BOOST_AUTO_TEST_CASE( switch_to_late_block_test )
@@ -145,13 +174,13 @@ BOOST_AUTO_TEST_CASE( switch_to_late_block_test )
    const auto block3 = generate_block();
 
    db._executor->roll_back_db( 1 );
-   BOOST_CHECK( db._executor->get_contracts( vm_types::EVM ).size() == 0 );
+   BOOST_CHECK( get_contracts( db, ids ).size() == 0 );
    db._executor->roll_back_db( block1.block_num() );
-   BOOST_CHECK( db._executor->get_contracts( vm_types::EVM ).size() == 5 );
+   BOOST_CHECK( get_contracts( db, ids ).size() == 5 );
    db._executor->roll_back_db( block2.block_num() );
-   BOOST_CHECK( db._executor->get_contracts( vm_types::EVM ).size() == 10 );
+   BOOST_CHECK( get_contracts( db, ids ).size() == 10 );
    db._executor->roll_back_db( block3.block_num() );
-   BOOST_CHECK( db._executor->get_contracts( vm_types::EVM ).size() == 15 );
+   BOOST_CHECK( get_contracts( db, ids ).size() == 15 );
 }
 
 BOOST_AUTO_TEST_CASE( no_results_test )

@@ -19,11 +19,6 @@ void evm_adapter::publish_contract_transfer( const contract_or_account_id& from_
    db.publish_contract_transfer( contract_id_type( from_id.second ), to, asset( value, asset_id_type( asset_id ) ) );
 }
 
-std::string evm_adapter::get_next_result_id() const
-{
-   return std::string( db.get_index<result_contract_object>().get_next_id() );
-}
-
 std::vector<std::pair<int64_t, uint64_t>> evm_adapter::get_contract_balances( const uint64_t& from ) const
 {
    std::vector<std::pair<int64_t, uint64_t>> result;

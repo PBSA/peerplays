@@ -8,14 +8,14 @@ bool chain_adapter::is_there_account( const uint64_t& account_id ) const
 {
    auto& index = db.get_index_type<account_index>().indices().get<by_id>();
    auto itr = index.find( account_id_type( account_id ) );
-   return !(itr == index.end());
+   return itr != index.end();
 }
 
 bool chain_adapter::is_there_contract( const uint64_t& contract_id ) const
 {
    auto& index = db.get_index_type<contract_index>().indices().get<by_id>();
    auto itr = index.find( contract_id_type( contract_id ) );
-   return !(itr == index.end());
+   return itr != index.end();
 }
 
 uint32_t chain_adapter::create_contract_obj( const std::set<uint64_t>& allowed_assets )
@@ -24,6 +24,13 @@ uint32_t chain_adapter::create_contract_obj( const std::set<uint64_t>& allowed_a
       obj.statistics = db.create<contract_statistics_object>([&](contract_statistics_object& s){s.owner = obj.id;}).id;
       obj.allowed_assets = allowed_assets;
    }).get_id().instance.value;
+}
+
+void chain_adapter::delete_contract_obj( const uint64_t& contract_id ) {
+   auto& index = db.get_index_type<contract_index>().indices().get<by_id>();
+   auto itr = index.find( contract_id_type( contract_id ) );
+   if ( itr != index.end() )
+      db.remove( *itr );
 }
 
 uint64_t chain_adapter::get_next_contract_id() const
@@ -41,24 +48,12 @@ int64_t chain_adapter::get_contract_balance( const uint64_t& contract_id, const 
    return db.get_balance( contract_id_type( contract_id ), asset_id_type( asset_id ) ).amount.value;
 }
 
-void chain_adapter::add_account_balance( const uint64_t& account_id, const uint64_t& asset_id, const int64_t& amount )
+void chain_adapter::change_balance( const contract_or_account_id& from_id, const uint64_t& asset_id, const int64_t& amount )
 {
-   db.adjust_balance( account_id_type( account_id ),  asset( amount, asset_id_type( asset_id ) ) );
-}
-
-void chain_adapter::add_contract_balance( const uint64_t& contract_id, const uint64_t& asset_id, const int64_t& amount )
-{
-   db.adjust_balance( contract_id_type( contract_id ),  asset( amount, asset_id_type( asset_id ) ) );
-}
-
-void chain_adapter::sub_account_balance( const uint64_t& account_id, const uint64_t& asset_id, const int64_t& amount )
-{
-   db.adjust_balance( account_id_type( account_id ), -asset( amount, asset_id_type( asset_id ) ) );
-}
-
-void chain_adapter::sub_contract_balance( const uint64_t& contract_id, const uint64_t& asset_id, const int64_t& amount )
-{
-   db.adjust_balance( contract_id_type( contract_id ), -asset( amount, asset_id_type( asset_id ) ) );
+   if( from_id.first )
+      db.adjust_balance( contract_id_type( from_id.second ), asset( amount, asset_id_type( asset_id ) ) );
+   else
+      db.adjust_balance( account_id_type( from_id.second ), asset( amount, asset_id_type( asset_id ) ) );
 }
 
 uint64_t chain_adapter::get_id_author_block() const
@@ -85,21 +80,6 @@ uint32_t chain_adapter::head_block_time() const
 bool chain_adapter::evaluating_from_apply_block() const
 {
    return db._evaluating_from_block;
-}
-
-void chain_adapter::add_result( const std::string& id, bytes res )
-{
-   db.db_res.add_result( id, res ); 
-}
-
-void chain_adapter::commit_cache()
-{
-   db.db_res.commit_cache();
-}
-
-void chain_adapter::commit()
-{
-   db.db_res.commit();
 }
 
 } }

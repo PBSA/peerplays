@@ -18,49 +18,56 @@ evm::evm( const std::string& path, adapters adapter ) : vm_interface( adapter ),
    set_state_root( dev::sha3( dev::rlp("") ).hex() );
 }
 
-std::pair<uint64_t, bytes> evm::exec( const bytes& data, const bool commit )
+std::pair<uint64_t, bytes> evm::exec( const bytes& data)
 { 
    clear_temporary_variables();
 
-   eth_op eth = fc::raw::unpack<eth_op>( data );
-
    last_block_hashes last_hashes( get_adapter().get_last_block_hashes() );
    OnOpFunc const& _onOp = OnOpFunc();
-
    EnvInfo ei = create_environment( last_hashes );
-   state.setAuthor( ei.author() );
-   state.setAssetType( eth.asset_id_gas.instance.value );
-   state.set_allowed_assets( eth.allowed_assets );
 
+   eth_op eth = fc::raw::unpack<eth_op>( data );
    Transaction tx = create_eth_transaction( eth );
    auto permanence = get_adapter().evaluating_from_apply_block() ? Permanence::Committed : Permanence::Reverted;
-   std::pair< ExecutionResult, TransactionReceipt > res = state.execute(ei, *se.get(), tx, permanence, _onOp);
-   state.db().commit();
-   state.publishContractTransfers();
+   size_t savepoint = state.savepoint();
 
-   account_id_type author( address_to_id( ei.author() ).second );
-   get_adapter().sub_account_balance( author.instance.value, state.getAssetType(), static_cast<int64_t>( state.getFee() ) );
+   state.setAuthor( ei.author() );
+   state.setAssetType( eth.asset_id_gas.instance.value );
+	state.set_allowed_assets( eth.allowed_assets );
 
-   if(res.first.excepted != TransactionException::None){
-      se->suicideTransfer.clear();
+   std::pair< ExecutionResult, TransactionReceipt > res;
+   try {
+      res = state.execute(ei, *se.get(), tx, permanence, _onOp);
+   }
+   catch ( const dev::Exception& ex )
+   {
+      res.first.excepted = toTransactionException(ex);
    }
 
-   std::unordered_map<Address, Account> attracted_contr_and_acc = state.getResultAccounts();
-   transfer_suicide_balances(se->suicideTransfer);
-   delete_balances( attracted_contr_and_acc );
-
-   attracted_contracts = select_attracted_contracts(attracted_contr_and_acc);
+   evm_result result { res.first, res.second, get_state_root() };
+   bytes serialize_result = fc::raw::unsigned_pack( result );
 
    if( get_adapter().evaluating_from_apply_block() ){
-      evm_result result { res.first, res.second, get_state_root() };
-      bytes serialize_result = fc::raw::unsigned_pack( result );
+      state.db().commit();
+      state.publishContractTransfers();
 
-      get_adapter().add_result( get_adapter().get_next_result_id(), serialize_result );
-      get_adapter().commit_cache();
-      get_adapter().commit();
+      auto author = address_to_id( ei.author() );
+      get_adapter().change_balance( author, state.getAssetType(), 0 - static_cast<int64_t>( state.getFee() ) );
+
+      if(res.first.excepted != TransactionException::None){
+         se->suicideTransfer.clear();
+      }
+
+      std::unordered_map<Address, Account> attracted_contr_and_acc = state.getResultAccounts();
+      transfer_suicide_balances(se->suicideTransfer);
+      delete_balances( attracted_contr_and_acc );
+
+      attracted_contracts = select_attracted_contracts(attracted_contr_and_acc);
+   } else {
+      state.rollback(savepoint);
    }
 
-   return std::make_pair( static_cast<uint64_t>( state.getFee() ), bytes() );
+   return std::make_pair( static_cast<uint64_t>( state.getFee() ), serialize_result );
 }
 
 void evm::roll_back_db( const uint32_t& block_number )
@@ -69,14 +76,24 @@ void evm::roll_back_db( const uint32_t& block_number )
    state_root.valid() ? set_state_root( state_root->str() ) : set_state_root( dev::sha3( dev::rlp("") ).hex() );
 }
 
-std::vector<bytes> evm::get_contracts() const
+std::map<uint64_t, bytes> evm::get_contracts( const std::vector<uint64_t>& ids ) const
 {
-   std::vector<bytes> results;
-   const auto& addresses = state.addresses();
-   for( const auto& addr : addresses ) {
-      results.push_back( addr.first.asBytes() );
+   std::map<uint64_t, bytes> results;
+   for( const auto& id : ids ) {
+      const auto& address = id_to_address( id, 1 );
+      if( state.getAccount( address ) != nullptr ) {
+         evm_account_info acc_info{ address, state.storageRoot( address ), state.code( address ), state.storage( address ) };
+         results.insert( std::make_pair( id, fc::raw::unsigned_pack( acc_info ) ) );
+      } else {
+         results.insert( std::make_pair( id, bytes() ) );
+      }
    }
    return results;
+}
+
+bytes evm::get_code( const uint64_t& id ) const
+{
+   return state.code( id_to_address( id, 1 ) );
 }
 
 std::string evm::get_state_root() const
@@ -128,28 +145,15 @@ EnvInfo evm::create_environment( last_block_hashes const& last_hashes )
 
 void evm::transfer_suicide_balances(const std::vector< std::pair< Address, Address > >& suicide_transfer) {
    for(std::pair< Address, Address > transfer : suicide_transfer){
-      contract_id_type from( address_to_id( transfer.first ).second );
+      auto from = address_to_id( transfer.first );
+      auto to = address_to_id( transfer.second );
 
-      auto to_temp = address_to_id( transfer.second );
-      object_id_type to;
-      if( to_temp.first ) {
-         to = contract_id_type( to_temp.second );
-      } else {
-         to = account_id_type( to_temp.second );
-      }
-
-      auto balances = get_adapter().get_contract_balances( from.instance.value );
+      auto balances = get_adapter().get_contract_balances( from.second );
       for( auto& balance : balances ) {
-         get_adapter().publish_contract_transfer( std::make_pair( 1, from.instance.value ),
-                                                  std::make_pair( to_temp.first, to_temp.second ),
-                                                  balance.second, balance.first );
+         get_adapter().publish_contract_transfer( from, to, balance.second, balance.first );
 
-         get_adapter().sub_contract_balance( from.instance.value, balance.second, balance.first );
-         if ( to.is< account_id_type >() ) {
-            get_adapter().add_account_balance( to.instance(), balance.second, balance.first );
-         } else {
-            get_adapter().add_contract_balance( to.instance(), balance.second, balance.first );
-         }
+         get_adapter().change_balance( from, balance.second, 0 - balance.first );
+         get_adapter().change_balance( to, balance.second, balance.first );
       }
    }
 }
