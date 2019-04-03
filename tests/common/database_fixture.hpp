@@ -29,6 +29,7 @@
 #include <fc/smart_ref_impl.hpp>
 #include <pp_state.hpp>
 #include <evm.hpp>
+#include <evm_result.hpp>
 
 #include <graphene/chain/operation_history_object.hpp>
 
@@ -378,6 +379,8 @@ struct database_fixture {
    void execute_contract(transaction_evaluation_state& cont, database& db, account_id_type registrar_id,
                          uint64_t value, std::string code, asset_id_type asset_id,
                          asset fee, optional<contract_id_type> receiver_id);
+   
+   std::map<contract_id_type, vms::evm::evm_account_info> get_contracts( database& db, const vector<contract_id_type>& contract_ids);
 };
 
 namespace test {

@@ -60,8 +60,8 @@ uint64_t chain_adapter::get_id_author_block() const
 {
    auto& index = db.get_index_type< witness_index >().indices().get< by_id >();
    auto itr = index.find( db.get_current_block().witness );
-   witness_object witness = *itr;
    if( index.end() != itr ){
+       witness_object witness = *itr;
        return witness.witness_account.instance.value;
    }
    return 0;

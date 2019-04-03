@@ -40,6 +40,7 @@
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/evaluator.hpp>
 #include <fc/crypto/digest.hpp>
+#include <fc/exception/exception.hpp>
 
 #include <fc/smart_ref_impl.hpp>
 
@@ -188,7 +189,12 @@ bool database::push_block(const signed_block& new_block, uint32_t skip)
       detail::without_pending_transactions( *this, std::move(_pending_tx),
       [&]()
       {
-         result = _push_block(new_block);
+         try {
+            result = _push_block(new_block);
+         } catch( const fc::root_hashes_doesnt_match_exception& ) {
+            _executor->roll_back_db( head_block_num() );
+            db_res.set_root( !head_block_num() ? dev::sha3( dev::rlp("") ).hex() : fetch_block_by_number( head_block_num() )->result_root_hash );
+         }
       });
    });
    return result;
@@ -616,6 +622,9 @@ void database::_apply_block( const signed_block& next_block )
       ++_current_trx_in_block;
    }
 
+   if( db_res.root_hash() != next_block.result_root_hash.str() ) 
+      FC_THROW_EXCEPTION( fc::root_hashes_doesnt_match_exception, "Root hashes doesn't match: ${root_hash} != ${next_block.result_root_hash}; Block id: ${id}", ("root_hash", db_res.root_hash())("next_block.result_root_hash", next_block.result_root_hash.str())("id",next_block.id()) );
+   
    const auto& block_results = create_contracts_results_in_block( next_block );
    if( block_results.valid() ) {
       created_block_results( *block_results );

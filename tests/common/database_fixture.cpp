@@ -48,6 +48,8 @@
 
 #include <graphene/utilities/tempdir.hpp>
 
+#include <graphene/chain/contracts_results_in_block_object.hpp>
+
 #include <fc/crypto/digest.hpp>
 #include <fc/smart_ref_impl.hpp>
 
@@ -1552,6 +1554,19 @@ void database_fixture::execute_contract(transaction_evaluation_state& cont, data
    db._evaluating_from_block = true;
    db.apply_operation( cont, contract_op );
    db._evaluating_from_block = false;
+}
+
+std::map<contract_id_type, vms::evm::evm_account_info> database_fixture::get_contracts( database& db, const vector<contract_id_type>& contract_ids)
+{
+   std::map<contract_id_type, vms::evm::evm_account_info> results;
+   const auto& raw_contracts = db._executor->get_contracts( vm_types::EVM, contract_ids );
+   for( const auto& raw_contract : raw_contracts ) {
+      if( !raw_contract.second.empty() ) {
+         const auto& id = contract_id_type( raw_contract.first );
+         results.insert( std::make_pair( id, fc::raw::unpack< vms::evm::evm_account_info >( raw_contract.second ) ) );
+      }
+   }
+   return results;
 }
 
 namespace test {

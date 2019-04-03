@@ -54,19 +54,6 @@ void create_result( database& db, uint64_t block_num, std::string hash ) {
    } );
 }
 
-std::map<contract_id_type, vms::evm::evm_account_info> get_contracts( database& db, const vector<contract_id_type>& contract_ids)
-{
-   std::map<contract_id_type, vms::evm::evm_account_info> results;
-   const auto& raw_contracts = db._executor->get_contracts( vm_types::EVM, contract_ids );
-   for( const auto& raw_contract : raw_contracts ) {
-      if( !raw_contract.second.empty() ) {
-         const auto& id = contract_id_type( raw_contract.first );
-         results.insert( std::make_pair( id, fc::raw::unpack< vms::evm::evm_account_info >( raw_contract.second ) ) );
-      }
-   }
-   return results;
-}
-
 BOOST_AUTO_TEST_CASE( sequential_rollback_test )
 {
    transfer(account_id_type(0),account_id_type(5),asset(1000000000, asset_id_type()));
