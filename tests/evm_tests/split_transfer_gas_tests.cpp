@@ -3,6 +3,7 @@
 #include "../common/database_fixture.hpp"
 #include <graphene/chain/contract_object.hpp>
 #include <graphene/chain/contract_evaluator.hpp>
+#include <graphene/chain/witness_object.hpp>
 #include <evm_result.hpp>
 
 #include <fc/filesystem.hpp>
@@ -33,7 +34,7 @@ const uint64_t custom_asset_transfer_amount = 100000000; // do not set less then
 const uint64_t core_asset_transfer_amount = 1000000000;
 const uint64_t fee_pool_amount = 1000000;
 
-inline const account_statistics_object& test_contract_deploy( database& db, asset_id_type first_asset, asset_id_type second_asset ) {
+inline const account_statistics_object& test_contract_deploy( database& db, asset_id_type first_asset, asset_id_type second_asset, account_id_type acc = account_id_type(5) ) {
     transaction_evaluation_state context(&db);
     asset_fund_fee_pool_operation op_fund_fee_pool;
     op_fund_fee_pool.asset_id = first_asset;
@@ -44,7 +45,7 @@ inline const account_statistics_object& test_contract_deploy( database& db, asse
 
     contract_operation contract_op;
     contract_op.vm_type = vm_types::EVM;
-    contract_op.registrar = account_id_type(5);
+    contract_op.registrar = acc;
     contract_op.fee = asset(0, first_asset);
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), second_asset, transfer_amount, first_asset, 1, gas_limit_amount, solidityAddCode } );
 
@@ -78,6 +79,34 @@ BOOST_AUTO_TEST_CASE( fee_test ){
     BOOST_CHECK( db.get_balance(contract_id_type(), asset_id_type(1)).amount.value == transfer_amount );
     BOOST_CHECK( db.get_balance(account_id_type(5), asset_id_type()).amount.value == core_asset_transfer_amount - gas_used );
     BOOST_CHECK( db.get_balance(account_id_type(5), asset_id_type(1)).amount.value == custom_asset_transfer_amount - transfer_amount );
+}
+
+BOOST_AUTO_TEST_CASE( author_of_block_exec_tests ){
+    auto& wit_index = db.get_index_type<witness_index>().indices().get<by_id>();
+    uint32_t slot_num = db.get_slot_at_time( db.head_block_time() + db.block_interval() );
+    witness_id_type scheduled_witness = db.get_scheduled_witness( slot_num );
+    witness_object wit_obj = *wit_index.find(scheduled_witness);
+    
+    transfer( account_id_type(0), wit_obj.witness_account, asset( 1000000000, asset_id_type() ) );
+
+    generate_block();
+    signed_transaction trx;
+    set_expiration( db, trx );
+
+    contract_operation contract_op;
+    contract_op.vm_type = vm_types::EVM;
+    contract_op.registrar = wit_obj.witness_account;
+    contract_op.fee = asset(0, asset_id_type());
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 1, 2000000, solidityAddCode });
+    trx.operations.push_back( contract_op );
+
+    PUSH_TX( db, trx, ~0 );
+    trx.clear();
+    generate_block();
+
+    auto gas_used = get_gas_used( db, result_contract_id_type() );
+
+    BOOST_CHECK( db.get_balance( wit_obj.witness_account, asset_id_type() ).amount.value + gas_used == 1000000000 );
 }
 
 BOOST_AUTO_TEST_CASE( not_CORE_fee_test ){

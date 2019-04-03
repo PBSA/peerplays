@@ -59,15 +59,13 @@ public:
 
    u256 getNonce(Address const& _addr) const override { return u256(0); }
 
-   void setAuthor(Address _author) { author = _author; }
-
-   u256 getFee(){ return fee; }
+   u256 getFee() const { return fee; }
 
    void setAssetType(const uint64_t& id) { asset_id = id; }
 
-   uint64_t getAssetType() { return asset_id; }
+   uint64_t getAssetType() const { return asset_id; }
 
-   std::unordered_map<Address, Account> getResultAccounts() { return result_accounts; }
+   std::unordered_map<Address, Account> getResultAccounts() const { return result_accounts; }
 
    Account const* getAccount(Address const& _a) const { return account(_a); } // TODO temp
 
@@ -78,6 +76,8 @@ public:
    void rollback(size_t _savepoint) override;
 
    void publishContractTransfers() override;
+
+   void setExecutionFee(const u256& feesEarned ) override { fee = feesEarned; };
 
    void clear_temporary_variables();
 

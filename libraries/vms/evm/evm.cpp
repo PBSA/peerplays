@@ -31,7 +31,6 @@ std::pair<uint64_t, bytes> evm::exec( const bytes& data)
    auto permanence = get_adapter().evaluating_from_apply_block() ? Permanence::Committed : Permanence::Reverted;
    size_t savepoint = state.savepoint();
 
-   state.setAuthor( ei.author() );
    state.setAssetType( eth.asset_id_gas.instance.value );
 	state.set_allowed_assets( eth.allowed_assets );
 
@@ -39,20 +38,16 @@ std::pair<uint64_t, bytes> evm::exec( const bytes& data)
    try {
       res = state.execute(ei, *se.get(), tx, permanence, _onOp);
    }
-   catch ( const dev::Exception& ex )
-   {
+   catch ( const dev::Exception& ex ) {
       res.first.excepted = toTransactionException(ex);
    }
 
    evm_result result { res.first, res.second, get_state_root() };
    bytes serialize_result = fc::raw::unsigned_pack( result );
 
-   if( get_adapter().evaluating_from_apply_block() ){
+   if( get_adapter().evaluating_from_apply_block() ) {
       state.db().commit();
       state.publishContractTransfers();
-
-      auto author = address_to_id( ei.author() );
-      get_adapter().change_balance( author, state.getAssetType(), 0 - static_cast<int64_t>( state.getFee() ) );
 
       if(res.first.excepted != TransactionException::None){
          se->suicideTransfer.clear();

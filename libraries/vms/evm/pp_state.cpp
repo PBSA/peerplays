@@ -62,8 +62,6 @@ boost::optional<uint64_t> create_object_id_type(const std::string& location)
 pp_state::pp_state( fs::path data_dir, vms::evm::evm_adapter _adapter ) : State(u256(0), State::openDB((data_dir / "eth_db").string(), sha3(dev::rlp("")))), adapter(_adapter)
 {
    setRoot(dev::sha3(dev::rlp("")));
-   author = id_to_address(0, 1);
-
 }
 
 u256 pp_state::balance(Address const& _id) const
@@ -89,13 +87,7 @@ u256 pp_state::balance(Address const& _id, const u256& _callIdAsset) const
 
 void pp_state::addBalance(Address const& _id, u256 const& _amount)
 {
-   if( _id == author ){
-      fee = _amount;
-   }
-   u256 init_balance = balance( _id, asset_id );
-
    auto receiver_id = address_to_id( _id );
-
    if ( receiver_id.first && !adapter.is_there_contract( receiver_id.second ) ) {
       adapter.create_contract_obj( allowed_assets );
       m_changeLog.emplace_back(Change::Create, _id);
@@ -103,6 +95,7 @@ void pp_state::addBalance(Address const& _id, u256 const& _amount)
       throw;
    }
 
+	u256 init_balance = balance( _id, asset_id );
    adapter.change_balance( receiver_id, asset_id, static_cast<int64_t>( _amount ) );
    m_changeLog.emplace_back(Change::Balance, _id, init_balance, asset_id);
 }
@@ -194,7 +187,6 @@ void pp_state::clear_temporary_variables() {
       transfers_stack.pop();
    }
    fee = 0;
-   author = Address();
    asset_id = 0;
    result_accounts.clear();
    allowed_assets.clear();
