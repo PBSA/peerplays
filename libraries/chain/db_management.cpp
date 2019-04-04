@@ -54,6 +54,7 @@ void database::reindex(fc::path data_dir, const genesis_state_type& initial_allo
 { try {
    ilog( "reindexing blockchain" );
    wipe(data_dir, false);
+   wipe_vms_databases(data_dir);
    open(data_dir, [&initial_allocation]{return initial_allocation;});
 
    auto start = fc::time_point::now();
@@ -133,6 +134,22 @@ void database::wipe(const fc::path& data_dir, bool include_blocks)
       fc::remove_all( data_dir / "database" );
 }
 
+void database::wipe_vms_databases( const fc::path& data_dir )
+{
+   ilog("Wiping virtual machine databases");
+   fc::remove_all( data_dir / "eth_db" );
+   fc::remove_all( data_dir / "result_db" );
+}
+
+void database::set_hash_root_vms()
+{
+   fc::optional<signed_block> last_block = _block_id_to_block.last();
+   if( last_block.valid() ) {
+      db_res.set_root( last_block->result_root_hash.str() );
+      _executor->roll_back_db( last_block->block_num() );
+   }
+}
+
 void database::open(
    const fc::path& data_dir,
    std::function<genesis_state_type()> genesis_loader)
@@ -144,7 +161,6 @@ void database::open(
       _block_id_to_block.open(data_dir / "database" / "block_num_to_block");
 
       _executor->init( data_dir.string() );
-
       db_res.init( data_dir.string() );
       db_res.set_root( dev::sha3( dev::rlp("") ).hex() );
 
@@ -162,10 +178,6 @@ void database::open(
               FC_ASSERT( head_block_num() == 0, "last block ID does not match current chain state",
                          ("last_block->id", last_block->id())("head_block_num",head_block_num()) );
          }
-
-         db_res.set_root( last_block->result_root_hash.str() );
-         _executor->roll_back_db( last_block->block_num() );
-
       }
    }
    FC_CAPTURE_LOG_AND_RETHROW( (data_dir) )

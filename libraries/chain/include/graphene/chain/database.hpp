@@ -461,6 +461,10 @@ namespace graphene { namespace chain {
          
          fc::optional<contracts_results_in_block_id_type> create_contracts_results_in_block( const signed_block& next_block );
 
+         void wipe_vms_databases( const fc::path& data_dir );
+
+         void set_hash_root_vms();
+
          const vms::evm::evm_parameters_extension& get_evm_params() const;
 
          std::unique_ptr<vms::base::vm_executor> _executor;

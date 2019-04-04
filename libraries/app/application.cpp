@@ -417,6 +417,7 @@ namespace detail {
             try
             {
                _chain_db->open( _data_dir / "blockchain", initial_state );
+               _chain_db->set_hash_root_vms();
             }
             catch( const fc::exception& e )
             {
