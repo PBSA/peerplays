@@ -63,7 +63,7 @@ public:
 
    void setAssetType(const uint64_t& id) { asset_id = id; }
 
-   uint64_t getAssetType() const { return asset_id; }
+   uint64_t getAssetType() const override { return asset_id; }
 
    std::unordered_map<Address, Account> getResultAccounts() const { return result_accounts; }
 
