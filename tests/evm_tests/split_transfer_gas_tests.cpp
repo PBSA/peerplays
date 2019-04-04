@@ -205,29 +205,31 @@ BOOST_AUTO_TEST_CASE( check_gas_and_value_test )
 
    db._evaluating_from_block = true;
    auto create_result = db.apply_operation( context, contract_op );
-   db._evaluating_from_block = false;
 
    auto create_evm_res = fc::raw::unpack<vms::evm::evm_result>( *db.db_res.get_results( std::string( create_result.get<object_id_type>() ) ) );
    auto id_contract = vms::evm::address_to_id( create_evm_res.exec_result.newAddress ).second;
    const uint64_t balance_core = static_cast<uint64_t>( db.get_balance( contract_op.registrar, asset_id_type() ).amount.value );
    const uint64_t balance_asset = static_cast<uint64_t>( db.get_balance( contract_op.registrar, temp_asset.id ).amount.value );
 
-   auto exec = [&]() -> vms::evm::evm_result {
-      auto call_result = db._executor->execute( contract_op );
+   auto exec = [&]( contract_operation& op ) -> vms::evm::evm_result {
+      auto call_result = db._executor->execute( op );
       return fc::raw::unpack<vms::evm::evm_result>( call_result.second );
    };
 
    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type( id_contract ), std::set<uint64_t>(), asset_id_type( 0 ), balance_core + 1, asset_id_type( 0 ), 1, 500000, "00" } );
-   BOOST_CHECK( exec().exec_result.excepted == dev::eth::TransactionException::NotEnoughCash );
+   BOOST_CHECK( exec( contract_op ).exec_result.excepted == dev::eth::TransactionException::NotEnoughCash );
 
    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type( id_contract ), std::set<uint64_t>(), asset_id_type( 0 ), 13, temp_asset.id, 1, balance_asset + 1, "00" } );
-   BOOST_CHECK( exec().exec_result.excepted == dev::eth::TransactionException::NotEnoughCash );
+   BOOST_CHECK( exec( contract_op ).exec_result.excepted == dev::eth::TransactionException::NotEnoughCash );
 
    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type( id_contract ), std::set<uint64_t>(), asset_id_type( 0 ), balance_core + 1, temp_asset.id, 1, 500000, "00" } );
-   BOOST_CHECK( exec().exec_result.excepted == dev::eth::TransactionException::NotEnoughCash );
+   BOOST_CHECK( exec( contract_op ).exec_result.excepted == dev::eth::TransactionException::NotEnoughCash );
 
    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type( id_contract ), std::set<uint64_t>(), asset_id_type( 0 ), 13, temp_asset.id, 1, 500000, "00" } );
-   BOOST_CHECK( exec().exec_result.excepted == dev::eth::TransactionException::None );
+   auto result = exec( contract_op );
+   BOOST_CHECK( result.exec_result.excepted == dev::eth::TransactionException::None );
+   db.adjust_balance( contract_op.registrar, asset( static_cast<int64_t>( result.exec_result.gasUsed ), temp_asset.id ) );
+   db._evaluating_from_block = false;
 }
 
 BOOST_AUTO_TEST_SUITE_END()

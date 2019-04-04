@@ -49,6 +49,8 @@ public:
 
    void addBalance(Address const& _id, u256 const& _amount) override;
 
+   void addBalance(Address const& _id, u256 const& _amount, uint64_t id_asset);
+
    void subBalance(Address const& _addr, u256 const& _value) override;
 
    void transferBalance(Address const& _from, Address const& _to, u256 const& _value) override;

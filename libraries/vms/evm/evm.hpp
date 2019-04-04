@@ -71,6 +71,8 @@ private:
 
    std::vector< uint64_t > select_attracted_contracts( const std::unordered_map< Address, Account >& accounts );
 
+   void finalize( dev::eth::TransactionException& trx_excp );
+
    void clear_temporary_variables();
 
    std::vector< uint64_t > attracted_contracts;

@@ -538,6 +538,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
        // Set fees to zero initially, so that genesis initialization needs not pay them
        // We'll fix it at the end of the function
        p.parameters.current_fees->zero_all_fees();
+       p.parameters.extensions.value.evm_parameters = vms::evm::evm_parameters_extension();
 
    });
    create<dynamic_global_property_object>([&](dynamic_global_property_object& p) {

@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE( sequential_rollback_test )
    contract_op.vm_type = vm_types::EVM;
    contract_op.registrar = account_id_type(5);
    contract_op.fee = asset(0, asset_id_type());
-   contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 0, 4000000, solidityPayableCode });
+   contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 1, 4000000, solidityPayableCode });
 
    for( size_t i = 0; i < 5; i++ ) {
       trx.operations.push_back( contract_op );
@@ -100,7 +100,7 @@ BOOST_AUTO_TEST_CASE( not_sequential_rollback_test )
    contract_op.vm_type = vm_types::EVM;
    contract_op.registrar = account_id_type(5);
    contract_op.fee = asset(0, asset_id_type());
-   contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 0, 4000000, solidityPayableCode });
+   contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 1, 4000000, solidityPayableCode });
    for( size_t i = 0; i < 5; i++ ) {
       trx.operations.push_back( contract_op );
    }
@@ -143,7 +143,7 @@ BOOST_AUTO_TEST_CASE( switch_to_late_block_test )
    contract_op.vm_type = vm_types::EVM;
    contract_op.registrar = account_id_type(5);
    contract_op.fee = asset(0, asset_id_type());
-   contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 0, 4000000, solidityPayableCode });
+   contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 1, 4000000, solidityPayableCode });
 
    for( size_t i = 0; i < 5; i++ ) {
       trx.operations.push_back( contract_op );

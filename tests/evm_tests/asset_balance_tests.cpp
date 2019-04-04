@@ -77,7 +77,7 @@ void checkBalancesToStorage(database_fixture &df, contract_id_type contract_id, 
     BOOST_CHECK_EQUAL( storage.size(), 14 );
     for (auto e : storage) {
         switch(uint64_t(e.second.first)) {
-            case 0: BOOST_CHECK(uint64_t(e.second.second) == balancesAccount[0].amount); break;
+            case 0: BOOST_CHECK(uint64_t(e.second.second) == balancesAccount[0].amount-4000000); break;
             case 1: BOOST_CHECK(uint64_t(e.second.second) == balancesAccount[1].amount); break;
             case 2: BOOST_CHECK(uint64_t(e.second.second) == balancesAccount[2].amount); break;
             case 3: BOOST_CHECK(uint64_t(e.second.second) == balancesAccount[3].amount); break;
@@ -111,16 +111,16 @@ BOOST_AUTO_TEST_CASE( many_asset_assetbalance_test ){
     contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type(0));
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 0, 4000000, solidityCode } );
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 1, 4000000, solidityCode } );
     db._evaluating_from_block = true;
     db.apply_operation( context, contract_op );
 
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), std::set<uint64_t>(), asset_id_type(0), 50000, asset_id_type(0), 0, 4000000 } );
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), std::set<uint64_t>(), asset_id_type(0), 50000, asset_id_type(0), 1, 4000000 } );
 
     std::vector<asset> balancesAccount;
     std::vector<asset> balancesContract;
     for(size_t i = 0; i < 4; i++) {
-        contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), std::set<uint64_t>(), asset_id_type(i), 50000, asset_id_type(i), 0, 4000000 } );
+        contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), std::set<uint64_t>(), asset_id_type(i), 50000, asset_id_type(i), 1, 4000000 } );
         contract_op.fee = asset(0, asset_id_type(i));
         db.apply_operation( context, contract_op );
         BOOST_CHECK(db.get_balance(contract_id_type(0), asset_id_type(i)) == asset(50000, asset_id_type(i)));
@@ -129,7 +129,7 @@ BOOST_AUTO_TEST_CASE( many_asset_assetbalance_test ){
     }
     
     contract_op.fee = asset(0, asset_id_type(0));
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 0, 4000000, "9c793c98" } );
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 1, 4000000, "9c793c98" } );
     db.apply_operation( context, contract_op );
     db._evaluating_from_block = false;
 
@@ -155,19 +155,19 @@ BOOST_AUTO_TEST_CASE( many_asset_assetbalance_depth_test ){
     contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type(0));
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 0, 4000000, solidityCode } );
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 1, 4000000, solidityCode } );
     db._evaluating_from_block = true;
     db.apply_operation( context, contract_op );
 
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 0, 4000000, soliditySendCode } );
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 1, 4000000, soliditySendCode } );
     db.apply_operation( context, contract_op );
 
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), std::set<uint64_t>(), asset_id_type(0), 50000, asset_id_type(0), 0, 4000000 } );
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), std::set<uint64_t>(), asset_id_type(0), 50000, asset_id_type(0), 1, 4000000 } );
 
     std::vector<asset> balancesAccount;
     std::vector<asset> balancesContract;
     for(size_t i = 0; i < 4; i++) {
-        contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), std::set<uint64_t>(), asset_id_type(i), 50000, asset_id_type(i), 0, 4000000 } );
+        contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(0), std::set<uint64_t>(), asset_id_type(i), 50000, asset_id_type(i), 1, 4000000 } );
         contract_op.fee = asset(0, asset_id_type(i));
         db.apply_operation( context, contract_op );
         BOOST_CHECK(db.get_balance(contract_id_type(0), asset_id_type(i)) == asset(50000, asset_id_type(i)));
@@ -176,7 +176,7 @@ BOOST_AUTO_TEST_CASE( many_asset_assetbalance_depth_test ){
     }
     
     contract_op.fee = asset(0, asset_id_type(0));
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(1), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 0, 4000000, "178a18fe" } );
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(1), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 1, 4000000, "178a18fe" } );
     db.apply_operation( context, contract_op );
     db._evaluating_from_block = false;
 

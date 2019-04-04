@@ -85,6 +85,15 @@ u256 pp_state::balance(Address const& _id, const u256& _callIdAsset) const
    return u256(0);
 }
 
+void pp_state::addBalance(Address const& _id, u256 const& _amount, uint64_t id_asset)
+{
+   auto receiver_id = address_to_id( _id );
+
+	u256 init_balance = balance( _id, id_asset );
+   adapter.change_balance( receiver_id, id_asset, static_cast<int64_t>( _amount ) );
+   m_changeLog.emplace_back( Change::Balance, _id, init_balance, id_asset );
+}
+
 void pp_state::addBalance(Address const& _id, u256 const& _amount)
 {
    auto receiver_id = address_to_id( _id );

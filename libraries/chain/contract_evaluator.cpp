@@ -16,12 +16,14 @@ namespace graphene { namespace chain {
          } catch ( ... ) {
             FC_ASSERT( "Data does not match the virtual machine." );
          }
-         FC_ASSERT( op.registrar == eth_data.registrar );
 
-         vms::base::fee_gas check(db(), *trx_state);
+         FC_ASSERT( op.registrar == eth_data.registrar );
+         FC_ASSERT( eth_data.gasPrice >= db().get_evm_params().minimum_gas_price );
          FC_ASSERT( op.fee.asset_id == eth_data.asset_id_gas );
          FC_ASSERT( !eth_data.allowed_assets.empty() && eth_data.value != 0 ?
             eth_data.allowed_assets.count( static_cast<uint64_t>( eth_data.asset_id_transfer.instance ) ) : true );
+
+         vms::base::fee_gas check(db(), *trx_state);
 
          auto check_sum = op.fee + asset( eth_data.gasPrice * eth_data.gas, eth_data.asset_id_gas );
          if( eth_data.asset_id_gas == eth_data.asset_id_transfer ) {

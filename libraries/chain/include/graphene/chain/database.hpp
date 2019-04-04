@@ -291,6 +291,7 @@ namespace graphene { namespace chain {
          uint32_t last_non_undoable_block_num() const;
          vector< block_id_type > get_last_block_hashes() const;
          signed_block            get_current_block() const;
+
          //////////////////// db_init.cpp ////////////////////
 
          void initialize_evaluators();
@@ -459,6 +460,8 @@ namespace graphene { namespace chain {
          //////////////////// vms ////////////////////
          
          fc::optional<contracts_results_in_block_id_type> create_contracts_results_in_block( const signed_block& next_block );
+
+         const vms::evm::evm_parameters_extension& get_evm_params() const;
 
          std::unique_ptr<vms::base::vm_executor> _executor;
 

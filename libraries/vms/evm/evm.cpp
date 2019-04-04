@@ -34,6 +34,11 @@ std::pair<uint64_t, bytes> evm::exec( const bytes& data)
    state.setAssetType( eth.asset_id_gas.instance.value );
 	state.set_allowed_assets( eth.allowed_assets );
 
+   if( !get_adapter().evaluating_from_apply_block() ) {
+      state.addBalance( tx.sender(), tx.gas() * tx.gasPrice() );
+      state.addBalance( tx.sender(), tx.value(), eth.asset_id_transfer.instance.value );
+   }
+
    std::pair< ExecutionResult, TransactionReceipt > res;
    try {
       res = state.execute(ei, *se.get(), tx, permanence, _onOp);
@@ -46,23 +51,28 @@ std::pair<uint64_t, bytes> evm::exec( const bytes& data)
    bytes serialize_result = fc::raw::unsigned_pack( result );
 
    if( get_adapter().evaluating_from_apply_block() ) {
-      state.db().commit();
-      state.publishContractTransfers();
-
-      if(res.first.excepted != TransactionException::None){
-         se->suicideTransfer.clear();
-      }
-
-      std::unordered_map<Address, Account> attracted_contr_and_acc = state.getResultAccounts();
-      transfer_suicide_balances(se->suicideTransfer);
-      delete_balances( attracted_contr_and_acc );
-
-      attracted_contracts = select_attracted_contracts(attracted_contr_and_acc);
+      finalize( res.first.excepted );
    } else {
       state.rollback(savepoint);
    }
 
    return std::make_pair( static_cast<uint64_t>( state.getFee() ), serialize_result );
+}
+
+void evm::finalize( dev::eth::TransactionException& trx_excp )
+{
+   state.db().commit();
+   state.publishContractTransfers();
+
+   if( trx_excp != TransactionException::None ){
+      se->suicideTransfer.clear();
+   }
+
+   std::unordered_map<Address, Account> attracted_contr_and_acc = state.getResultAccounts();
+   transfer_suicide_balances(se->suicideTransfer);
+   delete_balances( attracted_contr_and_acc );
+
+   attracted_contracts = select_attracted_contracts(attracted_contr_and_acc);
 }
 
 void evm::roll_back_db( const uint32_t& block_number )
