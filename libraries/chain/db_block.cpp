@@ -192,8 +192,8 @@ bool database::push_block(const signed_block& new_block, uint32_t skip)
          try {
             result = _push_block(new_block);
          } catch( const fc::root_hashes_doesnt_match_exception& ) {
-            _executor->roll_back_db( head_block_num() );
             db_res.set_root( !head_block_num() ? dev::sha3( dev::rlp("") ).hex() : fetch_block_by_number( head_block_num() )->result_root_hash );
+            _executor->roll_back_db( head_block_num() );
          }
       });
    });
@@ -224,8 +224,8 @@ bool database::_push_block(const signed_block& new_block)
                pop_block();
 
             auto head_block = fetch_block_by_id( head_block_id() );
-            _executor->roll_back_db( head_block->block_num() );
             db_res.set_root( head_block->result_root_hash.str() );
+            _executor->roll_back_db( head_block->block_num() );
 
             // push all blocks on the new fork
             for( auto ritr = branches.first.rbegin(); ritr != branches.first.rend(); ++ritr )
@@ -468,6 +468,9 @@ signed_block database::_generate_block(
    }
 
    _pending_tx_session.reset();
+
+   db_res.commit_cache();
+   db_res.commit();
    _evaluating_from_block = false;
 
    // We have temporarily broken the invariant that
@@ -482,6 +485,7 @@ signed_block database::_generate_block(
    pending_block.witness = witness_id;
 
    pending_block.result_root_hash = fc::sha256( db_res.root_hash() );
+   db_res.set_root( !head_block_num() ? dev::sha3( dev::rlp("") ).hex() : fetch_block_by_number( head_block_num() )->result_root_hash );
    _executor->roll_back_db( head_block_num() );
 
    // Genesis witnesses start with a default initial secret        
@@ -621,6 +625,9 @@ void database::_apply_block( const signed_block& next_block )
       apply_transaction( trx, skip );
       ++_current_trx_in_block;
    }
+
+   db_res.commit_cache();
+   db_res.commit();
 
    if( db_res.root_hash() != next_block.result_root_hash.str() ) 
       FC_THROW_EXCEPTION( fc::root_hashes_doesnt_match_exception, "Root hashes doesn't match: ${root_hash} != ${next_block.result_root_hash}; Block id: ${id}", ("root_hash", db_res.root_hash())("next_block.result_root_hash", next_block.result_root_hash.str())("id",next_block.id()) );

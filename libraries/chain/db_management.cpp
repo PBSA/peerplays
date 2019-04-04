@@ -163,8 +163,8 @@ void database::open(
                          ("last_block->id", last_block->id())("head_block_num",head_block_num()) );
          }
 
-        _executor->roll_back_db( last_block->block_num() );
          db_res.set_root( last_block->result_root_hash.str() );
+         _executor->roll_back_db( last_block->block_num() );
 
       }
    }

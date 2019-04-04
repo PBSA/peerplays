@@ -54,8 +54,6 @@ namespace graphene { namespace chain {
          });
 
          db().db_res.add_result( std::string( result.id ), out.second );
-         db().db_res.commit_cache();
-         db().db_res.commit();
 
          vms::base::fee_gas fee( db(), *trx_state);
          fee.process_fee( out.first, o);
