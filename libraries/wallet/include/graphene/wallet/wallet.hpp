@@ -1826,14 +1826,12 @@ class wallet_api
       void encrypt_keys();
 
 ////////////////////////////////////////////////////////////////////////////// // evm begin
-      signed_transaction create_contract(string registrar_account, string asset_type_transfer, uint64_t value, 
-                                         string code, string asset_type_gas, uint64_t gasPrice, 
-                                         uint64_t gas, bool broadcast = false, bool save_wallet = true);
+      signed_transaction create_contract( string registrar_account, string code, uint64_t value, string asset_type_transfer, uint64_t gasPrice,
+                                      string asset_type_gas, uint64_t gas, std::set<uint64_t> allowed_assets, bool broadcast = false );
 
-      signed_transaction call_contract(string registrar_account, contract_id_type receiver,
-                                       string code, string asset_type_transfer, uint64_t value,
-                                       string asset_type_gas, uint64_t gasPrice, uint64_t gas,
-                                       bool broadcast = false, bool save_wallet = true);
+      signed_transaction call_contract( string registrar_account, contract_id_type receiver, string code, 
+                                    uint64_t value, string asset_type_transfer, uint64_t gasPrice, string asset_type_gas,
+                                    uint64_t gas, bool broadcast = false );
 
       vector<asset> list_contract_balances(const contract_id_type& id);
 
@@ -1846,9 +1844,8 @@ class wallet_api
                                                     
       vms::evm::evm_result get_result( result_contract_id_type result_id ) const;
 
-      vms::evm::evm_result call_contract_without_changing_state(string registrar_account, contract_id_type receiver, string code, 
-                                    string asset_type_transfer, uint64_t value, string asset_type_gas, uint64_t gasPrice,
-                                    uint64_t gas);
+      vms::evm::evm_result call_contract_without_changing_state( string registrar_account, contract_id_type receiver, string code, 
+                                    uint64_t value, string asset_type_transfer, uint64_t gasPrice, string asset_type_gas, uint64_t gas );
 
 ////////////////////////////////////////////////////////////////////////////// // evm end
 };

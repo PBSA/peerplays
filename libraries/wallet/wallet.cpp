@@ -3148,8 +3148,8 @@ public:
    }
 
 ////////////////////////////////////////////////////////////////////////////// // evm begin
-   signed_transaction create_contract(string registrar_account, string asset_type_transfer, uint64_t value, string code, string asset_type_gas,
-                                      uint64_t gasPrice, uint64_t gas, bool broadcast = false, bool save_wallet = true)
+   signed_transaction create_contract( string registrar_account, string code, uint64_t value, string asset_type_transfer, uint64_t gasPrice,
+                                      string asset_type_gas, uint64_t gas, std::set<uint64_t> allowed_assets, bool broadcast = false )
    { try {
 
       account_object registrar_account_object = get_account( registrar_account );
@@ -3158,7 +3158,7 @@ public:
       contract_operation contract_create_op;
       contract_create_op.registrar = registrar_account_id;
       contract_create_op.vm_type = vm_types::EVM;
-      eth_op eth_create = eth_op{registrar_account_id, optional<contract_id_type>(), std::set<uint64_t>(),
+      eth_op eth_create = eth_op{registrar_account_id, optional<contract_id_type>(), allowed_assets,
                                  get_asset_id( asset_type_transfer ), value, fee_asset, gasPrice, gas, code};
       contract_create_op.data = fc::raw::unsigned_pack( eth_create );
       contract_create_op.fee = asset(0, get_asset_id( asset_type_gas ));
@@ -3171,9 +3171,9 @@ public:
       return sign_transaction(tx, broadcast);
    } FC_CAPTURE_AND_RETHROW( (registrar_account)(broadcast) ) }
 
-   signed_transaction call_contract(string registrar_account, contract_id_type receiver, string code, 
-                                    string asset_type_transfer, uint64_t value, string asset_type_gas, uint64_t gasPrice,
-                                    uint64_t gas, bool broadcast = false, bool save_wallet = true)
+   signed_transaction call_contract( string registrar_account, contract_id_type receiver, string code, 
+                                    uint64_t value, string asset_type_transfer, uint64_t gasPrice, string asset_type_gas,
+                                    uint64_t gas, bool broadcast = false )
    { try {
 
       account_object registrar_account_object = get_account( registrar_account );
@@ -3217,9 +3217,8 @@ public:
       return _remote_db->get_result( result_id );
    } 
 
-   vms::evm::evm_result call_contract_without_changing_state(string registrar_account, contract_id_type receiver, string code, 
-                                    string asset_type_transfer, uint64_t value, string asset_type_gas, uint64_t gasPrice,
-                                    uint64_t gas)
+   vms::evm::evm_result call_contract_without_changing_state( string registrar_account, contract_id_type receiver, string code, 
+                                    uint64_t value, string asset_type_transfer, uint64_t gasPrice, string asset_type_gas, uint64_t gas )
    { try {
       account_object registrar_account_object = get_account( registrar_account );
       auto fee_asset = get_asset_id( asset_type_gas );
@@ -5845,16 +5844,16 @@ signed_transaction wallet_api::rps_throw(game_id_type game_id,
 }
 
 ////////////////////////////////////////////////////////////////////////////// // evm begin
-signed_transaction wallet_api::create_contract(string registrar_account, string asset_type_transfer, uint64_t value, string code, string asset_type_gas,
-                                               uint64_t gasPrice, uint64_t gas, bool broadcast, bool save_wallet){
-   return my->create_contract(registrar_account, asset_type_transfer, value, code, asset_type_gas, gasPrice, gas, broadcast, save_wallet);
+signed_transaction wallet_api::create_contract(string registrar_account, string code, uint64_t value, string asset_type_transfer, uint64_t gasPrice,
+                                               string asset_type_gas, uint64_t gas, std::set<uint64_t> allowed_assets, bool broadcast){
+   return my->create_contract(registrar_account, code, value, asset_type_transfer, gasPrice, asset_type_gas, gas, allowed_assets, broadcast);
 }
 
-signed_transaction wallet_api::call_contract(string registrar_account, contract_id_type receiver, string code, 
-                                             string asset_type_transfer, uint64_t value, string asset_type_gas, uint64_t gasPrice,
-                                             uint64_t gas, bool broadcast, bool save_wallet)
+signed_transaction wallet_api::call_contract( string registrar_account, contract_id_type receiver, string code, 
+                                             uint64_t value, string asset_type_transfer, uint64_t gasPrice, string asset_type_gas,
+                                             uint64_t gas, bool broadcast )
 {
-   return my->call_contract(registrar_account, receiver, code, asset_type_transfer, value, asset_type_gas, gasPrice, gas, broadcast, save_wallet);
+   return my->call_contract(registrar_account, receiver, code, value, asset_type_transfer, gasPrice, asset_type_gas, gas, broadcast);
 }
 
 vector<asset> wallet_api::list_contract_balances(const contract_id_type& id)
@@ -5883,11 +5882,10 @@ vms::evm::evm_result wallet_api::get_result( result_contract_id_type result_id )
    return my->get_result( result_id );
 } 
 
-vms::evm::evm_result wallet_api::call_contract_without_changing_state(string registrar_account, contract_id_type receiver, string code, 
-                                    string asset_type_transfer, uint64_t value, string asset_type_gas, uint64_t gasPrice,
-                                    uint64_t gas)
+vms::evm::evm_result wallet_api::call_contract_without_changing_state( string registrar_account, contract_id_type receiver, string code, 
+                                    uint64_t value, string asset_type_transfer, uint64_t gasPrice, string asset_type_gas, uint64_t gas )
 {
-   return my->call_contract_without_changing_state(registrar_account, receiver, code, asset_type_transfer, value, asset_type_gas, gasPrice, gas);
+   return my->call_contract_without_changing_state(registrar_account, receiver, code, value, asset_type_transfer, gasPrice, asset_type_gas, gas);
 }
 ////////////////////////////////////////////////////////////////////////////// // evm end
 
