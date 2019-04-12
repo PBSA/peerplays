@@ -26,7 +26,6 @@
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/db/object.hpp>
 #include <graphene/db/generic_index.hpp>
-#include <boost/multi_index/composite_key.hpp>
 
 #include <boost/multi_index/composite_key.hpp>
 

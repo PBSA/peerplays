@@ -67,6 +67,7 @@ FC_REFLECT( graphene::app::full_account,
             (limit_orders)
             (call_orders)
             (settle_orders)
+            (proposals)
             (assets)
             (withdraws)
             (proposals) 

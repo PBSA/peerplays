@@ -149,6 +149,30 @@ std::vector<block_id_type> database::get_block_ids_on_fork(block_id_type head_of
   return result;
 }
     
+void database::check_tansaction_for_duplicated_operations(const signed_transaction& trx)
+{
+   const auto& proposal_index = get_index<proposal_object>();
+   std::set<fc::sha256> existed_operations_digests;
+   
+   proposal_index.inspect_all_objects( [&](const object& obj){
+      const proposal_object& proposal = static_cast<const proposal_object&>(obj);
+      auto proposed_operations_digests = gather_proposed_operations_digests( proposal.proposed_transaction );
+      existed_operations_digests.insert( proposed_operations_digests.begin(), proposed_operations_digests.end() );
+   });
+   
+   for (auto& pending_transaction: _pending_tx)
+   {
+      auto proposed_operations_digests = gather_proposed_operations_digests(pending_transaction);
+      existed_operations_digests.insert(proposed_operations_digests.begin(), proposed_operations_digests.end());
+   }
+    
+   auto proposed_operations_digests = gather_proposed_operations_digests(trx);
+   for (auto& digest: proposed_operations_digests)
+   {
+      FC_ASSERT(existed_operations_digests.count(digest) == 0, "Proposed operation is already pending for approval.");
+   }
+}
+
 /**
  * Push block "may fail" in which case every partial change is unwound.  After
  * push block is successful the block is appended to the chain database on disk.

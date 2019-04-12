@@ -46,34 +46,13 @@ struct proposal_operation_hardfork_visitor
    void operator()(const T &v) const {}
 
    void operator()(const committee_member_update_global_parameters_operation &op) const {
-      if( block_time < HARDFORK_1000_TIME ) { // TODO: remove after hf
+      if( block_time < HARDFORK_1000_TIME ) // TODO: remove after hf
          FC_ASSERT( !op.new_parameters.extensions.value.min_bet_multiplier.valid()
-               && !op.new_parameters.extensions.value.max_bet_multiplier.valid()
-               && !op.new_parameters.extensions.value.betting_rake_fee_percentage.valid()
-               && !op.new_parameters.extensions.value.permitted_betting_odds_increments.valid()
-               && !op.new_parameters.extensions.value.live_betting_delay_time.valid(),
-               "Parameter extensions are not allowed yet!" );
-         FC_ASSERT( !op.new_parameters.current_fees->exists<sport_create_operation>()
-               && !op.new_parameters.current_fees->exists<sport_update_operation>()
-               && !op.new_parameters.current_fees->exists<sport_delete_operation>()
-               && !op.new_parameters.current_fees->exists<event_group_create_operation>()
-               && !op.new_parameters.current_fees->exists<event_group_update_operation>()
-               && !op.new_parameters.current_fees->exists<event_group_delete_operation>()
-               && !op.new_parameters.current_fees->exists<event_create_operation>()
-               && !op.new_parameters.current_fees->exists<event_update_operation>()
-               && !op.new_parameters.current_fees->exists<betting_market_rules_create_operation>()
-               && !op.new_parameters.current_fees->exists<betting_market_rules_update_operation>()
-               && !op.new_parameters.current_fees->exists<betting_market_group_create_operation>()
-               && !op.new_parameters.current_fees->exists<betting_market_create_operation>()
-               && !op.new_parameters.current_fees->exists<bet_place_operation>()
-               && !op.new_parameters.current_fees->exists<betting_market_group_resolve_operation>()
-               && !op.new_parameters.current_fees->exists<betting_market_group_cancel_unmatched_bets_operation>()
-               && !op.new_parameters.current_fees->exists<bet_cancel_operation>()
-               && !op.new_parameters.current_fees->exists<betting_market_group_update_operation>()
-               && !op.new_parameters.current_fees->exists<betting_market_update_operation>()
-               && !op.new_parameters.current_fees->exists<event_update_status_operation>(),
-               "Bookie-specific operations not available before HARDFORK_1000_TIME" );
-      }
+                    && !op.new_parameters.extensions.value.max_bet_multiplier.valid()
+                    && !op.new_parameters.extensions.value.betting_rake_fee_percentage.valid()
+                    && !op.new_parameters.extensions.value.permitted_betting_odds_increments.valid()
+                    && !op.new_parameters.extensions.value.live_betting_delay_time.valid(),
+                    "Parameter extensions are not allowed yet!" );
    }
 
    void operator()(const graphene::chain::tournament_payout_operation &o) const {
@@ -92,16 +71,8 @@ struct proposal_operation_hardfork_visitor
          FC_ASSERT( !aco.extensions.value.affiliate_distributions.valid(), "Affiliate reward distributions not allowed yet" );
    }
 
-   void operator()(const sport_create_operation &v) const {
-       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "sport_create_operation not allowed yet!" );
-   }
-
    void operator()(const sport_update_operation &v) const {
        FC_ASSERT( block_time >= HARDFORK_1000_TIME, "sport_update_operation not allowed yet!" );
-   }
-
-   void operator()(const sport_delete_operation &v) const {
-       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "sport_delete_operation not allowed yet!" );
    }
 
    void operator()(const event_group_create_operation &v) const {
@@ -110,10 +81,6 @@ struct proposal_operation_hardfork_visitor
 
    void operator()(const event_group_update_operation &v) const {
        FC_ASSERT( block_time >= HARDFORK_1000_TIME, "event_group_update_operation not allowed yet!" );
-   }
-
-   void operator()(const event_group_delete_operation &v) const {
-       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "event_group_delete_operation not allowed yet!" );
    }
 
    void operator()(const event_create_operation &v) const {
@@ -153,7 +120,7 @@ struct proposal_operation_hardfork_visitor
    }
 
    void operator()(const bet_cancel_operation &v) const {
-       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "bet_cancel_operation not allowed yet!" );
+       FC_ASSERT( block_time >= HARDFORK_1000_TIME, "betting_market_group_resolve_operation not allowed yet!" );
    }
 
    void operator()(const betting_market_group_update_operation &v) const {

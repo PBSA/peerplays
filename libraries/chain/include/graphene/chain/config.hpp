@@ -23,8 +23,8 @@
  */
 #pragma once
 
-#define GRAPHENE_SYMBOL "PPY"
-#define GRAPHENE_ADDRESS_PREFIX "PPY"
+#define GRAPHENE_SYMBOL "TEST"
+#define GRAPHENE_ADDRESS_PREFIX "TEST"
 
 #define GRAPHENE_MIN_ACCOUNT_NAME_LENGTH 1
 #define GRAPHENE_MAX_ACCOUNT_NAME_LENGTH 63
@@ -43,7 +43,7 @@
 #define GRAPHENE_MIN_BLOCK_INTERVAL   1 /* seconds */
 #define GRAPHENE_MAX_BLOCK_INTERVAL  30 /* seconds */
 
-#define GRAPHENE_DEFAULT_BLOCK_INTERVAL  5 /* seconds */
+#define GRAPHENE_DEFAULT_BLOCK_INTERVAL  3 /* seconds */
 #define GRAPHENE_DEFAULT_MAX_TRANSACTION_SIZE 2048
 #define GRAPHENE_DEFAULT_MAX_BLOCK_SIZE  (GRAPHENE_DEFAULT_MAX_TRANSACTION_SIZE*GRAPHENE_DEFAULT_BLOCK_INTERVAL*200000)
 #define GRAPHENE_DEFAULT_MAX_TIME_UNTIL_EXPIRATION (60*60*24) // seconds,  aka: 1 day
@@ -179,7 +179,7 @@
 
 #define GRAPHENE_FBA_STEALTH_DESIGNATED_ASSET (asset_id_type(743))
 
-#define GRAPHENE_DEFAULT_RAKE_FEE_PERCENTAGE  (5*GRAPHENE_1_PERCENT)
+#define GRAPHENE_DEFAULT_RAKE_FEE_PERCENTAGE  (3*GRAPHENE_1_PERCENT)
 
 /**
  * Betting-related constants.
@@ -208,7 +208,7 @@
                                                              {   300000,  10000},  /* <=   30:  1.00 */ \
                                                              {   500000,  20000},  /* <=   50:  2.00 */ \
                                                              {  1000000,  50000},  /* <=  100:  5.00 */ \
-                                                             { 10000000, 100000} } /* <= 1000: 10.00 */
+                                                             { 10000000, 100000} } /* <= 1000: 10.00 */ 
 #define GRAPHENE_DEFAULT_BETTING_PERCENT_FEE (2 * GRAPHENE_1_PERCENT)
 #define GRAPHENE_DEFAULT_LIVE_BETTING_DELAY_TIME            5 // seconds
 #define TOURNAMENT_MIN_ROUND_DELAY                          0

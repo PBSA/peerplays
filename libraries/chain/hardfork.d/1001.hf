@@ -1,4 +1,4 @@
 // added delete sport and delete event group operations
 #ifndef HARDFORK_1001_TIME
-#define HARDFORK_1001_TIME (fc::time_point_sec( 1550491200 ))
+#define HARDFORK_1001_TIME (fc::time_point_sec( 1540000000 ))
 #endif

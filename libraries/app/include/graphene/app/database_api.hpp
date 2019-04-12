@@ -192,12 +192,6 @@ class database_api
        */
       optional<signed_transaction> get_recent_transaction_by_id( const transaction_id_type& id )const;
 
-      /**
-       * TODO
-       * 
-       */ 
-      void check_transaction_for_duplicated_operations(const signed_transaction& trx);
-      
       /////////////
       // Globals //
       /////////////
@@ -650,7 +644,6 @@ class database_api
        * @return the list of tournaments that a given account is registered to play in
        */
       vector<tournament_id_type> get_registered_tournaments(account_id_type account_filter, uint32_t limit) const;
-
 
    private:
       std::shared_ptr< database_api_impl > my;
