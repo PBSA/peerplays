@@ -383,6 +383,8 @@ struct database_fixture {
    std::map<contract_id_type, vms::evm::evm_account_info> get_contracts( database& db, const vector<contract_id_type>& contract_ids);
 };
 
+genesis_state_type make_genesis_for_db();
+
 namespace test {
 /// set a reasonable expiration time for the transaction
 void set_expiration( const database& db, transaction& tx );

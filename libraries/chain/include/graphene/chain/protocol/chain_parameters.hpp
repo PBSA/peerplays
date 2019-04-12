@@ -88,6 +88,7 @@ namespace graphene { namespace chain {
       uint32_t                maximum_tournament_start_time_in_future = TOURNAMENT_MAX_START_TIME_IN_FUTURE;
       uint32_t                maximum_tournament_start_delay      = TOURNAMENT_MAX_START_DELAY;
       uint16_t                maximum_tournament_number_of_wins   = TOURNAMENT_MAX_NUMBER_OF_WINS;
+
       extension<parameter_extension> extensions;
 
       /** defined in fee_schedule.cpp */

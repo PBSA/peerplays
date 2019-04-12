@@ -45,32 +45,9 @@ BOOST_FIXTURE_TEST_SUITE( db_root_hash_tests, database_fixture )
 std::vector<contract_id_type> ids { contract_id_type(0),
                                     contract_id_type(1) };
 
-genesis_state_type make_genesis() {
-   genesis_state_type genesis_state;
-
-   genesis_state.initial_timestamp = time_point_sec( GRAPHENE_TESTING_GENESIS_TIMESTAMP );
-
-   auto init_account_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("null_key")));
-   genesis_state.initial_active_witnesses = 10;
-   for( int i = 0; i < genesis_state.initial_active_witnesses; ++i )
-   {
-      auto name = "init"+fc::to_string(i);
-      genesis_state.initial_accounts.emplace_back(name,
-                                                  init_account_priv_key.get_public_key(),
-                                                  init_account_priv_key.get_public_key(),
-                                                  true);
-      genesis_state.initial_committee_candidates.push_back({name});
-      genesis_state.initial_witness_candidates.push_back({name, init_account_priv_key.get_public_key()});
-   }
-   genesis_state.initial_parameters.current_fees->zero_all_fees();
-   return genesis_state;
-}
-
 signed_block get_block_to_push( database& db ){
     auto skip_sigs = database::skip_transaction_signatures | database::skip_authority_check;
     auto init_account_priv_key  = fc::ecc::private_key::regenerate(fc::sha256::hash(string("null_key")) );
-    public_key_type init_account_pub_key  = init_account_priv_key.get_public_key();
-    const graphene::db::index& account_idx = db.get_index(protocol_ids, account_object_type);
     signed_transaction trx;
     set_expiration( db, trx );
     
@@ -100,8 +77,8 @@ inline void not_equal_root_hashes_tests( database_fixture& df, fc::ecc::private_
                        dir2( graphene::utilities::temp_directory_path() );
     database db1,
              db2;
-    db1.open(dir1.path(), make_genesis);
-    db2.open(dir2.path(), make_genesis);
+    db1.open(dir1.path(), make_genesis_for_db);
+    db2.open(dir2.path(), make_genesis_for_db);
     BOOST_CHECK( db1.get_chain_id() == db2.get_chain_id() );
     if( with_first ){
        db1.generate_block( db1.get_slot_time(1), db1.get_scheduled_witness( 1 ), init_account_priv_key, database::skip_transaction_signatures | database::skip_authority_check );
@@ -140,8 +117,8 @@ BOOST_AUTO_TEST_CASE( equal_root_hashes ) {
                        dir2( graphene::utilities::temp_directory_path() );
     database db1,
              db2;
-    db1.open(dir1.path(), make_genesis);
-    db2.open(dir2.path(), make_genesis);
+    db1.open(dir1.path(), make_genesis_for_db);
+    db2.open(dir2.path(), make_genesis_for_db);
     BOOST_CHECK( db1.get_chain_id() == db2.get_chain_id() );
     auto b = get_block_to_push( db1 );
     PUSH_BLOCK( db2, b, database::skip_transaction_signatures | database::skip_authority_check

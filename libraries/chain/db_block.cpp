@@ -44,6 +44,8 @@
 
 #include <fc/smart_ref_impl.hpp>
 
+#include <evm_result.hpp>
+
 namespace {
     
    struct proposed_operations_digest_accumulator
@@ -372,6 +374,33 @@ processed_transaction database::push_proposal(const proposal_object& proposal)
    return ptrx;
 } FC_CAPTURE_AND_RETHROW() }
 
+processed_transaction database::apply_transaction_with_gas_limit( const processed_transaction& tx,
+                                                                  std::function<processed_transaction()> const& apply_transaction_function )
+{
+   uint64_t max_gas_will_be_used_by_trx = 0;
+   std::vector<uint32_t> cache_indexs;
+   for( uint32_t op_index = 0; op_index < tx.operations.size(); ++op_index ){
+      if( tx.operations[ op_index ].which() == operation::tag<contract_operation>::value ) {
+         eth_op eth = fc::raw::unpack<eth_op>( tx.operations[ op_index ].get<contract_operation>().data );
+         if( gas_used_by_contract_operation + eth.gas > get_evm_params().block_gas_limit )
+            FC_THROW_EXCEPTION( fc::block_gas_limit_reached_exception, "Block gas limit has been reached" );
+         else {
+            max_gas_will_be_used_by_trx += eth.gas;
+            cache_indexs.push_back( op_index );
+         }
+      }
+   }
+
+   processed_transaction ptx = apply_transaction_function();
+
+   for( const auto& op_index: cache_indexs ){
+      auto result_of_op = fc::raw::unpack< vms::evm::evm_result >( *db_res.get_results( std::string( ptx.operation_results[ op_index ].get<object_id_type>() ) ) );
+      gas_used_by_contract_operation += result_of_op.exec_result.gasUsed.convert_to<uint64_t>();
+   }
+
+   return ptx;
+}
+
 signed_block database::generate_block(
    fc::time_point_sec when,
    witness_id_type witness_id,
@@ -430,6 +459,10 @@ signed_block database::_generate_block(
    _current_block.previous = head_block_id();
    _current_block.witness = witness_id;
 
+///////////////////////////////////////////////////////// PeerPlays evm
+   gas_used_by_contract_operation = 0;
+///////////////////////////////////////////////////////// PeerPlays evm
+
    uint64_t postponed_tx_count = 0;
    // pop pending state (reset to head block state)
    for( const processed_transaction& tx : _pending_tx )
@@ -446,7 +479,13 @@ signed_block database::_generate_block(
       try
       {
          auto temp_session = _undo_db.start_undo_session();
-         processed_transaction ptx = _apply_transaction( tx );
+
+///////////////////////////////////////////////////////// PeerPlays evm
+         processed_transaction ptx = apply_transaction_with_gas_limit( tx, [&](){
+            return _apply_transaction( tx );
+         });
+///////////////////////////////////////////////////////// PeerPlays evm
+
          temp_session.merge();
 
          // We have to recompute pack_size(ptx) because it may be different
@@ -455,7 +494,14 @@ signed_block database::_generate_block(
          total_block_size += fc::raw::pack_size( ptx );
          pending_block.transactions.push_back( ptx );
       }
-      catch ( const fc::exception& e )
+///////////////////////////////////////////////////////// PeerPlays evm
+      catch( const fc::block_gas_limit_reached_exception )
+      {
+         wlog( "Block gas limit has been reached. The transactions was not processed." );
+         wlog( "The transactions was: ${t}", ("t", tx) );
+      }
+///////////////////////////////////////////////////////// PeerPlays evm
+      catch( const fc::exception& e )
       {
          // Do nothing, transaction will not be re-applied
          wlog( "Transaction was not processed while generating block due to ${e}", ("e", e) );
@@ -614,6 +660,10 @@ void database::_apply_block( const signed_block& next_block )
    _current_block_num    = next_block_num;
    _current_trx_in_block = 0;
 
+///////////////////////////////////////////////////////// PeerPlays evm
+   gas_used_by_contract_operation = 0;
+///////////////////////////////////////////////////////// PeerPlays evm
+
    for( const auto& trx : next_block.transactions )
    {
       /* We do not need to push the undo state for each transaction
@@ -622,7 +672,11 @@ void database::_apply_block( const signed_block& next_block )
        * for transactions when validating broadcast transactions or
        * when building a block.
        */
-      apply_transaction( trx, skip );
+///////////////////////////////////////////////////////// PeerPlays evm
+      processed_transaction ptx = apply_transaction_with_gas_limit( trx, [&](){
+         return apply_transaction( trx, skip );
+      });
+///////////////////////////////////////////////////////// PeerPlays evm
       ++_current_trx_in_block;
    }
 

@@ -1569,6 +1569,27 @@ std::map<contract_id_type, vms::evm::evm_account_info> database_fixture::get_con
    return results;
 }
 
+genesis_state_type make_genesis_for_db() {
+   genesis_state_type genesis_state;
+
+   genesis_state.initial_timestamp = time_point_sec( GRAPHENE_TESTING_GENESIS_TIMESTAMP );
+
+   auto init_account_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("null_key")));
+   genesis_state.initial_active_witnesses = 10;
+   for( int i = 0; i < genesis_state.initial_active_witnesses; ++i )
+   {
+      auto name = "init"+fc::to_string(i);
+      genesis_state.initial_accounts.emplace_back(name,
+                                                  init_account_priv_key.get_public_key(),
+                                                  init_account_priv_key.get_public_key(),
+                                                  true);
+      genesis_state.initial_committee_candidates.push_back({name});
+      genesis_state.initial_witness_candidates.push_back({name, init_account_priv_key.get_public_key()});
+   }
+   genesis_state.initial_parameters.current_fees->zero_all_fees();
+   return genesis_state;
+}
+
 namespace test {
 
 void set_expiration( const database& db, transaction& tx )

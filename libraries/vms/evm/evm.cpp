@@ -137,13 +137,14 @@ EnvInfo evm::create_environment( last_block_hashes const& last_hashes )
    header.setNumber( static_cast<int64_t>( current_block.block_num() ) );
    header.setAuthor( id_to_address( get_adapter().get_id_author_block(), 0 ) );
    header.setTimestamp( static_cast<int64_t>( current_block.timestamp.sec_since_epoch() ) );
-   header.setGasLimit( 1 << 30 );
+   header.setGasLimit( get_adapter().get_block_gas_limit() );
+   header.setGasUsed( get_adapter().get_block_gas_used() );
    if( current_block.block_num() > 1 )
       header.setParentHash( h256( current_block.previous.str() ) );
    else
       header.setParentHash( h256() );
 
-   EnvInfo result(header, last_hashes, u256());
+   EnvInfo result(header, last_hashes, get_adapter().get_block_gas_used());
 
    return result;
 };

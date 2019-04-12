@@ -93,4 +93,14 @@ std::set<uint64_t> evm_adapter::get_allowed_assets( const uint64_t& id )
    return itr != index.end() ? itr->allowed_assets : std::set<uint64_t>();
 }
 
+uint64_t evm_adapter::get_block_gas_limit() const
+{
+   return db.get_evm_params().block_gas_limit;
+}
+
+uint64_t evm_adapter::get_block_gas_used() const
+{
+   return db.gas_used_by_contract_operation;
+}
+
 } }

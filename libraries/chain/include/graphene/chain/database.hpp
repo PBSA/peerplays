@@ -471,9 +471,24 @@ namespace graphene { namespace chain {
 
          vms::base::db_result                    db_res;
 
-         bool                                   _evaluating_from_block = false;
+         bool                                    _evaluating_from_block = false;
 
          fc::signal<void(const contracts_results_in_block_id_type&)>     created_block_results;
+
+         /**
+          * Gas used by all constract operations in block.
+          * We must control this value with `block_gas_limit`.
+          * If trx doesn't fit in block (by this criteria) we will skip it.
+          */
+         uint64_t                                gas_used_by_contract_operation = 0;
+      private:
+         /** Call apply thransaction with block gas limit control
+          * @param tx transaction to apply
+          * @param apply_transaction_function callback function to call with block gas limit control wrapper
+          * @return processed_transaction - result of applying tx with apply_transaction_function
+          */
+         processed_transaction                   apply_transaction_with_gas_limit( const processed_transaction& tx, 
+                                                                                   std::function<processed_transaction()> const& apply_transaction_function );
 
          /**
           * @}

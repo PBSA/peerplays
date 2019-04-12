@@ -38,6 +38,10 @@ public:
 
    std::set<uint64_t> get_allowed_assets( const uint64_t& id );
 
+   uint64_t get_block_gas_limit() const;
+
+   uint64_t get_block_gas_used() const;
+
 private:
 
 };
