@@ -51,6 +51,7 @@ std::string soliditySuicideCode = "608060405234801561001057600080fd5b5060cd80610
 std::string solidityPayableCode = "6080604052348015600f57600080fd5b50603280601d6000396000f3fe608060405200fea165627a7a72305820b860bcee58741a7fceefcfb571356ef0a5da01abba6d9fdb7e6bc160c8cd402f0029";
 
 BOOST_AUTO_TEST_CASE( transfer_CORE_acc_to_contr_and_contr_to_acc ) {
+    set_max_block_gas_limit();
     transfer(account_id_type(0),account_id_type(5),asset(1000000000, asset_id_type()));
     transaction_evaluation_state context(&db);
 
@@ -97,6 +98,7 @@ BOOST_AUTO_TEST_CASE( transfer_CORE_acc_to_contr_and_contr_to_acc ) {
     BOOST_CHECK( eth_data.receiver == contract_id_type() && op.registrar == account_id_type(5) );
 }
 BOOST_AUTO_TEST_CASE( transfer_asset_acc_to_contr_and_contr_to_acc ) {
+    set_max_block_gas_limit();
     transaction_evaluation_state context(&db);
     asset_object temp_asset = create_user_issued_asset("ETB");
     issue_uia( account_id_type(5), temp_asset.amount( 10000000 ) );
@@ -151,6 +153,7 @@ BOOST_AUTO_TEST_CASE( transfer_asset_acc_to_contr_and_contr_to_acc ) {
 }
 
 BOOST_AUTO_TEST_CASE( suicide_contr_to_acc_and_contr_to_contr_CORE ) {
+    set_max_block_gas_limit();
     transfer(account_id_type(0),account_id_type(5),asset(1000000000, asset_id_type()));
     transaction_evaluation_state context(&db);
 
@@ -206,6 +209,7 @@ BOOST_AUTO_TEST_CASE( suicide_contr_to_acc_and_contr_to_contr_CORE ) {
 }
 
 BOOST_AUTO_TEST_CASE( suicide_contr_to_acc_and_contr_to_contr_ASSET ) {
+    set_max_block_gas_limit();
     transfer(account_id_type(0),account_id_type(5),asset(1000000000, asset_id_type()));
     transaction_evaluation_state context(&db);
 

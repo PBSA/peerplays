@@ -382,7 +382,7 @@ processed_transaction database::apply_transaction_with_gas_limit( const processe
    for( uint32_t op_index = 0; op_index < tx.operations.size(); ++op_index ){
       if( tx.operations[ op_index ].which() == operation::tag<contract_operation>::value ) {
          eth_op eth = fc::raw::unpack<eth_op>( tx.operations[ op_index ].get<contract_operation>().data );
-         if( gas_used_by_contract_operation + eth.gas > get_evm_params().block_gas_limit )
+         if( gas_used_by_contract_operation + max_gas_will_be_used_by_trx + eth.gas > get_evm_params().block_gas_limit )
             FC_THROW_EXCEPTION( fc::block_gas_limit_reached_exception, "Block gas limit has been reached" );
          else {
             max_gas_will_be_used_by_trx += eth.gas;

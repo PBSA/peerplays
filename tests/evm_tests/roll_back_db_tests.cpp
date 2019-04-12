@@ -56,6 +56,7 @@ void create_result( database& db, uint64_t block_num, std::string hash ) {
 
 BOOST_AUTO_TEST_CASE( sequential_rollback_test )
 {
+   set_max_block_gas_limit();
    transfer(account_id_type(0),account_id_type(5),asset(1000000000, asset_id_type()));
    
    signed_transaction trx;
@@ -93,6 +94,7 @@ BOOST_AUTO_TEST_CASE( sequential_rollback_test )
 
 BOOST_AUTO_TEST_CASE( not_sequential_rollback_test )
 {
+   set_max_block_gas_limit();
    transfer(account_id_type(0),account_id_type(5),asset(1000000000, asset_id_type()));
    
    signed_transaction trx;
@@ -134,6 +136,7 @@ BOOST_AUTO_TEST_CASE( not_sequential_rollback_test )
 
 BOOST_AUTO_TEST_CASE( switch_to_late_block_test )
 {
+   set_max_block_gas_limit();
    transfer(account_id_type(0),account_id_type(5),asset(1000000000, asset_id_type()));
    
    signed_transaction trx;
@@ -181,6 +184,7 @@ BOOST_AUTO_TEST_CASE( no_results_test )
 
 BOOST_AUTO_TEST_CASE( border_conditions_test )
 {
+   set_max_block_gas_limit();
    vms::evm::evm_adapter adapter(db);
 
    std::string hash1(64, 'a');

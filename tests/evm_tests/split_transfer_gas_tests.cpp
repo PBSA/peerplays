@@ -193,9 +193,7 @@ BOOST_AUTO_TEST_CASE( not_enough_asset_for_transfer_test )
 
 BOOST_AUTO_TEST_CASE( check_gas_and_value_test )
 {
-   db.modify(db.get_global_properties(), [](global_property_object& p) {
-      p.parameters.extensions.value.evm_parameters->block_gas_limit = (uint64_t)-1;
-   });
+   set_max_block_gas_limit();
    transaction_evaluation_state context(&db);
    asset_object temp_asset = create_user_issued_asset("ETB");
    issue_uia( account_id_type(5), temp_asset.amount( custom_asset_transfer_amount ) );

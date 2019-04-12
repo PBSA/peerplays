@@ -382,6 +382,8 @@ struct database_fixture {
                          asset fee, optional<contract_id_type> receiver_id);
    
    std::map<contract_id_type, vms::evm::evm_account_info> get_contracts( database& db, const vector<contract_id_type>& contract_ids);
+
+   void set_max_block_gas_limit();
 ////////////////////////////////////////////////////////////////////////////// // PeerPlays end
 };
 

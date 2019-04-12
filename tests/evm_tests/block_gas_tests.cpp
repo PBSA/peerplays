@@ -15,7 +15,7 @@ using namespace graphene::chain;
 using namespace graphene::chain::test;
 using namespace vms::evm;
 
-inline uint32_t get_gas_used( database& db, result_contract_id_type result_id ) {
+inline uint64_t get_gas_used( database& db, result_contract_id_type result_id ) {
    auto raw_res = db.db_res.get_results( std::string( (object_id_type)result_id ) );
    auto res = fc::raw::unpack< vms::evm::evm_result >( *raw_res );
    return res.exec_result.gasUsed.convert_to<uint32_t>();
@@ -43,7 +43,7 @@ std::string solidityAddCode = "6080604052601a60005561011e806100186000396000f3fe6
 
 BOOST_AUTO_TEST_CASE( change_block_gas_limit_test ) {
     auto skip_flags = database::skip_authority_check;
-    generate_block();
+    db.clear_pending();
 
     db.modify(db.get_global_properties(), [](global_property_object& p) {
        p.parameters.committee_proposal_review_period = fc::hours(1).to_seconds();
@@ -81,14 +81,13 @@ BOOST_AUTO_TEST_CASE( change_block_gas_limit_test ) {
 
     generate_blocks(proposal_id_type()(db).expiration_time + 7);
     generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
-    generate_block();
     BOOST_CHECK( db.get_evm_params().block_gas_limit  == 1);
 }
 
 BOOST_AUTO_TEST_CASE( generate_block_gas_limit_reached_test ){
+    INVOKE( change_block_gas_limit_test );
     transfer(account_id_type(0),account_id_type(5),asset(1000000000, asset_id_type()));
     auto skip_sigs = database::skip_transaction_signatures | database::skip_authority_check;
-    INVOKE( change_block_gas_limit_test );
     contract_operation contract_op;
     contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
@@ -104,86 +103,162 @@ BOOST_AUTO_TEST_CASE( generate_block_gas_limit_reached_test ){
     auto save_head_block_num = db.head_block_num();
     auto b = generate_block( skip_sigs );
     BOOST_CHECK( db.head_block_num() - save_head_block_num == 1 );
-    BOOST_CHECK( !b.transactions.size() );
+    BOOST_CHECK( b.transactions.size() == 1 );
 }
 
-BOOST_AUTO_TEST_CASE( many_trxs_generate_block_gas_limit_reached_test ){
-    generate_block();
-    auto skip_sigs = database::skip_transaction_signatures | database::skip_authority_check;
-    transaction_evaluation_state context(&db);
-    
-    transfer(account_id_type(0),account_id_type(5),asset(1000000000, asset_id_type()));
-
+inline void push_trx_with_contract_op( database& db, std::string code, uint32_t skip_flags, bool contract_call = false ){
     contract_operation contract_op;
     contract_op.vm_type = vm_types::EVM;
     contract_op.registrar = account_id_type(5);
     contract_op.fee = asset(0, asset_id_type());
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 1, 1000000, solidityAddCode });
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_call ? contract_id_type() : optional<contract_id_type>(),
+                                                       std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 1, 1000000, code } );
     
     signed_transaction trx;
     set_expiration( db, trx );
     trx.operations.push_back( contract_op );
-    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 1, 1000000, "4f2be91f" } );
+    PUSH_TX( db, trx, skip_flags );
+}
+
+inline void deploy_contract( database_fixture& df, std::string contractCode, uint32_t skip_flags = 0 ){
+    df.transfer(account_id_type(0),account_id_type(5),asset(1000000000, asset_id_type()));
+
+    push_trx_with_contract_op( df.db, solidityAddCode, skip_flags );
+    df.generate_block( skip_flags );
+    BOOST_CHECK( df.get_contracts( df.db, { contract_id_type() } ).size() == 1 );
+}
+
+inline uint64_t deploy_contract_and_get_gas_for_op( database_fixture& df, uint32_t skip_flags = 0 ){
+    deploy_contract( df, solidityAddCode, skip_flags );
+
+    push_trx_with_contract_op( df.db, "4f2be91f", skip_flags, true );
+    df.generate_block( skip_flags );
+    return get_gas_used( df.db, result_contract_id_type(1) );
+}
+
+BOOST_AUTO_TEST_CASE( ops_have_big_gas_limit_test ){
+    auto skip_sigs = database::skip_transaction_signatures | database::skip_authority_check;
+
+    deploy_contract( *this, solidityAddCode, skip_sigs );
+
+    const uint64_t gas_limit = 1000000;
+    const uint8_t op_amount = 5;
+    
+    contract_operation contract_op;
+    contract_op.vm_type = vm_types::EVM;
+    contract_op.registrar = account_id_type(5);
+    contract_op.fee = asset(0, asset_id_type());
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(),
+                                                       std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 1, gas_limit, "4f2be91f" } );
+
+    signed_transaction trx;
+    set_expiration( db, trx );
+    trx.set_expiration( trx.expiration + fc::seconds(100) );
+    for( uint8_t counter = 0; counter < op_amount - 1; ++counter)
+        trx.operations.push_back( contract_op );
+    
+    uint64_t new_gas_limit = BLOCK_GAS_LIMIT_EVM > gas_limit * (op_amount - 1) ? BLOCK_GAS_LIMIT_EVM - gas_limit * (op_amount - 1) : gas_limit;
+    ++new_gas_limit; // to get block gas limit reached
+    contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(),
+                                                       std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 1, new_gas_limit, "4f2be91f" } );
     trx.operations.push_back( contract_op );
-    trx.sign( init_account_priv_key, db.get_chain_id() );
+
     PUSH_TX( db, trx, skip_sigs );
-    generate_block( skip_sigs );
-    BOOST_CHECK( get_contracts( db, { contract_id_type() } ).size() == 1 );
+    auto save_head_block_num = db.head_block_num();
+    auto b = generate_block( skip_sigs );
+    BOOST_CHECK( db.head_block_num() - save_head_block_num == 1 );
+    BOOST_CHECK( !b.transactions.size() );
+}
 
-    /*
-     * Gas cost of below is `exec_contract_gas` = approx 343014.
-     * So we need `op_amount = BLOCK_GAS_LIMIT_EVM / exec_contract_gas` operations to reach block gas limit
-     * We split it into several transactions: `amount_in_trx` in each
-     * To do it, we will add some amount to op_amount to div evenly
-     * Example: op_amount = 10, amount_in_trx = 3
-     *          We need op_amount = 12 to div evenly into trxs
-     *          So formula is `op_amount = op_amount + amount_in_trx - op_amount % amount_in_trx`
-     *          `12 = 10 + 3 - 1`
-     * If you want to change amount of trxs in block, you can manipulate with `amount_in_trx`
-    */
-    auto exec_contract_gas = get_gas_used( db, result_contract_id_type(1) );
-    const uint32_t amount_in_trx = 10;
-    uint32_t op_amount = BLOCK_GAS_LIMIT_EVM / exec_contract_gas;
-    op_amount += op_amount % amount_in_trx == 0 ? amount_in_trx : amount_in_trx  - op_amount % amount_in_trx;
- 
-    std::vector< signed_transaction > trxs( op_amount / amount_in_trx );
-    uint32_t _time = 1;
-    for( auto& trx: trxs ){
-        set_expiration( db, trx );
-        trx.set_expiration( trx.expiration + fc::seconds(30 + _time++) );
-        for( uint32_t op_index = 0; op_index < amount_in_trx; ++op_index ){
-            trx.operations.push_back( contract_op );
-        }
-        trx.sign( init_account_priv_key, db.get_chain_id() );
-        PUSH_TX( db, trx, skip_sigs  );
+/*
+ *  In this test case we will create 3 trxs with different operations(but contract ops will be same) 
+ *  1 - n * contract_op, transfer_op
+ *  2 - n * contract_op, asset_create
+ *  3 - n * contract_op
+ */
+inline void create_contract_operations( signed_transaction& trx, uint32_t n ){
+    while( n-- > 0 ){
+        contract_operation contract_op;
+        contract_op.vm_type = vm_types::EVM;
+        contract_op.registrar = account_id_type(5);
+        contract_op.fee = asset(0, asset_id_type());
+        contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, contract_id_type(),
+                                                           std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 1, 1000000, "4f2be91f" } );
+        trx.operations.push_back(contract_op);
     }
+}
 
-    auto save_size = trxs.size();
-    do{
-        auto b = db.generate_block( db.get_slot_time(1), db.get_scheduled_witness(1), init_account_priv_key, skip_sigs );
-        
-        uint32_t found = 0;
-        for( const auto& trx: trxs ){
-           for( auto& block_trx: b.transactions ){
-               if( block_trx.expiration == trx.expiration ){
-                   ++found;
-                   break;
-               }
-           }
-        }
-        if( trxs.size() == save_size ) {
-            BOOST_CHECK( trxs.size() - found != 0 );
-        } else {
-            BOOST_REQUIRE( found );
-        }
-        trxs = vector<signed_transaction>( trxs.begin() + found, trxs.end() );
-    } while( trxs.size() );
+inline signed_transaction get_first_transaction( database_fixture& df, uint64_t exec_gas, uint32_t n, uint32_t skip_flags = 0 ){
+    signed_transaction trx;
+    set_expiration( df.db, trx );
 
-    generate_blocks( 10 );       
+    transfer_operation transfer_op;
+    transfer_op.from   = account_id_type(0);
+    transfer_op.to     = account_id_type(5);
+    transfer_op.amount = asset(10, asset_id_type());
+    trx.operations.push_back(transfer_op);
+    
+    create_contract_operations( trx, n );
+    return trx;
+}
+inline signed_transaction get_second_transaction( database_fixture& df, uint64_t exec_gas, uint32_t n, uint32_t skip_flags = 0 ){
+    signed_transaction trx;
+    set_expiration( df.db, trx );
+
+    asset_create_operation creator_op;
+    creator_op.issuer = account_id_type(5);
+    creator_op.fee = asset();
+    creator_op.symbol = "ETB";
+    creator_op.common_options.max_supply = 0;
+    creator_op.precision = 2;
+    creator_op.common_options.core_exchange_rate = price({asset(1,asset_id_type(1)),asset(1)});
+    creator_op.common_options.max_supply = GRAPHENE_MAX_SHARE_SUPPLY;
+    creator_op.common_options.flags = charge_market_fee;
+    creator_op.common_options.issuer_permissions = charge_market_fee;
+    trx.operations.push_back( creator_op );
+
+    create_contract_operations( trx, n );
+    return trx;
+}
+inline signed_transaction get_third_transaction( database_fixture& df, uint64_t exec_gas, uint32_t ops_amount, uint32_t n, uint32_t skip_flags = 0 ){
+    signed_transaction trx;
+    set_expiration( df.db, trx );
+
+    auto reminder = ops_amount - 2 * n;
+    create_contract_operations( trx, reminder );
+    
+    return trx;
+}
+
+BOOST_AUTO_TEST_CASE( many_trxs_generate_block_gas_limit_reached_test ){
+    auto skip_sigs = database::skip_transaction_signatures | database::skip_authority_check;
+
+    auto exec_gas = deploy_contract_and_get_gas_for_op( *this, skip_sigs );
+    uint32_t ops_amount = BLOCK_GAS_LIMIT_EVM / exec_gas + 1;
+    uint32_t n = ops_amount / 3;
+
+    const auto& first_trx  = get_first_transaction( *this, exec_gas, n, skip_sigs );
+    const auto& second_trx = get_second_transaction( *this, exec_gas, n, skip_sigs );
+    const auto& third_trx  = get_third_transaction( *this, exec_gas, ops_amount, n, skip_sigs );
+
+    db.clear_pending();
+    PUSH_TX( db, first_trx, skip_sigs );
+    PUSH_TX( db, second_trx, skip_sigs );
+    PUSH_TX( db, third_trx, skip_sigs );
+
+    auto b1 = db.generate_block( db.get_slot_time(1), db.get_scheduled_witness(1), init_account_priv_key, skip_sigs );
+    auto b2 = db.generate_block( db.get_slot_time(1), db.get_scheduled_witness(1), init_account_priv_key, skip_sigs );
+    auto b3 = db.generate_block( db.get_slot_time(1), db.get_scheduled_witness(1), init_account_priv_key, skip_sigs );
+
+    BOOST_CHECK( b1.transactions.size() == 1 && b1.transactions[0].operations[0].which() == operation::tag<transfer_operation>::value );
+    BOOST_CHECK( b2.transactions.size() == 1 && b2.transactions[0].operations[0].which() == operation::tag<asset_create_operation>::value );
+    BOOST_CHECK( b3.transactions.size() == 1 && b3.transactions[0].operations[0].which() == operation::tag<contract_operation>::value );
+
+    generate_blocks( 6 );       
 }
 
 inline signed_block get_block_to_push( database& db ){
-    auto skip_sigs = database::skip_transaction_signatures | database::skip_authority_check;
+    auto skip_flags = ~0 | database::skip_undo_history_check;
     auto init_account_priv_key  = fc::ecc::private_key::regenerate(fc::sha256::hash(string("null_key")) );
     signed_transaction trx;
     set_expiration( db, trx );
@@ -201,9 +276,8 @@ inline signed_block get_block_to_push( database& db ){
     contract_op.data = fc::raw::unsigned_pack( eth_op{ contract_op.registrar, optional<contract_id_type>(), std::set<uint64_t>(), asset_id_type(0), 0, asset_id_type(0), 1, 4000000, solidityAddCode });
     trx.operations.push_back( contract_op );
 
-    trx.sign( init_account_priv_key, db.get_chain_id() );
-    PUSH_TX( db, trx, skip_sigs );
-    return db.generate_block( db.get_slot_time(1), db.get_scheduled_witness( 1 ), init_account_priv_key, skip_sigs );
+    PUSH_TX( db, trx, skip_flags );
+    return db.generate_block( db.get_slot_time(1), db.get_scheduled_witness( 1 ), init_account_priv_key, skip_flags );
 }
 
 BOOST_AUTO_TEST_CASE( apply_block_gas_limit_reached_test ){
@@ -222,6 +296,5 @@ BOOST_AUTO_TEST_CASE( apply_block_gas_limit_reached_test ){
 
     GRAPHENE_REQUIRE_THROW( db2.apply_block( b, ~0 ), fc::block_gas_limit_reached_exception );
 }
-
 
 BOOST_AUTO_TEST_SUITE_END()

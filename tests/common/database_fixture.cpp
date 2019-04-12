@@ -1571,6 +1571,12 @@ std::map<contract_id_type, vms::evm::evm_account_info> database_fixture::get_con
 }
 ////////////////////////////////////////////////////////////////////////////// // PeerPlays end
 
+void database_fixture::set_max_block_gas_limit(){
+   db.modify(db.get_global_properties(), [](global_property_object& p) {
+      p.parameters.extensions.value.evm_parameters->block_gas_limit = (uint64_t)-1;
+   });
+}
+
 genesis_state_type make_genesis_for_db() {
    genesis_state_type genesis_state;
 
