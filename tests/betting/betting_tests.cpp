@@ -3011,7 +3011,7 @@ boost::unit_test::test_suite* init_unit_test_suite(int argc, char* argv[]) {
     std::cout << "Random number generator seeded to " << time(NULL) << std::endl;
 
     // betting operations don't take effect until HARDFORK 1000
-    GRAPHENE_TESTING_GENESIS_TIMESTAMP = HARDFORK_1000_TIME.sec_since_epoch() + 10;
+    GRAPHENE_TESTING_GENESIS_TIMESTAMP = HARDFORK_1000_TIME.sec_since_epoch() + 2;
 
     return nullptr;
 }

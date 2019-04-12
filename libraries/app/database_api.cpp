@@ -31,7 +31,6 @@
 #include <fc/smart_ref_impl.hpp>
 
 #include <fc/crypto/hex.hpp>
-#include <fc/crypto/digest.hpp>
 
 #include <boost/range/iterator_range.hpp>
 #include <boost/rational.hpp>
@@ -45,44 +44,6 @@
 #define GET_REQUIRED_FEES_MAX_RECURSION 4
 
 typedef std::map< std::pair<graphene::chain::asset_id_type, graphene::chain::asset_id_type>, std::vector<fc::variant> > market_queue_type;
-
-
-namespace {
-    
-   struct proposed_operations_digest_accumulator
-   {
-      typedef void result_type;
-      
-      void operator()(const graphene::chain::proposal_create_operation& proposal)
-      {
-         for (auto& operation: proposal.proposed_ops)
-         {
-            if( operation.op.which() != graphene::chain::operation::tag<graphene::chain::betting_market_group_create_operation>::value
-             && operation.op.which() != graphene::chain::operation::tag<graphene::chain::betting_market_create_operation>::value )
-               proposed_operations_digests.push_back(fc::digest(operation.op));
-         }
-      }
-       
-      //empty template method is needed for all other operation types
-      //we can ignore them, we are interested in only proposal_create_operation
-      template<class T>
-      void operator()(const T&) 
-      {}
-      
-      std::vector<fc::sha256> proposed_operations_digests;
-   };
-   
-   std::vector<fc::sha256> gather_proposed_operations_digests(const graphene::chain::transaction& trx)
-   {
-      proposed_operations_digest_accumulator digest_accumulator;
-      for (auto& operation: trx.operations)
-      {
-         operation.visit(digest_accumulator);
-      }
-       
-      return digest_accumulator.proposed_operations_digests;
-   }
-}
 
 namespace graphene { namespace app {
 
@@ -109,7 +70,6 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       map<uint32_t, optional<block_header>> get_block_header_batch(const vector<uint32_t> block_nums)const;
       optional<signed_block> get_block(uint32_t block_num)const;
       processed_transaction get_transaction( uint32_t block_num, uint32_t trx_in_block )const;
-      void check_transaction_for_duplicated_operations(const signed_transaction& trx);
 
       // Globals
       chain_property_object get_chain_properties()const;
@@ -467,39 +427,6 @@ processed_transaction database_api_impl::get_transaction(uint32_t block_num, uin
    FC_ASSERT( opt_block );
    FC_ASSERT( opt_block->transactions.size() > trx_num );
    return opt_block->transactions[trx_num];
-}
-
-void database_api::check_transaction_for_duplicated_operations(const signed_transaction& trx)
-{
-   my->check_transaction_for_duplicated_operations(trx);
-}
-
-void database_api_impl::check_transaction_for_duplicated_operations(const signed_transaction& trx)
-{
-   const auto& idx = _db.get_index_type<proposal_index>();
-   const auto& pidx = dynamic_cast<const primary_index<proposal_index>&>(idx);
-   const auto& raidx = pidx.get_secondary_index<graphene::chain::required_approval_index>();
-
-   auto acc_itr = raidx._account_to_proposals.find( GRAPHENE_WITNESS_ACCOUNT );
-   if( acc_itr != raidx._account_to_proposals.end() ) 
-   {
-      auto& p_set = acc_itr->second;
-      
-      std::set<fc::sha256> existed_operations_digests;
-      for( auto p_itr = p_set.begin(); p_itr != p_set.end(); ++p_itr )
-      {
-         for( auto& operation : (*p_itr)(_db).proposed_transaction.operations )
-         {
-            existed_operations_digests.insert( fc::digest(operation) );
-         }
-      }
-      
-      auto proposed_operations_digests = gather_proposed_operations_digests(trx);
-      for (auto& digest : proposed_operations_digests)
-      {
-         FC_ASSERT(existed_operations_digests.count(digest) == 0, "Proposed operation is already pending for apsproval.");
-      }
-   }
 }
 
 //////////////////////////////////////////////////////////////////////

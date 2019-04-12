@@ -1,4 +1,4 @@
 // Placeholder HF for affiliate reward system
 #ifndef HARDFORK_999_TIME
-#define HARDFORK_999_TIME (fc::time_point_sec( 1550491200 ))
+#define HARDFORK_999_TIME (fc::time_point_sec( 1540000000 ))
 #endif

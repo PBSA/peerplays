@@ -169,14 +169,14 @@ namespace graphene { namespace app {
     void network_broadcast_api::broadcast_transaction(const signed_transaction& trx)
     {
        trx.validate();
-       database_api( *(_app.chain_database() ) ).check_transaction_for_duplicated_operations(trx);
+       _app.chain_database()->check_tansaction_for_duplicated_operations(trx);
        _app.chain_database()->push_transaction(trx);
        _app.p2p_node()->broadcast_transaction(trx);
     }
 
     fc::variant network_broadcast_api::broadcast_transaction_synchronous(const signed_transaction& trx)
     {
-       database_api( *(_app.chain_database() ) ).check_transaction_for_duplicated_operations(trx);
+       _app.chain_database()->check_tansaction_for_duplicated_operations(trx);
         
        fc::promise<fc::variant>::ptr prom( new fc::promise<fc::variant>() );
        broadcast_transaction_with_callback( [=]( const fc::variant& v ){
