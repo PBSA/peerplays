@@ -453,15 +453,15 @@ signed_block database::_generate_block(
    //
    _pending_tx_session.reset();
    _pending_tx_session = _undo_db.start_undo_session();
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
    _evaluating_from_block = true;
 
    _current_block.timestamp = when;
    _current_block.previous = head_block_id();
    _current_block.witness = witness_id;
 
-///////////////////////////////////////////////////////// PeerPlays evm
    gas_used_by_contract_operation = 0;
-///////////////////////////////////////////////////////// PeerPlays evm
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
 
    uint64_t postponed_tx_count = 0;
    // pop pending state (reset to head block state)
@@ -480,11 +480,11 @@ signed_block database::_generate_block(
       {
          auto temp_session = _undo_db.start_undo_session();
 
-///////////////////////////////////////////////////////// PeerPlays evm
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
          processed_transaction ptx = apply_transaction_with_gas_limit( tx, [&](){
             return _apply_transaction( tx );
          });
-///////////////////////////////////////////////////////// PeerPlays evm
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
 
          temp_session.merge();
 
@@ -494,13 +494,13 @@ signed_block database::_generate_block(
          total_block_size += fc::raw::pack_size( ptx );
          pending_block.transactions.push_back( ptx );
       }
-///////////////////////////////////////////////////////// PeerPlays evm
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
       catch( const fc::block_gas_limit_reached_exception )
       {
          wlog( "Block gas limit has been reached. The transactions was not processed." );
          wlog( "The transactions was: ${t}", ("t", tx) );
       }
-///////////////////////////////////////////////////////// PeerPlays evm
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
       catch( const fc::exception& e )
       {
          // Do nothing, transaction will not be re-applied
@@ -514,11 +514,11 @@ signed_block database::_generate_block(
    }
 
    _pending_tx_session.reset();
-
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
    db_res.commit_cache();
    db_res.commit();
    _evaluating_from_block = false;
-
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
    // We have temporarily broken the invariant that
    // _pending_tx_session is the result of applying _pending_tx, as
    // _pending_tx now consists of the set of postponed transactions.
@@ -529,11 +529,11 @@ signed_block database::_generate_block(
    pending_block.timestamp = when;
    pending_block.transaction_merkle_root = pending_block.calculate_merkle_root();
    pending_block.witness = witness_id;
-
-   pending_block.result_root_hash = fc::sha256( db_res.root_hash() );
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
+   pending_block.result_root_hash = fc::sha256( db_res.get_root_hash() );
    db_res.set_root( !head_block_num() ? dev::sha3( dev::rlp("") ).hex() : fetch_block_by_number( head_block_num() )->result_root_hash );
    _executor->roll_back_db( head_block_num() );
-
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
    // Genesis witnesses start with a default initial secret        
    if( witness_obj.next_secret_hash == secret_hash_type::hash( secret_hash_type() ) )     
        pending_block.previous_secret = secret_hash_type();       
@@ -660,10 +660,7 @@ void database::_apply_block( const signed_block& next_block )
    _current_block_num    = next_block_num;
    _current_trx_in_block = 0;
 
-///////////////////////////////////////////////////////// PeerPlays evm
-   gas_used_by_contract_operation = 0;
-///////////////////////////////////////////////////////// PeerPlays evm
-
+   gas_used_by_contract_operation = 0; // PeerPlays
    for( const auto& trx : next_block.transactions )
    {
       /* We do not need to push the undo state for each transaction
@@ -672,25 +669,27 @@ void database::_apply_block( const signed_block& next_block )
        * for transactions when validating broadcast transactions or
        * when building a block.
        */
-///////////////////////////////////////////////////////// PeerPlays evm
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
       processed_transaction ptx = apply_transaction_with_gas_limit( trx, [&](){
          return apply_transaction( trx, skip );
       });
-///////////////////////////////////////////////////////// PeerPlays evm
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
       ++_current_trx_in_block;
    }
 
+
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
    db_res.commit_cache();
    db_res.commit();
 
-   if( db_res.root_hash() != next_block.result_root_hash.str() ) 
-      FC_THROW_EXCEPTION( fc::root_hashes_doesnt_match_exception, "Root hashes doesn't match: ${root_hash} != ${next_block.result_root_hash}; Block id: ${id}", ("root_hash", db_res.root_hash())("next_block.result_root_hash", next_block.result_root_hash.str())("id",next_block.id()) );
+   if( db_res.get_root_hash() != next_block.result_root_hash.str() ) 
+      FC_THROW_EXCEPTION( fc::root_hashes_doesnt_match_exception, "Root hashes doesn't match: ${root_hash} != ${next_block.result_root_hash}; Block id: ${id}", ("root_hash", db_res.get_root_hash())("next_block.result_root_hash", next_block.result_root_hash.str())("id",next_block.id()) );
    
    const auto& block_results = create_contracts_results_in_block( next_block );
    if( block_results.valid() ) {
       created_block_results( *block_results );
    }
-
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
    if (global_props.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
        update_witness_schedule(next_block);
    update_global_dynamic_data(next_block);

@@ -40,6 +40,12 @@ asset database::get_balance(account_id_type owner, asset_id_type asset_id) const
    return itr->get_balance();
 }
 
+asset database::get_balance(const account_object& owner, const asset_object& asset_obj) const
+{
+   return get_balance(owner.get_id(), asset_obj.get_id());
+}
+
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
 asset database::get_balance(contract_id_type owner, asset_id_type asset_id) const
 {
    auto& index = get_index_type<contract_balance_index>().indices().get<by_contract_asset>();
@@ -47,11 +53,6 @@ asset database::get_balance(contract_id_type owner, asset_id_type asset_id) cons
    if( itr == index.end() )
       return asset(0, asset_id);
    return itr->get_balance();
-}
-
-asset database::get_balance(const account_object& owner, const asset_object& asset_obj) const
-{
-   return get_balance(owner.get_id(), asset_obj.get_id());
 }
 
 asset database::get_balance(const contract_object& owner, const asset_object& asset_obj) const
@@ -68,39 +69,6 @@ asset database::get_balance(const object_id_type& owner, const asset_id_type& as
 
    return asset();
 }
-
-string database::to_pretty_string( const asset& a )const
-{
-   return a.asset_id(*this).amount_to_pretty_string(a.amount);
-}
-
-void database::adjust_balance(account_id_type account, asset delta )
-{ try {
-   if( delta.amount == 0 )
-      return;
-
-   auto& index = get_index_type<account_balance_index>().indices().get<by_account_asset>();
-   auto itr = index.find(boost::make_tuple(account, delta.asset_id));
-   if(itr == index.end())
-   {
-      FC_ASSERT( delta.amount > 0, "Insufficient Balance: ${a}'s balance of ${b} is less than required ${r}",
-                 ("a",account(*this).name)
-                 ("b",to_pretty_string(asset(0,delta.asset_id)))
-                 ("r",to_pretty_string(-delta)));
-      create<account_balance_object>([account,&delta](account_balance_object& b) {
-         b.owner = account;
-         b.asset_type = delta.asset_id;
-         b.balance = delta.amount.value;
-      });
-   } else {
-      if( delta.amount < 0 )
-         FC_ASSERT( itr->get_balance() >= -delta, "Insufficient Balance: ${a}'s balance of ${b} is less than required ${r}", ("a",account(*this).name)("b",to_pretty_string(itr->get_balance()))("r",to_pretty_string(-delta)));
-      modify(*itr, [delta](account_balance_object& b) {
-         b.adjust_balance(delta);
-      });
-   }
-
-} FC_CAPTURE_AND_RETHROW( (account)(delta) ) }
 
 void database::adjust_balance(contract_id_type contract, asset delta )
 {
@@ -146,6 +114,40 @@ void database::publish_contract_transfer(contract_id_type from, object_id_type t
 
     push_applied_operation(cto);
 } FC_CAPTURE_AND_RETHROW( (from)(to)(amount) ) }
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
+
+string database::to_pretty_string( const asset& a )const
+{
+   return a.asset_id(*this).amount_to_pretty_string(a.amount);
+}
+
+void database::adjust_balance(account_id_type account, asset delta )
+{ try {
+   if( delta.amount == 0 )
+      return;
+
+   auto& index = get_index_type<account_balance_index>().indices().get<by_account_asset>();
+   auto itr = index.find(boost::make_tuple(account, delta.asset_id));
+   if(itr == index.end())
+   {
+      FC_ASSERT( delta.amount > 0, "Insufficient Balance: ${a}'s balance of ${b} is less than required ${r}",
+                 ("a",account(*this).name)
+                 ("b",to_pretty_string(asset(0,delta.asset_id)))
+                 ("r",to_pretty_string(-delta)));
+      create<account_balance_object>([account,&delta](account_balance_object& b) {
+         b.owner = account;
+         b.asset_type = delta.asset_id;
+         b.balance = delta.amount.value;
+      });
+   } else {
+      if( delta.amount < 0 )
+         FC_ASSERT( itr->get_balance() >= -delta, "Insufficient Balance: ${a}'s balance of ${b} is less than required ${r}", ("a",account(*this).name)("b",to_pretty_string(itr->get_balance()))("r",to_pretty_string(-delta)));
+      modify(*itr, [delta](account_balance_object& b) {
+         b.adjust_balance(delta);
+      });
+   }
+
+} FC_CAPTURE_AND_RETHROW( (account)(delta) ) }
 
 optional< vesting_balance_id_type > database::deposit_lazy_vesting(
    const optional< vesting_balance_id_type >& ovbid,

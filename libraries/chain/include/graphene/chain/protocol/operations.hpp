@@ -131,8 +131,10 @@ namespace graphene { namespace chain {
             event_group_delete_operation,
             affiliate_payout_operation, // VIRTUAL
             affiliate_referral_payout_operation, // VIRTUAL
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
             contract_transfer_operation, // VIRTUAL
             contract_operation
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
          > operation;
 
    /// @} // operations group

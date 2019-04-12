@@ -317,8 +317,6 @@ class database_api
 
       vector<vesting_balance_object> get_vesting_balances( account_id_type account_id )const;
 
-      vector<asset> get_contract_balances(contract_id_type id, const flat_set<asset_id_type>& assets)const;
-
       /**
        * @brief Get the total number of accounts registered with the blockchain
        */
@@ -402,6 +400,12 @@ class database_api
 
       dev::bytes get_contract_code( const contract_id_type& id ) const;
 
+      /** Subscribe to contract logs
+       * @param cb created block results callback
+       * @param ids ids of contracts to subscribe
+       * @param from subscribe from which block
+       * @return std::vector of logs from `from` period to `now`
+       */      
       std::vector<block_logs> subscribe_contracts_logs( std::function<void(const variant&)> cb, const std::vector<contract_id_type>& ids, const uint64_t& from );
 
       std::map<contract_id_type, vms::evm::evm_account_info> get_contracts(const vector<contract_id_type>& contract_ids)const;
@@ -410,9 +414,22 @@ class database_api
 
       dev::bytes call_contract_without_changing_state( const dev::bytes& data );
 
+      /**
+       * @brief unsubscribe from all contract logs
+       */
       void unsubscribe_all_contracts_logs();
 
+      /** Unsubscribe from all contract logs
+       * @param ids ids of contract to subscribe
+       */
       void unsubscribe_contracts_logs( const std::vector<contract_id_type>& ids );
+
+      /** Get contract balances
+       * @param id contract id
+       * @param assets set of assets to get balances
+       * @return std::vector of assets 
+       */
+      vector<asset> get_contract_balances(contract_id_type id, const flat_set<asset_id_type>& assets)const;
       /////////////////////
       // Markets / feeds //
       /////////////////////
@@ -727,7 +744,6 @@ FC_API(graphene::app::database_api,
    (get_balance_objects)
    (get_vested_balances)
    (get_vesting_balances)
-   (get_contract_balances)
 
    // Assets
    (get_assets)
@@ -751,6 +767,7 @@ FC_API(graphene::app::database_api,
    (call_contract_without_changing_state)
    (unsubscribe_all_contracts_logs)
    (unsubscribe_contracts_logs)
+   (get_contract_balances)
 
    // Markets / feeds
    (get_order_book)

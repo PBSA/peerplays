@@ -85,7 +85,7 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
 
       // Keys
       vector<vector<account_id_type>> get_key_references( vector<public_key_type> key )const;
-     bool is_public_key_registered(string public_key) const;
+      bool is_public_key_registered(string public_key) const;
 
       // Accounts
       vector<optional<account_object>> get_accounts(const vector<account_id_type>& account_ids)const;
@@ -102,7 +102,6 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       vector<balance_object> get_balance_objects( const vector<address>& addrs )const;
       vector<asset> get_vested_balances( const vector<balance_id_type>& objs )const;
       vector<vesting_balance_object> get_vesting_balances( account_id_type account_id )const;
-      vector<asset> get_contract_balances(contract_id_type id, const flat_set<asset_id_type>& assets)const;
 
       // Assets
       vector<optional<asset_object>> get_assets(const vector<asset_id_type>& asset_ids)const;
@@ -117,6 +116,7 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       vector<betting_market_object>       list_betting_markets(betting_market_group_id_type) const;
       vector<bet_object> get_unmatched_bets_for_bettor(betting_market_id_type, account_id_type) const;
       vector<bet_object> get_all_unmatched_bets_for_bettor(account_id_type) const;
+      vector<asset> get_contract_balances(contract_id_type id, const flat_set<asset_id_type>& assets)const;
 
       inline fc::optional<dev::eth::LogEntries> get_logs_from_result(const result_contract_id_type& res, const std::set<contract_id_type>& ids) const;
       inline fc::optional<block_logs>  get_logs_from_block(const contracts_results_in_block_id_type& res, const std::set<contract_id_type>& ids) const;
@@ -970,11 +970,6 @@ vector<vesting_balance_object> database_api_impl::get_vesting_balances( account_
    FC_CAPTURE_AND_RETHROW( (account_id) );
 }
 
-vector<asset> database_api::get_contract_balances(contract_id_type id, const flat_set<asset_id_type>& assets)const
-{
-   return my->get_contract_balances( id, assets );
-}
-
 vector<asset> database_api_impl::get_contract_balances(contract_id_type contr, const flat_set<asset_id_type>& assets)const
 {
    vector<asset> result;
@@ -1261,7 +1256,6 @@ std::map<contract_id_type, vms::evm::evm_account_info> database_api_impl::get_co
    }
    return results;
 }
-
 vms::evm::evm_result database_api::get_result( result_contract_id_type result_id ) const
 { try{
    return my->get_result( result_id );
@@ -1310,6 +1304,11 @@ void database_api_impl::unsubscribe_contracts_logs( const std::vector<contract_i
    }
    if( contracts_subscription.empty() )
       _created_block_results_callback = std::function<void(const fc::variant&)>();
+}
+
+vector<asset> database_api::get_contract_balances(contract_id_type id, const flat_set<asset_id_type>& assets)const
+{
+   return my->get_contract_balances( id, assets );
 }
 
 //////////////////////////////////////////////////////////////////////

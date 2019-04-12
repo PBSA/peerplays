@@ -133,7 +133,7 @@ void database::wipe(const fc::path& data_dir, bool include_blocks)
    if( include_blocks )
       fc::remove_all( data_dir / "database" );
 }
-
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
 void database::wipe_vms_databases( const fc::path& data_dir )
 {
    ilog("Wiping virtual machine databases");
@@ -149,7 +149,7 @@ void database::set_hash_root_vms()
       _executor->roll_back_db( last_block->block_num() );
    }
 }
-
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
 void database::open(
    const fc::path& data_dir,
    std::function<genesis_state_type()> genesis_loader)

@@ -81,8 +81,8 @@ namespace graphene { namespace chain {
             skip_merkle_check           = 1 << 7,  ///< used while reindexing
             skip_assert_evaluation      = 1 << 8,  ///< used while reindexing
             skip_undo_history_check     = 1 << 9,  ///< used while reindexing
-            skip_witness_schedule_check = 1 << 10,  ///< used while reindexing
-            skip_validate               = 1 << 11 ///< used prior to checkpoint, skips validate() call on transaction
+            skip_witness_schedule_check = 1 << 10, ///< used while reindexing
+            skip_validate               = 1 << 11  ///< used prior to checkpoint, skips validate() call on transaction
          };
 
          /**
@@ -222,7 +222,7 @@ namespace graphene { namespace chain {
          /** this signal is emitted any time an object is removed and contains a
           * pointer to the last value of every object that was removed.
           */
-         fc::signal<void(const vector<object_id_type>&, const vector<const object*>&, const flat_set<account_id_type>&)>  removed_objects;
+         fc::signal<void(const vector<object_id_type>&, const vector<const object*>&, const flat_set<account_id_type>&)> removed_objects;
 
          //////////////////// db_witness_schedule.cpp ////////////////////
 
@@ -289,7 +289,6 @@ namespace graphene { namespace chain {
 
 
          uint32_t last_non_undoable_block_num() const;
-         vector< block_id_type > get_last_block_hashes() const;
          signed_block            get_current_block() const;
 
          //////////////////// db_init.cpp ////////////////////
@@ -316,13 +315,8 @@ namespace graphene { namespace chain {
           */
          asset get_balance(account_id_type owner, asset_id_type asset_id)const;
 
-         asset get_balance(contract_id_type owner, asset_id_type asset_id) const;
          /// This is an overloaded method.
          asset get_balance(const account_object& owner, const asset_object& asset_obj)const;
-
-         asset get_balance(const contract_object& owner, const asset_object& asset_obj) const;
-
-         asset get_balance(const object_id_type& owner, const asset_id_type& asset_id) const;
 
          /**
           * @brief Adjust a particular account's balance in a given asset by a delta
@@ -330,12 +324,6 @@ namespace graphene { namespace chain {
           * @param delta Asset ID and amount to adjust balance by
           */
          void adjust_balance(account_id_type account, asset delta);
-
-         void adjust_balance(contract_id_type contract, asset delta );
-
-         void adjust_balance(object_id_type account, asset delta );
-
-         void publish_contract_transfer(contract_id_type from, object_id_type to, asset amount);
 
          /**
           * @brief Helper to make lazy deposit to CDD VBO.
@@ -458,21 +446,57 @@ namespace graphene { namespace chain {
          std::deque< signed_transaction >       _popped_tx;
 
          //////////////////// vms ////////////////////
+
+         /// @return std::vector of block_id_type
+         vector< block_id_type > get_last_block_hashes() const;
+
+         /// Overloaded method for contract object
+         asset get_balance(const contract_object& owner, const asset_object& asset_obj) const;
+         /// Overloaded method for contract id
+         asset get_balance(contract_id_type owner, asset_id_type asset_id) const;
+         /** Overloaded method for universal usage with account_id_type and contract_id_type
+          * @return asset() if it is not account_id_type or contract_id_type
+          */
+         asset get_balance(const object_id_type& owner, const asset_id_type& asset_id) const;
+         /// Overloaded method for contract id
+         void adjust_balance(contract_id_type contract, asset delta );
+         /// Overloaded method for universal usage with account_id_type and contract_id_type
+         void adjust_balance(object_id_type account, asset delta );
+
+         /** Create contract_transfer_operation to publish contract transfer in blockchain
+          * @param from from which contract
+          * @param to to which object
+          * @param amount asset(id and amount) to transfer
+          */
+         void publish_contract_transfer(contract_id_type from, object_id_type to, asset amount);
          
+         /** Create contracts_results_in_block_object in object database, this is done to compile logs
+          * @param next_block block to create results
+          * @return fc::optional with contracts_results_in_block_id_type object if block has result_contract_id_type
+          */
          fc::optional<contracts_results_in_block_id_type> create_contracts_results_in_block( const signed_block& next_block );
 
+         /** Wipe virtual machine databases: removes vm's dbs
+          * @param data_dir data directory
+          */
          void wipe_vms_databases( const fc::path& data_dir );
 
+         /// Set hash root for vm according to last valid block
          void set_hash_root_vms();
 
+         /** Get evm cahin parametrs
+          * @return evm chain parameters
+          * @throw fc::assert_exception in case of not initialized params
+          */
          const vms::evm::evm_parameters_extension& get_evm_params() const;
 
-         std::unique_ptr<vms::base::vm_executor> _executor;
-
-         vms::base::db_result                    db_res;
-
-         bool                                    _evaluating_from_block = false;
-
+         /// Executor for different vms
+         std::unique_ptr<vms::base::vm_executor>                         _executor;
+         /// DB of contract execution results
+         vms::base::db_result                                            db_res;
+         /// Set it `false` if you don't need execution on VM, only operation validation
+         bool                                                            _evaluating_from_block = false;
+         
          fc::signal<void(const contracts_results_in_block_id_type&)>     created_block_results;
 
          /**

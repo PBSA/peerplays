@@ -13,8 +13,11 @@ namespace graphene { namespace chain {
          static const uint8_t space_id = protocol_ids;
          static const uint8_t type_id  = contract_balance_object_type;
 
+         /// Contract id owner
          contract_id_type   owner;
+         /// Asset id of balance
          asset_id_type      asset_type;
+         /// Amount of balance
          share_type         balance;
 
          asset get_balance()const { return asset(balance, asset_type); }
@@ -27,8 +30,11 @@ namespace graphene { namespace chain {
          static const uint8_t space_id = protocol_ids;
          static const uint8_t type_id  = contract_object_type;
 
+         /// See `contract_statistics_object`
          contract_statistics_id_type statistics;
+         /// Allowed assets for this contract
          std::set<uint64_t> allowed_assets;
+         /// Suicided or not
          bool suicided = false;
 
          // eosio::chain::name name;

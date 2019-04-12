@@ -115,6 +115,7 @@ void account_history_plugin_impl::update_account_histories( const signed_block& 
 
       // get the set of accounts this operation applies to
       flat_set<account_id_type> impacted;
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
       flat_set<contract_id_type> impacted_contracts;
       vector<authority> other;
       operation_get_required_authorities( op.op, impacted, impacted, other ); // fee_payer is added here
@@ -133,7 +134,7 @@ void account_history_plugin_impl::update_account_histories( const signed_block& 
       } else {
          graphene::app::operation_get_impacted_accounts( op.op, impacted );
       }
-
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
       for( auto& a : other )
          for( auto& item : a.account_auths )
             impacted.insert( item.first );
@@ -187,12 +188,12 @@ void account_history_plugin_impl::update_account_histories( const signed_block& 
             }
          }
       }
-
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
       for( auto contract_id : impacted_contracts )
       {
          add_contract_history( contract_id, oho->id );
       }
-
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
       if (_partial_operations && ! oho.valid())
          _oho_index->use_next_id();
    }
@@ -256,7 +257,7 @@ void account_history_plugin_impl::add_account_history( const account_id_type acc
       }
    }
 }
-
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
 void account_history_plugin_impl::add_contract_history( const contract_id_type contract_id, const operation_history_id_type op_id )
 {
    graphene::chain::database& db = database();
@@ -272,7 +273,7 @@ void account_history_plugin_impl::add_contract_history( const contract_id_type c
        obj.most_recent_op = ath.id;
        obj.total_ops = ath.sequence;
    });
-}
+}////////////////////////////////////////////////////////////////////////////// // PeerPlays end
 
 } // end namespace detail
 

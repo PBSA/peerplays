@@ -227,7 +227,7 @@
 #define TOURNAMENT_MAX_START_TIME_IN_FUTURE                 (60*60*24*7*4) // 1 month
 #define TOURNAMENT_MAX_START_DELAY                          (60*60*24*7) // 1 week
 
-///////////////////////////////////////////////////////// PeerPlays evm
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
 #define EVM_DEFAULT_MIN_GAS_PRICE   1
 #define BLOCK_GAS_LIMIT_EVM                                  8000000 // block gas limit in Ethereum network for April 2019
- ///////////////////////////////////////////////////////// PeerPlays evm
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin

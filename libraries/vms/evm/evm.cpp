@@ -28,13 +28,13 @@ std::pair<uint64_t, bytes> evm::exec( const bytes& data)
 
    eth_op eth = fc::raw::unpack<eth_op>( data );
    Transaction tx = create_eth_transaction( eth );
-   auto permanence = get_adapter().evaluating_from_apply_block() ? Permanence::Committed : Permanence::Reverted;
+   auto permanence = get_adapter().evaluating_from_block() ? Permanence::Committed : Permanence::Reverted;
    size_t savepoint = state.savepoint();
 
    state.setAssetType( eth.asset_id_gas.instance.value );
 	state.set_allowed_assets( eth.allowed_assets );
 
-   if( !get_adapter().evaluating_from_apply_block() ) {
+   if( !get_adapter().evaluating_from_block() ) {
       state.addBalance( tx.sender(), tx.gas() * tx.gasPrice() );
       state.addBalance( tx.sender(), tx.value(), eth.asset_id_transfer.instance.value );
    }
@@ -50,7 +50,7 @@ std::pair<uint64_t, bytes> evm::exec( const bytes& data)
    evm_result result { res.first, res.second, get_state_root() };
    bytes serialize_result = fc::raw::unsigned_pack( result );
 
-   if( get_adapter().evaluating_from_apply_block() ) {
+   if( get_adapter().evaluating_from_block() ) {
       finalize( res.first.excepted );
    } else {
       state.rollback(savepoint);

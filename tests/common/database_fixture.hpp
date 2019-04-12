@@ -373,6 +373,7 @@ struct database_fixture {
    proposal_id_type propose_operation(operation op);
    void process_proposal_by_witnesses(const std::vector<witness_id_type>& witnesses, proposal_id_type proposal_id, bool remove = false);
    
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
    const vms::evm::pp_state& get_evm_state() const;
    vector< operation_history_object > get_operation_history( contract_id_type contract_id ) const;
    
@@ -381,6 +382,7 @@ struct database_fixture {
                          asset fee, optional<contract_id_type> receiver_id);
    
    std::map<contract_id_type, vms::evm::evm_account_info> get_contracts( database& db, const vector<contract_id_type>& contract_ids);
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
 };
 
 genesis_state_type make_genesis_for_db();

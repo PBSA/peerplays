@@ -126,7 +126,7 @@ namespace graphene { namespace chain {
    > account_transaction_history_multi_index_type;
 
    typedef generic_index<account_transaction_history_object, account_transaction_history_multi_index_type> account_transaction_history_index;
-
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
    class contract_history_object :  public abstract_object<contract_history_object>
    {
       public:
@@ -165,7 +165,7 @@ namespace graphene { namespace chain {
    > contract_history_multi_index_type;
 
    typedef generic_index<contract_history_object, contract_history_multi_index_type> contract_history_index;
-   
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
 } } // graphene::chain
 
 FC_REFLECT_DERIVED( graphene::chain::operation_history_object, (graphene::chain::object),

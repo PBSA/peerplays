@@ -4,15 +4,42 @@
 
 namespace graphene { namespace chain {
 
+    /**
+     * @struct eth_op
+     * @brief ethereum operation struct
+     * This struct describes Ethereum trx and enviroment for this trx execution
+     */
     struct eth_op {
+        /// Account id of regisrar account
         account_id_type registrar;
+        /**
+         * @brief fc::option with contract-receiver id
+         * This fc::option describes type of Ethereum trx
+         * If option.valid() == false, then it is contract creation
+         * Else it is contract call
+         */
         optional<contract_id_type> receiver;
+        /**
+         * @brief std::set of allowed assets for contract
+         * This set describes allowed assets for contract (method transferBalance in state)
+         * Empty set means that all assets allowed
+         */
         std::set<uint64_t> allowed_assets;
+        /// Asset id for transfer amount
         asset_id_type asset_id_transfer;
+        /// Value for transfer
         uint64_t value;
+        /// Asset id for gas
         asset_id_type asset_id_gas;
+        /// Gas price for Ethereum trx
         uint64_t gasPrice;
+        /// Gas limit for Ethereum trx
         uint64_t gas;
+        /**
+         * @brief Code of Ethereum trx
+         * If it contract creation, then it is contract code
+         * Else it is contract method signature and args for this method (if need)
+         */
         std::string code;
     };
 
@@ -23,10 +50,14 @@ namespace graphene { namespace chain {
             uint32_t price_per_kbyte = 10; /// only required for large memos.
         };
 
+        /// Fee for `contract_operation`
         asset               fee;
+        /// Fee payer
         account_id_type     registrar;
 
+        /// Type of VM, which will be run
         vm_types          vm_type;
+        /// Serealized data for VM
         std::vector<unsigned char>   data;
 
         account_id_type fee_payer()const { return registrar; }

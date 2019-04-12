@@ -96,7 +96,7 @@ uint32_t database::last_non_undoable_block_num() const
 {
    return head_block_num() - _undo_db.size();
 }
-
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
 vector< block_id_type > database::get_last_block_hashes() const
 {
    return get( dynamic_global_property_id_type() ).last_block_hashes;
@@ -106,13 +106,13 @@ signed_block database::get_current_block() const
 {
    return _current_block;
 }
-
 const vms::evm::evm_parameters_extension& database::get_evm_params() const
 {
    const auto& params = get_global_properties().parameters.extensions.value.evm_parameters;
    FC_ASSERT( params.valid() );
    return *params;
 }
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
 
 
 } }

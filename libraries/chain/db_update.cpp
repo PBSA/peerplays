@@ -681,7 +681,7 @@ void database::update_betting_markets(fc::time_point_sec current_block_time)
    process_settled_betting_markets(*this, current_block_time);
    remove_completed_events();
 }
-
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
 fc::optional<contracts_results_in_block_id_type> database::create_contracts_results_in_block( const signed_block& next_block )
 {
    vector<result_contract_id_type> block_result;
@@ -703,5 +703,5 @@ fc::optional<contracts_results_in_block_id_type> database::create_contracts_resu
 
    return fc::optional<contracts_results_in_block_id_type>();
 }
-
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
 } }

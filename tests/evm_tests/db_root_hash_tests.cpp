@@ -86,12 +86,12 @@ inline void not_equal_root_hashes_tests( database_fixture& df, fc::ecc::private_
     }
     auto b = get_block_to_push( db1 );
     b.transactions[0].operations.pop_back();
-    auto save_root_hash = db2.db_res.root_hash();
+    auto save_root_hash = db2.db_res.get_root_hash();
 
     PUSH_BLOCK( db2, b, database::skip_transaction_signatures | database::skip_authority_check 
                         | database::skip_witness_signature | database::skip_witness_schedule_check | database::skip_merkle_check );
 
-    BOOST_CHECK( db2.db_res.root_hash() == save_root_hash );
+    BOOST_CHECK( db2.db_res.get_root_hash() == save_root_hash );
     BOOST_CHECK( db1.fetch_block_by_number( 1 ).valid() );
     bool valid_second = db1.fetch_block_by_number( 2 ).valid();
     BOOST_CHECK( with_first ? valid_second : !valid_second );

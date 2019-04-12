@@ -12,7 +12,9 @@ namespace graphene { namespace chain {
          static const uint8_t space_id = protocol_ids;
          static const uint8_t type_id  = contracts_results_in_block_object_type;
 
+         /// Number of block in which this results stored
          uint64_t block_num;
+         /// std::vector of contract results id
          vector<result_contract_id_type> results_id;
          
          contracts_results_in_block_id_type get_id()const { return id; }

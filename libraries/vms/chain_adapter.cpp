@@ -77,7 +77,7 @@ uint32_t chain_adapter::head_block_time() const
    return db.head_block_time().sec_since_epoch();
 }
 
-bool chain_adapter::evaluating_from_apply_block() const
+bool chain_adapter::evaluating_from_block() const
 {
    return db._evaluating_from_block;
 }

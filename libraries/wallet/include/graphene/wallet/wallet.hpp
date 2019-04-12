@@ -1825,29 +1825,89 @@ class wallet_api
       std::shared_ptr<detail::wallet_api_impl> my;
       void encrypt_keys();
 
-////////////////////////////////////////////////////////////////////////////// // evm begin
-      signed_transaction create_contract( string registrar_account, string code, uint64_t value, string asset_type_transfer, uint64_t gasPrice,
-                                      string asset_type_gas, uint64_t gas, std::set<uint64_t> allowed_assets, bool broadcast = false );
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
+      /** Crete contract in EVM
+       * @param registrar_account the account-registrar of contract
+       * @param code the code of the contract
+       * @param value the value sent to the contract
+       * @param asset_type_transfer the name or id of the asset to sent to the contract
+       * @param asset_type_gas the name or id of the asset to pay gas
+       * @param gas_price the gas price of operations on EVM
+       * @param gas the value of gas limit
+       * @param allowed_assets assets allowed to use with this contract
+       * @param broadcast true to broadcast the transaction on the network
+       * @return signed transaction with contract call operation
+       */
+      signed_transaction create_contract( string registrar_account, string code, uint64_t value, string asset_type_transfer, string asset_type_gas, 
+                                          uint64_t gas_price, uint64_t gas, std::set<string> allowed_assets, bool broadcast = false );
 
+      /** Call contract in EVM
+       * @param registrar_account the account-registrar of contract
+       * @param receiver contract id
+       * @param code the code of the contract method and params for this method
+       * @param value the value sent to the contract
+       * @param asset_type_transfer the name or id of the asset to sent to the contract
+       * @param asset_type_gas the name or id of the asset to pay gas
+       * @param gas_price the gas price of operations on EVM
+       * @param gas the value of gas limit
+       * @param broadcast true to broadcast the transaction on the network
+       * @return signed transaction with contract call operation
+       */
       signed_transaction call_contract( string registrar_account, contract_id_type receiver, string code, 
-                                    uint64_t value, string asset_type_transfer, uint64_t gasPrice, string asset_type_gas,
+                                    uint64_t value, string asset_type_transfer, string asset_type_gas, uint64_t gas_price,
                                     uint64_t gas, bool broadcast = false );
 
+      /** List the balances of an contract.
+       * Each contract can have multiple balances, one for each type of asset owned by that 
+       * contract.  The returned list will only contain assets for which the account has a
+       * nonzero balance
+       * @param id the name or id of the account whose balances you want
+       * @return a list of the given account's balances
+       */
       vector<asset> list_contract_balances(const contract_id_type& id);
 
+      /** Get logs in block interval
+       * @param ids ids of contracts id of contracts, logs of which should be received
+       * @param from_block starting from which block
+       * @param to_block ending from which block
+       * @return a std::vector of block_logs
+       */
       std::vector<block_logs> get_logs_in_interval( const std::set<contract_id_type>& ids, const uint64_t& from_block,
                                                     const uint64_t& to_block ) const;
 
+      /** Get information about contracts 
+       * @param contract_ids ids of contract to get inforamtion
+       * @returns a std::map with key = id contract and value = evm_account_info (address, storage_root, code, storage)
+       */
       std::map<contract_id_type, vms::evm::evm_account_info> get_contracts(const vector<contract_id_type>& contract_ids) const;
 
+      /** Get contract code
+       * @params id contract id to get code
+       * @return code of contract in bytes
+       */
       dev::bytes get_contract_code( const contract_id_type& id ) const;
-                                                    
+
+      /** Get contract execution result
+       * @param result_id result contract id
+       * @return vms::evm::evm_result - ExecutionResult, TransactionReceipt, storage_root
+       */
       vms::evm::evm_result get_result( result_contract_id_type result_id ) const;
 
+      /** Call contract wthout changing state
+       * @param registrar_account the account-registrar of contract
+       * @param receiver contract id
+       * @param code the code of the contract method and params for this method
+       * @param value the value sent to the contract
+       * @param asset_type_transfer the name or id of the asset to sent to the contract
+       * @param gas_price the gas price of operations on EVM
+       * @param asset_type_gas the name or id of the asset to pay gas
+       * @param gas the value of gas limit
+       * @return vms::evm::evm_result - ExecutionResult, TransactionReceipt, storage_root
+       */
       vms::evm::evm_result call_contract_without_changing_state( string registrar_account, contract_id_type receiver, string code, 
-                                    uint64_t value, string asset_type_transfer, uint64_t gasPrice, string asset_type_gas, uint64_t gas );
+                                    uint64_t value, string asset_type_transfer, string asset_type_gas, uint64_t gas_price, uint64_t gas );
 
-////////////////////////////////////////////////////////////////////////////// // evm end
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
 };
 
 } }
@@ -2066,7 +2126,7 @@ FC_API( graphene::wallet::wallet_api,
         (get_binned_order_book)
         (get_matched_bets_for_bettor)
         (get_all_matched_bets_for_bettor)
-////////////////////////////////////////////////////////////////////////////// // evm begin
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
         (create_contract)
         (call_contract)
         (list_contract_balances)
@@ -2075,5 +2135,5 @@ FC_API( graphene::wallet::wallet_api,
         (get_contract_code)
         (get_result)
         (call_contract_without_changing_state)
-////////////////////////////////////////////////////////////////////////////// // evm end
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
       )

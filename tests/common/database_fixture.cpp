@@ -1539,6 +1539,7 @@ void database_fixture::cancel_unmatched_bets(betting_market_group_id_type bettin
    process_operation_by_witnesses(betting_market_group_cancel_unmatched_bets_op);
 } FC_CAPTURE_AND_RETHROW( (betting_market_group_id) ) }
 
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
 const vms::evm::pp_state& database_fixture::get_evm_state() const{
    return dynamic_cast< vms::evm::evm* > ( db._executor->registered_vms.at( vm_types::EVM ).get() )->state;
 }
@@ -1568,6 +1569,7 @@ std::map<contract_id_type, vms::evm::evm_account_info> database_fixture::get_con
    }
    return results;
 }
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
 
 genesis_state_type make_genesis_for_db() {
    genesis_state_type genesis_state;
