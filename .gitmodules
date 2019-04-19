@@ -4,8 +4,8 @@
     ignore = dirty
 [submodule "libraries/fc"]
     path = libraries/fc
-    url = git@gitlab.pixelplex.by:661-peerplays-pro/fc.git
+    url = gitlab+deploy-token-10:T2sqxSaw5jEfr--iBen_@gitlab.pixelplex.by:661-peerplays-pro/fc.git
     ignore = dirty
 [submodule "aleth"]
 	path = aleth
-	url = git@gitlab.pixelplex.by:661-peerplays-pro/aleth.git
+	url = gitlab+deploy-token-11:GUJvy8eRQ7v2jbFqH2qu@gitlab.pixelplex.by:661-peerplays-pro/aleth.git
