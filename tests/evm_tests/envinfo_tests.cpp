@@ -140,7 +140,7 @@ BOOST_AUTO_TEST_CASE( coinbase_test )
       auto temp = output;
       temp.erase( temp.begin(), temp.begin() + 12 );
 
-      auto out_id = vms::base::address_to_id( fc::raw::unpack<dev::h160>( temp ) ).second;
+      auto out_id = vms::evm::address_to_id( fc::raw::unpack<dev::h160>( temp ) ).second;
       auto block = db.fetch_block_by_number( db.head_block_num() );
 
       auto& index = db.get_index_type< witness_index >().indices().get< by_id >();

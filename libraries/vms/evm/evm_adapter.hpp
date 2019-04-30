@@ -26,6 +26,8 @@ public:
 
    evm_adapter( database& _db ) : chain_adapter( _db ) {}
 
+   evm_adapter( const evm_adapter& adapter ): chain_adapter( adapter ) {}
+
    /**
     * @brief Create contract_transfer_operation to publish contract transfer in blockchain
     * @param from from which contract

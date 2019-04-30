@@ -10,8 +10,8 @@
 
 namespace vms { namespace evm {
 
-evm::evm( const std::string& path, adapters adapter ) : vm_interface( adapter ),
-                                                        state( fs::path( path ), adapter.get<evm_adapter>() )
+evm::evm( const std::string& path, vms::evm::evm_adapter e_adapter ) : adapter( e_adapter ),
+                                                                       state( fs::path( path ), e_adapter )
 {
    dev::eth::Ethash::init();
    se = std::unique_ptr< SealEngineFace >( dev::eth::ChainParams(dev::eth::genesisInfo(dev::eth::Network::PeerPlaysNetwork)).createSealEngine() );

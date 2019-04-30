@@ -1,14 +1,11 @@
 #pragma once
 
-#include "chain_adapter.hpp"
-#include <evm_adapter.hpp>
-#include <fc/static_variant.hpp>
+#include <chain_adapter.hpp>
+#include <graphene/chain/protocol/types.hpp>
 
 namespace vms { namespace base {
 
-using namespace vms::evm;
 using namespace dev;
-using adapters = fc::static_variant<chain_adapter, evm_adapter>;
 
 /**
  * @class vm_interface
@@ -20,7 +17,7 @@ class vm_interface {
 
 public:
 
-   vm_interface( adapters _adapter ) : adapter(_adapter) {}
+   vm_interface() {}
    virtual ~vm_interface() {}
 
    /// Execution VM operation
@@ -33,11 +30,6 @@ public:
    virtual std::map<uint64_t, bytes> get_contracts( const std::vector<uint64_t>& ) const = 0;
    /// Get code fo contract from VM database
    virtual bytes get_code( const uint64_t& ) const = 0;
-
-protected:
-
-   adapters adapter;
-
 };
 
 } }

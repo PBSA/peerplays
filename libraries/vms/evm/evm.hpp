@@ -2,6 +2,7 @@
 
 #include <vm_interface.hpp>
 #include <pp_state.hpp>
+#include <evm_adapter.hpp>
 
 #include <aleth/libethereum/LastBlockHashesFace.h>
 
@@ -59,9 +60,9 @@ public:
     * @brief Construct a new evm object
     * 
     * @param path path to data directory for state
-    * @param adapter evm_adapter for blockchain db
+    * @param e_adapter evm_adapter for blockchain db
     */
-   evm( const std::string& path, adapters adapter );
+   evm( const std::string& path, vms::evm::evm_adapter e_adapter );
 
    /**
     * @brief Execute `eth_op`
@@ -124,7 +125,7 @@ private:
     * 
     * @return evm_adapter
     */
-   evm_adapter& get_adapter() { return adapter.get<vms::evm::evm_adapter>(); }
+   evm_adapter& get_adapter() { return adapter; }
 
    /**
     * @brief Create a eth transaction from `eth_op`
@@ -182,6 +183,8 @@ private:
    std::unique_ptr< SealEngineFace > se;
 
    pp_state state;
+
+   vms::evm::evm_adapter adapter;
 
 };
 

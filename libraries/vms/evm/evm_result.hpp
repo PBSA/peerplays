@@ -18,8 +18,8 @@ struct evm_account_info
 {
    dev::Address address;
    dev::h256 storage_root;
-   bytes code;
-   std::map<h256, std::pair<u256, u256>> storage;
+   dev::bytes code;
+   std::map<dev::h256, std::pair<u256, u256>> storage;
 };
 
 } }
