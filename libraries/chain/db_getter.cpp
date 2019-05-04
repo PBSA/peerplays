@@ -94,7 +94,7 @@ node_property_object& database::node_properties()
 
 uint32_t database::last_non_undoable_block_num() const
 {
-   return head_block_num() - _undo_db.size();
+   return head_block_num() < _undo_db.size() ? 0 : head_block_num() - _undo_db.size();
 }
 ////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
 vector< block_id_type > database::get_last_block_hashes() const
