@@ -476,7 +476,8 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
    share_type maximum_factor = std::min(maximum_taker_factor, maximum_maker_factor);
    share_type maker_amount_to_match = maximum_factor * maker_odds_ratio;
    share_type taker_amount_to_match = maximum_factor * taker_odds_ratio;
-   fc_idump(fc::logger::get("betting"), (maker_amount_to_match)(taker_amount_to_match));
+   //TODO
+   //fc_idump(fc::logger::get("betting"), (maker_amount_to_match)(taker_amount_to_match));
 
    // TODO: analyze whether maximum_maker_amount_to_match can ever be zero here 
    assert(maker_amount_to_match != 0);
@@ -554,7 +555,8 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
                  ("taker_refund_amount", taker_refund_amount)
                  ("maker_odds", maker_bet.backer_multiplier)
                  ("taker_odds", taker_bet.backer_multiplier));
-         fc_ddump(fc::logger::get("betting"), (taker_bet));
+         // TODO
+         //fc_ddump(fc::logger::get("betting"), (taker_bet));
 
          db.adjust_balance(taker_bet.bettor_id, asset(taker_refund_amount, taker_bet.amount_to_bet.asset_id));
          // TODO: update global statistics
@@ -635,8 +637,9 @@ bool database::place_bet(const bet_object& new_bet_object)
       // we continue if the maker bet was completely consumed AND the taker bet was not
       finished = orders_matched_flags != 2;
    }
-   if (!(orders_matched_flags & 1))
-      fc_ddump(fc::logger::get("betting"), (new_bet_object));
+   //TODO
+   //if (!(orders_matched_flags & 1))
+   //   fc_ddump(fc::logger::get("betting"), (new_bet_object));
 
 
    // return true if the taker bet was completely consumed

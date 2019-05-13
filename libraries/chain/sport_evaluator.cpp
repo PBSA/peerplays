@@ -29,13 +29,16 @@
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/hardfork.hpp>
 #include <graphene/chain/is_authorized_asset.hpp>
+#include <graphene/chain/manager.hpp>
 
 namespace graphene { namespace chain {
 
 void_result sport_create_evaluator::do_evaluate(const sport_create_operation& op)
 { try {
    FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
-   FC_ASSERT(trx_state->_is_proposed_trx);
+   FC_ASSERT( trx_state->_is_proposed_trx );
+   if( db().head_block_time() <= HARDFORK_MANAGER_TIME )
+      FC_ASSERT( !op.extensions.value.manager );
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -45,6 +48,8 @@ object_id_type sport_create_evaluator::do_apply(const sport_create_operation& op
    const sport_object& new_sport =
      db().create<sport_object>( [&]( sport_object& sport_obj ) {
          sport_obj.name = op.name;
+         if( op.extensions.value.manager )
+            sport_obj.manager = *op.extensions.value.manager;
      });
    return new_sport.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -53,8 +58,18 @@ object_id_type sport_create_evaluator::do_apply(const sport_create_operation& op
 void_result sport_update_evaluator::do_evaluate(const sport_update_operation& op)
 { try {
    FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
-   FC_ASSERT(trx_state->_is_proposed_trx);
-   FC_ASSERT(op.new_name.valid());
+   
+   if( db().head_block_time() < HARDFORK_MANAGER_TIME ) { // remove after HARDFORK_MANAGER_TIME
+      FC_ASSERT( trx_state->_is_proposed_trx );
+      FC_ASSERT( op.new_name, "nothing to change");
+      FC_ASSERT( !op.extensions.value.new_manager && !op.extensions.value.fee_paying_account );
+   }
+   else {
+      FC_ASSERT( is_manager( db(), op.sport_id, op.fee_payer() ), 
+         "fee_payer is not the manager of this object" );
+      FC_ASSERT( op.new_name || op.extensions.value.new_manager, "nothing to change" );
+   }
+   
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -67,6 +82,8 @@ void_result sport_update_evaluator::do_apply(const sport_update_operation& op)
       {
          if( op.new_name.valid() )
              spo.name = *op.new_name;
+         if( op.extensions.value.new_manager )
+            spo.manager = *op.extensions.value.new_manager;
       });
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -75,7 +92,14 @@ void_result sport_update_evaluator::do_apply(const sport_update_operation& op)
 void_result sport_delete_evaluator::do_evaluate( const sport_delete_operation& op )
 { try {
    FC_ASSERT(db().head_block_time() >= HARDFORK_1001_TIME);
-   FC_ASSERT(trx_state->_is_proposed_trx);
+   if( db().head_block_time() < HARDFORK_MANAGER_TIME ) { // remove after HARDFORK_MANAGER_TIME
+      FC_ASSERT( trx_state->_is_proposed_trx );
+      FC_ASSERT( !op.extensions.value.fee_paying_account );
+   }
+   else {
+      FC_ASSERT( is_manager( db(), op.sport_id, op.fee_payer() ),
+         "fee_payer is not the manager of this object" );
+   }
     
    //check for sport existence
    _sport = &op.sport_id(db());

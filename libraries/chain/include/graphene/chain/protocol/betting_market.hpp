@@ -25,6 +25,7 @@
 
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/chain/protocol/base.hpp>
+#include <graphene/chain/protocol/ext.hpp>
 
 namespace graphene { namespace chain {
 
@@ -100,6 +101,11 @@ enum class betting_market_group_status
 
 struct betting_market_group_create_operation : public base_operation
 {
+   struct ext
+   {
+      optional< account_id_type > fee_paying_account;
+   };
+
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
    asset             fee;
 
@@ -140,14 +146,19 @@ struct betting_market_group_create_operation : public base_operation
     */
    uint32_t delay_before_settling;
 
-   extensions_type   extensions;
+   extension<ext>  extensions;
 
-   account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
+   account_id_type fee_payer()const { return extensions.value.fee_paying_account ? *extensions.value.fee_paying_account : GRAPHENE_WITNESS_ACCOUNT; }
    void            validate()const;
 };
 
 struct betting_market_group_update_operation : public base_operation
 {
+   struct ext
+   {
+      optional< account_id_type > fee_paying_account;
+   };
+
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
    asset             fee;
 
@@ -159,14 +170,19 @@ struct betting_market_group_update_operation : public base_operation
 
    optional<betting_market_group_status> status;
 
-   extensions_type   extensions;
+   extension<ext>  extensions;
 
-   account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
+   account_id_type fee_payer()const { return extensions.value.fee_paying_account ? *extensions.value.fee_paying_account : GRAPHENE_WITNESS_ACCOUNT; }
    void            validate()const;
 };
 
 struct betting_market_create_operation : public base_operation
 {
+   struct ext
+   {
+      optional< account_id_type > fee_paying_account;
+   };
+
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
    asset             fee;
 
@@ -180,14 +196,19 @@ struct betting_market_create_operation : public base_operation
 
    internationalized_string_type payout_condition;
 
-   extensions_type   extensions;
+   extension<ext>  extensions;
 
-   account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
+   account_id_type fee_payer()const { return extensions.value.fee_paying_account ? *extensions.value.fee_paying_account : GRAPHENE_WITNESS_ACCOUNT; }
    void            validate()const;
 };
 
 struct betting_market_update_operation : public base_operation
 {
+   struct ext
+   {
+      optional< account_id_type > fee_paying_account;
+   };
+
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
    asset             fee;
 
@@ -199,9 +220,9 @@ struct betting_market_update_operation : public base_operation
 
    optional<internationalized_string_type> new_payout_condition;
 
-   extensions_type   extensions;
+   extension<ext>  extensions;
 
-   account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
+   account_id_type fee_payer()const { return extensions.value.fee_paying_account ? *extensions.value.fee_paying_account : GRAPHENE_WITNESS_ACCOUNT; }
    void            validate()const;
 };
 
@@ -214,6 +235,11 @@ enum class betting_market_resolution_type {
 
 struct betting_market_group_resolve_operation : public base_operation
 {
+   struct ext
+   {
+      optional< account_id_type > fee_paying_account;
+   };
+
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
    asset             fee;
 
@@ -221,9 +247,9 @@ struct betting_market_group_resolve_operation : public base_operation
 
    std::map<betting_market_id_type, betting_market_resolution_type> resolutions;
 
-   extensions_type   extensions;
+   extension<ext>  extensions;
 
-   account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
+   account_id_type fee_payer()const { return extensions.value.fee_paying_account ? *extensions.value.fee_paying_account : GRAPHENE_WITNESS_ACCOUNT; }
    void            validate()const;
 };
 
@@ -262,14 +288,19 @@ struct betting_market_group_resolved_operation : public base_operation
 
 struct betting_market_group_cancel_unmatched_bets_operation : public base_operation
 {
+   struct ext
+   {
+      optional< account_id_type > fee_paying_account;
+   };
+
    struct fee_parameters_type { uint64_t fee = GRAPHENE_BLOCKCHAIN_PRECISION; };
    asset             fee;
 
    betting_market_group_id_type betting_market_group_id;
 
-   extensions_type   extensions;
+   extension<ext>  extensions;
 
-   account_id_type fee_payer()const { return GRAPHENE_WITNESS_ACCOUNT; }
+   account_id_type fee_payer()const { return extensions.value.fee_paying_account ? *extensions.value.fee_paying_account : GRAPHENE_WITNESS_ACCOUNT; }
    void            validate()const;
 };
 
@@ -448,24 +479,29 @@ FC_REFLECT( graphene::chain::betting_market_group_create_operation,
             (fee)(description)(event_id)(rules_id)(asset_id)
             (never_in_play)(delay_before_settling)
             (extensions) )
+FC_REFLECT( graphene::chain::betting_market_group_create_operation::ext, (fee_paying_account) );
 
 FC_REFLECT( graphene::chain::betting_market_group_update_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_group_update_operation,
             (fee)(betting_market_group_id)(new_description)(new_rules_id)(status)(extensions) )
+FC_REFLECT( graphene::chain::betting_market_group_update_operation::ext, (fee_paying_account) );
 
 FC_REFLECT( graphene::chain::betting_market_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_create_operation, 
             (fee)(group_id)(description)(payout_condition)(extensions) )
+FC_REFLECT( graphene::chain::betting_market_create_operation::ext, (fee_paying_account) );
 
 FC_REFLECT( graphene::chain::betting_market_update_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_update_operation,
             (fee)(betting_market_id)(new_group_id)(new_description)(new_payout_condition)(extensions) )
+FC_REFLECT( graphene::chain::betting_market_update_operation::ext, (fee_paying_account) );
 
 FC_REFLECT_ENUM( graphene::chain::betting_market_resolution_type, (win)(not_win)(cancel)(BETTING_MARKET_RESOLUTION_COUNT) )
 
 FC_REFLECT( graphene::chain::betting_market_group_resolve_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_group_resolve_operation,
             (fee)(betting_market_group_id)(resolutions)(extensions) )
+FC_REFLECT( graphene::chain::betting_market_group_resolve_operation::ext, (fee_paying_account) );
 
 FC_REFLECT( graphene::chain::betting_market_group_resolved_operation::fee_parameters_type, )
 FC_REFLECT( graphene::chain::betting_market_group_resolved_operation,
@@ -474,6 +510,7 @@ FC_REFLECT( graphene::chain::betting_market_group_resolved_operation,
 FC_REFLECT( graphene::chain::betting_market_group_cancel_unmatched_bets_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::betting_market_group_cancel_unmatched_bets_operation,
             (fee)(betting_market_group_id)(extensions) )
+FC_REFLECT( graphene::chain::betting_market_group_cancel_unmatched_bets_operation::ext, (fee_paying_account) );
 
 FC_REFLECT_ENUM( graphene::chain::bet_type, (back)(lay) )
 FC_REFLECT( graphene::chain::bet_place_operation::fee_parameters_type, (fee) )

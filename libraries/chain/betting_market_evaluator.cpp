@@ -31,6 +31,7 @@
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/hardfork.hpp>
 #include <graphene/chain/is_authorized_asset.hpp>
+#include <graphene/chain/manager.hpp>
 
 namespace graphene { namespace chain {
 
@@ -75,8 +76,6 @@ void_result betting_market_group_create_evaluator::do_evaluate(const betting_mar
 { try {
    database& d = db();
    FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
-   FC_ASSERT(trx_state->_is_proposed_trx);
-
    // the event_id in the operation can be a relative id.  If it is,
    // resolve it and verify that it is truly an event
    object_id_type resolved_event_id = op.event_id;
@@ -89,6 +88,15 @@ void_result betting_market_group_create_evaluator::do_evaluate(const betting_mar
    _event_id = resolved_event_id;
    FC_ASSERT(d.find_object(_event_id), "Invalid event specified");
 
+   if( d.head_block_time() < HARDFORK_MANAGER_TIME ) {
+      FC_ASSERT( trx_state->_is_proposed_trx );
+      FC_ASSERT( !op.extensions.value.fee_paying_account );
+   }
+   else {
+      FC_ASSERT( is_manager( db(), _event_id, op.fee_payer() ),
+         "fee_payer is not the manager of this object" );   
+   }
+   
    FC_ASSERT(d.find_object(op.asset_id), "Invalid asset specified");
 
    // the rules_id in the operation can be a relative id.  If it is,
@@ -123,7 +131,16 @@ void_result betting_market_group_update_evaluator::do_evaluate(const betting_mar
 { try {
    database& d = db();
    FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
-   FC_ASSERT(trx_state->_is_proposed_trx);
+   
+   if( d.head_block_time() < HARDFORK_MANAGER_TIME ) {
+      FC_ASSERT( trx_state->_is_proposed_trx );
+      FC_ASSERT( !op.extensions.value.fee_paying_account );
+   }
+   else {
+      FC_ASSERT( is_manager( db(), op.betting_market_group_id, op.fee_payer() ),
+         "fee_payer is not the manager of this object" );   
+   }
+
    _betting_market_group = &op.betting_market_group_id(d);
 
    FC_ASSERT(op.new_description || op.new_rules_id || op.status, "nothing to change");
@@ -197,7 +214,6 @@ void_result betting_market_group_update_evaluator::do_apply(const betting_market
 void_result betting_market_create_evaluator::do_evaluate(const betting_market_create_operation& op)
 { try {
    FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
-   FC_ASSERT(trx_state->_is_proposed_trx);
 
    // the betting_market_group_id in the operation can be a relative id.  If it is,
    // resolve it and verify that it is truly an betting_market_group
@@ -210,6 +226,15 @@ void_result betting_market_create_evaluator::do_evaluate(const betting_market_cr
              "betting_market_group_id must refer to a betting_market_group_id_type");
    _group_id = resolved_betting_market_group_id;
    FC_ASSERT(db().find_object(_group_id), "Invalid betting_market_group specified");
+
+   if( db().head_block_time() < HARDFORK_MANAGER_TIME ) {
+      FC_ASSERT( trx_state->_is_proposed_trx );
+      FC_ASSERT( !op.extensions.value.fee_paying_account );
+   }
+   else {
+      FC_ASSERT( is_manager( db(), _group_id, op.fee_payer() ),
+         "fee_payer is not the manager of this object" );   
+   }
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -229,7 +254,16 @@ void_result betting_market_update_evaluator::do_evaluate(const betting_market_up
 { try {
    database& d = db();
    FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
-   FC_ASSERT(trx_state->_is_proposed_trx);
+ 
+   if( d.head_block_time() < HARDFORK_MANAGER_TIME ) {
+      FC_ASSERT(trx_state->_is_proposed_trx);
+      FC_ASSERT( !op.extensions.value.fee_paying_account );
+   }
+   else {
+      FC_ASSERT( is_manager( db(), op.betting_market_id, op.fee_payer() ),
+         "fee_payer is not the manager of this object" );   
+   }
+
    _betting_market = &op.betting_market_id(d);
    FC_ASSERT(op.new_group_id.valid() || op.new_description.valid() || op.new_payout_condition.valid(), "nothing to change");
 
@@ -245,6 +279,13 @@ void_result betting_market_update_evaluator::do_evaluate(const betting_market_up
                 resolved_betting_market_group_id.type() == betting_market_group_id_type::type_id,
                 "betting_market_group_id must refer to a betting_market_group_id_type");
       _group_id = resolved_betting_market_group_id;
+      
+      if( db().head_block_time() >= HARDFORK_MANAGER_TIME )
+      {
+         FC_ASSERT( is_manager( db(), _group_id, op.fee_payer() ),
+            "no manager permission for the new_betting_market_group_id" );   
+      }
+
       FC_ASSERT(d.find_object(_group_id), "invalid betting_market_group specified");
    }
 
@@ -365,6 +406,16 @@ void_result betting_market_group_resolve_evaluator::do_evaluate(const betting_ma
 { try {
    database& d = db();
    FC_ASSERT(d.head_block_time() >= HARDFORK_1000_TIME);
+   
+   if( d.head_block_time() <= HARDFORK_MANAGER_TIME ) {
+      FC_ASSERT( trx_state->_is_proposed_trx );
+      FC_ASSERT( !op.extensions.value.fee_paying_account );
+   }
+   else {
+      FC_ASSERT( is_manager( d, op.betting_market_group_id, op.fee_payer() ),
+         "fee_payer is not the manager of this object" );
+   }
+   
    _betting_market_group = &op.betting_market_group_id(d);
    d.validate_betting_market_group_resolutions(*_betting_market_group, op.resolutions);
    return void_result();
@@ -379,6 +430,14 @@ void_result betting_market_group_resolve_evaluator::do_apply(const betting_marke
 void_result betting_market_group_cancel_unmatched_bets_evaluator::do_evaluate(const betting_market_group_cancel_unmatched_bets_operation& op)
 { try {
    FC_ASSERT(db().head_block_time() >= HARDFORK_1000_TIME);
+   if( db().head_block_time() <= HARDFORK_MANAGER_TIME ) {
+      FC_ASSERT( trx_state->_is_proposed_trx );
+      FC_ASSERT( !op.extensions.value.fee_paying_account );
+   }
+   else {
+      FC_ASSERT( is_manager( db(), op.betting_market_group_id, op.fee_payer() ),
+         "fee_payer is not the manager of this object" );
+   }
    _betting_market_group = &op.betting_market_group_id(db());
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
