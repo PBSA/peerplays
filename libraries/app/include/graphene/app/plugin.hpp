@@ -26,7 +26,7 @@
 #include <graphene/app/application.hpp>
 
 #include <boost/program_options.hpp>
-#include <fc/io/json.hpp>
+#include <fc_pp/io/json.hpp>
 
 namespace graphene { namespace app {
 
@@ -123,10 +123,10 @@ class plugin : public abstract_plugin
 template<typename T>
 T dejsonify(const string& s)
 {
-   return fc::json::from_string(s).as<T>();
+   return fc_pp::json::from_string(s).as<T>();
 }
 
-#define DEFAULT_VALUE_VECTOR(value) default_value({fc::json::to_string(value)}, fc::json::to_string(value))
+#define DEFAULT_VALUE_VECTOR(value) default_value({fc_pp::json::to_string(value)}, fc_pp::json::to_string(value))
 #define LOAD_VALUE_SET(options, name, container, type) \
 if( options.count(name) ) { \
       const std::vector<std::string>& ops = options[name].as<std::vector<std::string>>(); \

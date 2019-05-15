@@ -22,9 +22,9 @@
  * THE SOFTWARE.
  */
 
-#include <fc/optional.hpp>
-#include <fc/variant_object.hpp>
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/optional.hpp>
+#include <fc_pp/variant_object.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 
 #include <graphene/app/application.hpp>
 

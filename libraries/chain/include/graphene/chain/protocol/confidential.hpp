@@ -27,7 +27,7 @@
 
 namespace graphene { namespace chain {
 
-using fc::ecc::blind_factor_type;
+using fc_pp::ecc::blind_factor_type;
 
 /**
  * @defgroup stealth Stealth Transfer
@@ -82,7 +82,7 @@ struct blind_memo
  */
 struct blind_input
 {
-   fc::ecc::commitment_type      commitment;
+   fc_pp::ecc::commitment_type      commitment;
    /** provided to maintain the invariant that all authority
     * required by an operation is explicit in the operation.  Must
     * match blinded_balance_id->owner
@@ -103,8 +103,8 @@ struct stealth_confirmation
    {
       optional<public_key_type> from;
       asset                     amount;
-      fc::sha256                blinding_factor;
-      fc::ecc::commitment_type  commitment;
+      fc_pp::sha256                blinding_factor;
+      fc_pp::ecc::commitment_type  commitment;
       uint32_t                  check = 0;
    };
 
@@ -132,7 +132,7 @@ struct stealth_confirmation
  */
 struct blind_output
 {
-   fc::ecc::commitment_type                commitment;
+   fc_pp::ecc::commitment_type                commitment;
    /** only required if there is more than one blind output */
    range_proof_type                        range_proof;
    authority                               owner;

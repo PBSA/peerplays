@@ -24,8 +24,8 @@
 
 #pragma once
 
-#include <fc/api.hpp>
-#include <fc/variant_object.hpp>
+#include <fc_pp/api.hpp>
+#include <fc_pp/variant_object.hpp>
 
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/chain/protocol/asset.hpp>

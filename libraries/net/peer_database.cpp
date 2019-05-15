@@ -28,10 +28,10 @@
 #include <boost/multi_index/mem_fun.hpp>
 #include <boost/multi_index/tag.hpp>
 
-#include <fc/io/raw.hpp>
-#include <fc/io/raw_variant.hpp>
-#include <fc/log/logger.hpp>
-#include <fc/io/json.hpp>
+#include <fc_pp/io/raw.hpp>
+#include <fc_pp/io/raw_variant.hpp>
+#include <fc_pp/log/logger.hpp>
+#include <fc_pp/io/json.hpp>
 
 #include <graphene/net/peer_database.hpp>
 
@@ -50,26 +50,26 @@ namespace graphene { namespace net {
       typedef boost::multi_index_container<potential_peer_record, 
                                            indexed_by<ordered_non_unique<tag<last_seen_time_index>, 
                                                                          member<potential_peer_record, 
-                                                                                fc::time_point_sec, 
+                                                                                fc_pp::time_point_sec, 
                                                                                 &potential_peer_record::last_seen_time> >,
                                                       hashed_unique<tag<endpoint_index>, 
                                                                     member<potential_peer_record, 
-                                                                           fc::ip::endpoint, 
+                                                                           fc_pp::ip::endpoint, 
                                                                            &potential_peer_record::endpoint>, 
-                                                                    std::hash<fc::ip::endpoint> > > > potential_peer_set;
+                                                                    std::hash<fc_pp::ip::endpoint> > > > potential_peer_set;
 
     private:
       potential_peer_set     _potential_peer_set;
-      fc::path _peer_database_filename;
+      fc_pp::path _peer_database_filename;
 
     public:
-      void open(const fc::path& databaseFilename);
+      void open(const fc_pp::path& databaseFilename);
       void close();
       void clear();
-      void erase(const fc::ip::endpoint& endpointToErase);
+      void erase(const fc_pp::ip::endpoint& endpointToErase);
       void update_entry(const potential_peer_record& updatedRecord);
-      potential_peer_record lookup_or_create_entry_for_endpoint(const fc::ip::endpoint& endpointToLookup);
-      fc::optional<potential_peer_record> lookup_entry_for_endpoint(const fc::ip::endpoint& endpointToLookup);
+      potential_peer_record lookup_or_create_entry_for_endpoint(const fc_pp::ip::endpoint& endpointToLookup);
+      fc_pp::optional<potential_peer_record> lookup_entry_for_endpoint(const fc_pp::ip::endpoint& endpointToLookup);
 
       peer_database::iterator begin() const;
       peer_database::iterator end() const;
@@ -88,14 +88,14 @@ namespace graphene { namespace net {
     peer_database_iterator::peer_database_iterator( const peer_database_iterator& c ) :
       boost::iterator_facade<peer_database_iterator, const potential_peer_record, boost::forward_traversal_tag>(c){}
 
-    void peer_database_impl::open(const fc::path& peer_database_filename)
+    void peer_database_impl::open(const fc_pp::path& peer_database_filename)
     {
       _peer_database_filename = peer_database_filename;
-      if (fc::exists(_peer_database_filename))
+      if (fc_pp::exists(_peer_database_filename))
       {
         try
         {
-          std::vector<potential_peer_record> peer_records = fc::json::from_file(_peer_database_filename).as<std::vector<potential_peer_record> >();
+          std::vector<potential_peer_record> peer_records = fc_pp::json::from_file(_peer_database_filename).as<std::vector<potential_peer_record> >();
           std::copy(peer_records.begin(), peer_records.end(), std::inserter(_potential_peer_set, _potential_peer_set.end()));
 #define MAXIMUM_PEERDB_SIZE 1000
           if (_potential_peer_set.size() > MAXIMUM_PEERDB_SIZE)
@@ -106,7 +106,7 @@ namespace graphene { namespace net {
             _potential_peer_set.erase(iter, _potential_peer_set.end());
           }
         }
-        catch (const fc::exception& e)
+        catch (const fc_pp::exception& e)
         {
           elog("error opening peer database file ${peer_database_filename}, starting with a clean database", 
                ("peer_database_filename", _peer_database_filename));
@@ -122,12 +122,12 @@ namespace graphene { namespace net {
 
       try
       {
-        fc::path peer_database_filename_dir = _peer_database_filename.parent_path();
-        if (!fc::exists(peer_database_filename_dir))
-          fc::create_directories(peer_database_filename_dir);
-        fc::json::save_to_file(peer_records, _peer_database_filename);
+        fc_pp::path peer_database_filename_dir = _peer_database_filename.parent_path();
+        if (!fc_pp::exists(peer_database_filename_dir))
+          fc_pp::create_directories(peer_database_filename_dir);
+        fc_pp::json::save_to_file(peer_records, _peer_database_filename);
       }
-      catch (const fc::exception& e)
+      catch (const fc_pp::exception& e)
       {
         elog("error saving peer database to file ${peer_database_filename}", 
              ("peer_database_filename", _peer_database_filename));
@@ -140,7 +140,7 @@ namespace graphene { namespace net {
       _potential_peer_set.clear();
     }
 
-    void peer_database_impl::erase(const fc::ip::endpoint& endpointToErase)
+    void peer_database_impl::erase(const fc_pp::ip::endpoint& endpointToErase)
     {
       auto iter = _potential_peer_set.get<endpoint_index>().find(endpointToErase);
       if (iter != _potential_peer_set.get<endpoint_index>().end())
@@ -156,7 +156,7 @@ namespace graphene { namespace net {
         _potential_peer_set.get<endpoint_index>().insert(updatedRecord);
     }
 
-    potential_peer_record peer_database_impl::lookup_or_create_entry_for_endpoint(const fc::ip::endpoint& endpointToLookup)
+    potential_peer_record peer_database_impl::lookup_or_create_entry_for_endpoint(const fc_pp::ip::endpoint& endpointToLookup)
     {
       auto iter = _potential_peer_set.get<endpoint_index>().find(endpointToLookup);
       if (iter != _potential_peer_set.get<endpoint_index>().end())
@@ -164,12 +164,12 @@ namespace graphene { namespace net {
       return potential_peer_record(endpointToLookup);
     }
 
-    fc::optional<potential_peer_record> peer_database_impl::lookup_entry_for_endpoint(const fc::ip::endpoint& endpointToLookup)
+    fc_pp::optional<potential_peer_record> peer_database_impl::lookup_entry_for_endpoint(const fc_pp::ip::endpoint& endpointToLookup)
     {
       auto iter = _potential_peer_set.get<endpoint_index>().find(endpointToLookup);
       if (iter != _potential_peer_set.get<endpoint_index>().end())
         return *iter;
-      return fc::optional<potential_peer_record>();
+      return fc_pp::optional<potential_peer_record>();
     }
 
     peer_database::iterator peer_database_impl::begin() const
@@ -225,7 +225,7 @@ namespace graphene { namespace net {
   peer_database::~peer_database()
   {}
 
-  void peer_database::open(const fc::path& databaseFilename)
+  void peer_database::open(const fc_pp::path& databaseFilename)
   {
     my->open(databaseFilename);
   }
@@ -240,7 +240,7 @@ namespace graphene { namespace net {
     my->clear();
   }
 
-  void peer_database::erase(const fc::ip::endpoint& endpointToErase)
+  void peer_database::erase(const fc_pp::ip::endpoint& endpointToErase)
   {
     my->erase(endpointToErase);
   }
@@ -250,12 +250,12 @@ namespace graphene { namespace net {
     my->update_entry(updatedRecord);
   }
 
-  potential_peer_record peer_database::lookup_or_create_entry_for_endpoint(const fc::ip::endpoint& endpointToLookup)
+  potential_peer_record peer_database::lookup_or_create_entry_for_endpoint(const fc_pp::ip::endpoint& endpointToLookup)
   {
     return my->lookup_or_create_entry_for_endpoint(endpointToLookup);
   }
 
-  fc::optional<potential_peer_record> peer_database::lookup_entry_for_endpoint(const fc::ip::endpoint& endpoint_to_lookup)
+  fc_pp::optional<potential_peer_record> peer_database::lookup_entry_for_endpoint(const fc_pp::ip::endpoint& endpoint_to_lookup)
   {
     return my->lookup_entry_for_endpoint(endpoint_to_lookup);
   }

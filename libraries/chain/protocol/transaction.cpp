@@ -23,9 +23,9 @@
  */
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
-#include <fc/io/raw.hpp>
-#include <fc/bitutil.hpp>
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/io/raw.hpp>
+#include <fc_pp/bitutil.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 #include <algorithm>
 
 namespace graphene { namespace chain {
@@ -33,22 +33,22 @@ namespace graphene { namespace chain {
 digest_type processed_transaction::merkle_digest()const
 {
    digest_type::encoder enc;
-   fc::raw::pack( enc, *this );
+   fc_pp::raw::pack( enc, *this );
    return enc.result();
 }
 
 digest_type transaction::digest()const
 {
    digest_type::encoder enc;
-   fc::raw::pack( enc, *this );
+   fc_pp::raw::pack( enc, *this );
    return enc.result();
 }
 
 digest_type transaction::sig_digest( const chain_id_type& chain_id )const
 {
    digest_type::encoder enc;
-   fc::raw::pack( enc, chain_id );
-   fc::raw::pack( enc, *this );
+   fc_pp::raw::pack( enc, chain_id );
+   fc_pp::raw::pack( enc, *this );
    return enc.result();
 }
 
@@ -77,19 +77,19 @@ const signature_type& graphene::chain::signed_transaction::sign(const private_ke
 signature_type graphene::chain::signed_transaction::sign(const private_key_type& key, const chain_id_type& chain_id)const
 {
    digest_type::encoder enc;
-   fc::raw::pack( enc, chain_id );
-   fc::raw::pack( enc, *this );
+   fc_pp::raw::pack( enc, chain_id );
+   fc_pp::raw::pack( enc, *this );
    return key.sign_compact(enc.result());
 }
 
-void transaction::set_expiration( fc::time_point_sec expiration_time )
+void transaction::set_expiration( fc_pp::time_point_sec expiration_time )
 {
     expiration = expiration_time;
 }
 
 void transaction::set_reference_block( const block_id_type& reference_block )
 {
-   ref_block_num = fc::endian_reverse_u32(reference_block._hash[0]);
+   ref_block_num = fc_pp::endian_reverse_u32(reference_block._hash[0]);
    ref_block_prefix = reference_block._hash[1];
 }
 
@@ -304,7 +304,7 @@ flat_set<public_key_type> signed_transaction::get_signature_keys( const chain_id
    for( const auto&  sig : signatures )
    {
       GRAPHENE_ASSERT(
-         result.insert( fc::ecc::public_key(sig,d) ).second,
+         result.insert( fc_pp::ecc::public_key(sig,d) ).second,
          tx_duplicate_sig,
          "Duplicate Signature detected" );
    }

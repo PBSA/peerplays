@@ -28,7 +28,7 @@
 
 #include <graphene/chain/account_object.hpp>
 
-#include <fc/crypto/digest.hpp>
+#include <fc_pp/crypto/digest.hpp>
 
 #include "../common/database_fixture.hpp"
 
@@ -53,7 +53,7 @@ BOOST_AUTO_TEST_CASE( undo_test )
       });
       auto id2 = bal_obj2.id;
       BOOST_CHECK( id1 == id2 );
-   } catch ( const fc::exception& e )
+   } catch ( const fc_pp::exception& e )
    {
       edump( (e.to_detail_string()) );
       throw;

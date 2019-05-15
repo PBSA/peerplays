@@ -73,7 +73,7 @@ END
 }
 
 my $fileFooter = <<'END';
-      fc::api<wallet_api> tmp;
+      fc_pp::api<wallet_api> tmp;
       detail::api_method_name_collector_visitor visitor;
       tmp->visit(visitor);
       for (auto iter = method_descriptions.begin(); iter != method_descriptions.end();)

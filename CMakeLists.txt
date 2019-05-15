@@ -1,8 +1,38 @@
 # Defines BitShares library target.
 project( BitShares )
-cmake_minimum_required( VERSION 2.8.12 )
+cmake_minimum_required( VERSION 3.5 )
 
 set( BLOCKCHAIN_NAME "BitShares" )
+
+########################################################## PeerPlays begin
+# eos requiers this versions!
+# http://stackoverflow.com/a/18369825
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6.0)
+        message(FATAL_ERROR "GCC version must be at least 6.0!")
+    endif()
+    if ("${CMAKE_GENERATOR}" STREQUAL "Ninja")
+       add_compile_options(-fdiagnostics-color=always)
+    endif()
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.0)
+        message(FATAL_ERROR "Clang version must be at least 4.0!")
+    endif()
+    if ("${CMAKE_GENERATOR}" STREQUAL "Ninja")
+       add_compile_options(-fcolor-diagnostics)
+    endif()
+endif()
+
+
+set( CMAKE_CXX_STANDARD 14 ) # eos::wavm requiers C++14
+if( NOT APPLE )
+  set( CMAKE_CXX_EXTENSIONS ON ) # eos::wavm requiers extensions, like gnu++14
+endif()
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
+
+execute_process( COMMAND ${CMAKE_SOURCE_DIR}/rename_fc.sh ${CMAKE_SOURCE_DIR} )
+########################################################## PeerPlays end
 
 set( CLI_CLIENT_EXECUTABLE_NAME graphene_client )
 set( GUI_CLIENT_EXECUTABLE_NAME BitShares )
@@ -33,9 +63,9 @@ if (USE_PCH)
 endif(USE_PCH)
 
 IF( NOT WIN32 )
-  list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/libraries/fc/CMakeModules" )
+  list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/libraries/fc_pp/CMakeModules" )
 ENDIF( NOT WIN32 )
-list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/libraries/fc/GitVersionGen" )
+list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/libraries/fc_pp/GitVersionGen" )
 include( GetGitRevisionDescription )
 get_git_head_revision( GIT_REFSPEC GIT_SHA2 )
 
@@ -51,7 +81,11 @@ LIST(APPEND BOOST_COMPONENTS thread
                              chrono
                              unit_test_framework
                              context
-                             locale)
+                             locale
+                             log
+                             coroutine
+                             fiber)
+                             
 SET( Boost_USE_STATIC_LIBS ON CACHE STRING "ON or OFF" )
 
 IF( WIN32 )
@@ -60,7 +94,8 @@ IF( WIN32 )
   set(BOOST_ALL_DYN_LINK OFF) # force dynamic linking for all libraries
 ENDIF(WIN32)
 
-FIND_PACKAGE(Boost 1.57 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
+FIND_PACKAGE(Boost 1.60 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
+
 # For Boost 1.53 on windows, coroutine was not in BOOST_LIBRARYDIR and do not need it to build,  but if boost versin >= 1.54, find coroutine otherwise will cause link errors
 IF(NOT "${Boost_VERSION}" MATCHES "1.53(.*)")
    SET(BOOST_LIBRARIES_TEMP ${Boost_LIBRARIES})
@@ -113,11 +148,11 @@ else( WIN32 ) # Apple AND Linux
     if( APPLE )
         # Apple Specific Options Here
         message( STATUS "Configuring BitShares on OS X" )
-        set( CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++11 -stdlib=libc++ -Wall" )
+        set( CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -stdlib=libc++ -Wall" )
     else( APPLE )
         # Linux Specific Options Here
         message( STATUS "Configuring BitShares on Linux" )
-        set( CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++11 -Wall" )
+        set( CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -Wall" )
         set( rt_library rt )
         set( pthread_library pthread)
         if ( NOT DEFINED crypto_library )
@@ -156,8 +191,38 @@ if(ENABLE_COVERAGE_TESTING)
     SET(CMAKE_CXX_FLAGS "--coverage ${CMAKE_CXX_FLAGS}")
 endif()
 
+########################################################## PeerPlays begin
+if( APPLE )
+  # to find OpenSSL we need this var
+  set( OPENSSL_ROOT ${OPENSSL_ROOT_DIR} )
+endif()
+
 add_subdirectory( libraries )
 
+set( CMAKE_INSTALL_FULL_LIBDIR lib )
+set( CMAKE_INSTALL_LIBDIR lib )
+set( CMAKE_INSTALL_FULL_INCLUDEDIR "include/eos/fc")
+
+include_directories( eos/libraries/chain )
+include_directories( eos/libraries/chain/include )
+include_directories( eos/libraries/chainbase/include )
+include_directories( eos/libraries/wasm-jit/Include )
+include_directories( eos/libraries/types/include )
+include_directories( eos/libraries/softfloat/source/include )
+
+add_subdirectory( eos/libraries/chain )
+add_subdirectory( eos/libraries/chainbase )
+add_subdirectory( eos/libraries/wasm-jit )
+add_subdirectory( eos/libraries/softfloat )
+add_subdirectory( eos/libraries/fc )
+add_subdirectory( eos/libraries/wabt )
+add_subdirectory( eos/libraries/builtins )
+
+if(NOT APPLE)
+  # test_cypher_suites need pthread_library, but it not links in eos::fc
+  set_property( TARGET fc APPEND PROPERTY INTERFACE_LINK_LIBRARIES ${pthread_library} )
+endif()
+########################################################## PeerPlays end
 
 set(BUILD_BITSHARES_PROGRAMS TRUE CACHE BOOL "Build bitshares executables (witness node, cli wallet, etc)")
 add_subdirectory( programs )

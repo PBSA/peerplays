@@ -45,7 +45,7 @@ void database::cancel_bet( const bet_object& bet, bool create_virtual_op )
    {
       bet_canceled_operation bet_canceled_virtual_op(bet.bettor_id, bet.id,
                                                      bet.amount_to_bet);
-      //fc_idump(fc::logger::get("betting"), (bet_canceled_virtual_op));
+      //fc_idump(fc_pp::logger::get("betting"), (bet_canceled_virtual_op));
       push_applied_operation(std::move(bet_canceled_virtual_op));
    }
    remove(bet);
@@ -157,10 +157,10 @@ void database::resolve_betting_market_group(const betting_market_group_object& b
 
 void database::settle_betting_market_group(const betting_market_group_object& betting_market_group)
 {
-   fc_ilog(fc::logger::get("betting"), "Settling betting market group ${id}", ("id", betting_market_group.id));
+   fc_ilog(fc_pp::logger::get("betting"), "Settling betting market group ${id}", ("id", betting_market_group.id));
    // we pay the rake fee to the dividend distribution account for the core asset, go ahead
    // and look up that account now
-   fc::optional<account_id_type> rake_account_id;
+   fc_pp::optional<account_id_type> rake_account_id;
    const asset_object& core_asset_obj = asset_id_type(0)(*this);
    if (core_asset_obj.dividend_data_id)
    {
@@ -221,7 +221,7 @@ void database::settle_betting_market_group(const betting_market_group_object& be
          }
          catch (std::out_of_range&)
          {
-            FC_THROW_EXCEPTION(fc::key_not_found_exception, "Unexpected betting market ID, shouldn't happen");
+            FC_THROW_EXCEPTION(fc_pp::key_not_found_exception, "Unexpected betting market ID, shouldn't happen");
          }
 
          ///if (cancel)
@@ -263,7 +263,7 @@ void database::settle_betting_market_group(const betting_market_group_object& be
       share_type rake_amount;
       if (net_profits.value > 0 && rake_account_id)
       {
-         rake_amount = ((fc::uint128_t(net_profits.value) * rake_fee_percentage + GRAPHENE_100_PERCENT - 1) / GRAPHENE_100_PERCENT).to_uint64();
+         rake_amount = ((fc_pp::uint128_t(net_profits.value) * rake_fee_percentage + GRAPHENE_100_PERCENT - 1) / GRAPHENE_100_PERCENT).to_uint64();
          share_type affiliates_share;
          if (rake_amount.value)
             affiliates_share = payout_helper.payout( bettor_id, rake_amount );
@@ -275,7 +275,7 @@ void database::settle_betting_market_group(const betting_market_group_object& be
       // pay winning - rake
       adjust_balance(bettor_id, asset(payout_amounts - rake_amount, betting_market_group.asset_id));
       // [ROL]
-      //fc_idump(fc::logger::get("betting"), (payout_amounts)(net_profits.value)(rake_amount.value));
+      //fc_idump(fc_pp::logger::get("betting"), (payout_amounts)(net_profits.value)(rake_amount.value));
 
       push_applied_operation(betting_market_group_resolved_operation(bettor_id,
                              betting_market_group.id,
@@ -299,13 +299,13 @@ void database::settle_betting_market_group(const betting_market_group_object& be
       const betting_market_object& betting_market = *betting_market_itr;
 
       ++betting_market_itr;
-      fc_dlog(fc::logger::get("betting"), "removing betting market ${id}", ("id", betting_market.id));
+      fc_dlog(fc_pp::logger::get("betting"), "removing betting market ${id}", ("id", betting_market.id));
       remove(betting_market);
    }
 
    const event_object& event = betting_market_group.event_id(*this);
 
-   fc_dlog(fc::logger::get("betting"), "removing betting market group ${id}", ("id", betting_market_group.id));
+   fc_dlog(fc_pp::logger::get("betting"), "removing betting market group ${id}", ("id", betting_market_group.id));
    remove(betting_market_group);
 
    payout_helper.commit();
@@ -320,7 +320,7 @@ void database::remove_completed_events()
    {
       const event_object& event = *canceled_event_iter;
       ++canceled_event_iter;
-      fc_dlog(fc::logger::get("betting"), "removing canceled event ${id}", ("id", event.id));
+      fc_dlog(fc_pp::logger::get("betting"), "removing canceled event ${id}", ("id", event.id));
       remove(event);
    }
 
@@ -329,7 +329,7 @@ void database::remove_completed_events()
    {
       const event_object& event = *settled_event_iter;
       ++settled_event_iter;
-      fc_dlog(fc::logger::get("betting"), "removing settled event ${id}", ("id", event.id));
+      fc_dlog(fc_pp::logger::get("betting"), "removing settled event ${id}", ("id", event.id));
       remove(event);
    }
 }
@@ -394,7 +394,7 @@ bool bet_was_matched(database& db, const bet_object& bet,
                                                 asset_amount_bet,
                                                 actual_multiplier,
                                                 guaranteed_winnings_returned);
-   //fc_edump(fc::logger::get("betting"), (bet_matched_virtual_op));
+   //fc_edump(fc_pp::logger::get("betting"), (bet_matched_virtual_op));
    db.push_applied_operation(std::move(bet_matched_virtual_op));
 
    // update the bet on the books
@@ -431,7 +431,7 @@ bool bet_was_matched(database& db, const bet_object& bet,
  */
 int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker_bet )
 {
-   //fc_idump(fc::logger::get("betting"), (taker_bet)(maker_bet));
+   //fc_idump(fc_pp::logger::get("betting"), (taker_bet)(maker_bet));
    assert(taker_bet.amount_to_bet.asset_id == maker_bet.amount_to_bet.asset_id);
    assert(taker_bet.amount_to_bet.amount > 0 && maker_bet.amount_to_bet.amount > 0);
    assert(taker_bet.back_or_lay == bet_type::back ? taker_bet.backer_multiplier <= maker_bet.backer_multiplier : 
@@ -439,7 +439,7 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
    assert(taker_bet.back_or_lay != maker_bet.back_or_lay);
 
    int result = 0;
-   //fc_idump(fc::logger::get("betting"), (taker_bet)(maker_bet));
+   //fc_idump(fc_pp::logger::get("betting"), (taker_bet)(maker_bet));
 
    // using the maker's odds, figure out how much of the maker's bet we would match, rounding down
    // go ahead and get look up the ratio for the bet (a bet with odds 1.92 will have a ratio 25:23)
@@ -455,8 +455,8 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
    // but we can match any integer multiple of that ratio (called the 'factor' below), 
    // limited only by the bet amounts.
    //
-   //fc_idump(fc::logger::get("betting"), (back_odds_ratio)(lay_odds_ratio));
-   //fc_idump(fc::logger::get("betting"), (maker_odds_ratio)(taker_odds_ratio));
+   //fc_idump(fc_pp::logger::get("betting"), (back_odds_ratio)(lay_odds_ratio));
+   //fc_idump(fc_pp::logger::get("betting"), (maker_odds_ratio)(taker_odds_ratio));
 
    // now figure out how much of the maker bet we'll consume.  We don't yet know whether the maker or taker
    // will be the limiting factor.
@@ -465,18 +465,18 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
    share_type maximum_taker_factor = maximum_factor_taker_is_willing_to_pay;
    if (taker_bet.back_or_lay == bet_type::lay) {
       share_type maximum_factor_taker_is_willing_to_receive = taker_bet.get_exact_matching_amount() / maker_odds_ratio;
-      //fc_idump(fc::logger::get("betting"), (maximum_factor_taker_is_willing_to_pay));
+      //fc_idump(fc_pp::logger::get("betting"), (maximum_factor_taker_is_willing_to_pay));
       bool taker_was_limited_by_matching_amount = maximum_factor_taker_is_willing_to_receive < maximum_factor_taker_is_willing_to_pay;
       if (taker_was_limited_by_matching_amount)
          maximum_taker_factor = maximum_factor_taker_is_willing_to_receive;
    }
-   //fc_idump(fc::logger::get("betting"), (maximum_factor_taker_is_willing_to_pay)(maximum_taker_factor));
+   //fc_idump(fc_pp::logger::get("betting"), (maximum_factor_taker_is_willing_to_pay)(maximum_taker_factor));
 
    share_type maximum_maker_factor = maker_bet.amount_to_bet.amount / maker_odds_ratio;
    share_type maximum_factor = std::min(maximum_taker_factor, maximum_maker_factor);
    share_type maker_amount_to_match = maximum_factor * maker_odds_ratio;
    share_type taker_amount_to_match = maximum_factor * taker_odds_ratio;
-   fc_idump(fc::logger::get("betting"), (maker_amount_to_match)(taker_amount_to_match));
+   fc_idump(fc_pp::logger::get("betting"), (maker_amount_to_match)(taker_amount_to_match));
 
    // TODO: analyze whether maximum_maker_amount_to_match can ever be zero here 
    assert(maker_amount_to_match != 0);
@@ -488,7 +488,7 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
    assert(taker_amount_to_match / taker_odds_ratio * taker_odds_ratio == taker_amount_to_match);
    {
       // verify we're getting the odds we expect
-      fc::uint128_t payout_128 = maker_amount_to_match.value;
+      fc_pp::uint128_t payout_128 = maker_amount_to_match.value;
       payout_128 += taker_amount_to_match.value;
       payout_128 *= GRAPHENE_BETTING_ODDS_PRECISION;
       payout_128 /= maker_bet.back_or_lay == bet_type::back ? maker_amount_to_match.value : taker_amount_to_match.value;
@@ -496,7 +496,7 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
    }
 #endif
 
-   //fc_idump(fc::logger::get("betting"), (taker_amount_to_match)(maker_amount_to_match));
+   //fc_idump(fc_pp::logger::get("betting"), (taker_amount_to_match)(maker_amount_to_match));
 
    // maker bets will always be an exact multiple of maker_odds_ratio, so they will either completely match or remain on the books
    bool maker_bet_will_completely_match = maker_amount_to_match == maker_bet.amount_to_bet.amount;
@@ -549,18 +549,18 @@ int match_bet(database& db, const bet_object& taker_bet, const bet_object& maker
          db.modify(taker_bet, [&taker_refund_amount](bet_object& taker_bet_object) {
                       taker_bet_object.amount_to_bet.amount -= taker_refund_amount;
                    });
-         fc_dlog(fc::logger::get("betting"), "Refunding ${taker_refund_amount} to taker because we matched at the maker's odds of "
+         fc_dlog(fc_pp::logger::get("betting"), "Refunding ${taker_refund_amount} to taker because we matched at the maker's odds of "
                  "${maker_odds} instead of the taker's odds ${taker_odds}",
                  ("taker_refund_amount", taker_refund_amount)
                  ("maker_odds", maker_bet.backer_multiplier)
                  ("taker_odds", taker_bet.backer_multiplier));
-         fc_ddump(fc::logger::get("betting"), (taker_bet));
+         fc_ddump(fc_pp::logger::get("betting"), (taker_bet));
 
          db.adjust_balance(taker_bet.bettor_id, asset(taker_refund_amount, taker_bet.amount_to_bet.asset_id));
          // TODO: update global statistics
          bet_adjusted_operation bet_adjusted_op(taker_bet.bettor_id, taker_bet.id, 
                                                 asset(taker_refund_amount, taker_bet.amount_to_bet.asset_id));
-         // fc_idump(fc::logger::get("betting"), (bet_adjusted_op)(new_bet_object));
+         // fc_idump(fc_pp::logger::get("betting"), (bet_adjusted_op)(new_bet_object));
          db.push_applied_operation(std::move(bet_adjusted_op));
       }
    }
@@ -603,10 +603,10 @@ bool database::place_bet(const bet_object& new_bet_object)
       // TODO: update global statistics
       bet_adjusted_operation bet_adjusted_op(new_bet_object.bettor_id, new_bet_object.id, 
                                              stake_returned);
-      // fc_idump(fc::logger::get("betting"), (bet_adjusted_op)(new_bet_object));
+      // fc_idump(fc_pp::logger::get("betting"), (bet_adjusted_op)(new_bet_object));
       push_applied_operation(std::move(bet_adjusted_op));
 
-      fc_dlog(fc::logger::get("betting"), "Refunded ${refund_amount} to round the bet down to something that can match exactly, new bet: ${new_bet}",
+      fc_dlog(fc_pp::logger::get("betting"), "Refunded ${refund_amount} to round the bet down to something that can match exactly, new bet: ${new_bet}",
            ("refund_amount", stake_returned.amount)
            ("new_bet", new_bet_object));
    }
@@ -617,11 +617,11 @@ bool database::place_bet(const bet_object& new_bet_object)
    auto book_itr = bet_odds_idx.lower_bound(std::make_tuple(new_bet_object.betting_market_id, bet_type_to_match));
    auto book_end = bet_odds_idx.upper_bound(std::make_tuple(new_bet_object.betting_market_id, bet_type_to_match, new_bet_object.backer_multiplier));
 
-   // fc_ilog(fc::logger::get("betting"), "");
-   // fc_ilog(fc::logger::get("betting"), "------------  order book ------------------");
+   // fc_ilog(fc_pp::logger::get("betting"), "");
+   // fc_ilog(fc_pp::logger::get("betting"), "------------  order book ------------------");
    // for (auto itr = book_itr; itr != book_end; ++itr)
-   //    fc_idump(fc::logger::get("betting"), (*itr));
-   // fc_ilog(fc::logger::get("betting"), "------------  order book ------------------");
+   //    fc_idump(fc_pp::logger::get("betting"), (*itr));
+   // fc_ilog(fc_pp::logger::get("betting"), "------------  order book ------------------");
 
    int orders_matched_flags = 0;
    bool finished = false;
@@ -636,7 +636,7 @@ bool database::place_bet(const bet_object& new_bet_object)
       finished = orders_matched_flags != 2;
    }
    if (!(orders_matched_flags & 1))
-      fc_ddump(fc::logger::get("betting"), (new_bet_object));
+      fc_ddump(fc_pp::logger::get("betting"), (new_bet_object));
 
 
    // return true if the taker bet was completely consumed

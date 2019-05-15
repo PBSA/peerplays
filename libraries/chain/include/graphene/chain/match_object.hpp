@@ -4,17 +4,17 @@
 #include <boost/multi_index/composite_key.hpp>
 #include <graphene/db/flat_index.hpp>
 #include <graphene/db/generic_index.hpp>
-#include <fc/crypto/hex.hpp>
+#include <fc_pp/crypto/hex.hpp>
 #include <sstream>
 
 namespace graphene { namespace chain {
    class match_object;
 } }
 
-namespace fc { 
-   void to_variant(const graphene::chain::match_object& match_obj, fc::variant& v);
-   void from_variant(const fc::variant& v, graphene::chain::match_object& match_obj);
-} //end namespace fc
+namespace fc_pp { 
+   void to_variant(const graphene::chain::match_object& match_obj, fc_pp::variant& v);
+   void from_variant(const fc_pp::variant& v, graphene::chain::match_object& match_obj);
+} //end namespace fc_pp
 
 namespace graphene { namespace chain {
    class database;
@@ -84,8 +84,8 @@ namespace graphene { namespace chain {
       template<typename Stream>
       friend Stream& operator>>( Stream& s, match_object& match_obj );
 
-      friend void ::fc::to_variant(const graphene::chain::match_object& match_obj, fc::variant& v);
-      friend void ::fc::from_variant(const fc::variant& v, graphene::chain::match_object& match_obj);
+      friend void ::fc_pp::to_variant(const graphene::chain::match_object& match_obj, fc_pp::variant& v);
+      friend void ::fc_pp::from_variant(const fc_pp::variant& v, graphene::chain::match_object& match_obj);
 
       void pack_impl(std::ostream& stream) const;
       void unpack_impl(std::istream& stream);
@@ -109,23 +109,23 @@ namespace graphene { namespace chain {
    { 
       // pack all fields exposed in the header in the usual way
       // instead of calling the derived pack, just serialize the one field in the base class
-      //   fc::raw::pack<Stream, const graphene::db::abstract_object<match_object> >(s, match_obj);
-      fc::raw::pack(s, match_obj.id);
-      fc::raw::pack(s, match_obj.tournament_id);
-      fc::raw::pack(s, match_obj.players);
-      fc::raw::pack(s, match_obj.games);
-      fc::raw::pack(s, match_obj.game_winners);
-      fc::raw::pack(s, match_obj.number_of_wins);
-      fc::raw::pack(s, match_obj.number_of_ties);
-      fc::raw::pack(s, match_obj.match_winners);
-      fc::raw::pack(s, match_obj.start_time);
-      fc::raw::pack(s, match_obj.end_time);
+      //   fc_pp::raw::pack<Stream, const graphene::db::abstract_object<match_object> >(s, match_obj);
+      fc_pp::raw::pack(s, match_obj.id);
+      fc_pp::raw::pack(s, match_obj.tournament_id);
+      fc_pp::raw::pack(s, match_obj.players);
+      fc_pp::raw::pack(s, match_obj.games);
+      fc_pp::raw::pack(s, match_obj.game_winners);
+      fc_pp::raw::pack(s, match_obj.number_of_wins);
+      fc_pp::raw::pack(s, match_obj.number_of_ties);
+      fc_pp::raw::pack(s, match_obj.match_winners);
+      fc_pp::raw::pack(s, match_obj.start_time);
+      fc_pp::raw::pack(s, match_obj.end_time);
 
-      // fc::raw::pack the contents hidden in the impl class
+      // fc_pp::raw::pack the contents hidden in the impl class
       std::ostringstream stream;
       match_obj.pack_impl(stream);
       std::string stringified_stream(stream.str());
-      fc::raw::pack(s, stream.str());
+      fc_pp::raw::pack(s, stream.str());
 
       return s;
    }
@@ -134,21 +134,21 @@ namespace graphene { namespace chain {
    inline Stream& operator>>( Stream& s, match_object& match_obj )
    { 
       // unpack all fields exposed in the header in the usual way
-      //fc::raw::unpack<Stream, graphene::db::abstract_object<match_object> >(s, match_obj);
-      fc::raw::unpack(s, match_obj.id);
-      fc::raw::unpack(s, match_obj.tournament_id);
-      fc::raw::unpack(s, match_obj.players);
-      fc::raw::unpack(s, match_obj.games);
-      fc::raw::unpack(s, match_obj.game_winners);
-      fc::raw::unpack(s, match_obj.number_of_wins);
-      fc::raw::unpack(s, match_obj.number_of_ties);
-      fc::raw::unpack(s, match_obj.match_winners);
-      fc::raw::unpack(s, match_obj.start_time);
-      fc::raw::unpack(s, match_obj.end_time);
+      //fc_pp::raw::unpack<Stream, graphene::db::abstract_object<match_object> >(s, match_obj);
+      fc_pp::raw::unpack(s, match_obj.id);
+      fc_pp::raw::unpack(s, match_obj.tournament_id);
+      fc_pp::raw::unpack(s, match_obj.players);
+      fc_pp::raw::unpack(s, match_obj.games);
+      fc_pp::raw::unpack(s, match_obj.game_winners);
+      fc_pp::raw::unpack(s, match_obj.number_of_wins);
+      fc_pp::raw::unpack(s, match_obj.number_of_ties);
+      fc_pp::raw::unpack(s, match_obj.match_winners);
+      fc_pp::raw::unpack(s, match_obj.start_time);
+      fc_pp::raw::unpack(s, match_obj.end_time);
 
-      // fc::raw::unpack the contents hidden in the impl class
+      // fc_pp::raw::unpack the contents hidden in the impl class
       std::string stringified_stream;
-      fc::raw::unpack(s, stringified_stream);
+      fc_pp::raw::unpack(s, stringified_stream);
       std::istringstream stream(stringified_stream);
       match_obj.unpack_impl(stream);
       

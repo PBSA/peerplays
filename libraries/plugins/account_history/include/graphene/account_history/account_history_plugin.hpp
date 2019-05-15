@@ -28,7 +28,7 @@
 
 #include <graphene/chain/operation_history_object.hpp>
 
-#include <fc/thread/future.hpp>
+#include <fc_pp/thread/future.hpp>
 
 namespace graphene { namespace account_history {
    using namespace chain;

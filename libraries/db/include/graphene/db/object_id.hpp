@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 #pragma once
-#include <fc/exception/exception.hpp>
-#include <fc/io/varint.hpp>
+#include <fc_pp/exception/exception.hpp>
+#include <fc_pp/io/varint.hpp>
 #include <memory>
 #define GRAPHENE_DB_MAX_INSTANCE_ID  (uint64_t(-1)>>16)
 
@@ -31,10 +31,10 @@ namespace graphene { namespace db {
    using  std::shared_ptr;
    using  std::unique_ptr;
    using  std::vector;
-   using  fc::flat_map;
-   using  fc::variant;
-   using  fc::unsigned_int;
-   using  fc::signed_int;
+   using  fc_pp::flat_map;
+   using  fc_pp::variant;
+   using  fc_pp::unsigned_int;
+   using  fc_pp::signed_int;
 
    struct object_id_type
    {
@@ -84,7 +84,7 @@ namespace graphene { namespace db {
 
       explicit operator std::string() const
       {
-          return fc::to_string(space()) + "." + fc::to_string(type()) + "." + fc::to_string(instance());
+          return fc_pp::to_string(space()) + "." + fc_pp::to_string(type()) + "." + fc_pp::to_string(instance());
       }
 
       uint64_t                   number;
@@ -139,13 +139,13 @@ namespace graphene { namespace db {
 FC_REFLECT( graphene::db::object_id_type, (number) )
 
 // REFLECT object_id manually because it has 2 template params
-namespace fc {
+namespace fc_pp {
 template<uint8_t SpaceID, uint8_t TypeID, typename T>
 struct get_typename<graphene::db::object_id<SpaceID,TypeID,T>>
 {
    static const char* name() {
       return typeid(get_typename).name();
-      static std::string _str = string("graphene::db::object_id<")+fc::to_string(SpaceID) + ":" + fc::to_string(TypeID)+">";
+      static std::string _str = string("graphene::db::object_id<")+fc_pp::to_string(SpaceID) + ":" + fc_pp::to_string(TypeID)+">";
       return _str.c_str();
    }
 };
@@ -154,8 +154,8 @@ template<uint8_t SpaceID, uint8_t TypeID, typename T>
 struct reflector<graphene::db::object_id<SpaceID,TypeID,T> >
 {
     typedef graphene::db::object_id<SpaceID,TypeID,T> type;
-    typedef fc::true_type  is_defined;
-    typedef fc::false_type is_enum;
+    typedef fc_pp::true_type  is_defined;
+    typedef fc_pp::false_type is_enum;
     enum  member_count_enum {
       local_member_count = 1,
       total_member_count = 1
@@ -169,12 +169,12 @@ struct reflector<graphene::db::object_id<SpaceID,TypeID,T> >
 };
 
 
- inline void to_variant( const graphene::db::object_id_type& var,  fc::variant& vo )
+ inline void to_variant( const graphene::db::object_id_type& var,  fc_pp::variant& vo )
  {
     vo = std::string( var );
  }
 
- inline void from_variant( const fc::variant& var,  graphene::db::object_id_type& vo )
+ inline void from_variant( const fc_pp::variant& var,  graphene::db::object_id_type& vo )
  { try {
     vo.number = 0;
     const auto& s = var.get_string();
@@ -182,34 +182,34 @@ struct reflector<graphene::db::object_id<SpaceID,TypeID,T> >
     auto second_dot = s.find('.',first_dot+1);
     FC_ASSERT( first_dot != second_dot );
     FC_ASSERT( first_dot != 0 && first_dot != std::string::npos );
-    vo.number = fc::to_uint64(s.substr( second_dot+1 ));
+    vo.number = fc_pp::to_uint64(s.substr( second_dot+1 ));
     FC_ASSERT( vo.number <= GRAPHENE_DB_MAX_INSTANCE_ID );
-    auto space_id = fc::to_uint64( s.substr( 0, first_dot ) );
+    auto space_id = fc_pp::to_uint64( s.substr( 0, first_dot ) );
     FC_ASSERT( space_id <= 0xff );
-    auto type_id =  fc::to_uint64( s.substr( first_dot+1, second_dot-first_dot-1 ) );
+    auto type_id =  fc_pp::to_uint64( s.substr( first_dot+1, second_dot-first_dot-1 ) );
     FC_ASSERT( type_id <= 0xff );
     vo.number |= (space_id << 56) | (type_id << 48);
  } FC_CAPTURE_AND_RETHROW( (var) ) }
  template<uint8_t SpaceID, uint8_t TypeID, typename T>
- void to_variant( const graphene::db::object_id<SpaceID,TypeID,T>& var,  fc::variant& vo )
+ void to_variant( const graphene::db::object_id<SpaceID,TypeID,T>& var,  fc_pp::variant& vo )
  {
-    vo = fc::to_string(SpaceID) + "." + fc::to_string(TypeID) + "." + fc::to_string(var.instance.value);
+    vo = fc_pp::to_string(SpaceID) + "." + fc_pp::to_string(TypeID) + "." + fc_pp::to_string(var.instance.value);
  }
  template<uint8_t SpaceID, uint8_t TypeID, typename T>
- void from_variant( const fc::variant& var,  graphene::db::object_id<SpaceID,TypeID,T>& vo )
+ void from_variant( const fc_pp::variant& var,  graphene::db::object_id<SpaceID,TypeID,T>& vo )
  { try {
     const auto& s = var.get_string();
     auto first_dot = s.find('.');
     auto second_dot = s.find('.',first_dot+1);
     FC_ASSERT( first_dot != second_dot );
     FC_ASSERT( first_dot != 0 && first_dot != std::string::npos );
-    FC_ASSERT( fc::to_uint64( s.substr( 0, first_dot ) ) == SpaceID &&
-               fc::to_uint64( s.substr( first_dot+1, second_dot-first_dot-1 ) ) == TypeID,
+    FC_ASSERT( fc_pp::to_uint64( s.substr( 0, first_dot ) ) == SpaceID &&
+               fc_pp::to_uint64( s.substr( first_dot+1, second_dot-first_dot-1 ) ) == TypeID,
                "Space.Type.0 (${SpaceID}.${TypeID}.0) doesn't match expected value ${var}", ("TypeID",TypeID)("SpaceID",SpaceID)("var",var) );
-    vo.instance = fc::to_uint64(s.substr( second_dot+1 ));
+    vo.instance = fc_pp::to_uint64(s.substr( second_dot+1 ));
  } FC_CAPTURE_AND_RETHROW( (var) ) }
 
-} // namespace fc
+} // namespace fc_pp
 
 namespace std {
      template <> struct hash<graphene::db::object_id_type>

@@ -29,7 +29,7 @@ share_type transfer_operation::calculate_fee( const fee_parameters_type& schedul
 {
    share_type core_fee_required = schedule.fee;
    if( memo )
-      core_fee_required += calculate_data_fee( fc::raw::pack_size(memo), schedule.price_per_kbyte );
+      core_fee_required += calculate_data_fee( fc_pp::raw::pack_size(memo), schedule.price_per_kbyte );
    return core_fee_required;
 }
 
@@ -47,7 +47,7 @@ share_type override_transfer_operation::calculate_fee( const fee_parameters_type
 {
    share_type core_fee_required = schedule.fee;
    if( memo )
-      core_fee_required += calculate_data_fee( fc::raw::pack_size(memo), schedule.price_per_kbyte );
+      core_fee_required += calculate_data_fee( fc_pp::raw::pack_size(memo), schedule.price_per_kbyte );
    return core_fee_required;
 }
 

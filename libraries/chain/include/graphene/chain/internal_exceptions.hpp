@@ -23,7 +23,7 @@
  */
 #pragma once
 
-#include <fc/exception/exception.hpp>
+#include <fc_pp/exception/exception.hpp>
 #include <graphene/chain/exceptions.hpp>
 
 #define GRAPHENE_DECLARE_INTERNAL_EXCEPTION( exc_name, seqnum, msg )  \

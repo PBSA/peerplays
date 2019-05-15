@@ -34,9 +34,9 @@
 
 #include <graphene/db/simple_index.hpp>
 
-#include <fc/crypto/digest.hpp>
-#include <fc/crypto/hex.hpp>
-#include <fc/crypto/hash_ctr_rng.hpp>
+#include <fc_pp/crypto/digest.hpp>
+#include <fc_pp/crypto/hex.hpp>
+#include <fc_pp/crypto/hash_ctr_rng.hpp>
 #include "../common/database_fixture.hpp"
 
 #include <algorithm>
@@ -189,11 +189,11 @@ BOOST_AUTO_TEST_CASE( memo_test )
    m.to = receiver.get_public_key();
    m.set_message(sender, receiver.get_public_key(), "Hello, world!", 12345);
 
-   decltype(fc::digest(m)) hash("8de72a07d093a589f574460deb19023b4aff354b561eb34590d9f4629f51dbf3");
-   if( fc::digest(m) != hash )
+   decltype(fc_pp::digest(m)) hash("8de72a07d093a589f574460deb19023b4aff354b561eb34590d9f4629f51dbf3");
+   if( fc_pp::digest(m) != hash )
    {
       // If this happens, notify the web guys that the memo serialization format changed.
-      edump((m)(fc::digest(m)));
+      edump((m)(fc_pp::digest(m)));
       BOOST_FAIL("Memo format has changed. Notify the web guys and update this test.");
    }
    BOOST_CHECK_EQUAL(m.get_message(receiver, sender.get_public_key()), "Hello, world!");
@@ -212,7 +212,7 @@ BOOST_AUTO_TEST_CASE( witness_rng_test_bits )
       for( uint64_t i=0; i<COUNT; i++ )
       {
          // grab the bits
-         fc::sha256::encoder enc;
+         fc_pp::sha256::encoder enc;
          enc.write( seed_data, HASH_SIZE );
          enc.put( char((i        ) & 0xFF) );
          enc.put( char((i >> 0x08) & 0xFF) );
@@ -223,16 +223,16 @@ BOOST_AUTO_TEST_CASE( witness_rng_test_bits )
          enc.put( char((i >> 0x30) & 0xFF) );
          enc.put( char((i >> 0x38) & 0xFF) );
 
-         fc::sha256 result = enc.result();
+         fc_pp::sha256 result = enc.result();
          auto result_data = result.data();
          std::copy( result_data, result_data+HASH_SIZE, std::back_inserter( ref_bits ) );
       }
 
-      fc::sha256 seed = fc::sha256::hash( string("") );
+      fc_pp::sha256 seed = fc_pp::sha256::hash( string("") );
       // seed = sha256("") = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
       BOOST_CHECK( memcmp( seed.data(), seed_data, HASH_SIZE ) == 0 );
 
-      fc::hash_ctr_rng<fc::sha256, 32> test_rng(seed.data(), 0);
+      fc_pp::hash_ctr_rng<fc_pp::sha256, 32> test_rng(seed.data(), 0);
       // python2 -c 'import hashlib; import struct; h = lambda x : hashlib.sha256(x).digest(); i = lambda x : struct.pack("<Q", x); print( h( h("") + i(0) ) )' | hd
       string ref_bits_hex =
           "5c5d42dcf39f71c0226ca720d8d518db615b5773f038e5e491963f6f47621bbd"   // h( h("") + i(0) )
@@ -253,15 +253,15 @@ BOOST_AUTO_TEST_CASE( witness_rng_test_bits )
           "fc26784c94f754cf7aeacb6189e705e2f1873ea112940560f11dbbebb22a8922"
           ;
       char* ref_bits_chars = new char[ ref_bits_hex.length() / 2 ];
-      fc::from_hex( ref_bits_hex, ref_bits_chars, ref_bits_hex.length() / 2 );
+      fc_pp::from_hex( ref_bits_hex, ref_bits_chars, ref_bits_hex.length() / 2 );
       string ref_bits_str( ref_bits_chars, ref_bits_hex.length() / 2 );
       delete[] ref_bits_chars;
       ref_bits_chars = nullptr;
 
       BOOST_CHECK( ref_bits_str.length() < ref_bits.length() );
       BOOST_CHECK( ref_bits_str == ref_bits.substr( 0, ref_bits_str.length() ) );
-      //std::cout << "ref_bits_str: " << fc::to_hex( ref_bits_str.c_str(), std::min( ref_bits_str.length(), size_t(256) ) ) << "\n";
-      //std::cout << "ref_bits    : " << fc::to_hex( ref_bits    .c_str(), std::min( ref_bits.length(), size_t(256) ) ) << "\n";
+      //std::cout << "ref_bits_str: " << fc_pp::to_hex( ref_bits_str.c_str(), std::min( ref_bits_str.length(), size_t(256) ) ) << "\n";
+      //std::cout << "ref_bits    : " << fc_pp::to_hex( ref_bits    .c_str(), std::min( ref_bits.length(), size_t(256) ) ) << "\n";
 
       // when we get to this point, our code to generate the RNG byte output is working.
       // now let's test get_bits() as follows:
@@ -360,7 +360,7 @@ BOOST_AUTO_TEST_CASE( scaled_precision )
    BOOST_CHECK( asset::scaled_precision(16) == share_type(  10*_p) );
    BOOST_CHECK( asset::scaled_precision(17) == share_type( 100*_p) );
    BOOST_CHECK( asset::scaled_precision(18) == share_type(   1*_e) );
-   GRAPHENE_CHECK_THROW( asset::scaled_precision(19), fc::exception );
+   GRAPHENE_CHECK_THROW( asset::scaled_precision(19), fc_pp::exception );
 }
 
 BOOST_AUTO_TEST_CASE( merkle_root )

@@ -35,7 +35,7 @@
 #include <graphene/chain/market_evaluator.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
-#include <fc/uint128.hpp>
+#include <fc_pp/uint128.hpp>
 
 namespace graphene { namespace chain {
 database& generic_evaluator::db()const { return trx_state->db(); }

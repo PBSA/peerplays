@@ -23,7 +23,7 @@
  */
 #pragma once
 
-#include <fc/exception/exception.hpp>
+#include <fc_pp/exception/exception.hpp>
 #include <graphene/chain/protocol/protocol.hpp>
 
 #define GRAPHENE_ASSERT( expr, exc_type, FORMAT, ... )                \

@@ -28,7 +28,7 @@
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/balance_object.hpp>
 #include <graphene/chain/committee_member_object.hpp>
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 #include <iostream>
 
 using namespace graphene::chain;
@@ -52,13 +52,13 @@ struct class_processor
    void process_class( const std::map< K, V >* dummy );
 
    template< typename T >
-   void process_class( const fc::flat_set< T >* dummy );
+   void process_class( const fc_pp::flat_set< T >* dummy );
 
    template< typename K, typename V >
-   void process_class( const fc::flat_map< K, V >* dummy );
+   void process_class( const fc_pp::flat_map< K, V >* dummy );
 
    template< typename T >
-   void process_class( const fc::optional< T >* dummy );
+   void process_class( const fc_pp::optional< T >* dummy );
 
    template< typename T >
    static void process_class( std::map< std::string, std::vector< std::string > >& result );
@@ -110,13 +110,13 @@ void class_processor::process_class( const static_variant< T... >* dummy )
    }
 }
 
-template<typename IsEnum = fc::false_type>
+template<typename IsEnum = fc_pp::false_type>
 struct if_enum
 {
    template< typename T >
    static void process_class( class_processor* proc, const T* dummy )
    {
-      std::string tname = fc::get_typename<T>::name();
+      std::string tname = fc_pp::get_typename<T>::name();
       if( proc->result.find( tname ) != proc->result.end() )
          return;
       ilog( "processing class ${c}", ("c", tname) );
@@ -124,48 +124,48 @@ struct if_enum
       proc->result.emplace( tname, std::vector< std::string >() );
 
       member_visitor<T> vtor( proc );
-      fc::reflector<T>::visit( vtor );
+      fc_pp::reflector<T>::visit( vtor );
       ilog( "members of class ${c} are ${m}", ("c", tname)("m", vtor.members) );
       proc->result[tname] = vtor.members;
    }
 };
 
 template<>
-struct if_enum<fc::true_type>
+struct if_enum<fc_pp::true_type>
 {
    template< typename T >
    static void process_class( class_processor* proc, const T* dummy )
    {
-      std::string tname = fc::get_typename<T>::name();
+      std::string tname = fc_pp::get_typename<T>::name();
       std::cerr << "skipping reflected enum " << tname << std::endl;
    }
 };
 
-template<typename IsReflected=fc::false_type>
+template<typename IsReflected=fc_pp::false_type>
 struct if_reflected
 {
    template< typename T >
    static void process_class( class_processor* proc, const T* dummy )
    {
-      std::string tname = fc::get_typename<T>::name();
+      std::string tname = fc_pp::get_typename<T>::name();
       std::cerr << "skipping non-reflected class " << tname << std::endl;
    }
 };
 
 template<>
-struct if_reflected<fc::true_type>
+struct if_reflected<fc_pp::true_type>
 {
    template< typename T >
    static void process_class( class_processor* proc, const T* dummy )
    {
-      if_enum< typename fc::reflector<T>::is_enum >::process_class(proc, dummy);
+      if_enum< typename fc_pp::reflector<T>::is_enum >::process_class(proc, dummy);
    }
 };
 
 template< typename T >
 void class_processor::process_class( const T* dummy )
 {
-   if_reflected< typename fc::reflector<T>::is_defined >::process_class( this, dummy );
+   if_reflected< typename fc_pp::reflector<T>::is_defined >::process_class( this, dummy );
 }
 
 template< typename T >
@@ -182,20 +182,20 @@ void class_processor::process_class( const std::map< K, V >* dummy )
 }
 
 template< typename T >
-void class_processor::process_class( const fc::flat_set< T >* dummy )
+void class_processor::process_class( const fc_pp::flat_set< T >* dummy )
 {
    process_class( (T*) nullptr );
 }
 
 template< typename K, typename V >
-void class_processor::process_class( const fc::flat_map< K, V >* dummy )
+void class_processor::process_class( const fc_pp::flat_map< K, V >* dummy )
 {
    process_class( (K*) nullptr );
    process_class( (V*) nullptr );
 }
 
 template< typename T >
-void class_processor::process_class( const fc::optional< T >* dummy )
+void class_processor::process_class( const fc_pp::optional< T >* dummy )
 {
    process_class( (T*) nullptr );
 }
@@ -217,7 +217,7 @@ int main( int argc, char** argv )
       graphene::member_enumerator::class_processor::process_class<signed_block>(result);
       //graphene::member_enumerator::process_class<transfer_operation>(result);
 
-      fc::mutable_variant_object mvo;
+      fc_pp::mutable_variant_object mvo;
       for( const std::pair< std::string, std::vector< std::string > >& e : result )
       {
          variant v;
@@ -225,9 +225,9 @@ int main( int argc, char** argv )
          mvo.set( e.first, v );
       }
 
-      std::cout << fc::json::to_string( mvo ) << std::endl;
+      std::cout << fc_pp::json::to_string( mvo ) << std::endl;
    }
-   catch ( const fc::exception& e )
+   catch ( const fc_pp::exception& e )
    {
       edump((e.to_detail_string()));
    }

@@ -41,7 +41,7 @@
 
 #include <graphene/utilities/tempdir.hpp>
 
-#include <fc/crypto/digest.hpp>
+#include <fc_pp/crypto/digest.hpp>
 
 #include "../common/database_fixture.hpp"
 
@@ -66,7 +66,7 @@ BOOST_AUTO_TEST_CASE( withdraw_permission_create )
       op.authorized_account = dan_id;
       op.withdraw_from_account = nathan_id;
       op.withdrawal_limit = asset(5);
-      op.withdrawal_period_sec = fc::hours(1).to_seconds();
+      op.withdrawal_period_sec = fc_pp::hours(1).to_seconds();
       op.periods_until_expiration = 5;
       op.period_start_time = db.head_block_time() + db.get_global_properties().parameters.block_interval*5;
       trx.operations.push_back(op);
@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE( withdraw_permission_create )
       REQUIRE_OP_VALIDATION_FAILURE(op, withdrawal_period_sec, 0);
       REQUIRE_THROW_WITH_VALUE(op, withdrawal_limit, asset(10, asset_id_type(10)));
       REQUIRE_THROW_WITH_VALUE(op, authorized_account, account_id_type(1000));
-      REQUIRE_THROW_WITH_VALUE(op, period_start_time, fc::time_point_sec(10000));
+      REQUIRE_THROW_WITH_VALUE(op, period_start_time, fc_pp::time_point_sec(10000));
       REQUIRE_THROW_WITH_VALUE(op, withdrawal_period_sec, 1);
       trx.operations.back() = op;
    }
@@ -96,7 +96,7 @@ BOOST_AUTO_TEST_CASE( withdraw_permission_test )
    withdraw_permission_id_type permit;
    set_expiration( db, trx );
 
-   fc::time_point_sec first_start_time;
+   fc_pp::time_point_sec first_start_time;
    {
       const withdraw_permission_object& permit_object = permit(db);
       BOOST_CHECK(permit_object.authorized_account == dan_id);
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE( withdraw_permission_test )
       BOOST_CHECK(permit_object.period_start_time > db.head_block_time());
       first_start_time = permit_object.period_start_time;
       BOOST_CHECK(permit_object.withdrawal_limit == asset(5));
-      BOOST_CHECK(permit_object.withdrawal_period_sec == fc::hours(1).to_seconds());
+      BOOST_CHECK(permit_object.withdrawal_period_sec == fc_pp::hours(1).to_seconds());
       BOOST_CHECK(permit_object.expiration == first_start_time + permit_object.withdrawal_period_sec*5 );
    }
 
@@ -120,7 +120,7 @@ BOOST_AUTO_TEST_CASE( withdraw_permission_test )
 
       trx.operations.push_back(op);
       //Throws because we haven't entered the first withdrawal period yet.
-      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx ), fc::exception);
+      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx ), fc_pp::exception);
       //Get to the actual withdrawal period
       generate_blocks(permit(db).period_start_time);
 
@@ -145,7 +145,7 @@ BOOST_AUTO_TEST_CASE( withdraw_permission_test )
       // withdraw 1
       trx.operations = {op};
       // make it different from previous trx so it's non-duplicate
-      trx.expiration += fc::seconds(1);
+      trx.expiration += fc_pp::seconds(1);
       sign( trx, dan_private_key );
       PUSH_TX( db, trx );
       trx.clear();
@@ -160,7 +160,7 @@ BOOST_AUTO_TEST_CASE( withdraw_permission_test )
       BOOST_CHECK(permit_object.withdraw_from_account == nathan_id);
       BOOST_CHECK(permit_object.period_start_time == first_start_time);
       BOOST_CHECK(permit_object.withdrawal_limit == asset(5));
-      BOOST_CHECK(permit_object.withdrawal_period_sec == fc::hours(1).to_seconds());
+      BOOST_CHECK(permit_object.withdrawal_period_sec == fc_pp::hours(1).to_seconds());
       BOOST_CHECK_EQUAL(permit_object.claimed_this_period.value, 2 );
       BOOST_CHECK(permit_object.expiration == first_start_time + 5*permit_object.withdrawal_period_sec);
       generate_blocks(first_start_time + permit_object.withdrawal_period_sec);
@@ -179,7 +179,7 @@ BOOST_AUTO_TEST_CASE( withdraw_permission_test )
       set_expiration( db, trx );
       sign( trx, dan_private_key );
       //Throws because nathan doesn't have the money
-      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx ), fc::exception);
+      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx ), fc_pp::exception);
       op.amount_to_withdraw = asset(1);
       trx.clear();
       trx.operations = {op};
@@ -200,7 +200,7 @@ BOOST_AUTO_TEST_CASE( withdraw_permission_test )
       BOOST_CHECK(permit_object.period_start_time == first_start_time + permit_object.withdrawal_period_sec);
       BOOST_CHECK(permit_object.expiration == first_start_time + 5*permit_object.withdrawal_period_sec);
       BOOST_CHECK(permit_object.withdrawal_limit == asset(5));
-      BOOST_CHECK(permit_object.withdrawal_period_sec == fc::hours(1).to_seconds());
+      BOOST_CHECK(permit_object.withdrawal_period_sec == fc_pp::hours(1).to_seconds());
       generate_blocks(permit_object.expiration);
    }
    // Ensure the permit object has been garbage collected
@@ -216,7 +216,7 @@ BOOST_AUTO_TEST_CASE( withdraw_permission_test )
       set_expiration( db, trx );
       sign( trx, dan_private_key );
       //Throws because the permission has expired
-      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx ), fc::exception);
+      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx ), fc_pp::exception);
    }
 } FC_LOG_AND_RETHROW() }
 
@@ -384,7 +384,7 @@ BOOST_AUTO_TEST_CASE( mia_feeds )
 
       op.publisher = nathan_id;
       trx.operations.back() = op;
-      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, ~0 ), fc::exception);
+      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, ~0 ), fc_pp::exception);
    }
 } FC_LOG_AND_RETHROW() }
 
@@ -469,7 +469,7 @@ BOOST_AUTO_TEST_CASE( witness_create )
        struct generator_helper {
           database_fixture& f;
           witness_id_type nathan_id;
-          fc::ecc::private_key nathan_key;
+          fc_pp::ecc::private_key nathan_key;
           bool nathan_generated_block;
 
           void operator()(witness_id_type id) {
@@ -605,7 +605,7 @@ BOOST_AUTO_TEST_CASE( worker_create_test )
       op.daily_pay = 1000;
       op.initializer = vesting_balance_worker_initializer(1);
       op.work_begin_date = db.head_block_time() + 10;
-      op.work_end_date = op.work_begin_date + fc::days(2);
+      op.work_end_date = op.work_begin_date + fc_pp::days(2);
       trx.clear();
       trx.operations.push_back(op);
       REQUIRE_THROW_WITH_VALUE(op, daily_pay, -1);
@@ -622,14 +622,14 @@ BOOST_AUTO_TEST_CASE( worker_create_test )
    BOOST_CHECK(worker.worker_account == nathan_id);
    BOOST_CHECK(worker.daily_pay == 1000);
    BOOST_CHECK(worker.work_begin_date == db.head_block_time() + 10);
-   BOOST_CHECK(worker.work_end_date == db.head_block_time() + 10 + fc::days(2));
+   BOOST_CHECK(worker.work_end_date == db.head_block_time() + 10 + fc_pp::days(2));
    BOOST_CHECK(worker.vote_for.type() == vote_id_type::worker);
    BOOST_CHECK(worker.vote_against.type() == vote_id_type::worker);
 
    const vesting_balance_object& balance = worker.worker.get<vesting_balance_worker_type>().balance(db);
    BOOST_CHECK(balance.owner == nathan_id);
    BOOST_CHECK(balance.balance == asset(0));
-   BOOST_CHECK(balance.policy.get<cdd_vesting_policy>().vesting_seconds == fc::days(1).to_seconds());
+   BOOST_CHECK(balance.policy.get<cdd_vesting_policy>().vesting_seconds == fc_pp::days(1).to_seconds());
 } FC_LOG_AND_RETHROW() }
 
 BOOST_AUTO_TEST_CASE( worker_pay_test )
@@ -660,7 +660,7 @@ BOOST_AUTO_TEST_CASE( worker_pay_test )
    BOOST_CHECK_EQUAL(worker_id_type()(db).worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 0);
    generate_blocks(db.get_dynamic_global_properties().next_maintenance_time);
    BOOST_CHECK_EQUAL(worker_id_type()(db).worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 1000);
-   generate_blocks(db.head_block_time() + fc::hours(12));
+   generate_blocks(db.head_block_time() + fc_pp::hours(12));
 
    {
       vesting_balance_withdraw_operation op;
@@ -689,7 +689,7 @@ BOOST_AUTO_TEST_CASE( worker_pay_test )
       trx.clear();
    }
 
-   generate_blocks(db.head_block_time() + fc::hours(12));
+   generate_blocks(db.head_block_time() + fc_pp::hours(12));
    BOOST_CHECK_EQUAL(worker_id_type()(db).worker.get<vesting_balance_worker_type>().balance(db).balance.amount.value, 500);
 
    {
@@ -700,7 +700,7 @@ BOOST_AUTO_TEST_CASE( worker_pay_test )
       set_expiration( db, trx );
       trx.operations.push_back(op);
       REQUIRE_THROW_WITH_VALUE(op, amount, asset(500));
-      generate_blocks(db.head_block_time() + fc::hours(12));
+      generate_blocks(db.head_block_time() + fc_pp::hours(12));
       set_expiration( db, trx );
       REQUIRE_THROW_WITH_VALUE(op, amount, asset(501));
       trx.operations.back() = op;
@@ -728,7 +728,7 @@ BOOST_AUTO_TEST_CASE( refund_worker_test )
       op.daily_pay = 1000;
       op.initializer = refund_worker_initializer();
       op.work_begin_date = db.head_block_time() + 10;
-      op.work_end_date = op.work_begin_date + fc::days(2);
+      op.work_end_date = op.work_begin_date + fc_pp::days(2);
       trx.clear();
       trx.operations.push_back(op);
       REQUIRE_THROW_WITH_VALUE(op, daily_pay, -1);
@@ -746,7 +746,7 @@ BOOST_AUTO_TEST_CASE( refund_worker_test )
    BOOST_CHECK(worker.worker_account == nathan_id);
    BOOST_CHECK(worker.daily_pay == 1000);
    BOOST_CHECK(worker.work_begin_date == db.head_block_time() + 10);
-   BOOST_CHECK(worker.work_end_date == db.head_block_time() + 10 + fc::days(2));
+   BOOST_CHECK(worker.work_end_date == db.head_block_time() + 10 + fc_pp::days(2));
    BOOST_CHECK(worker.vote_for.type() == vote_id_type::worker);
    BOOST_CHECK(worker.vote_against.type() == vote_id_type::worker);
 
@@ -801,7 +801,7 @@ BOOST_AUTO_TEST_CASE( burn_worker_test )
       op.daily_pay = 1000;
       op.initializer = burn_worker_initializer();
       op.work_begin_date = db.head_block_time() + 10;
-      op.work_end_date = op.work_begin_date + fc::days(2);
+      op.work_end_date = op.work_begin_date + fc_pp::days(2);
       trx.clear();
       trx.operations.push_back(op);
       REQUIRE_THROW_WITH_VALUE(op, daily_pay, -1);
@@ -819,7 +819,7 @@ BOOST_AUTO_TEST_CASE( burn_worker_test )
    BOOST_CHECK(worker.worker_account == nathan_id);
    BOOST_CHECK(worker.daily_pay == 1000);
    BOOST_CHECK(worker.work_begin_date == db.head_block_time() + 10);
-   BOOST_CHECK(worker.work_end_date == db.head_block_time() + 10 + fc::days(2));
+   BOOST_CHECK(worker.work_end_date == db.head_block_time() + 10 + fc_pp::days(2));
    BOOST_CHECK(worker.vote_for.type() == vote_id_type::worker);
    BOOST_CHECK(worker.vote_against.type() == vote_id_type::worker);
 
@@ -957,13 +957,13 @@ BOOST_AUTO_TEST_CASE( force_settle_test )
         new_options.force_settlement_offset_percent = GRAPHENE_1_PERCENT; } );
 
       // Force settlement is disabled; check that it fails
-      GRAPHENE_REQUIRE_THROW( force_settle( nathan_id, asset( 50, bitusd_id ) ), fc::exception );
+      GRAPHENE_REQUIRE_THROW( force_settle( nathan_id, asset( 50, bitusd_id ) ), fc_pp::exception );
 
       update_asset_options( bitusd_id, [&]( asset_options& new_options )
       { new_options.flags &= ~disable_force_settle; } );
 
       // Can't settle more BitUSD than you own
-      GRAPHENE_REQUIRE_THROW( force_settle( nathan_id, asset( 999999, bitusd_id ) ), fc::exception );
+      GRAPHENE_REQUIRE_THROW( force_settle( nathan_id, asset( 999999, bitusd_id ) ), fc_pp::exception );
 
       // settle3 should be least collateralized order according to index
       BOOST_CHECK( db.get_index_type<call_order_index>().indices().get<by_collateral>().begin()->id == call3_id );
@@ -1041,7 +1041,7 @@ BOOST_AUTO_TEST_CASE( force_settle_test )
       BOOST_CHECK_EQUAL( call2_id(db).debt.value, 2000-550 );
       BOOST_CHECK_EQUAL( call2_id(db).collateral.value, 3998-call2_payout );
    }
-   catch(fc::exception& e)
+   catch(fc_pp::exception& e)
    {
       edump((e.to_detail_string()));
       throw;
@@ -1070,7 +1070,7 @@ BOOST_AUTO_TEST_CASE( assert_op_test )
    op.predicates.emplace_back(account_name_eq_lit_predicate{ nathan_id, "dan" });
    trx.operations.push_back(op);
    sign( trx, nathan_private_key );
-   GRAPHENE_CHECK_THROW( PUSH_TX( db, trx ), fc::exception );
+   GRAPHENE_CHECK_THROW( PUSH_TX( db, trx ), fc_pp::exception );
    } FC_LOG_AND_RETHROW()
 }
 
@@ -1079,10 +1079,10 @@ BOOST_AUTO_TEST_CASE( balance_object_test )
    // Intentionally overriding the fixture's db; I need to control genesis on this one.
    database db;
    const uint32_t skip_flags = database::skip_undo_history_check;
-   fc::temp_directory td( graphene::utilities::temp_directory_path() );
+   fc_pp::temp_directory td( graphene::utilities::temp_directory_path() );
    genesis_state.initial_balances.push_back({generate_private_key("n").get_public_key(), GRAPHENE_SYMBOL, 1});
    genesis_state.initial_balances.push_back({generate_private_key("x").get_public_key(), GRAPHENE_SYMBOL, 1});
-   fc::time_point_sec starting_time = genesis_state.initial_timestamp + 3000;
+   fc_pp::time_point_sec starting_time = genesis_state.initial_timestamp + 3000;
 
    auto n_key = generate_private_key("n");
    auto x_key = generate_private_key("x");
@@ -1098,7 +1098,7 @@ BOOST_AUTO_TEST_CASE( balance_object_test )
    vest.vesting_duration_seconds = 60;
    genesis_state.initial_vesting_balances.push_back(vest);
    vest.owner = v2_key.get_public_key();
-   vest.begin_timestamp -= fc::seconds(30);
+   vest.begin_timestamp -= fc_pp::seconds(30);
    vest.amount = 400;
    genesis_state.initial_vesting_balances.push_back(vest);
 
@@ -1212,7 +1212,7 @@ BOOST_AUTO_TEST_CASE( balance_object_test )
    GRAPHENE_CHECK_THROW(db.push_transaction(trx), balance_claim_claimed_too_often);
 
    db.generate_block(db.get_slot_time(1), db.get_scheduled_witness(1), init_account_priv_key, skip_flags);
-   slot = db.get_slot_at_time(db.head_block_time() + fc::days(1));
+   slot = db.get_slot_at_time(db.head_block_time() + fc_pp::days(1));
    db.generate_block(db.get_slot_time(slot), db.get_scheduled_witness(slot), init_account_priv_key, skip_flags);
    set_expiration( db, trx );
 
@@ -1291,7 +1291,7 @@ BOOST_AUTO_TEST_CASE(zero_second_vbo)
          signed_transaction withdraw_tx;
          withdraw_tx.operations.push_back( withdraw_op );
          sign(withdraw_tx, alice_private_key);
-         GRAPHENE_REQUIRE_THROW( PUSH_TX( db, withdraw_tx ), fc::exception );
+         GRAPHENE_REQUIRE_THROW( PUSH_TX( db, withdraw_tx ), fc_pp::exception );
 
          generate_block();
          withdraw_tx = signed_transaction();
@@ -1328,7 +1328,7 @@ BOOST_AUTO_TEST_CASE(zero_second_vbo)
          worker_create_operation create_op;
          create_op.owner = alice_id;
          create_op.work_begin_date = db.head_block_time();
-         create_op.work_end_date = db.head_block_time() + fc::days(1000);
+         create_op.work_end_date = db.head_block_time() + fc_pp::days(1000);
          create_op.daily_pay = share_type( 10000 );
          create_op.name = "alice";
          create_op.url = "";
@@ -1422,7 +1422,7 @@ BOOST_AUTO_TEST_CASE( vbo_withdraw_different )
          withdraw_tx.operations.push_back(op);
          set_expiration( db, withdraw_tx );
          sign( withdraw_tx, alice_private_key );
-         GRAPHENE_CHECK_THROW( PUSH_TX( db, withdraw_tx ), fc::exception );
+         GRAPHENE_CHECK_THROW( PUSH_TX( db, withdraw_tx ), fc_pp::exception );
       }
 
       // good withdrawal op
@@ -1727,7 +1727,7 @@ BOOST_AUTO_TEST_CASE( buyback )
 
          BOOST_CHECK( get_balance( rex_id, asset_id_type() ) == 1150 );
 
-         GRAPHENE_CHECK_THROW( transfer( alice_id, rex_id, asset( 1, nono_id ) ), fc::exception );
+         GRAPHENE_CHECK_THROW( transfer( alice_id, rex_id, asset( 1, nono_id ) ), fc_pp::exception );
          // TODO: Check cancellation works for account which is BTS-restricted
       }
 

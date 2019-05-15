@@ -37,7 +37,7 @@
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/account_history/account_history_plugin.hpp>
 
-#include <fc/crypto/digest.hpp>
+#include <fc_pp/crypto/digest.hpp>
 
 #include "../common/database_fixture.hpp"
 
@@ -71,7 +71,7 @@ BOOST_AUTO_TEST_CASE( feed_limit_logic_test )
       BOOST_CHECK( usd * feed.maintenance_price() < usd * feed.max_short_squeeze_price() );
       */
 
-   } catch (fc::exception& e) {
+   } catch (fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -102,7 +102,7 @@ BOOST_AUTO_TEST_CASE( call_order_update_test )
       BOOST_REQUIRE_EQUAL( get_balance( dan, core ), 10000000 - 10000 + 5000  );
 
       BOOST_TEST_MESSAGE( "verifying that attempting to cover the full amount without claiming the collateral fails" );
-      GRAPHENE_REQUIRE_THROW( cover( dan, bitusd.amount(2500), core.amount(0)  ), fc::exception );
+      GRAPHENE_REQUIRE_THROW( cover( dan, bitusd.amount(2500), core.amount(0)  ), fc_pp::exception );
 
       cover( dan, bitusd.amount(2500), core.amount(5000));
 
@@ -135,16 +135,16 @@ BOOST_AUTO_TEST_CASE( call_order_update_test )
       BOOST_REQUIRE_EQUAL( get_balance( dan, core ), 10000000 - 20000  );
 
       BOOST_TEST_MESSAGE( "increasing debt without increasing collateral again" );
-      GRAPHENE_REQUIRE_THROW( borrow( dan, bitusd.amount(80000), asset(0)), fc::exception );
+      GRAPHENE_REQUIRE_THROW( borrow( dan, bitusd.amount(80000), asset(0)), fc_pp::exception );
       BOOST_TEST_MESSAGE( "attempting to claim all collateral without paying off debt" );
-      GRAPHENE_REQUIRE_THROW( cover( dan, bitusd.amount(0), asset(20000)), fc::exception );
+      GRAPHENE_REQUIRE_THROW( cover( dan, bitusd.amount(0), asset(20000)), fc_pp::exception );
       BOOST_TEST_MESSAGE( "attempting reduce collateral without paying off any debt" );
       cover( dan, bitusd.amount(0), asset(1000));
 
       BOOST_TEST_MESSAGE( "attempting change call price to be below minimum for debt/collateral ratio" );
-      GRAPHENE_REQUIRE_THROW( cover( dan, bitusd.amount(0), asset(0)), fc::exception );
+      GRAPHENE_REQUIRE_THROW( cover( dan, bitusd.amount(0), asset(0)), fc_pp::exception );
 
-   } catch (fc::exception& e) {
+   } catch (fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -224,7 +224,7 @@ BOOST_AUTO_TEST_CASE( margin_call_limit_test )
       // this should trigger margin call without protection from the price feed.
       order = create_sell_order( borrower2, bitusd.amount(1000), core.amount(1800) );
       BOOST_CHECK( order != nullptr );
-   } catch( const fc::exception& e) {
+   } catch( const fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -274,8 +274,8 @@ BOOST_AUTO_TEST_CASE( black_swan )
       force_settle(borrower, bitusd.amount(100));
 
       BOOST_TEST_MESSAGE( "Verify that we cannot borrow after black swan" );
-      GRAPHENE_REQUIRE_THROW( borrow(borrower, bitusd.amount(1000), asset(2000)), fc::exception );
-   } catch( const fc::exception& e) {
+      GRAPHENE_REQUIRE_THROW( borrow(borrower, bitusd.amount(1000), asset(2000)), fc_pp::exception );
+   } catch( const fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -310,7 +310,7 @@ BOOST_AUTO_TEST_CASE( black_swan_issue_346 )
 
       auto setup_asset = [&]() -> const asset_object&
       {
-         const asset_object& bitusd = create_bitasset("USDBIT"+fc::to_string(trial)+"X", feeder_id);
+         const asset_object& bitusd = create_bitasset("USDBIT"+fc_pp::to_string(trial)+"X", feeder_id);
          update_feed_producers( bitusd, {feeder.id} );
          BOOST_CHECK( !bitusd.bitasset_data(db).has_settlement() );
          trial++;
@@ -363,7 +363,7 @@ BOOST_AUTO_TEST_CASE( black_swan_issue_346 )
          BOOST_CHECK( !bitusd.bitasset_data(db).has_settlement() );
          set_price( bitusd, bitusd.amount(1) / core.amount(50) ); // $0.02
          BOOST_CHECK( bitusd.bitasset_data(db).has_settlement() );
-         GRAPHENE_REQUIRE_THROW( borrow( borrower2, bitusd.amount(100), asset(10000) ), fc::exception );
+         GRAPHENE_REQUIRE_THROW( borrow( borrower2, bitusd.amount(100), asset(10000) ), fc_pp::exception );
          force_settle( settler, bitusd.amount(100) );
 
          // wait for forced settlement to execute
@@ -391,7 +391,7 @@ BOOST_AUTO_TEST_CASE( black_swan_issue_346 )
          BOOST_CHECK( db.find_object( oid_020 ) == nullptr );
       }
 
-   } catch( const fc::exception& e) {
+   } catch( const fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -410,29 +410,29 @@ BOOST_AUTO_TEST_CASE( prediction_market )
       transfer(committee_account, nathan_id, asset(init_balance));
 
       BOOST_TEST_MESSAGE( "Require throw for mismatch collateral amounts" );
-      GRAPHENE_REQUIRE_THROW( borrow( dan, pmark.amount(1000), asset(2000) ), fc::exception );
+      GRAPHENE_REQUIRE_THROW( borrow( dan, pmark.amount(1000), asset(2000) ), fc_pp::exception );
 
       BOOST_TEST_MESSAGE( "Open position with equal collateral" );
       borrow( dan, pmark.amount(1000), asset(1000) );
 
       BOOST_TEST_MESSAGE( "Cover position with unequal asset should fail." );
-      GRAPHENE_REQUIRE_THROW( cover( dan, pmark.amount(500), asset(1000) ), fc::exception );
+      GRAPHENE_REQUIRE_THROW( cover( dan, pmark.amount(500), asset(1000) ), fc_pp::exception );
 
       BOOST_TEST_MESSAGE( "Cover half of position with equal ammounts" );
       cover( dan, pmark.amount(500), asset(500) );
 
       BOOST_TEST_MESSAGE( "Verify that forced settlment fails before global settlement" );
-      GRAPHENE_REQUIRE_THROW( force_settle( dan, pmark.amount(100) ), fc::exception );
+      GRAPHENE_REQUIRE_THROW( force_settle( dan, pmark.amount(100) ), fc_pp::exception );
 
       BOOST_TEST_MESSAGE( "Shouldn't be allowed to force settle at more than 1 collateral per debt" );
-      GRAPHENE_REQUIRE_THROW( force_global_settle( pmark, pmark.amount(100) / core.amount(105) ), fc::exception );
+      GRAPHENE_REQUIRE_THROW( force_global_settle( pmark, pmark.amount(100) / core.amount(105) ), fc_pp::exception );
 
       force_global_settle( pmark, pmark.amount(100) / core.amount(95) );
 
       BOOST_TEST_MESSAGE( "Verify that forced settlment succeedes after global settlement" );
       force_settle( dan, pmark.amount(100) );
 
-   } catch( const fc::exception& e) {
+   } catch( const fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -463,7 +463,7 @@ BOOST_AUTO_TEST_CASE( create_account_test )
       op.owner.add_authority(account_id_type(9999999999), 10);
       trx.operations.back() = op;
       op.owner = auth_bak;
-      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc::exception);
+      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc_pp::exception);
       op.owner = auth_bak;
 
       trx.operations.back() = op;
@@ -486,7 +486,7 @@ BOOST_AUTO_TEST_CASE( create_account_test )
       const account_statistics_object& statistics = nathan_account.statistics(db);
       BOOST_CHECK(statistics.id.space() == implementation_ids);
       BOOST_CHECK(statistics.id.type() == impl_account_statistics_object_type);
-   } catch (fc::exception& e) {
+   } catch (fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -496,7 +496,7 @@ BOOST_AUTO_TEST_CASE( update_account )
 {
    try {
       const account_object& nathan = create_account("nathan", init_account_pub_key);
-      const fc::ecc::private_key nathan_new_key = fc::ecc::private_key::generate();
+      const fc_pp::ecc::private_key nathan_new_key = fc_pp::ecc::private_key::generate();
       const public_key_type key_id = nathan_new_key.get_public_key();
       const auto& active_committee_members = db.get_global_properties().active_committee_members;
 
@@ -536,7 +536,7 @@ BOOST_AUTO_TEST_CASE( update_account )
       }
 
       BOOST_CHECK( nathan.is_lifetime_member() );
-   } catch (fc::exception& e) {
+   } catch (fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -584,7 +584,7 @@ BOOST_AUTO_TEST_CASE( transfer_core_asset )
       BOOST_CHECK_EQUAL(get_balance(nathan_account, asset_id_type()(db)), 8000 - fee.amount.value);
       BOOST_CHECK_EQUAL(get_balance(account_id_type()(db), asset_id_type()(db)), committee_balance.amount.value + 2000);
 
-   } catch (fc::exception& e) {
+   } catch (fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -607,7 +607,7 @@ BOOST_AUTO_TEST_CASE( create_committee_member )
       const committee_member_object& d = committee_member_id(db);
 
       BOOST_CHECK(d.committee_member_account == account_id_type());
-   } catch (fc::exception& e) {
+   } catch (fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -620,8 +620,8 @@ BOOST_AUTO_TEST_CASE( create_mia )
       BOOST_CHECK(bitusd.symbol == "USDBIT");
       BOOST_CHECK(bitusd.bitasset_data(db).options.short_backing_asset == asset_id_type());
       BOOST_CHECK(bitusd.dynamic_asset_data_id(db).current_supply == 0);
-      GRAPHENE_REQUIRE_THROW( create_bitasset("USDBIT"), fc::exception);
-   } catch ( const fc::exception& e ) {
+      GRAPHENE_REQUIRE_THROW( create_bitasset("USDBIT"), fc_pp::exception);
+   } catch ( const fc_pp::exception& e ) {
       elog( "${e}", ("e", e.to_detail_string() ) );
       throw;
    }
@@ -676,7 +676,7 @@ BOOST_AUTO_TEST_CASE( update_mia )
       trx.operations.back() = op;
       PUSH_TX( db, trx, ~0 );
       BOOST_CHECK(bit_usd.issuer == account_id_type());
-   } catch ( const fc::exception& e ) {
+   } catch ( const fc_pp::exception& e ) {
       elog( "${e}", ("e", e.to_detail_string() ) );
       throw;
    }
@@ -707,7 +707,7 @@ BOOST_AUTO_TEST_CASE( create_uia )
       BOOST_CHECK(test_asset.options.max_supply == 100000000);
       BOOST_CHECK(!test_asset.bitasset_data_id.valid());
       BOOST_CHECK(test_asset.options.market_fee_percent == GRAPHENE_MAX_MARKET_FEE_PERCENT/100);
-      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc::exception);
+      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc_pp::exception);
 
       const asset_dynamic_data_object& test_asset_dynamic_data = test_asset.dynamic_asset_data_id(db);
       BOOST_CHECK(test_asset_dynamic_data.current_supply == 0);
@@ -728,7 +728,7 @@ BOOST_AUTO_TEST_CASE( create_uia )
       REQUIRE_THROW_WITH_VALUE(op, symbol, "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
       REQUIRE_THROW_WITH_VALUE(op, common_options.core_exchange_rate, price({asset(-100), asset(1)}));
       REQUIRE_THROW_WITH_VALUE(op, common_options.core_exchange_rate, price({asset(100),asset(-1)}));
-   } catch(fc::exception& e) {
+   } catch(fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -802,9 +802,9 @@ BOOST_AUTO_TEST_CASE( update_uia )
       trx.operations.back() = op;
       PUSH_TX( db, trx, ~0 );
       op.issuer = account_id_type();
-      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc::exception);
+      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc_pp::exception);
       op.new_issuer.reset();
-   } catch(fc::exception& e) {
+   } catch(fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -844,7 +844,7 @@ BOOST_AUTO_TEST_CASE( issue_uia )
       BOOST_CHECK(test_dynamic_data.current_supply == 10000000);
       BOOST_CHECK(test_dynamic_data.accumulated_fees == 0);
       BOOST_CHECK(test_dynamic_data.fee_pool == 0);
-   } catch(fc::exception& e) {
+   } catch(fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -873,7 +873,7 @@ BOOST_AUTO_TEST_CASE( transfer_uia )
       PUSH_TX( db, trx, ~0 );
       BOOST_CHECK_EQUAL(get_balance(nathan, uia), 10000000 - 10000);
       BOOST_CHECK_EQUAL(get_balance(committee, uia), 10000);
-   } catch(fc::exception& e) {
+   } catch(fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -913,7 +913,7 @@ BOOST_AUTO_TEST_CASE( create_buy_uia_multiple_match_new )
    BOOST_CHECK_EQUAL( get_balance( buyer_account, core_asset ), 297 );
    BOOST_CHECK_EQUAL( core_asset.dynamic_asset_data_id(db).accumulated_fees.value , 3 );
  }
- catch ( const fc::exception& e )
+ catch ( const fc_pp::exception& e )
  {
     elog( "${e}", ("e", e.to_detail_string() ) );
     throw;
@@ -953,7 +953,7 @@ BOOST_AUTO_TEST_CASE( create_buy_exact_match_uia )
    BOOST_CHECK_EQUAL( get_balance( buyer_account, core_asset ), 100 );
    BOOST_CHECK_EQUAL( test_asset.dynamic_asset_data_id(db).accumulated_fees.value , 1 );
  }
- catch ( const fc::exception& e )
+ catch ( const fc_pp::exception& e )
  {
     elog( "${e}", ("e", e.to_detail_string() ) );
     throw;
@@ -994,7 +994,7 @@ BOOST_AUTO_TEST_CASE( create_buy_uia_multiple_match_new_reverse )
    BOOST_CHECK_EQUAL( get_balance( buyer_account, core_asset ), 300 );
    BOOST_CHECK_EQUAL( test_asset.dynamic_asset_data_id(db).accumulated_fees.value , 2 );
  }
- catch ( const fc::exception& e )
+ catch ( const fc_pp::exception& e )
  {
     elog( "${e}", ("e", e.to_detail_string() ) );
     throw;
@@ -1037,7 +1037,7 @@ BOOST_AUTO_TEST_CASE( create_buy_uia_multiple_match_new_reverse_fract )
    BOOST_CHECK_EQUAL( get_balance( seller_account, core_asset ), 0 );
    BOOST_CHECK_EQUAL( test_asset.dynamic_asset_data_id(db).accumulated_fees.value , 2 );
  }
- catch ( const fc::exception& e )
+ catch ( const fc_pp::exception& e )
  {
     elog( "${e}", ("e", e.to_detail_string() ) );
     throw;
@@ -1106,7 +1106,7 @@ BOOST_AUTO_TEST_CASE( uia_fees )
       BOOST_CHECK_EQUAL(get_balance(committee_account, test_asset), 200);
       BOOST_CHECK(asset_dynamic.accumulated_fees == fee.amount.value * 3);
       BOOST_CHECK(asset_dynamic.fee_pool == 1000*prec - core_fee.amount.value * 3);
-   } catch (fc::exception& e) {
+   } catch (fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -1754,7 +1754,7 @@ BOOST_AUTO_TEST_CASE( cancel_limit_order_test )
    BOOST_CHECK( refunded == asset(1000) );
    BOOST_CHECK_EQUAL( get_balance(buyer_account, asset_id_type()(db)), 10000 );
  }
- catch ( const fc::exception& e )
+ catch ( const fc_pp::exception& e )
  {
     elog( "${e}", ("e", e.to_detail_string() ) );
     throw;
@@ -1814,7 +1814,7 @@ BOOST_AUTO_TEST_CASE( witness_feeds )
 
       BOOST_CHECK_EQUAL(bitasset.current_feed.settlement_price.to_real(), 30.0 / GRAPHENE_BLOCKCHAIN_PRECISION);
       BOOST_CHECK(bitasset.current_feed.maintenance_collateral_ratio == GRAPHENE_DEFAULT_MAINTENANCE_COLLATERAL_RATIO);
-   } catch (const fc::exception& e) {
+   } catch (const fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -1848,7 +1848,7 @@ BOOST_AUTO_TEST_CASE( trade_amount_equals_zero )
       create_sell_order(core_seller, core.amount(1), test.amount(900000));
       //ilog( "=================================== STEP===================================\n\n");
       create_sell_order(core_buyer, test.amount(900001), core.amount(1));
-   } catch( const fc::exception& e) {
+   } catch( const fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -1874,7 +1874,7 @@ BOOST_AUTO_TEST_CASE( limit_order_fill_or_kill )
 
    trx.operations.clear();
    trx.operations.push_back(op);
-   GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, ~0 ), fc::exception);
+   GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, ~0 ), fc_pp::exception);
    op.fill_or_kill = false;
    trx.operations.back() = op;
    PUSH_TX( db, trx, ~0 );
@@ -1884,7 +1884,7 @@ BOOST_AUTO_TEST_CASE( limit_order_fill_or_kill )
 BOOST_AUTO_TEST_CASE( fill_order )
 { try {
    fill_order_operation o;
-   GRAPHENE_CHECK_THROW(o.validate(), fc::exception);
+   GRAPHENE_CHECK_THROW(o.validate(), fc_pp::exception);
    //o.calculate_fee(db.current_fee_schedule());
 } FC_LOG_AND_RETHROW() }
 
@@ -2083,7 +2083,7 @@ BOOST_AUTO_TEST_CASE( reserve_asset_test )
       BOOST_CHECK_EQUAL( (uasset.reserved( db ) - initial_reserve).value, reserve_amount );
       verify_asset_supplies(db);
    }
-   catch (fc::exception& e)
+   catch (fc_pp::exception& e)
    {
       edump((e.to_detail_string()));
       throw;
@@ -2166,7 +2166,7 @@ BOOST_AUTO_TEST_CASE( cover_with_collateral_test )
       BOOST_CHECK( db.find( order1_id ) == nullptr );
       BOOST_CHECK( db.find( order2_id ) == nullptr );
    }
-   catch (fc::exception& e)
+   catch (fc_pp::exception& e)
    {
       edump((e.to_detail_string()));
       throw;

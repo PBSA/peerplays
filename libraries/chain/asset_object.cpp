@@ -24,7 +24,7 @@
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/database.hpp>
 
-#include <fc/uint128.hpp>
+#include <fc_pp/uint128.hpp>
 
 #include <cmath>
 
@@ -37,7 +37,7 @@ share_type asset_bitasset_data_object::max_force_settlement_volume(share_type cu
    if( options.maximum_force_settlement_volume == GRAPHENE_100_PERCENT )
       return current_supply + force_settled_volume;
 
-   fc::uint128 volume = current_supply.value + force_settled_volume.value;
+   fc_pp::uint128 volume = current_supply.value + force_settled_volume.value;
    volume *= options.maximum_force_settlement_volume;
    volume /= GRAPHENE_100_PERCENT;
    return volume.to_uint64();
@@ -121,7 +121,7 @@ asset asset_object::amount_from_string(string amount_string) const
    const auto decimal_pos = amount_string.find( '.' );
    const string lhs = amount_string.substr( negative_found, decimal_pos );
    if( !lhs.empty() )
-      satoshis += fc::safe<int64_t>(std::stoll(lhs)) *= scaled_precision;
+      satoshis += fc_pp::safe<int64_t>(std::stoll(lhs)) *= scaled_precision;
 
    if( decimal_found )
    {
@@ -152,9 +152,9 @@ string asset_object::amount_to_string(share_type amount) const
       scaled_precision *= 10;
    assert(scaled_precision > 0);
 
-   string result = fc::to_string(amount.value / scaled_precision.value);
+   string result = fc_pp::to_string(amount.value / scaled_precision.value);
    auto decimals = amount.value % scaled_precision.value;
    if( decimals )
-      result += "." + fc::to_string(scaled_precision.value + decimals).erase(0,1);
+      result += "." + fc_pp::to_string(scaled_precision.value + decimals).erase(0,1);
    return result;
 }

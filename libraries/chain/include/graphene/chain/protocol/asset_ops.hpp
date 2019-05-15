@@ -78,7 +78,7 @@ namespace graphene { namespace chain {
       extensions_type extensions;
 
       /// Perform internal consistency checks.
-      /// @throws fc::exception if any check fails
+      /// @throws fc_pp::exception if any check fails
       void validate()const;
    };
 
@@ -108,7 +108,7 @@ namespace graphene { namespace chain {
       extensions_type extensions;
 
       /// Perform internal consistency checks.
-      /// @throws fc::exception if any check fails
+      /// @throws fc_pp::exception if any check fails
       void validate()const;
    };
 
@@ -121,13 +121,13 @@ namespace graphene { namespace chain {
       /// Time when the next payout should occur.
       /// The payouts will happen on the maintenance interval at or after this time
       /// If this is set to null, there will be no payouts.
-      fc::optional<fc::time_point_sec> next_payout_time;
+      fc_pp::optional<fc_pp::time_point_sec> next_payout_time;
       /// If payouts happen on a fixed schedule, this specifies the interval between
       /// payouts in seconds.  After each payout, the next payout time will be incremented by
       /// this amount.
       /// If payout_interval is not set, the next payout (if any) will be the last until
       /// the options are updated again.
-      fc::optional<uint32_t> payout_interval;
+      fc_pp::optional<uint32_t> payout_interval;
       /// Each dividend distribution incurs a fee that is based on the number of accounts
       /// that hold the dividend asset, not as a percentage of the amount paid out. 
       /// This parameter prevents assets from being distributed unless the fee is less than
@@ -150,12 +150,12 @@ namespace graphene { namespace chain {
       /// multiple of the distribution interval, and the timer on the distribution interval
       /// are reset at payout time.  So if you have the distribution interval at three days 
       /// and the payout interval at one week, payouts will occur at days 3, 6, 7, 10, 13, 14...
-      fc::optional<uint32_t> minimum_distribution_interval;
+      fc_pp::optional<uint32_t> minimum_distribution_interval;
 
       extensions_type extensions;
 
       /// Perform internal consistency checks.
-      /// @throws fc::exception if any check fails
+      /// @throws fc_pp::exception if any check fails
       void validate()const;
    };
 

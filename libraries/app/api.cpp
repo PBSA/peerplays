@@ -38,9 +38,9 @@
 #include <graphene/chain/worker_object.hpp>
 #include <graphene/chain/tournament_object.hpp>
 
-#include <fc/crypto/hex.hpp>
-#include <fc/smart_ref_impl.hpp>
-#include <fc/thread/future.hpp>
+#include <fc_pp/crypto/hex.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
+#include <fc_pp/thread/future.hpp>
 
 namespace graphene { namespace app {
 
@@ -60,10 +60,10 @@ namespace graphene { namespace app {
           return false;
        if( acc->password_hash_b64 != "*" )
        {
-          std::string password_salt = fc::base64_decode( acc->password_salt_b64 );
-          std::string acc_password_hash = fc::base64_decode( acc->password_hash_b64 );
+          std::string password_salt = fc_pp::base64_decode( acc->password_salt_b64 );
+          std::string acc_password_hash = fc_pp::base64_decode( acc->password_hash_b64 );
 
-          fc::sha256 hash_obj = fc::sha256::hash( password + password_salt );
+          fc_pp::sha256 hash_obj = fc_pp::sha256::hash( password + password_salt );
           if( hash_obj.data_size() != acc_password_hash.length() )
              return false;
           if( memcmp( hash_obj.data(), acc_password_hash.c_str(), hash_obj.data_size() ) != 0 )
@@ -160,7 +160,7 @@ namespace graphene { namespace app {
              {
                 auto block_num = b.block_num();
                 auto& callback = _callbacks.find(id)->second;
-                fc::async( [capture_this,this,id,block_num,trx_num,trx,callback](){ callback( fc::variant(transaction_confirmation{ id, block_num, trx_num, trx}) ); } );
+                fc_pp::async( [capture_this,this,id,block_num,trx_num,trx,callback](){ callback( fc_pp::variant(transaction_confirmation{ id, block_num, trx_num, trx}) ); } );
              }
           }
        }
@@ -174,16 +174,16 @@ namespace graphene { namespace app {
        _app.p2p_node()->broadcast_transaction(trx);
     }
 
-    fc::variant network_broadcast_api::broadcast_transaction_synchronous(const signed_transaction& trx)
+    fc_pp::variant network_broadcast_api::broadcast_transaction_synchronous(const signed_transaction& trx)
     {
        _app.chain_database()->check_tansaction_for_duplicated_operations(trx);
         
-       fc::promise<fc::variant>::ptr prom( new fc::promise<fc::variant>() );
-       broadcast_transaction_with_callback( [=]( const fc::variant& v ){
+       fc_pp::promise<fc_pp::variant>::ptr prom( new fc_pp::promise<fc_pp::variant>() );
+       broadcast_transaction_with_callback( [=]( const fc_pp::variant& v ){
         prom->set_value(v);
        }, trx );
 
-       return fc::future<fc::variant>(prom).wait();
+       return fc_pp::future<fc_pp::variant>(prom).wait();
     }
 
     void network_broadcast_api::broadcast_block( const signed_block& b )
@@ -212,7 +212,7 @@ namespace graphene { namespace app {
 
             if (_on_pending_transaction)
             {
-                _on_pending_transaction(fc::variant(transaction));
+                _on_pending_transaction(fc_pp::variant(transaction));
             }
         });
 
@@ -243,14 +243,14 @@ namespace graphene { namespace app {
         });
     }
 
-    fc::variant_object network_node_api::get_info() const
+    fc_pp::variant_object network_node_api::get_info() const
     {
-       fc::mutable_variant_object result = _app.p2p_node()->network_get_info();
+       fc_pp::mutable_variant_object result = _app.p2p_node()->network_get_info();
        result["connection_count"] = _app.p2p_node()->get_connection_count();
        return result;
     }
 
-    void network_node_api::add_node(const fc::ip::endpoint& ep)
+    void network_node_api::add_node(const fc_pp::ip::endpoint& ep)
     {
        _app.p2p_node()->add_node(ep);
     }
@@ -265,12 +265,12 @@ namespace graphene { namespace app {
        return _app.p2p_node()->get_potential_peers();
     }
 
-    fc::variant_object network_node_api::get_advanced_node_parameters() const
+    fc_pp::variant_object network_node_api::get_advanced_node_parameters() const
     {
        return _app.p2p_node()->get_advanced_node_parameters();
     }
 
-    void network_node_api::set_advanced_node_parameters(const fc::variant_object& params)
+    void network_node_api::set_advanced_node_parameters(const fc_pp::variant_object& params)
     {
        return _app.p2p_node()->set_advanced_node_parameters(params);
     }
@@ -290,61 +290,61 @@ namespace graphene { namespace app {
         _on_pending_transaction = std::function<void(const variant&)>();
     }
 
-    fc::api<network_broadcast_api> login_api::network_broadcast()const
+    fc_pp::api<network_broadcast_api> login_api::network_broadcast()const
     {
        FC_ASSERT(_network_broadcast_api);
        return *_network_broadcast_api;
     }
 
-    fc::api<block_api> login_api::block()const
+    fc_pp::api<block_api> login_api::block()const
     {
        FC_ASSERT(_block_api);
        return *_block_api;
     }
 
-    fc::api<network_node_api> login_api::network_node()const
+    fc_pp::api<network_node_api> login_api::network_node()const
     {
        FC_ASSERT(_network_node_api);
        return *_network_node_api;
     }
 
-    fc::api<database_api> login_api::database()const
+    fc_pp::api<database_api> login_api::database()const
     {
        FC_ASSERT(_database_api);
        return *_database_api;
     }
 
-    fc::api<history_api> login_api::history() const
+    fc_pp::api<history_api> login_api::history() const
     {
        FC_ASSERT(_history_api);
        return *_history_api;
     }
 
-    fc::api<crypto_api> login_api::crypto() const
+    fc_pp::api<crypto_api> login_api::crypto() const
     {
        FC_ASSERT(_crypto_api);
        return *_crypto_api;
     }
 
-    fc::api<asset_api> login_api::asset() const
+    fc_pp::api<asset_api> login_api::asset() const
     {
        FC_ASSERT(_asset_api);
        return *_asset_api;
     }
 
-    fc::api<graphene::debug_witness::debug_api> login_api::debug() const
+    fc_pp::api<graphene::debug_witness::debug_api> login_api::debug() const
     {
        FC_ASSERT(_debug_api);
        return *_debug_api;
     }
 
-    fc::api<graphene::bookie::bookie_api> login_api::bookie() const
+    fc_pp::api<graphene::bookie::bookie_api> login_api::bookie() const
     {
        FC_ASSERT(_bookie_api);
        return *_bookie_api;
     }
 
-    fc::api<graphene::affiliate_stats::affiliate_stats_api> login_api::affiliate_stats() const
+    fc_pp::api<graphene::affiliate_stats::affiliate_stats_api> login_api::affiliate_stats() const
     {
        FC_ASSERT(_affiliate_stats_api);
        return *_affiliate_stats_api;
@@ -652,7 +652,7 @@ namespace graphene { namespace app {
     }
 
     vector<bucket_object> history_api::get_market_history( asset_id_type a, asset_id_type b,
-                                                           uint32_t bucket_seconds, fc::time_point_sec start, fc::time_point_sec end )const
+                                                           uint32_t bucket_seconds, fc_pp::time_point_sec start, fc_pp::time_point_sec end )const
     { try {
        FC_ASSERT(_app.chain_database());
        const auto& db = *_app.chain_database();
@@ -681,37 +681,37 @@ namespace graphene { namespace app {
 
     blind_signature crypto_api::blind_sign( const extended_private_key_type& key, const blinded_hash& hash, int i )
     {
-       return fc::ecc::extended_private_key( key ).blind_sign( hash, i );
+       return fc_pp::ecc::extended_private_key( key ).blind_sign( hash, i );
     }
 
     signature_type crypto_api::unblind_signature( const extended_private_key_type& key,
                                                      const extended_public_key_type& bob,
                                                      const blind_signature& sig,
-                                                     const fc::sha256& hash,
+                                                     const fc_pp::sha256& hash,
                                                      int i )
     {
-       return fc::ecc::extended_private_key( key ).unblind_signature( extended_public_key( bob ), sig, hash, i );
+       return fc_pp::ecc::extended_private_key( key ).unblind_signature( extended_public_key( bob ), sig, hash, i );
     }
 
     commitment_type crypto_api::blind( const blind_factor_type& blind, uint64_t value )
     {
-       return fc::ecc::blind( blind, value );
+       return fc_pp::ecc::blind( blind, value );
     }
 
     blind_factor_type crypto_api::blind_sum( const std::vector<blind_factor_type>& blinds_in, uint32_t non_neg )
     {
-       return fc::ecc::blind_sum( blinds_in, non_neg );
+       return fc_pp::ecc::blind_sum( blinds_in, non_neg );
     }
 
     bool crypto_api::verify_sum( const std::vector<commitment_type>& commits_in, const std::vector<commitment_type>& neg_commits_in, int64_t excess )
     {
-       return fc::ecc::verify_sum( commits_in, neg_commits_in, excess );
+       return fc_pp::ecc::verify_sum( commits_in, neg_commits_in, excess );
     }
 
     verify_range_result crypto_api::verify_range( const commitment_type& commit, const std::vector<char>& proof )
     {
        verify_range_result result;
-       result.success = fc::ecc::verify_range( result.min_val, result.max_val, commit, proof );
+       result.success = fc_pp::ecc::verify_range( result.min_val, result.max_val, commit, proof );
        return result;
     }
 
@@ -723,7 +723,7 @@ namespace graphene { namespace app {
                                                     uint8_t min_bits,
                                                     uint64_t actual_value )
     {
-       return fc::ecc::range_proof_sign( min_value, commit, commit_blind, nonce, base10_exp, min_bits, actual_value );
+       return fc_pp::ecc::range_proof_sign( min_value, commit, commit_blind, nonce, base10_exp, min_bits, actual_value );
     }
 
     verify_range_proof_rewind_result crypto_api::verify_range_proof_rewind( const blind_factor_type& nonce,
@@ -731,7 +731,7 @@ namespace graphene { namespace app {
                                                                             const std::vector<char>& proof )
     {
        verify_range_proof_rewind_result result;
-       result.success = fc::ecc::verify_range_proof_rewind( result.blind_out,
+       result.success = fc_pp::ecc::verify_range_proof_rewind( result.blind_out,
                                                             result.value_out,
                                                             result.message_out,
                                                             nonce,
@@ -744,7 +744,7 @@ namespace graphene { namespace app {
 
     range_proof_info crypto_api::range_get_info( const std::vector<char>& proof )
     {
-       return fc::ecc::range_get_info( proof );
+       return fc_pp::ecc::range_get_info( proof );
     }
 
     // asset_api

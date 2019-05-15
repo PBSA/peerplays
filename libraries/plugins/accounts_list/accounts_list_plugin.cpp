@@ -34,8 +34,8 @@
 #include <graphene/chain/operation_history_object.hpp>
 #include <graphene/chain/transaction_evaluation_state.hpp>
 
-#include <fc/smart_ref_impl.hpp>
-#include <fc/thread/thread.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
+#include <fc_pp/thread/thread.hpp>
 
 namespace graphene { namespace accounts_list {
 

@@ -43,7 +43,7 @@ namespace graphene { namespace app {
 
          void set_program_options( boost::program_options::options_description& command_line_options,
                                    boost::program_options::options_description& configuration_file_options )const;
-         void initialize(const fc::path& data_dir, const boost::program_options::variables_map&options);
+         void initialize(const fc_pp::path& data_dir, const boost::program_options::variables_map&options);
          void initialize_plugins( const boost::program_options::variables_map& options );
          void startup();
          void shutdown();
@@ -81,7 +81,7 @@ namespace graphene { namespace app {
          std::shared_ptr<chain::database> chain_database()const;
 
          void set_block_production(bool producing_blocks);
-         fc::optional< api_access_info > get_api_access_info( const string& username )const;
+         fc_pp::optional< api_access_info > get_api_access_info( const string& username )const;
          void set_api_access_info(const string& username, api_access_info&& permissions);
 
          bool is_finished_syncing()const;

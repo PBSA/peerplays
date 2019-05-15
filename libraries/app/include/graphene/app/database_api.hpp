@@ -50,11 +50,11 @@
 
 #include <graphene/market_history/market_history_plugin.hpp>
 
-#include <fc/api.hpp>
-#include <fc/optional.hpp>
-#include <fc/variant_object.hpp>
+#include <fc_pp/api.hpp>
+#include <fc_pp/optional.hpp>
+#include <fc_pp/variant_object.hpp>
 
-#include <fc/network/ip.hpp>
+#include <fc_pp/network/ip.hpp>
 
 #include <boost/container/flat_set.hpp>
 
@@ -108,7 +108,7 @@ struct market_volume
 
 struct market_trade
 {
-   fc::time_point_sec         date;
+   fc_pp::time_point_sec         date;
    double                     price;
    double                     amount;
    double                     value;
@@ -138,7 +138,7 @@ class database_api
        *
        * If any of the provided IDs does not map to an object, a null variant is returned in its position.
        */
-      fc::variants get_objects(const vector<object_id_type>& ids)const;
+      fc_pp::variants get_objects(const vector<object_id_type>& ids)const;
 
       ///////////////////
       // Subscriptions //
@@ -209,7 +209,7 @@ class database_api
       /**
        * @brief Retrieve compile-time constants
        */
-      fc::variant_object get_config()const;
+      fc_pp::variant_object get_config()const;
 
       /**
        * @brief Get the chain ID
@@ -475,7 +475,7 @@ class database_api
        * @param start Start time as a UNIX timestamp
        * @return Recent transactions in the market
        */
-      vector<market_trade> get_trade_history( const string& base, const string& quote, fc::time_point_sec start, fc::time_point_sec stop, unsigned limit = 100 )const;
+      vector<market_trade> get_trade_history( const string& base, const string& quote, fc_pp::time_point_sec start, fc_pp::time_point_sec stop, unsigned limit = 100 )const;
 
 
 
@@ -497,7 +497,7 @@ class database_api
        * @param account The ID of the account whose witness should be retrieved
        * @return The witness object, or null if the account does not have a witness
        */
-      fc::optional<witness_object> get_witness_by_account(account_id_type account)const;
+      fc_pp::optional<witness_object> get_witness_by_account(account_id_type account)const;
 
       /**
        * @brief Get names and IDs for registered witnesses
@@ -530,7 +530,7 @@ class database_api
        * @param account The ID of the account whose committee_member should be retrieved
        * @return The committee_member object, or null if the account does not have a committee_member
        */
-      fc::optional<committee_member_object> get_committee_member_by_account(account_id_type account)const;
+      fc_pp::optional<committee_member_object> get_committee_member_by_account(account_id_type account)const;
 
       /**
        * @brief Get names and IDs for registered committee_members
@@ -603,7 +603,7 @@ class database_api
        *  For each operation calculate the required fee in the specified asset type.  If the asset type does
        *  not have a valid core_exchange_rate
        */
-      vector< fc::variant > get_required_fees( const vector<operation>& ops, asset_id_type id )const;
+      vector< fc_pp::variant > get_required_fees( const vector<operation>& ops, asset_id_type id )const;
 
       ///////////////////////////
       // Proposed transactions //

@@ -25,8 +25,8 @@
 #include <graphene/chain/account_object.hpp>
 #include <graphene/utilities/tempdir.hpp>
 
-#include <fc/crypto/digest.hpp>
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/crypto/digest.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 
 #include <boost/test/auto_unit_test.hpp>
 
@@ -39,7 +39,7 @@ BOOST_AUTO_TEST_CASE( operation_sanity_check )
       op.get<account_create_operation>().active.add_authority(account_id_type(), 123);
       operation tmp = std::move(op);
       wdump((tmp.which()));
-   } catch (fc::exception& e) {
+   } catch (fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -61,10 +61,10 @@ BOOST_AUTO_TEST_CASE( genesis_and_persistence_bench )
 #endif
 
       for( int i = 0; i < account_count; ++i )
-         genesis_state.initial_accounts.emplace_back("target"+fc::to_string(i),
-                                                     public_key_type(fc::ecc::private_key::regenerate(fc::digest(i)).get_public_key()));
+         genesis_state.initial_accounts.emplace_back("target"+fc_pp::to_string(i),
+                                                     public_key_type(fc_pp::ecc::private_key::regenerate(fc_pp::digest(i)).get_public_key()));
 
-      fc::temp_directory data_dir( graphene::utilities::temp_directory_path() );
+      fc_pp::temp_directory data_dir( graphene::utilities::temp_directory_path() );
 
       {
          database db;
@@ -73,26 +73,26 @@ BOOST_AUTO_TEST_CASE( genesis_and_persistence_bench )
          for( int i = 11; i < account_count + 11; ++i)
             BOOST_CHECK(db.get_balance(account_id_type(i), asset_id_type()).amount == GRAPHENE_MAX_SHARE_SUPPLY / account_count);
 
-         fc::time_point start_time = fc::time_point::now();
+         fc_pp::time_point start_time = fc_pp::time_point::now();
          db.close();
-         ilog("Closed database in ${t} milliseconds.", ("t", (fc::time_point::now() - start_time).count() / 1000));
+         ilog("Closed database in ${t} milliseconds.", ("t", (fc_pp::time_point::now() - start_time).count() / 1000));
       }
       {
          database db;
 
-         fc::time_point start_time = fc::time_point::now();
+         fc_pp::time_point start_time = fc_pp::time_point::now();
          db.open(data_dir.path(), [&]{return genesis_state;});
-         ilog("Opened database in ${t} milliseconds.", ("t", (fc::time_point::now() - start_time).count() / 1000));
+         ilog("Opened database in ${t} milliseconds.", ("t", (fc_pp::time_point::now() - start_time).count() / 1000));
 
          for( int i = 11; i < account_count + 11; ++i)
             BOOST_CHECK(db.get_balance(account_id_type(i), asset_id_type()).amount == GRAPHENE_MAX_SHARE_SUPPLY / account_count);
 
          int blocks_out = 0;
-         auto witness_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("null_key")) );
+         auto witness_priv_key = fc_pp::ecc::private_key::regenerate(fc_pp::sha256::hash(string("null_key")) );
          auto aw = db.get_global_properties().active_witnesses;
          auto b =  db.generate_block( db.get_slot_time( 1 ), db.get_scheduled_witness( 1 ), witness_priv_key, ~0 );
 
-         start_time = fc::time_point::now();
+         start_time = fc_pp::time_point::now();
          /* TODO: get this buliding again
          for( int i = 0; i < blocks_to_produce; ++i )
          {
@@ -105,25 +105,25 @@ BOOST_AUTO_TEST_CASE( genesis_and_persistence_bench )
          }
          */
          ilog("Pushed ${c} blocks (1 op each, no validation) in ${t} milliseconds.",
-              ("c", blocks_out)("t", (fc::time_point::now() - start_time).count() / 1000));
+              ("c", blocks_out)("t", (fc_pp::time_point::now() - start_time).count() / 1000));
 
-         start_time = fc::time_point::now();
+         start_time = fc_pp::time_point::now();
          db.close();
-         ilog("Closed database in ${t} milliseconds.", ("t", (fc::time_point::now() - start_time).count() / 1000));
+         ilog("Closed database in ${t} milliseconds.", ("t", (fc_pp::time_point::now() - start_time).count() / 1000));
       }
       {
          database db;
 
-         auto start_time = fc::time_point::now();
+         auto start_time = fc_pp::time_point::now();
          wlog( "about to start reindex..." );
          db.reindex(data_dir.path(), genesis_state);
-         ilog("Replayed database in ${t} milliseconds.", ("t", (fc::time_point::now() - start_time).count() / 1000));
+         ilog("Replayed database in ${t} milliseconds.", ("t", (fc_pp::time_point::now() - start_time).count() / 1000));
 
          for( int i = 0; i < blocks_to_produce; ++i )
             BOOST_CHECK(db.get_balance(account_id_type(i + 11), asset_id_type()).amount == GRAPHENE_MAX_SHARE_SUPPLY / account_count - 2);
       }
 
-   } catch(fc::exception& e) {
+   } catch(fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }

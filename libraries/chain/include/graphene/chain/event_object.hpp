@@ -34,10 +34,10 @@ namespace graphene { namespace chain {
    class event_object;
 } }
 
-namespace fc { 
-   void to_variant(const graphene::chain::event_object& event_obj, fc::variant& v);
-   void from_variant(const fc::variant& v, graphene::chain::event_object& event_obj);
-} //end namespace fc
+namespace fc_pp { 
+   void to_variant(const graphene::chain::event_object& event_obj, fc_pp::variant& v);
+   void from_variant(const fc_pp::variant& v, graphene::chain::event_object& event_obj);
+} //end namespace fc_pp
 
 namespace graphene { namespace chain {
 
@@ -76,8 +76,8 @@ class event_object : public graphene::db::abstract_object< event_object >
       template<typename Stream>
       friend Stream& operator>>( Stream& s, event_object& event_obj );
 
-      friend void ::fc::to_variant(const graphene::chain::event_object& event_obj, fc::variant& v);
-      friend void ::fc::from_variant(const fc::variant& v, graphene::chain::event_object& event_obj);
+      friend void ::fc_pp::to_variant(const graphene::chain::event_object& event_obj, fc_pp::variant& v);
+      friend void ::fc_pp::from_variant(const fc_pp::variant& v, graphene::chain::event_object& event_obj);
 
       void pack_impl(std::ostream& stream) const;
       void unpack_impl(std::istream& stream);
@@ -114,43 +114,43 @@ typedef generic_index<event_object, event_object_multi_index_type> event_object_
    template<typename Stream>
    inline Stream& operator<<( Stream& s, const event_object& event_obj )
    { 
-      fc_elog(fc::logger::get("event"), "In event_obj to_raw");
+      fc_elog(fc_pp::logger::get("event"), "In event_obj to_raw");
       // pack all fields exposed in the header in the usual way
       // instead of calling the derived pack, just serialize the one field in the base class
-      //   fc::raw::pack<Stream, const graphene::db::abstract_object<event_object> >(s, event_obj);
-      fc::raw::pack(s, event_obj.id);
-      fc::raw::pack(s, event_obj.name);
-      fc::raw::pack(s, event_obj.season);
-      fc::raw::pack(s, event_obj.start_time);
-      fc::raw::pack(s, event_obj.event_group_id);
-      fc::raw::pack(s, event_obj.at_least_one_betting_market_group_settled);
-      fc::raw::pack(s, event_obj.scores);
+      //   fc_pp::raw::pack<Stream, const graphene::db::abstract_object<event_object> >(s, event_obj);
+      fc_pp::raw::pack(s, event_obj.id);
+      fc_pp::raw::pack(s, event_obj.name);
+      fc_pp::raw::pack(s, event_obj.season);
+      fc_pp::raw::pack(s, event_obj.start_time);
+      fc_pp::raw::pack(s, event_obj.event_group_id);
+      fc_pp::raw::pack(s, event_obj.at_least_one_betting_market_group_settled);
+      fc_pp::raw::pack(s, event_obj.scores);
 
-      // fc::raw::pack the contents hidden in the impl class
+      // fc_pp::raw::pack the contents hidden in the impl class
       std::ostringstream stream;
       event_obj.pack_impl(stream);
       std::string stringified_stream(stream.str());
-      fc::raw::pack(s, stream.str());
+      fc_pp::raw::pack(s, stream.str());
 
       return s;
    }
    template<typename Stream>
    inline Stream& operator>>( Stream& s, event_object& event_obj )
    { 
-      fc_elog(fc::logger::get("event"), "In event_obj from_raw");
+      fc_elog(fc_pp::logger::get("event"), "In event_obj from_raw");
       // unpack all fields exposed in the header in the usual way
-      //fc::raw::unpack<Stream, graphene::db::abstract_object<event_object> >(s, event_obj);
-      fc::raw::unpack(s, event_obj.id);
-      fc::raw::unpack(s, event_obj.name);
-      fc::raw::unpack(s, event_obj.season);
-      fc::raw::unpack(s, event_obj.start_time);
-      fc::raw::unpack(s, event_obj.event_group_id);
-      fc::raw::unpack(s, event_obj.at_least_one_betting_market_group_settled);
-      fc::raw::unpack(s, event_obj.scores);
+      //fc_pp::raw::unpack<Stream, graphene::db::abstract_object<event_object> >(s, event_obj);
+      fc_pp::raw::unpack(s, event_obj.id);
+      fc_pp::raw::unpack(s, event_obj.name);
+      fc_pp::raw::unpack(s, event_obj.season);
+      fc_pp::raw::unpack(s, event_obj.start_time);
+      fc_pp::raw::unpack(s, event_obj.event_group_id);
+      fc_pp::raw::unpack(s, event_obj.at_least_one_betting_market_group_settled);
+      fc_pp::raw::unpack(s, event_obj.scores);
 
-      // fc::raw::unpack the contents hidden in the impl class
+      // fc_pp::raw::unpack the contents hidden in the impl class
       std::string stringified_stream;
-      fc::raw::unpack(s, stringified_stream);
+      fc_pp::raw::unpack(s, stringified_stream);
       std::istringstream stream(stringified_stream);
       event_obj.unpack_impl(stream);
       

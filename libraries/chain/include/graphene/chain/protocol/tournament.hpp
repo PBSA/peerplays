@@ -28,8 +28,8 @@
 #include <cstdint>
 #include <string>
 
-#include <fc/container/flat.hpp>
-#include <fc/reflect/reflect.hpp>
+#include <fc_pp/container/flat.hpp>
+#include <fc_pp/reflect/reflect.hpp>
 #include <graphene/chain/protocol/asset.hpp>
 #include <graphene/chain/protocol/rock_paper_scissors.hpp>
 #include <graphene/chain/protocol/base.hpp>
@@ -43,7 +43,7 @@ namespace graphene { namespace chain {
         rake_fee
     };
 
-   typedef fc::static_variant<rock_paper_scissors_game_options> game_specific_options;
+   typedef fc_pp::static_variant<rock_paper_scissors_game_options> game_specific_options;
 
    /**
     * @brief Options specified when creating a new tournament
@@ -52,7 +52,7 @@ namespace graphene { namespace chain {
    {
       /// If there aren't enough players registered for the tournament before this time,
       /// the tournament is canceled
-      fc::time_point_sec registration_deadline;
+      fc_pp::time_point_sec registration_deadline;
 
       /// Number of players in the tournament. Must be greater than 1. Currently max is 255, should it be committe-settable?
       uint32_t number_of_players;
@@ -68,7 +68,7 @@ namespace graphene { namespace chain {
 
       /// If specified, this is the time the tourament will start (must not be before the registration 
       /// deadline). If this is not specified, the creator must specify `start_delay` instead.
-      optional<fc::time_point_sec> start_time;
+      optional<fc_pp::time_point_sec> start_time;
 
       /// If specified, this is the number of seconds after the final player registers before the 
       /// tournament begins.  If this is not specified, the creator must specify an absolute `start_time`
@@ -86,7 +86,7 @@ namespace graphene { namespace chain {
       ///  "name"
       ///  "description"
       ///  "url"
-      fc::variant_object meta;
+      fc_pp::variant_object meta;
 
       /// Parameters that are specific to the type_of_game in this tournament
       /// The type stored in this static_variant field determines what type of game is being
@@ -169,7 +169,7 @@ namespace graphene { namespace chain {
    };
 
 
-   typedef fc::static_variant<rock_paper_scissors_throw_commit, rock_paper_scissors_throw_reveal> game_specific_moves;
+   typedef fc_pp::static_variant<rock_paper_scissors_throw_commit, rock_paper_scissors_throw_reveal> game_specific_moves;
 
    struct game_move_operation : public base_operation
    {

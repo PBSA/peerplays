@@ -34,7 +34,7 @@
 #include <graphene/chain/witness_schedule_object.hpp>
 #include <graphene/chain/vesting_balance_object.hpp>
 
-#include <fc/crypto/digest.hpp>
+#include <fc_pp/crypto/digest.hpp>
 
 #include "../common/database_fixture.hpp"
 
@@ -78,7 +78,7 @@ BOOST_FIXTURE_TEST_CASE( update_account_keys, database_fixture )
       generate_block( skip_flags );
 
       db.modify(db.get_global_properties(), [](global_property_object& p) {
-         p.parameters.committee_proposal_review_period = fc::hours(1).to_seconds();
+         p.parameters.committee_proposal_review_period = fc_pp::hours(1).to_seconds();
       });
 
       transaction tx;
@@ -213,7 +213,7 @@ BOOST_FIXTURE_TEST_CASE( update_account_keys, database_fixture )
                         sign( trx, *owner_privkey[i] );
                         if( i < int(create_op.owner.weight_threshold-1) )
                         {
-                           GRAPHENE_REQUIRE_THROW(db.push_transaction(trx), fc::exception);
+                           GRAPHENE_REQUIRE_THROW(db.push_transaction(trx), fc_pp::exception);
                         }
                         else
                         {
@@ -236,7 +236,7 @@ BOOST_FIXTURE_TEST_CASE( update_account_keys, database_fixture )
          }
       }
    }
-   catch( const fc::exception& e )
+   catch( const fc_pp::exception& e )
    {
       edump( (e.to_detail_string()) );
       throw;
@@ -314,7 +314,7 @@ BOOST_FIXTURE_TEST_CASE( witness_order_mc_test, database_fixture )
          }
       }
 
-   } catch (fc::exception& e) {
+   } catch (fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -342,7 +342,7 @@ BOOST_FIXTURE_TEST_CASE( tapos_rollover, database_fixture )
       xfer_op.amount = asset(1000);
 
       xfer_tx.operations.push_back( xfer_op );
-      xfer_tx.set_expiration( db.head_block_time() + fc::seconds( 0x1000 * db.get_global_properties().parameters.block_interval ) );
+      xfer_tx.set_expiration( db.head_block_time() + fc_pp::seconds( 0x1000 * db.get_global_properties().parameters.block_interval ) );
       xfer_tx.set_reference_block( db.head_block_id() );
 
       sign( xfer_tx, alice_private_key );
@@ -350,7 +350,7 @@ BOOST_FIXTURE_TEST_CASE( tapos_rollover, database_fixture )
       generate_block();
 
       BOOST_TEST_MESSAGE( "Sign new tx's" );
-      xfer_tx.set_expiration( db.head_block_time() + fc::seconds( 0x1000 * db.get_global_properties().parameters.block_interval ) );
+      xfer_tx.set_expiration( db.head_block_time() + fc_pp::seconds( 0x1000 * db.get_global_properties().parameters.block_interval ) );
       xfer_tx.set_reference_block( db.head_block_id() );
       xfer_tx.signatures.clear();
       sign( xfer_tx, alice_private_key );
@@ -362,7 +362,7 @@ BOOST_FIXTURE_TEST_CASE( tapos_rollover, database_fixture )
       PUSH_TX( db, xfer_tx, 0 );
       generate_block();
    }
-   catch (fc::exception& e)
+   catch (fc_pp::exception& e)
    {
       edump((e.to_detail_string()));
       throw;

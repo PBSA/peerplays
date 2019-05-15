@@ -29,11 +29,11 @@
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
 
-#include <fc/filesystem.hpp>
-#include <fc/smart_ref_impl.hpp>   // required for gcc in release mode
-#include <fc/string.hpp>
-#include <fc/io/fstream.hpp>
-#include <fc/io/json.hpp>
+#include <fc_pp/filesystem.hpp>
+#include <fc_pp/smart_ref_impl.hpp>   // required for gcc in release mode
+#include <fc_pp/string.hpp>
+#include <fc_pp/io/fstream.hpp>
+#include <fc_pp/io/json.hpp>
 #include <graphene/chain/genesis_state.hpp>
 #include <graphene/chain/protocol/types.hpp>
 
@@ -67,13 +67,13 @@ namespace graphene { namespace app { namespace detail {
 genesis_state_type create_example_genesis();
 } } } // graphene::app::detail
 
-fc::path get_path(
+fc_pp::path get_path(
    const boost::program_options::variables_map& options,
    const std::string& name )
 {
-   fc::path result = options[name].as<boost::filesystem::path>();
+   fc_pp::path result = options[name].as<boost::filesystem::path>();
    if( result.is_relative() )
-      result = fc::current_path() / result;
+      result = fc_pp::current_path() / result;
    return result;
 }
 
@@ -146,11 +146,11 @@ void convert_to_c_array(
 
 struct egenesis_info
 {
-   fc::optional< genesis_state_type > genesis;
-   fc::optional< chain_id_type > chain_id;
-   fc::optional< std::string > genesis_json;
-   fc::optional< fc::sha256 > genesis_json_hash;
-   fc::optional< std::string > genesis_json_array;
+   fc_pp::optional< genesis_state_type > genesis;
+   fc_pp::optional< chain_id_type > chain_id;
+   fc_pp::optional< std::string > genesis_json;
+   fc_pp::optional< fc_pp::sha256 > genesis_json_hash;
+   fc_pp::optional< std::string > genesis_json_array;
    int genesis_json_array_width,
        genesis_json_array_height;
 
@@ -161,16 +161,16 @@ struct egenesis_info
       {
          if( !genesis_json.valid() )
             // If genesis_json not exist, generate from genesis
-            genesis_json = fc::json::to_string( *genesis );
+            genesis_json = fc_pp::json::to_string( *genesis );
       }
       else if( genesis_json.valid() )
       {
          // If genesis not exist, generate from genesis_json
          try
          {
-            genesis = fc::json::from_string( *genesis_json ).as< genesis_state_type >();
+            genesis = fc_pp::json::from_string( *genesis_json ).as< genesis_state_type >();
          }
-         catch (const fc::exception& e)
+         catch (const fc_pp::exception& e)
          {
             edump((e));
             throw;
@@ -184,7 +184,7 @@ struct egenesis_info
       }
       // init genesis_json_hash from genesis_json
       if( !genesis_json_hash.valid() )
-         genesis_json_hash = fc::sha256::hash( *genesis_json );
+         genesis_json_hash = fc_pp::sha256::hash( *genesis_json );
       // init chain_id from genesis_json_hash
       if( !chain_id.valid() )
          chain_id = genesis_json_hash;
@@ -209,7 +209,7 @@ void load_genesis(
 {
    if( options.count("genesis-json") )
    {
-      fc::path genesis_json_filename = get_path( options, "genesis-json" );
+      fc_pp::path genesis_json_filename = get_path( options, "genesis-json" );
       std::cerr << "embed_genesis:  Reading genesis from file " << genesis_json_filename.preferred_string() << "\n";
       info.genesis_json = std::string();
       read_file_contents( genesis_json_filename, *info.genesis_json );
@@ -259,7 +259,7 @@ int main( int argc, char** argv )
    load_genesis( options, info );
    info.fillin();
 
-   fc::mutable_variant_object template_context = fc::mutable_variant_object()
+   fc_pp::mutable_variant_object template_context = fc_pp::mutable_variant_object()
       ( "generated_file_banner", generated_file_banner )
       ( "chain_id", (*info.chain_id).str() )
       ;
@@ -286,10 +286,10 @@ int main( int argc, char** argv )
       std::string dest = src_dest.substr( pos+3 );
 
       std::string tmpl;
-      read_file_contents( fc::path( src ), tmpl );
-      std::string out_str = fc::format_string( tmpl, template_context );
-      fc::path dest_filename = fc::path( dest );
-      fc::ofstream outfile( dest_filename );
+      read_file_contents( fc_pp::path( src ), tmpl );
+      std::string out_str = fc_pp::format_string( tmpl, template_context );
+      fc_pp::path dest_filename = fc_pp::path( dest );
+      fc_pp::ofstream outfile( dest_filename );
       outfile.write( out_str.c_str(), out_str.size() );
       outfile.close();
    }

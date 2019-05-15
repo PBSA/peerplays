@@ -35,7 +35,7 @@
 
 #include <graphene/db/simple_index.hpp>
 
-#include <fc/crypto/digest.hpp>
+#include <fc_pp/crypto/digest.hpp>
 #include "../common/database_fixture.hpp"
 
 using namespace graphene::chain;
@@ -52,9 +52,9 @@ BOOST_AUTO_TEST_CASE( confidential_test )
    to_blind.amount = core.amount(1000);
    to_blind.from   = dan.id;
 
-   auto owner1_key = fc::ecc::private_key::generate();
+   auto owner1_key = fc_pp::ecc::private_key::generate();
    auto owner1_pub = owner1_key.get_public_key();
-   auto owner2_key = fc::ecc::private_key::generate();
+   auto owner2_key = fc_pp::ecc::private_key::generate();
    auto owner2_pub = owner2_key.get_public_key();
   
    blind_output out1, out2;
@@ -62,19 +62,19 @@ BOOST_AUTO_TEST_CASE( confidential_test )
    out2.owner = authority( 1, public_key_type(owner2_pub), 1 );
 
 
-   auto InB1  = fc::sha256::hash("InB1");
-   auto InB2  = fc::sha256::hash("InB2");
-   auto OutB  = fc::sha256::hash("InB2");
-   auto nonce1 = fc::sha256::hash("nonce");
-   auto nonce2 = fc::sha256::hash("nonce2");
+   auto InB1  = fc_pp::sha256::hash("InB1");
+   auto InB2  = fc_pp::sha256::hash("InB2");
+   auto OutB  = fc_pp::sha256::hash("InB2");
+   auto nonce1 = fc_pp::sha256::hash("nonce");
+   auto nonce2 = fc_pp::sha256::hash("nonce2");
 
-   out1.commitment  = fc::ecc::blind(InB1,250);
-   out1.range_proof = fc::ecc::range_proof_sign( 0, out1.commitment, InB1, nonce1, 0, 0, 250 );
+   out1.commitment  = fc_pp::ecc::blind(InB1,250);
+   out1.range_proof = fc_pp::ecc::range_proof_sign( 0, out1.commitment, InB1, nonce1, 0, 0, 250 );
 
-   out2.commitment = fc::ecc::blind(InB2,750);
-   out2.range_proof = fc::ecc::range_proof_sign( 0, out2.commitment, InB1, nonce2, 0, 0, 750 );
+   out2.commitment = fc_pp::ecc::blind(InB2,750);
+   out2.range_proof = fc_pp::ecc::range_proof_sign( 0, out2.commitment, InB1, nonce2, 0, 0, 750 );
 
-   to_blind.blinding_factor = fc::ecc::blind_sum( {InB1,InB2}, 2 );
+   to_blind.blinding_factor = fc_pp::ecc::blind_sum( {InB1,InB2}, 2 );
    to_blind.outputs = {out2,out1};
 
    trx.operations = {to_blind};
@@ -83,13 +83,13 @@ BOOST_AUTO_TEST_CASE( confidential_test )
    trx.signatures.clear();
 
    BOOST_TEST_MESSAGE( "Transfering from blind to blind with change address" );
-   auto Out3B  = fc::sha256::hash("Out3B");
-   auto Out4B  = fc::ecc::blind_sum( {InB2,Out3B}, 1 ); // add InB2 - Out3b
+   auto Out3B  = fc_pp::sha256::hash("Out3B");
+   auto Out4B  = fc_pp::ecc::blind_sum( {InB2,Out3B}, 1 ); // add InB2 - Out3b
    blind_output out3, out4;
-   out3.commitment = fc::ecc::blind(Out3B,300);
-   out3.range_proof = fc::ecc::range_proof_sign( 0, out3.commitment, InB1, nonce1, 0, 0, 300 );
-   out4.commitment = fc::ecc::blind(Out4B,750-300-10);
-   out4.range_proof = fc::ecc::range_proof_sign( 0, out3.commitment, InB1, nonce1, 0, 0, 750-300-10 );
+   out3.commitment = fc_pp::ecc::blind(Out3B,300);
+   out3.range_proof = fc_pp::ecc::range_proof_sign( 0, out3.commitment, InB1, nonce1, 0, 0, 300 );
+   out4.commitment = fc_pp::ecc::blind(Out4B,750-300-10);
+   out4.range_proof = fc_pp::ecc::range_proof_sign( 0, out3.commitment, InB1, nonce1, 0, 0, 750-300-10 );
 
 
    blind_transfer_operation blind_tr;
@@ -104,17 +104,17 @@ BOOST_AUTO_TEST_CASE( confidential_test )
    BOOST_TEST_MESSAGE( "Attempting to double spend the same commitments" );
    blind_tr.fee = core.amount(11);
 
-   Out4B  = fc::ecc::blind_sum( {InB2,Out3B}, 1 ); // add InB2 - Out3b
-   out4.commitment = fc::ecc::blind(Out4B,750-300-11);
+   Out4B  = fc_pp::ecc::blind_sum( {InB2,Out3B}, 1 ); // add InB2 - Out3b
+   out4.commitment = fc_pp::ecc::blind(Out4B,750-300-11);
    auto out4_amount = 750-300-10;
-   out4.range_proof = fc::ecc::range_proof_sign( 0, out3.commitment, InB1, nonce1, 0, 0, 750-300-11 );
+   out4.range_proof = fc_pp::ecc::range_proof_sign( 0, out3.commitment, InB1, nonce1, 0, 0, 750-300-11 );
    blind_tr.outputs = {out4,out3};
    trx.operations = {blind_tr};
    BOOST_REQUIRE_THROW( db.push_transaction(trx, ~0), graphene::chain::blind_transfer_unknown_commitment );
 
 
    BOOST_TEST_MESSAGE( "Transfering from blind to nathan public" );
-   out4.commitment = fc::ecc::blind(Out4B,750-300-10);
+   out4.commitment = fc_pp::ecc::blind(Out4B,750-300-10);
 
    transfer_from_blind_operation from_blind;
    from_blind.fee = core.amount(10);

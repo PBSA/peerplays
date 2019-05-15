@@ -29,7 +29,7 @@ namespace graphene { namespace chain {
    struct linear_vesting_policy_initializer
    {
       /** while vesting begins on begin_timestamp, none may be claimed before vesting_cliff_seconds have passed */
-      fc::time_point_sec begin_timestamp;
+      fc_pp::time_point_sec begin_timestamp;
       uint32_t           vesting_cliff_seconds = 0;
       uint32_t           vesting_duration_seconds = 0;
    };
@@ -37,12 +37,12 @@ namespace graphene { namespace chain {
    struct cdd_vesting_policy_initializer
    {
       /** while coindays may accrue over time, none may be claimed before the start_claim time */
-      fc::time_point_sec start_claim;
+      fc_pp::time_point_sec start_claim;
       uint32_t           vesting_seconds = 0;
-      cdd_vesting_policy_initializer( uint32_t vest_sec = 0, fc::time_point_sec sc = fc::time_point_sec() ):start_claim(sc),vesting_seconds(vest_sec){}
+      cdd_vesting_policy_initializer( uint32_t vest_sec = 0, fc_pp::time_point_sec sc = fc_pp::time_point_sec() ):start_claim(sc),vesting_seconds(vest_sec){}
    };
 
-   typedef fc::static_variant<linear_vesting_policy_initializer, cdd_vesting_policy_initializer> vesting_policy_initializer;
+   typedef fc_pp::static_variant<linear_vesting_policy_initializer, cdd_vesting_policy_initializer> vesting_policy_initializer;
 
 
 

@@ -2,7 +2,9 @@
     path = docs
     url = https://github.com/bitshares/bitshares-core.wiki.git
     ignore = dirty
-[submodule "libraries/fc"]
-    path = libraries/fc
-    url = https://github.com/PBSA/peerplays-fc.git
-    ignore = dirty
+[submodule "libraries/fc_pp"]
+	path = libraries/fc_pp
+    url = git@gitlab.pixelplex.by:661-peerplays-pro/fc.git
+[submodule "eos"]
+	path = eos
+	url = git@gitlab.pixelplex.by:661-peerplays-pro/eos.git

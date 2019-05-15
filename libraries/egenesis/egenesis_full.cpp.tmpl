@@ -46,9 +46,9 @@ void compute_egenesis_json( std::string& result )
    return;
 }
 
-fc::sha256 get_egenesis_json_hash()
+fc_pp::sha256 get_egenesis_json_hash()
 {
-   return fc::sha256( "${genesis_json_hash}" );
+   return fc_pp::sha256( "${genesis_json_hash}" );
 }
 
 } }

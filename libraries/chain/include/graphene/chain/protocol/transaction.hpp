@@ -79,7 +79,7 @@ namespace graphene { namespace chain {
       /**
        * This field specifies the absolute expiration for this transaction.
        */
-      fc::time_point_sec expiration;
+      fc_pp::time_point_sec expiration;
 
       vector<operation>  operations;
       extensions_type    extensions;
@@ -91,7 +91,7 @@ namespace graphene { namespace chain {
       /// Calculate the digest used for signature validation
       digest_type         sig_digest( const chain_id_type& chain_id )const;
 
-      void set_expiration( fc::time_point_sec expiration_time );
+      void set_expiration( fc_pp::time_point_sec expiration_time );
       void set_reference_block( const block_id_type& reference_block );
 
       /// visit all operations

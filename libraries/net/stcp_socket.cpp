@@ -25,12 +25,12 @@
 
 #include <algorithm>
 
-#include <fc/crypto/hex.hpp>
-#include <fc/crypto/aes.hpp>
-#include <fc/crypto/city.hpp>
-#include <fc/log/logger.hpp>
-#include <fc/network/ip.hpp>
-#include <fc/exception/exception.hpp>
+#include <fc_pp/crypto/hex.hpp>
+#include <fc_pp/crypto/aes.hpp>
+#include <fc_pp/crypto/city.hpp>
+#include <fc_pp/log/logger.hpp>
+#include <fc_pp/network/ip.hpp>
+#include <fc_pp/exception/exception.hpp>
 
 #include <graphene/net/stcp_socket.hpp>
 
@@ -50,32 +50,32 @@ stcp_socket::~stcp_socket()
 
 void stcp_socket::do_key_exchange()
 {
-  _priv_key = fc::ecc::private_key::generate();
-  fc::ecc::public_key pub = _priv_key.get_public_key();
-  fc::ecc::public_key_data s = pub.serialize();
-  std::shared_ptr<char> serialized_key_buffer(new char[sizeof(fc::ecc::public_key_data)], [](char* p){ delete[] p; });
-  memcpy(serialized_key_buffer.get(), (char*)&s, sizeof(fc::ecc::public_key_data));
-  _sock.write( serialized_key_buffer, sizeof(fc::ecc::public_key_data) );
-  _sock.read( serialized_key_buffer, sizeof(fc::ecc::public_key_data) );
-  fc::ecc::public_key_data rpub;
-  memcpy((char*)&rpub, serialized_key_buffer.get(), sizeof(fc::ecc::public_key_data));
+  _priv_key = fc_pp::ecc::private_key::generate();
+  fc_pp::ecc::public_key pub = _priv_key.get_public_key();
+  fc_pp::ecc::public_key_data s = pub.serialize();
+  std::shared_ptr<char> serialized_key_buffer(new char[sizeof(fc_pp::ecc::public_key_data)], [](char* p){ delete[] p; });
+  memcpy(serialized_key_buffer.get(), (char*)&s, sizeof(fc_pp::ecc::public_key_data));
+  _sock.write( serialized_key_buffer, sizeof(fc_pp::ecc::public_key_data) );
+  _sock.read( serialized_key_buffer, sizeof(fc_pp::ecc::public_key_data) );
+  fc_pp::ecc::public_key_data rpub;
+  memcpy((char*)&rpub, serialized_key_buffer.get(), sizeof(fc_pp::ecc::public_key_data));
 
   _shared_secret = _priv_key.get_shared_secret( rpub );
 //    ilog("shared secret ${s}", ("s", shared_secret) );
-  _send_aes.init( fc::sha256::hash( (char*)&_shared_secret, sizeof(_shared_secret) ), 
-                  fc::city_hash_crc_128((char*)&_shared_secret,sizeof(_shared_secret) ) );
-  _recv_aes.init( fc::sha256::hash( (char*)&_shared_secret, sizeof(_shared_secret) ), 
-                  fc::city_hash_crc_128((char*)&_shared_secret,sizeof(_shared_secret) ) );
+  _send_aes.init( fc_pp::sha256::hash( (char*)&_shared_secret, sizeof(_shared_secret) ), 
+                  fc_pp::city_hash_crc_128((char*)&_shared_secret,sizeof(_shared_secret) ) );
+  _recv_aes.init( fc_pp::sha256::hash( (char*)&_shared_secret, sizeof(_shared_secret) ), 
+                  fc_pp::city_hash_crc_128((char*)&_shared_secret,sizeof(_shared_secret) ) );
 }
 
 
-void stcp_socket::connect_to( const fc::ip::endpoint& remote_endpoint )
+void stcp_socket::connect_to( const fc_pp::ip::endpoint& remote_endpoint )
 {
   _sock.connect_to( remote_endpoint );
   do_key_exchange();
 }
 
-void stcp_socket::bind( const fc::ip::endpoint& local_endpoint )
+void stcp_socket::bind( const fc_pp::ip::endpoint& local_endpoint )
 {
   _sock.bind(local_endpoint);
 }

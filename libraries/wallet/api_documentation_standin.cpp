@@ -39,7 +39,7 @@ namespace graphene { namespace wallet {
             std::list<std::string> operator()() const
             {
                std::list<std::string> argsList = types_to_string_list_helper<Args...>()();
-               argsList.push_front(fc::get_typename<typename std::decay<First>::type>::name());
+               argsList.push_front(fc_pp::get_typename<typename std::decay<First>::type>::name());
                return argsList;
             }
          };
@@ -70,7 +70,7 @@ namespace graphene { namespace wallet {
             method_description this_method;
             this_method.method_name = name;
             std::ostringstream ss;
-            ss << std::setw(40) << std::left << fc::get_typename<R>::name() << " " << name << "(";
+            ss << std::setw(40) << std::left << fc_pp::get_typename<R>::name() << " " << name << "(";
             ss << boost::algorithm::join(types_to_string_list<Args...>(), ", ");
             ss << ")\n";
             this_method.brief_description = ss.str();
@@ -81,7 +81,7 @@ namespace graphene { namespace wallet {
 
    api_documentation::api_documentation()
    {
-      fc::api<wallet_api> tmp;
+      fc_pp::api<wallet_api> tmp;
       detail::help_visitor visitor;
       tmp->visit(visitor);
       std::copy(visitor.method_descriptions.begin(), visitor.method_descriptions.end(),

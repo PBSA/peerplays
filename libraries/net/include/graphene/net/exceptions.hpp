@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #pragma once
-#include <fc/exception/exception.hpp>
+#include <fc_pp/exception/exception.hpp>
 
 namespace graphene { namespace net {
    // registered in node.cpp 

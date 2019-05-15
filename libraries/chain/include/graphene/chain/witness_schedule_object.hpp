@@ -33,7 +33,7 @@ namespace graphene { namespace chain {
 class witness_schedule_object;
 
 typedef hash_ctr_rng<
-   /* HashClass  = */ fc::sha256,
+   /* HashClass  = */ fc_pp::sha256,
    /* SeedLength = */ GRAPHENE_RNG_SEED_LENGTH
    > witness_scheduler_rng;
 
@@ -64,13 +64,13 @@ class witness_schedule_object : public graphene::db::abstract_object<witness_sch
       witness_scheduler scheduler;
       uint32_t last_scheduling_block;
       uint64_t slots_since_genesis = 0;
-      fc::array< char, sizeof(secret_hash_type) > rng_seed;
+      fc_pp::array< char, sizeof(secret_hash_type) > rng_seed;
 
       /**
        * Not necessary for consensus, but used for figuring out the participation rate.
        * The nth bit is 0 if the nth slot was unfilled, else it is 1.
        */
-      fc::uint128 recent_slots_filled;
+      fc_pp::uint128 recent_slots_filled;
 };
 
 } }

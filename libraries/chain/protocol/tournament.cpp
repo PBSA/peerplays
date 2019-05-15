@@ -33,7 +33,7 @@ void tournament_options::validate() const
 
 share_type tournament_create_operation::calculate_fee(const fee_parameters_type& k)const
 {
-   return k.fee + calculate_data_fee( fc::raw::pack_size(*this), k.price_per_kbyte );
+   return k.fee + calculate_data_fee( fc_pp::raw::pack_size(*this), k.price_per_kbyte );
 }
 
 void  tournament_create_operation::validate()const

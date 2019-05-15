@@ -84,7 +84,7 @@ struct pending_transactions_restorer
                // the operation_results field will be ignored.
                _db._push_transaction( tx );
             }
-         } catch ( const fc::exception&  ) {
+         } catch ( const fc_pp::exception&  ) {
          }
       }
       _db._popped_tx.clear();
@@ -98,7 +98,7 @@ struct pending_transactions_restorer
                _db._push_transaction( tx );
             }
          }
-         catch( const fc::exception& e )
+         catch( const fc_pp::exception& e )
          {
             /*
             wlog( "Pending transaction became invalid after switching to block ${b}  ${t}", ("b", _db.head_block_id())("t",_db.head_block_time()) );

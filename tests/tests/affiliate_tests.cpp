@@ -160,23 +160,23 @@ private:
       return itr->id;
    }
 
-   static fc::ecc::private_key generate_private_key( const string& seed )
+   static fc_pp::ecc::private_key generate_private_key( const string& seed )
    {
       return database_fixture::generate_private_key( seed );
    }
 
-   const account_object& create_account( const string& name, const fc::ecc::public_key& key )
+   const account_object& create_account( const string& name, const fc_pp::ecc::public_key& key )
    {
       return fixture.create_account( name, key );
    }
 
 public:
-   const fc::ecc::private_key alice_private_key  = generate_private_key( "alice" );
-   const fc::ecc::private_key ann_private_key    = generate_private_key( "ann" );
-   const fc::ecc::private_key audrey_private_key = generate_private_key( "audrey" );
-   const fc::ecc::private_key paula_private_key  = generate_private_key( "paula" );
-   const fc::ecc::private_key penny_private_key  = generate_private_key( "penny" );
-   const fc::ecc::private_key petra_private_key  = generate_private_key( "petra" );
+   const fc_pp::ecc::private_key alice_private_key  = generate_private_key( "alice" );
+   const fc_pp::ecc::private_key ann_private_key    = generate_private_key( "ann" );
+   const fc_pp::ecc::private_key audrey_private_key = generate_private_key( "audrey" );
+   const fc_pp::ecc::private_key paula_private_key  = generate_private_key( "paula" );
+   const fc_pp::ecc::private_key penny_private_key  = generate_private_key( "penny" );
+   const fc_pp::ecc::private_key petra_private_key  = generate_private_key( "petra" );
 };
 
 BOOST_FIXTURE_TEST_SUITE( affiliate_tests, database_fixture )
@@ -186,7 +186,7 @@ BOOST_AUTO_TEST_CASE( account_test )
    ACTORS( (alice)(ann)(audrey) );
    fund( alice );
 
-   const fc::ecc::private_key paula_private_key = generate_private_key( "paula" );
+   const fc_pp::ecc::private_key paula_private_key = generate_private_key( "paula" );
 
    account_create_operation aco = make_account( "paula", paula_private_key.get_public_key() );
    aco.extensions.value.affiliate_distributions = affiliate_reward_distributions();
@@ -195,24 +195,24 @@ BOOST_AUTO_TEST_CASE( account_test )
    trx.clear();
    trx.operations.push_back( aco );
    // not allowed before hardfork
-   GRAPHENE_REQUIRE_THROW( db.push_transaction(trx, ~0), fc::assert_exception );
+   GRAPHENE_REQUIRE_THROW( db.push_transaction(trx, ~0), fc_pp::assert_exception );
 
    proposal_create_operation pco;
    pco.fee_paying_account = alice_id;
    aco.registrar = ann_id;
    pco.proposed_ops.emplace_back( aco );
    aco.registrar = account_id_type();
-   pco.expiration_time = db.head_block_time() + fc::days(1);
+   pco.expiration_time = db.head_block_time() + fc_pp::days(1);
    trx.clear();
    trx.operations.push_back( pco );
    // not allowed before hardfork
-   GRAPHENE_REQUIRE_THROW( db.push_transaction(trx, ~0), fc::assert_exception );
+   GRAPHENE_REQUIRE_THROW( db.push_transaction(trx, ~0), fc_pp::assert_exception );
 
    generate_blocks( HARDFORK_999_TIME );
    generate_block();
 
    // Proposal is now allowed
-   pco.expiration_time = db.head_block_time() + fc::days(1);
+   pco.expiration_time = db.head_block_time() + fc_pp::days(1);
    trx.clear();
    trx.operations.push_back( pco );
    test::set_expiration( db, trx );
@@ -222,40 +222,40 @@ BOOST_AUTO_TEST_CASE( account_test )
    aco.extensions.value.affiliate_distributions->_dists.clear();
    trx.clear();
    trx.operations.push_back( aco );
-   GRAPHENE_REQUIRE_THROW( db.push_transaction(trx, ~0), fc::assert_exception );
+   GRAPHENE_REQUIRE_THROW( db.push_transaction(trx, ~0), fc_pp::assert_exception );
 
    // Distribution for app-tag must be non-empty
    aco.extensions.value.affiliate_distributions->_dists[bookie]._dist.clear();
    trx.clear();
    trx.operations.push_back( aco );
-   GRAPHENE_REQUIRE_THROW( db.push_transaction(trx, ~0), fc::assert_exception );
+   GRAPHENE_REQUIRE_THROW( db.push_transaction(trx, ~0), fc_pp::assert_exception );
 
    // If more than one app-tag given, neither can be empty
    aco.extensions.value.affiliate_distributions->_dists[rps]._dist[alice_id] = GRAPHENE_100_PERCENT;
    aco.extensions.value.affiliate_distributions->_dists[bookie]._dist.clear();
    trx.clear();
    trx.operations.push_back( aco );
-   GRAPHENE_REQUIRE_THROW( db.push_transaction(trx, ~0), fc::assert_exception );
+   GRAPHENE_REQUIRE_THROW( db.push_transaction(trx, ~0), fc_pp::assert_exception );
 
    // Sum of percentage must be 100%
    aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[ann_id] = 1;
    trx.clear();
    trx.operations.push_back( aco );
-   GRAPHENE_REQUIRE_THROW( db.push_transaction(trx, ~0), fc::assert_exception );
+   GRAPHENE_REQUIRE_THROW( db.push_transaction(trx, ~0), fc_pp::assert_exception );
 
    // Individual percentages cannot exceed 100%
    aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[ann_id] = -1;
    aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[audrey_id] = 1 + GRAPHENE_100_PERCENT;
    trx.clear();
    trx.operations.push_back( aco );
-   GRAPHENE_REQUIRE_THROW( db.push_transaction(trx, ~0), fc::assert_exception );
+   GRAPHENE_REQUIRE_THROW( db.push_transaction(trx, ~0), fc_pp::assert_exception );
 
    // Sum of percentage must be 100%
    aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[ann_id] = GRAPHENE_100_PERCENT - 10;
    aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[audrey_id] = 9;
    trx.clear();
    trx.operations.push_back( aco );
-   GRAPHENE_REQUIRE_THROW( db.push_transaction(trx, ~0), fc::assert_exception );
+   GRAPHENE_REQUIRE_THROW( db.push_transaction(trx, ~0), fc_pp::assert_exception );
 
    // Ok
    aco.extensions.value.affiliate_distributions->_dists[bookie]._dist[audrey_id] = 10;

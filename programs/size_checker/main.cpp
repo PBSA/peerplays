@@ -22,10 +22,10 @@
  * THE SOFTWARE.
  */
 
-#include <fc/io/json.hpp>
-#include <fc/smart_ref_impl.hpp>
-#include <fc/variant.hpp>
-#include <fc/variant_object.hpp>
+#include <fc_pp/io/json.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
+#include <fc_pp/variant.hpp>
+#include <fc_pp/variant_object.hpp>
 
 #include <graphene/chain/protocol/protocol.hpp>
 
@@ -37,13 +37,13 @@
 
 using namespace graphene::chain;
 
-vector< fc::variant_object > g_op_types;
+vector< fc_pp::variant_object > g_op_types;
 
 template< typename T >
 uint64_t get_wire_size()
 {
    T data;
-   return fc::raw::pack( data ).size();
+   return fc_pp::raw::pack( data ).size();
 }
 
 struct size_check_type_visitor
@@ -56,8 +56,8 @@ struct size_check_type_visitor
    template<typename Type>
    result_type operator()( const Type& op )const
    {
-      fc::mutable_variant_object vo;
-      vo["name"] = fc::get_typename<Type>::name();
+      fc_pp::mutable_variant_object vo;
+      vo["name"] = fc_pp::get_typename<Type>::name();
       vo["mem_size"] = sizeof( Type );
       vo["wire_size"] = get_wire_size<Type>();
       g_op_types.push_back( vo );
@@ -98,17 +98,17 @@ int main( int argc, char** argv )
       std::cout << "[\n";
       for( size_t i=0; i<g_op_types.size(); i++ )
       {
-         std::cout << "   " << fc::json::to_string( g_op_types[i] );
+         std::cout << "   " << fc_pp::json::to_string( g_op_types[i] );
          if( i < g_op_types.size()-1 )
             std::cout << ",\n";
          else
             std::cout << "\n";
       }
       std::cout << "]\n";
-      std::cerr << "Size of block header: " << sizeof( block_header ) << " " << fc::raw::pack_size( block_header() ) << "\n";
+      std::cerr << "Size of block header: " << sizeof( block_header ) << " " << fc_pp::raw::pack_size( block_header() ) << "\n";
    }
-   catch ( const fc::exception& e ){ edump((e.to_detail_string())); }
+   catch ( const fc_pp::exception& e ){ edump((e.to_detail_string())); }
    idump((sizeof(signed_block)));
-   idump((fc::raw::pack_size(signed_block())));
+   idump((fc_pp::raw::pack_size(signed_block())));
    return 0;
 }

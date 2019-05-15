@@ -29,7 +29,7 @@
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/member.hpp>
 
-#include <fc/exception/exception.hpp>
+#include <fc_pp/exception/exception.hpp>
 
 namespace graphene { namespace wallet {
 
@@ -55,7 +55,7 @@ namespace graphene { namespace wallet {
          if (iter != method_descriptions.end())
             return iter->brief_description;
          else
-            FC_THROW_EXCEPTION(fc::key_not_found_exception, "No entry for method ${name}", ("name", method_name));
+            FC_THROW_EXCEPTION(fc_pp::key_not_found_exception, "No entry for method ${name}", ("name", method_name));
       }
       std::string get_detailed_description(const std::string& method_name) const
       {
@@ -63,7 +63,7 @@ namespace graphene { namespace wallet {
          if (iter != method_descriptions.end())
             return iter->detailed_description;
          else
-            FC_THROW_EXCEPTION(fc::key_not_found_exception, "No entry for method ${name}", ("name", method_name));
+            FC_THROW_EXCEPTION(fc_pp::key_not_found_exception, "No entry for method ${name}", ("name", method_name));
       }
       std::vector<std::string> get_method_names() const
       {

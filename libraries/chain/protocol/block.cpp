@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 #include <graphene/chain/protocol/block.hpp>
-#include <fc/io/raw.hpp>
-#include <fc/bitutil.hpp>
+#include <fc_pp/io/raw.hpp>
+#include <fc_pp/bitutil.hpp>
 #include <algorithm>
 
 namespace graphene { namespace chain {
@@ -34,30 +34,30 @@ namespace graphene { namespace chain {
 
    uint32_t block_header::num_from_id(const block_id_type& id)
    {
-      return fc::endian_reverse_u32(id._hash[0]);
+      return fc_pp::endian_reverse_u32(id._hash[0]);
    }
 
    block_id_type signed_block_header::id()const
    {
-      auto tmp = fc::sha224::hash( *this );
-      tmp._hash[0] = fc::endian_reverse_u32(block_num()); // store the block num in the ID, 160 bits is plenty for the hash
+      auto tmp = fc_pp::sha224::hash( *this );
+      tmp._hash[0] = fc_pp::endian_reverse_u32(block_num()); // store the block num in the ID, 160 bits is plenty for the hash
       static_assert( sizeof(tmp._hash[0]) == 4, "should be 4 bytes" );
       block_id_type result;
       memcpy(result._hash, tmp._hash, std::min(sizeof(result), sizeof(tmp)));
       return result;
    }
 
-   fc::ecc::public_key signed_block_header::signee()const
+   fc_pp::ecc::public_key signed_block_header::signee()const
    {
-      return fc::ecc::public_key( witness_signature, digest(), true/*enforce canonical*/ );
+      return fc_pp::ecc::public_key( witness_signature, digest(), true/*enforce canonical*/ );
    }
 
-   void signed_block_header::sign( const fc::ecc::private_key& signer )
+   void signed_block_header::sign( const fc_pp::ecc::private_key& signer )
    {
       witness_signature = signer.sign_compact( digest() );
    }
 
-   bool signed_block_header::validate_signee( const fc::ecc::public_key& expected_signee )const
+   bool signed_block_header::validate_signee( const fc_pp::ecc::public_key& expected_signee )const
    {
       return signee() == expected_signee;
    }

@@ -60,7 +60,7 @@ namespace graphene { namespace chain {
         /// tracks the total amount
         share_type         claimed_this_period;
         /// True if the permission may still be claimed for this period; false if it has already been used
-        asset              available_this_period( fc::time_point_sec current_time )const
+        asset              available_this_period( fc_pp::time_point_sec current_time )const
         {
            if( current_time >= period_start_time + withdrawal_period_sec )
               return withdrawal_limit;

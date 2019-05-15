@@ -23,9 +23,9 @@
  */
 #include <algorithm>
 #include <graphene/chain/protocol/fee_schedule.hpp>
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 
-namespace fc
+namespace fc_pp
 {
    // explicitly instantiate the smart_ref, gcc fails to instantiate it in some release builds
    //template graphene::chain::fee_schedule& smart_ref<graphene::chain::fee_schedule>::operator=(smart_ref<graphene::chain::fee_schedule>&&);
@@ -39,7 +39,7 @@ namespace fc
 
 namespace graphene { namespace chain {
 
-   typedef fc::smart_ref<fee_schedule> smart_fee_schedule;
+   typedef fc_pp::smart_ref<fee_schedule> smart_fee_schedule;
 
    static smart_fee_schedule tmp;
 
@@ -129,7 +129,7 @@ namespace graphene { namespace chain {
       auto itr = parameters.find(params);
       if( itr != parameters.end() ) params = *itr;
       auto base_value = op.visit( calc_fee_visitor( params ) );
-      auto scaled = fc::uint128(base_value) * scale;
+      auto scaled = fc_pp::uint128(base_value) * scale;
       scaled /= GRAPHENE_100_PERCENT;
       FC_ASSERT( scaled <= GRAPHENE_MAX_SHARE_SUPPLY );
       //idump( (base_value)(scaled)(core_exchange_rate) );

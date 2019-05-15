@@ -28,8 +28,8 @@
 #include <cstdint>
 #include <string>
 
-#include <fc/container/flat.hpp>
-#include <fc/reflect/reflect.hpp>
+#include <fc_pp/container/flat.hpp>
+#include <fc_pp/reflect/reflect.hpp>
 
 namespace graphene { namespace chain {
 
@@ -69,13 +69,13 @@ namespace graphene { namespace chain {
       uint64_t nonce1;
       uint64_t nonce2;
       rock_paper_scissors_gesture gesture;
-      fc::sha256 calculate_hash() const;
+      fc_pp::sha256 calculate_hash() const;
    };
 
    struct rock_paper_scissors_throw_commit
    {
       uint64_t nonce1;
-      fc::sha256 throw_hash;
+      fc_pp::sha256 throw_hash;
       bool operator<(const graphene::chain::rock_paper_scissors_throw_commit& rhs) const
       {
          return std::tie(nonce1, throw_hash) < std::tie(rhs.nonce1, rhs.throw_hash);

@@ -95,7 +95,7 @@ void database::debug_dump()
    */
 }
 
-void debug_apply_update( database& db, const fc::variant_object& vo )
+void debug_apply_update( database& db, const fc_pp::variant_object& vo )
 {
    static const uint8_t
       db_action_nil = 0,
@@ -178,16 +178,16 @@ void database::apply_debug_updates()
    auto it = _node_property_object.debug_updates.find( head_id );
    if( it == _node_property_object.debug_updates.end() )
       return;
-   for( const fc::variant_object& update : it->second )
+   for( const fc_pp::variant_object& update : it->second )
       debug_apply_update( *this, update );
 }
 
-void database::debug_update( const fc::variant_object& update )
+void database::debug_update( const fc_pp::variant_object& update )
 {
    block_id_type head_id = head_block_id();
    auto it = _node_property_object.debug_updates.find( head_id );
    if( it == _node_property_object.debug_updates.end() )
-      it = _node_property_object.debug_updates.emplace( head_id, std::vector< fc::variant_object >() ).first;
+      it = _node_property_object.debug_updates.emplace( head_id, std::vector< fc_pp::variant_object >() ).first;
    it->second.emplace_back( update );
 
    optional<signed_block> head_block = fetch_block_by_id( head_id );

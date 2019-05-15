@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#include <fc/smart_ref_impl.hpp>
-#include <fc/uint128.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
+#include <fc_pp/uint128.hpp>
 
 #include <graphene/chain/hardfork.hpp>
 
@@ -72,7 +72,7 @@ BOOST_AUTO_TEST_CASE( nonzero_fee_test )
       sign( tx, alice_private_key );
       GRAPHENE_REQUIRE_THROW( PUSH_TX( db, tx ), insufficient_fee );
    }
-   catch( const fc::exception& e )
+   catch( const fc_pp::exception& e )
    {
       edump((e.to_detail_string()));
       throw;
@@ -154,10 +154,10 @@ BOOST_AUTO_TEST_CASE(asset_claim_fees_test)
          tx.operations.push_back( claim_op );
          db.current_fee_schedule().set_fee( tx.operations.back() );
          set_expiration( db, tx );
-         fc::ecc::private_key   my_pk = (issuer == izzy_id) ? izzy_private_key : jill_private_key;
-         fc::ecc::private_key your_pk = (issuer == izzy_id) ? jill_private_key : izzy_private_key;
+         fc_pp::ecc::private_key   my_pk = (issuer == izzy_id) ? izzy_private_key : jill_private_key;
+         fc_pp::ecc::private_key your_pk = (issuer == izzy_id) ? jill_private_key : izzy_private_key;
          sign( tx, your_pk );
-         GRAPHENE_REQUIRE_THROW( PUSH_TX( db, tx ), fc::exception );
+         GRAPHENE_REQUIRE_THROW( PUSH_TX( db, tx ), fc_pp::exception );
          tx.signatures.clear();
          sign( tx, my_pk );
          PUSH_TX( db, tx );
@@ -179,7 +179,7 @@ BOOST_AUTO_TEST_CASE(asset_claim_fees_test)
       if( db.head_block_time() <= HARDFORK_413_TIME )
       {
          // can't claim before hardfork
-         GRAPHENE_REQUIRE_THROW( claim_fees( izzy_id, _izzy(1) ), fc::exception );
+         GRAPHENE_REQUIRE_THROW( claim_fees( izzy_id, _izzy(1) ), fc_pp::exception );
          generate_blocks( HARDFORK_413_TIME );
          while( db.head_block_time() <= HARDFORK_413_TIME )
          {
@@ -192,22 +192,22 @@ BOOST_AUTO_TEST_CASE(asset_claim_fees_test)
          const asset_object& jillcoin = jillcoin_id(db);
 
          // can't claim more than balance
-         GRAPHENE_REQUIRE_THROW( claim_fees( izzy_id, _izzy(1) + izzy_satoshi ), fc::exception );
-         GRAPHENE_REQUIRE_THROW( claim_fees( jill_id, _jill(6) + jill_satoshi ), fc::exception );
+         GRAPHENE_REQUIRE_THROW( claim_fees( izzy_id, _izzy(1) + izzy_satoshi ), fc_pp::exception );
+         GRAPHENE_REQUIRE_THROW( claim_fees( jill_id, _jill(6) + jill_satoshi ), fc_pp::exception );
 
          // can't claim asset that doesn't belong to you
-         GRAPHENE_REQUIRE_THROW( claim_fees( jill_id, izzy_satoshi ), fc::exception );
-         GRAPHENE_REQUIRE_THROW( claim_fees( izzy_id, jill_satoshi ), fc::exception );
+         GRAPHENE_REQUIRE_THROW( claim_fees( jill_id, izzy_satoshi ), fc_pp::exception );
+         GRAPHENE_REQUIRE_THROW( claim_fees( izzy_id, jill_satoshi ), fc_pp::exception );
 
          // can claim asset in one go
          claim_fees( izzy_id, _izzy(1) );
-         GRAPHENE_REQUIRE_THROW( claim_fees( izzy_id, izzy_satoshi ), fc::exception );
+         GRAPHENE_REQUIRE_THROW( claim_fees( izzy_id, izzy_satoshi ), fc_pp::exception );
          BOOST_CHECK( izzycoin.dynamic_asset_data_id(db).accumulated_fees == _izzy(0).amount );
 
          // can claim in multiple goes
          claim_fees( jill_id, _jill(4) );
          BOOST_CHECK( jillcoin.dynamic_asset_data_id(db).accumulated_fees == _jill(2).amount );
-         GRAPHENE_REQUIRE_THROW( claim_fees( jill_id, _jill(2) + jill_satoshi ), fc::exception );
+         GRAPHENE_REQUIRE_THROW( claim_fees( jill_id, _jill(2) + jill_satoshi ), fc_pp::exception );
          claim_fees( jill_id, _jill(2) );
          BOOST_CHECK( jillcoin.dynamic_asset_data_id(db).accumulated_fees == _jill(0).amount );
       }
@@ -242,7 +242,7 @@ BOOST_AUTO_TEST_CASE(asset_claim_fees_test)
 
 uint64_t pct( uint64_t percentage, uint64_t val )
 {
-   fc::uint128_t x = percentage;
+   fc_pp::uint128_t x = percentage;
    x *= val;
    x /= GRAPHENE_100_PERCENT;
    return x.to_uint64();
@@ -589,17 +589,17 @@ BOOST_AUTO_TEST_CASE( account_create_fee_scaling )
    for( int i = db.get_dynamic_global_properties().accounts_registered_this_interval; i < accounts_per_scale; ++i )
    {
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.current_fees->get<account_create_operation>().basic_fee, 1);
-      create_account("shill" + fc::to_string(i));
+      create_account("shill" + fc_pp::to_string(i));
    }
    for( int i = 0; i < accounts_per_scale; ++i )
    {
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.current_fees->get<account_create_operation>().basic_fee, 16);
-      create_account("moreshills" + fc::to_string(i));
+      create_account("moreshills" + fc_pp::to_string(i));
    }
    for( int i = 0; i < accounts_per_scale; ++i )
    {
       BOOST_CHECK_EQUAL(db.get_global_properties().parameters.current_fees->get<account_create_operation>().basic_fee, 256);
-      create_account("moarshills" + fc::to_string(i));
+      create_account("moarshills" + fc_pp::to_string(i));
    }
    BOOST_CHECK_EQUAL(db.get_global_properties().parameters.current_fees->get<account_create_operation>().basic_fee, 4096);
 
@@ -902,21 +902,21 @@ BOOST_AUTO_TEST_CASE( stealth_fba_test )
 
       auto create_transfer_to_blind = [&]( account_id_type account, asset amount, const std::string& key ) -> transfer_to_blind_operation
       {
-         fc::ecc::private_key blind_key = fc::ecc::private_key::regenerate( fc::sha256::hash( key+"-privkey" ) );
+         fc_pp::ecc::private_key blind_key = fc_pp::ecc::private_key::regenerate( fc_pp::sha256::hash( key+"-privkey" ) );
          public_key_type blind_pub = blind_key.get_public_key();
 
-         fc::sha256 secret = fc::sha256::hash( key+"-secret" );
-         fc::sha256 nonce = fc::sha256::hash( key+"-nonce" );
+         fc_pp::sha256 secret = fc_pp::sha256::hash( key+"-secret" );
+         fc_pp::sha256 nonce = fc_pp::sha256::hash( key+"-nonce" );
 
          transfer_to_blind_operation op;
          blind_output blind_out;
          blind_out.owner = authority( 1, blind_pub, 1 );
-         blind_out.commitment = fc::ecc::blind( secret, amount.amount.value );
-         blind_out.range_proof = fc::ecc::range_proof_sign( 0, blind_out.commitment, secret, nonce, 0, 0, amount.amount.value );
+         blind_out.commitment = fc_pp::ecc::blind( secret, amount.amount.value );
+         blind_out.range_proof = fc_pp::ecc::range_proof_sign( 0, blind_out.commitment, secret, nonce, 0, 0, amount.amount.value );
 
          op.amount = amount;
          op.from = account;
-         op.blinding_factor = fc::ecc::blind_sum( {secret}, 1 );
+         op.blinding_factor = fc_pp::ecc::blind_sum( {secret}, 1 );
          op.outputs = {blind_out};
 
          return op;
@@ -941,7 +941,7 @@ BOOST_AUTO_TEST_CASE( stealth_fba_test )
       idump( ( get_operation_history( rex_id ) ) );
       idump( ( get_operation_history( tom_id ) ) );
    }
-   catch( const fc::exception& e )
+   catch( const fc_pp::exception& e )
    {
       elog( "caught exception ${e}", ("e", e.to_detail_string()) );
       throw;
@@ -1006,7 +1006,7 @@ BOOST_AUTO_TEST_CASE( issue_429_test )
 
       verify_asset_supplies( db );
    }
-   catch( const fc::exception& e )
+   catch( const fc_pp::exception& e )
    {
       edump((e.to_detail_string()));
       throw;
@@ -1054,7 +1054,7 @@ BOOST_AUTO_TEST_CASE( issue_433_test )
       op.symbol = "ALICE.PROP";
       prop.fee_paying_account = alice_id;
       prop.proposed_ops.emplace_back( op );
-      prop.expiration_time =  db.head_block_time() + fc::days(1);
+      prop.expiration_time =  db.head_block_time() + fc_pp::days(1);
       prop.fee = asset( proposal_create_fees.fee + proposal_create_fees.price_per_kbyte );
       object_id_type proposal_id;
       {
@@ -1082,7 +1082,7 @@ BOOST_AUTO_TEST_CASE( issue_433_test )
 
       verify_asset_supplies( db );
    }
-   catch( const fc::exception& e )
+   catch( const fc_pp::exception& e )
    {
       edump((e.to_detail_string()));
       throw;

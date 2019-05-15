@@ -27,14 +27,14 @@
 #include <iostream>
 #include <iterator>
 
-#include <fc/io/json.hpp>
-#include <fc/io/stdio.hpp>
-#include <fc/network/http/server.hpp>
-#include <fc/network/http/websocket.hpp>
-#include <fc/rpc/cli.hpp>
-#include <fc/rpc/http_api.hpp>
-#include <fc/rpc/websocket_api.hpp>
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/io/json.hpp>
+#include <fc_pp/io/stdio.hpp>
+#include <fc_pp/network/http/server.hpp>
+#include <fc_pp/network/http/websocket.hpp>
+#include <fc_pp/rpc/cli.hpp>
+#include <fc_pp/rpc/http_api.hpp>
+#include <fc_pp/rpc/websocket_api.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 
 #include <graphene/app/api.hpp>
 #include <graphene/chain/protocol/protocol.hpp>
@@ -42,13 +42,13 @@
 #include <graphene/utilities/key_conversion.hpp>
 #include <graphene/wallet/wallet.hpp>
 
-#include <fc/interprocess/signals.hpp>
+#include <fc_pp/interprocess/signals.hpp>
 #include <boost/program_options.hpp>
 
-#include <fc/log/console_appender.hpp>
-#include <fc/log/file_appender.hpp>
-#include <fc/log/logger.hpp>
-#include <fc/log/logger_config.hpp>
+#include <fc_pp/log/console_appender.hpp>
+#include <fc_pp/log/file_appender.hpp>
+#include <fc_pp/log/logger.hpp>
+#include <fc_pp/log/logger_config.hpp>
 
 #ifdef WIN32
 # include <signal.h>
@@ -91,35 +91,35 @@ int main( int argc, char** argv )
          return 0;
       }
 
-      fc::path data_dir;
-      fc::logging_config cfg;
-      fc::path log_dir = data_dir / "logs";
+      fc_pp::path data_dir;
+      fc_pp::logging_config cfg;
+      fc_pp::path log_dir = data_dir / "logs";
 
-      fc::file_appender::config ac;
+      fc_pp::file_appender::config ac;
       ac.filename             = log_dir / "rpc" / "rpc.log";
       ac.flush                = true;
       ac.rotate               = true;
-      ac.rotation_interval    = fc::hours( 1 );
-      ac.rotation_limit       = fc::days( 1 );
+      ac.rotation_interval    = fc_pp::hours( 1 );
+      ac.rotation_limit       = fc_pp::days( 1 );
 
       std::cout << "Logging RPC to file: " << (data_dir / ac.filename).preferred_string() << "\n";
 
-      cfg.appenders.push_back(fc::appender_config( "default", "console", fc::variant(fc::console_appender::config())));
-      cfg.appenders.push_back(fc::appender_config( "rpc", "file", fc::variant(ac)));
+      cfg.appenders.push_back(fc_pp::appender_config( "default", "console", fc_pp::variant(fc_pp::console_appender::config())));
+      cfg.appenders.push_back(fc_pp::appender_config( "rpc", "file", fc_pp::variant(ac)));
 
-      cfg.loggers = { fc::logger_config("default"), fc::logger_config( "rpc") };
-      cfg.loggers.front().level = fc::log_level::info;
+      cfg.loggers = { fc_pp::logger_config("default"), fc_pp::logger_config( "rpc") };
+      cfg.loggers.front().level = fc_pp::log_level::info;
       cfg.loggers.front().appenders = {"default"};
-      cfg.loggers.back().level = fc::log_level::debug;
+      cfg.loggers.back().level = fc_pp::log_level::debug;
       cfg.loggers.back().appenders = {"rpc"};
 
-      //fc::configure_logging( cfg );
+      //fc_pp::configure_logging( cfg );
 
-      fc::ecc::private_key committee_private_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("null_key")));
+      fc_pp::ecc::private_key committee_private_key = fc_pp::ecc::private_key::regenerate(fc_pp::sha256::hash(string("null_key")));
 
       idump( (key_to_wif( committee_private_key ) ) );
 
-      fc::ecc::private_key nathan_private_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+      fc_pp::ecc::private_key nathan_private_key = fc_pp::ecc::private_key::regenerate(fc_pp::sha256::hash(string("nathan")));
       public_key_type nathan_pub_key = nathan_private_key.get_public_key();
       idump( (nathan_pub_key) );
       idump( (key_to_wif( nathan_private_key ) ) );
@@ -132,10 +132,10 @@ int main( int argc, char** argv )
       //
       wallet_data wdata;
 
-      fc::path wallet_file( options.count("wallet-file") ? options.at("wallet-file").as<string>() : "wallet.json");
-      if( fc::exists( wallet_file ) )
+      fc_pp::path wallet_file( options.count("wallet-file") ? options.at("wallet-file").as<string>() : "wallet.json");
+      if( fc_pp::exists( wallet_file ) )
       {
-         wdata = fc::json::from_file( wallet_file ).as<wallet_data>();
+         wdata = fc_pp::json::from_file( wallet_file ).as<wallet_data>();
          if( options.count("chain-id") )
          {
             // the --chain-id on the CLI must match the chain ID embedded in the wallet file
@@ -168,10 +168,10 @@ int main( int argc, char** argv )
       if( options.count("server-rpc-password") )
          wdata.ws_password = options.at("server-rpc-password").as<std::string>();
 
-      fc::http::websocket_client client;
+      fc_pp::http::websocket_client client;
       idump((wdata.ws_server));
       auto con  = client.connect( wdata.ws_server );
-      auto apic = std::make_shared<fc::rpc::websocket_api_connection>(*con);
+      auto apic = std::make_shared<fc_pp::rpc::websocket_api_connection>(*con);
 
       auto remote_api = apic->get_remote_api< login_api >(1);
       edump((wdata.ws_user)(wdata.ws_password) );
@@ -182,9 +182,9 @@ int main( int argc, char** argv )
       wapiptr->set_wallet_filename( wallet_file.generic_string() );
       wapiptr->load_wallet_file();
 
-      fc::api<wallet_api> wapi(wapiptr);
+      fc_pp::api<wallet_api> wapi(wapiptr);
 
-      auto wallet_cli = std::make_shared<fc::rpc::cli>();
+      auto wallet_cli = std::make_shared<fc_pp::rpc::cli>();
       for( auto& name_formatter : wapiptr->get_result_formatters() )
          wallet_cli->format_result( name_formatter.first, name_formatter.second );
 
@@ -205,18 +205,18 @@ int main( int argc, char** argv )
          wallet_cli->set_prompt(  locked ? "locked >>> " : "unlocked >>> " );
       }));
 
-      auto _websocket_server = std::make_shared<fc::http::websocket_server>();
+      auto _websocket_server = std::make_shared<fc_pp::http::websocket_server>();
       if( options.count("rpc-endpoint") )
       {
-         _websocket_server->on_connection([&]( const fc::http::websocket_connection_ptr& c ){
+         _websocket_server->on_connection([&]( const fc_pp::http::websocket_connection_ptr& c ){
             std::cout << "here... \n";
             wlog("." );
-            auto wsc = std::make_shared<fc::rpc::websocket_api_connection>(*c);
+            auto wsc = std::make_shared<fc_pp::rpc::websocket_api_connection>(*c);
             wsc->register_api(wapi);
             c->set_session_data( wsc );
          });
          ilog( "Listening for incoming RPC requests on ${p}", ("p", options.at("rpc-endpoint").as<string>() ));
-         _websocket_server->listen( fc::ip::endpoint::from_string(options.at("rpc-endpoint").as<string>()) );
+         _websocket_server->listen( fc_pp::ip::endpoint::from_string(options.at("rpc-endpoint").as<string>()) );
          _websocket_server->start_accept();
       }
 
@@ -224,32 +224,32 @@ int main( int argc, char** argv )
       if( options.count( "rpc-tls-certificate" ) )
          cert_pem = options.at("rpc-tls-certificate").as<string>();
 
-      auto _websocket_tls_server = std::make_shared<fc::http::websocket_tls_server>(cert_pem);
+      auto _websocket_tls_server = std::make_shared<fc_pp::http::websocket_tls_server>(cert_pem);
       if( options.count("rpc-tls-endpoint") )
       {
-         _websocket_tls_server->on_connection([&]( const fc::http::websocket_connection_ptr& c ){
-            auto wsc = std::make_shared<fc::rpc::websocket_api_connection>(*c);
+         _websocket_tls_server->on_connection([&]( const fc_pp::http::websocket_connection_ptr& c ){
+            auto wsc = std::make_shared<fc_pp::rpc::websocket_api_connection>(*c);
             wsc->register_api(wapi);
             c->set_session_data( wsc );
          });
          ilog( "Listening for incoming TLS RPC requests on ${p}", ("p", options.at("rpc-tls-endpoint").as<string>() ));
-         _websocket_tls_server->listen( fc::ip::endpoint::from_string(options.at("rpc-tls-endpoint").as<string>()) );
+         _websocket_tls_server->listen( fc_pp::ip::endpoint::from_string(options.at("rpc-tls-endpoint").as<string>()) );
          _websocket_tls_server->start_accept();
       }
 
-      auto _http_server = std::make_shared<fc::http::server>();
+      auto _http_server = std::make_shared<fc_pp::http::server>();
       if( options.count("rpc-http-endpoint" ) )
       {
          ilog( "Listening for incoming HTTP RPC requests on ${p}", ("p", options.at("rpc-http-endpoint").as<string>() ) );
-         _http_server->listen( fc::ip::endpoint::from_string( options.at( "rpc-http-endpoint" ).as<string>() ) );
+         _http_server->listen( fc_pp::ip::endpoint::from_string( options.at( "rpc-http-endpoint" ).as<string>() ) );
          //
          // due to implementation, on_request() must come AFTER listen()
          //
          _http_server->on_request(
-            [&]( const fc::http::request& req, const fc::http::server::response& resp )
+            [&]( const fc_pp::http::request& req, const fc_pp::http::server::response& resp )
             {
-               std::shared_ptr< fc::rpc::http_api_connection > conn =
-                  std::make_shared< fc::rpc::http_api_connection>();
+               std::shared_ptr< fc_pp::rpc::http_api_connection > conn =
+                  std::make_shared< fc_pp::rpc::http_api_connection>();
                conn->register_api( wapi );
                conn->on_request( req, resp );
             } );
@@ -263,8 +263,8 @@ int main( int argc, char** argv )
       }
       else
       {
-        fc::promise<int>::ptr exit_promise = new fc::promise<int>("UNIX Signal Handler");
-        fc::set_signal_handler([&exit_promise](int signal) {
+        fc_pp::promise<int>::ptr exit_promise = new fc_pp::promise<int>("UNIX Signal Handler");
+        fc_pp::set_signal_handler([&exit_promise](int signal) {
            exit_promise->set_value(signal);
         }, SIGINT);
 
@@ -276,7 +276,7 @@ int main( int argc, char** argv )
       locked_connection.disconnect();
       closed_connection.disconnect();
    }
-   catch ( const fc::exception& e )
+   catch ( const fc_pp::exception& e )
    {
       std::cout << e.to_detail_string() << "\n";
       return -1;

@@ -26,7 +26,7 @@
 #include <graphene/app/plugin.hpp>
 #include <graphene/chain/database.hpp>
 
-#include <fc/thread/future.hpp>
+#include <fc_pp/thread/future.hpp>
 
 namespace graphene { namespace witness_plugin {
 
@@ -52,9 +52,9 @@ public:
       try {
          if( _block_production_task.valid() )
             _block_production_task.cancel_and_wait(__FUNCTION__);
-      } catch(fc::canceled_exception&) {
+      } catch(fc_pp::canceled_exception&) {
          //Expected exception. Move along.
-      } catch(fc::exception& e) {
+      } catch(fc_pp::exception& e) {
          edump((e.to_detail_string()));
       }
    }
@@ -75,7 +75,7 @@ public:
 private:
    void schedule_production_loop();
    block_production_condition::block_production_condition_enum block_production_loop();
-   block_production_condition::block_production_condition_enum maybe_produce_block( fc::mutable_variant_object& capture );
+   block_production_condition::block_production_condition_enum maybe_produce_block( fc_pp::mutable_variant_object& capture );
 
    boost::program_options::variables_map _options;
    bool _production_enabled = false;
@@ -83,9 +83,9 @@ private:
    uint32_t _required_witness_participation = 33 * GRAPHENE_1_PERCENT;
    uint32_t _production_skip_flags = graphene::chain::database::skip_nothing;
 
-   std::map<chain::public_key_type, fc::ecc::private_key> _private_keys;
+   std::map<chain::public_key_type, fc_pp::ecc::private_key> _private_keys;
    std::set<chain::witness_id_type> _witnesses;
-   fc::future<void> _block_production_task;
+   fc_pp::future<void> _block_production_task;
 };
 
 } } //graphene::witness_plugin

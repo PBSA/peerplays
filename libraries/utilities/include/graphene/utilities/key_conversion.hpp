@@ -24,13 +24,13 @@
 #pragma once
 
 #include <string>
-#include <fc/crypto/elliptic.hpp>
-#include <fc/optional.hpp>
+#include <fc_pp/crypto/elliptic.hpp>
+#include <fc_pp/optional.hpp>
 
 namespace graphene { namespace utilities {
 
-std::string                        key_to_wif(const fc::sha256& private_secret );
-std::string                        key_to_wif(const fc::ecc::private_key& key);
-fc::optional<fc::ecc::private_key> wif_to_key( const std::string& wif_key );
+std::string                        key_to_wif(const fc_pp::sha256& private_secret );
+std::string                        key_to_wif(const fc_pp::ecc::private_key& key);
+fc_pp::optional<fc_pp::ecc::private_key> wif_to_key( const std::string& wif_key );
 
 } } // end namespace graphene::utilities

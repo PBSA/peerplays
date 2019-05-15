@@ -28,8 +28,8 @@
 #include <cstdint>
 #include <string>
 
-#include <fc/container/flat.hpp>
-#include <fc/reflect/reflect.hpp>
+#include <fc_pp/container/flat.hpp>
+#include <fc_pp/reflect/reflect.hpp>
 
 namespace graphene { namespace chain {
 
@@ -136,17 +136,17 @@ vote_id_type get_next_vote_id( global_property_object& gpo, vote_id_type::vote_t
 
 } } // graphene::chain
 
-namespace fc
+namespace fc_pp
 {
 
 class variant;
 
-void to_variant( const graphene::chain::vote_id_type& var, fc::variant& vo );
-void from_variant( const fc::variant& var, graphene::chain::vote_id_type& vo );
+void to_variant( const graphene::chain::vote_id_type& var, fc_pp::variant& vo );
+void from_variant( const fc_pp::variant& var, graphene::chain::vote_id_type& vo );
 
-} // fc
+} // fc_pp
 
-FC_REFLECT_TYPENAME( fc::flat_set<graphene::chain::vote_id_type> )
+FC_REFLECT_TYPENAME( fc_pp::flat_set<graphene::chain::vote_id_type> )
 
 FC_REFLECT_ENUM( graphene::chain::vote_id_type::vote_type, (witness)(committee)(worker)(VOTE_TYPE_COUNT) )
 FC_REFLECT( graphene::chain::vote_id_type, (content) )

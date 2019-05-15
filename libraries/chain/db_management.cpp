@@ -27,7 +27,7 @@
 #include <graphene/chain/operation_history_object.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
-#include <fc/io/fstream.hpp>
+#include <fc_pp/io/fstream.hpp>
 
 #include <fstream>
 #include <functional>
@@ -36,7 +36,7 @@
 namespace graphene { namespace chain {
 
 database::database() :
-   _random_number_generator(fc::ripemd160().data())
+   _random_number_generator(fc_pp::ripemd160().data())
 {
    initialize_indexes();
    initialize_evaluators();
@@ -47,13 +47,13 @@ database::~database()
    clear_pending();
 }
 
-void database::reindex(fc::path data_dir, const genesis_state_type& initial_allocation)
+void database::reindex(fc_pp::path data_dir, const genesis_state_type& initial_allocation)
 { try {
    ilog( "reindexing blockchain" );
    wipe(data_dir, false);
    open(data_dir, [&initial_allocation]{return initial_allocation;});
 
-   auto start = fc::time_point::now();
+   auto start = fc_pp::time_point::now();
    auto last_block = _block_id_to_block.last();
    if( !last_block ) {
       elog( "!no last block" );
@@ -74,14 +74,14 @@ void database::reindex(fc::path data_dir, const genesis_state_type& initial_allo
       if( i == 1 || 
           i % 10000 == 0 ) 
          std::cerr << "   " << double(i*100)/last_block_num << "%   "<< i << " of " <<last_block_num<<"   \n";
-      fc::optional< signed_block > block = _block_id_to_block.fetch_by_number(i);
+      fc_pp::optional< signed_block > block = _block_id_to_block.fetch_by_number(i);
       if( !block.valid() )
       {
          wlog( "Reindexing terminated due to gap:  Block ${i} does not exist!", ("i", i) );
          uint32_t dropped_count = 0;
          while( true )
          {
-            fc::optional< block_id_type > last_id = _block_id_to_block.last_id();
+            fc_pp::optional< block_id_type > last_id = _block_id_to_block.last_id();
             // this can trigger if we attempt to e.g. read a file that has block #2 but no block #1
             if( !last_id.valid() )
                break;
@@ -112,21 +112,21 @@ void database::reindex(fc::path data_dir, const genesis_state_type& initial_allo
    }
    if (!_slow_replays)
      _undo_db.enable();
-   auto end = fc::time_point::now();
+   auto end = fc_pp::time_point::now();
    ilog( "Done reindexing, elapsed time: ${t} sec", ("t",double((end-start).count())/1000000.0 ) );
 } FC_CAPTURE_AND_RETHROW( (data_dir) ) }
 
-void database::wipe(const fc::path& data_dir, bool include_blocks)
+void database::wipe(const fc_pp::path& data_dir, bool include_blocks)
 {
    ilog("Wiping database", ("include_blocks", include_blocks));
    close();
    object_database::wipe(data_dir);
    if( include_blocks )
-      fc::remove_all( data_dir / "database" );
+      fc_pp::remove_all( data_dir / "database" );
 }
 
 void database::open(
-   const fc::path& data_dir,
+   const fc_pp::path& data_dir,
    std::function<genesis_state_type()> genesis_loader)
 {
    try
@@ -138,7 +138,7 @@ void database::open(
       if( !find(global_property_id_type()) )
          init_genesis(genesis_loader());
 
-      fc::optional<signed_block> last_block = _block_id_to_block.last();
+      fc_pp::optional<signed_block> last_block = _block_id_to_block.last();
       if( last_block.valid() )
       {
          _fork_db.start_block( *last_block );
@@ -177,12 +177,12 @@ void database::close(bool rewind)
             {
                _block_id_to_block.remove(popped_block_id);
             }
-            catch (const fc::key_not_found_exception&)
+            catch (const fc_pp::key_not_found_exception&)
             {
             }
          }
       }
-      catch ( const fc::exception& e )
+      catch ( const fc_pp::exception& e )
       {
          wlog( "Database close unexpected exception: ${e}", ("e", e) );
       }

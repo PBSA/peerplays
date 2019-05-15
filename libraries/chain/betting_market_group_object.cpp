@@ -403,18 +403,18 @@ namespace {
          {
             // this is an approximate test, the state name provided by typeinfo will be mangled, but should
             // at least contain the string we're looking for
-            const char* fc_reflected_value_name = fc::reflector<betting_market_group_state>::to_string((betting_market_group_state)i);
+            const char* fc_reflected_value_name = fc_pp::reflector<betting_market_group_state>::to_string((betting_market_group_state)i);
             if (!strstr(filled_state_names[i], fc_reflected_value_name))
             {
-               fc_elog(fc::logger::get("default"),
-                       "Error, state string mismatch between fc and boost::msm for int value ${int_value}: boost::msm -> ${boost_string}, fc::reflect -> ${fc_string}",
+               fc_elog(fc_pp::logger::get("default"),
+                       "Error, state string mismatch between fc_pp and boost::msm for int value ${int_value}: boost::msm -> ${boost_string}, fc_pp::reflect -> ${fc_string}",
                        ("int_value", i)("boost_string", filled_state_names[i])("fc_string", fc_reflected_value_name));
                ++error_count;
             }
          }
-         catch (const fc::bad_cast_exception&)
+         catch (const fc_pp::bad_cast_exception&)
          {
-            fc_elog(fc::logger::get("default"),
+            fc_elog(fc_pp::logger::get("default"),
                     "Error, no reflection for value ${int_value} in enum betting_market_group_status",
                     ("int_value", i));
             ++error_count;
@@ -541,11 +541,11 @@ void betting_market_group_object::dispatch_new_status(database& db, betting_mark
 
 } } // graphene::chain
 
-namespace fc { 
+namespace fc_pp { 
    // Manually reflect betting_market_group_object to variant to properly reflect "state"
-   void to_variant(const graphene::chain::betting_market_group_object& betting_market_group_obj, fc::variant& v)
+   void to_variant(const graphene::chain::betting_market_group_object& betting_market_group_obj, fc_pp::variant& v)
    {
-      fc::mutable_variant_object o;
+      fc_pp::mutable_variant_object o;
       o("id", betting_market_group_obj.id)
        ("description", betting_market_group_obj.description)
        ("event_id", betting_market_group_obj.event_id)
@@ -561,7 +561,7 @@ namespace fc {
    }
 
    // Manually reflect betting_market_group_object to variant to properly reflect "state"
-   void from_variant(const fc::variant& v, graphene::chain::betting_market_group_object& betting_market_group_obj)
+   void from_variant(const fc_pp::variant& v, graphene::chain::betting_market_group_object& betting_market_group_obj)
    {
       betting_market_group_obj.id = v["id"].as<graphene::chain::betting_market_group_id_type>();
       betting_market_group_obj.description = v["description"].as<graphene::chain::internationalized_string_type>();
@@ -570,9 +570,9 @@ namespace fc {
       betting_market_group_obj.total_matched_bets_amount = v["total_matched_bets_amount"].as<graphene::chain::share_type>();
       betting_market_group_obj.never_in_play = v["never_in_play"].as<bool>();
       betting_market_group_obj.delay_before_settling = v["delay_before_settling"].as<uint32_t>();
-      betting_market_group_obj.settling_time = v["settling_time"].as<fc::optional<fc::time_point_sec>>();
+      betting_market_group_obj.settling_time = v["settling_time"].as<fc_pp::optional<fc_pp::time_point_sec>>();
       graphene::chain::betting_market_group_status status = v["status"].as<graphene::chain::betting_market_group_status>();
       const_cast<int*>(betting_market_group_obj.my->state_machine.current_state())[0] = (int)status;
    }
-} //end namespace fc
+} //end namespace fc_pp
 

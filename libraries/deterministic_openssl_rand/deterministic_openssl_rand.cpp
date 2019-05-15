@@ -21,13 +21,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <fc/crypto/elliptic.hpp>
-#include <fc/crypto/sha256.hpp>
-#include <fc/time.hpp>
-#include <fc/thread/thread.hpp>
+#include <fc_pp/crypto/elliptic.hpp>
+#include <fc_pp/crypto/sha256.hpp>
+#include <fc_pp/time.hpp>
+#include <fc_pp/thread/thread.hpp>
 #include <iostream>
 #include <algorithm>
-#include <fc/crypto/sha512.hpp>
+#include <fc_pp/crypto/sha512.hpp>
 //#include <graphene/blockchain/config.hpp>
 
 #include <cstdio>
@@ -64,14 +64,14 @@ static void deterministic_rand_add(const void *buf, int num, double add_entropy)
 static int  deterministic_rand_status() { _warn(); return 1; }
 static void deterministic_rand_seed(const void *buf, int num) { _warn(); }
 
-static fc::sha512 seed;
+static fc_pp::sha512 seed;
 
 static int  deterministic_rand_bytes(unsigned char *buf, int num)
 {
   _warn();
   while (num)
   {
-    seed = fc::sha512::hash(seed);
+    seed = fc_pp::sha512::hash(seed);
 
     int bytes_to_copy = std::min<int>(num, sizeof(seed));
     memcpy(buf, &seed, bytes_to_copy);
@@ -93,7 +93,7 @@ static RAND_METHOD deterministic_rand_vtable = {
 
 namespace graphene { namespace utilities {
 
-void set_random_seed_for_testing(const fc::sha512& new_seed)
+void set_random_seed_for_testing(const fc_pp::sha512& new_seed)
 {
     _warn();
     RAND_set_rand_method(&deterministic_rand_vtable);

@@ -26,8 +26,8 @@
 #include <memory>
 #include <string>
 
-#include <fc/api.hpp>
-#include <fc/variant_object.hpp>
+#include <fc_pp/api.hpp>
+#include <fc_pp/variant_object.hpp>
 
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/chain/protocol/asset.hpp>
@@ -69,7 +69,7 @@ struct matched_bet_object {
 
    bet_type back_or_lay;
 
-   fc::optional<fc::time_point_sec> end_of_delay;
+   fc_pp::optional<fc_pp::time_point_sec> end_of_delay;
 
    // plus fields from this plugin
    share_type amount_matched;
@@ -90,7 +90,7 @@ class bookie_api
       binned_order_book get_binned_order_book(graphene::chain::betting_market_id_type betting_market_id, int32_t precision);
       asset get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id);
       std::vector<event_object> get_events_containing_sub_string(const std::string& sub_string, const std::string& language);
-      fc::variants get_objects(const vector<object_id_type>& ids)const;
+      fc_pp::variants get_objects(const vector<object_id_type>& ids)const;
       std::vector<matched_bet_object> get_matched_bets_for_bettor(account_id_type bettor_id) const;
       std::vector<matched_bet_object> get_all_matched_bets_for_bettor(account_id_type bettor_id, bet_id_type start = bet_id_type(), unsigned limit = 1000) const;
       std::shared_ptr<detail::bookie_api_impl> my;

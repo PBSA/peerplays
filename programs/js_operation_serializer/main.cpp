@@ -44,7 +44,7 @@
 #include <graphene/chain/match_object.hpp>
 #include <graphene/chain/game_object.hpp>
 
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 #include <iostream>
 
 using namespace graphene::chain;
@@ -77,7 +77,7 @@ string remove_namespace( string str )
    str = remove_namespace_if( str, "graphene::chain" );
    str = remove_namespace_if( str, "graphene::db" );
    str = remove_namespace_if( str, "std" );
-   str = remove_namespace_if( str, "fc" );
+   str = remove_namespace_if( str, "fc_pp" );
    auto pos = str.find( ":" );
    if( pos != str.npos )
       str.replace( pos, 2, "_" );
@@ -107,29 +107,29 @@ bool register_serializer( const string& name, std::function<void()> sr )
    return false;
 }
 
-template<typename T> struct js_name { static std::string name(){ return  remove_namespace(fc::get_typename<T>::name()); }; };
+template<typename T> struct js_name { static std::string name(){ return  remove_namespace(fc_pp::get_typename<T>::name()); }; };
 
 template<typename T, size_t N>
-struct js_name<fc::array<T,N>>
+struct js_name<fc_pp::array<T,N>>
 {
-   static std::string name(){ return  "fixed_array "+ fc::to_string(N) + ", "  + remove_namespace(fc::get_typename<T>::name()); };
+   static std::string name(){ return  "fixed_array "+ fc_pp::to_string(N) + ", "  + remove_namespace(fc_pp::get_typename<T>::name()); };
 };
-template<size_t N>   struct js_name<fc::array<char,N>>    { static std::string name(){ return  "bytes "+ fc::to_string(N); }; };
-template<size_t N>   struct js_name<fc::array<uint8_t,N>> { static std::string name(){ return  "bytes "+ fc::to_string(N); }; };
-template<typename T> struct js_name< fc::optional<T> >    { static std::string name(){ return "optional " + js_name<T>::name(); } };
-template<typename T> struct js_name< fc::smart_ref<T> >   { static std::string name(){ return js_name<T>::name(); } };
+template<size_t N>   struct js_name<fc_pp::array<char,N>>    { static std::string name(){ return  "bytes "+ fc_pp::to_string(N); }; };
+template<size_t N>   struct js_name<fc_pp::array<uint8_t,N>> { static std::string name(){ return  "bytes "+ fc_pp::to_string(N); }; };
+template<typename T> struct js_name< fc_pp::optional<T> >    { static std::string name(){ return "optional " + js_name<T>::name(); } };
+template<typename T> struct js_name< fc_pp::smart_ref<T> >   { static std::string name(){ return js_name<T>::name(); } };
 template<>           struct js_name< object_id_type >     { static std::string name(){ return "object_id_type"; } };
-template<typename T> struct js_name< fc::flat_set<T> >    { static std::string name(){ return "set " + js_name<T>::name(); } };
+template<typename T> struct js_name< fc_pp::flat_set<T> >    { static std::string name(){ return "set " + js_name<T>::name(); } };
 template<typename T> struct js_name< std::vector<T> >     { static std::string name(){ return "array " + js_name<T>::name(); } };
-template<typename T> struct js_name< fc::safe<T> > { static std::string name(){ return js_name<T>::name(); } };
+template<typename T> struct js_name< fc_pp::safe<T> > { static std::string name(){ return js_name<T>::name(); } };
 
 
 template<> struct js_name< std::vector<char> > { static std::string name(){ return "bytes()";     } };
-template<> struct js_name<fc::uint160>         { static std::string name(){ return "bytes 20";   } };
-template<> struct js_name<fc::sha224>          { static std::string name(){ return "bytes 28";   } };
-template<> struct js_name<fc::sha256>          { static std::string name(){ return "bytes 32";   } };
-template<> struct js_name<fc::unsigned_int>    { static std::string name(){ return "varuint32";  } };
-template<> struct js_name<fc::signed_int>      { static std::string name(){ return "varint32";   } };
+template<> struct js_name<fc_pp::uint160>         { static std::string name(){ return "bytes 20";   } };
+template<> struct js_name<fc_pp::sha224>          { static std::string name(){ return "bytes 28";   } };
+template<> struct js_name<fc_pp::sha256>          { static std::string name(){ return "bytes 32";   } };
+template<> struct js_name<fc_pp::unsigned_int>    { static std::string name(){ return "varuint32";  } };
+template<> struct js_name<fc_pp::signed_int>      { static std::string name(){ return "varint32";   } };
 template<> struct js_name< vote_id_type >      { static std::string name(){ return "vote_id";    } };
 template<> struct js_name< time_point_sec >    { static std::string name(){ return "time_point_sec"; } };
 
@@ -137,7 +137,7 @@ template<uint8_t S, uint8_t T, typename O>
 struct js_name<graphene::db::object_id<S,T,O> >
 {
    static std::string name(){
-      return "protocol_id_type \"" + remove_namespace(fc::get_typename<O>::name()) + "\"";
+      return "protocol_id_type \"" + remove_namespace(fc_pp::get_typename<O>::name()) + "\"";
    };
 };
 
@@ -148,7 +148,7 @@ template<typename K, typename V>
 struct js_name< std::map<K,V> > { static std::string name(){ return "map (" + js_name<K>::name() + "), (" + js_name<V>::name() +")"; } };
 
 template<typename K, typename V>
-struct js_name< fc::flat_map<K,V> > { static std::string name(){ return "map (" + js_name<K>::name() + "), (" + js_name<V>::name() +")"; } };
+struct js_name< fc_pp::flat_map<K,V> > { static std::string name(){ return "map (" + js_name<K>::name() + "), (" + js_name<V>::name() +")"; } };
 
 
 template<typename... T> struct js_sv_name;
@@ -160,7 +160,7 @@ template<typename A, typename... T>
 struct js_sv_name<A,T...> { static std::string name(){ return  "\n    " + js_name<A>::name() +"    " + js_sv_name<T...>::name(); } };
 
 template<typename... T>
-struct js_name< fc::static_variant<T...> >
+struct js_name< fc_pp::static_variant<T...> >
 {
    static std::string name( std::string n = ""){
       static const std::string name = n;
@@ -170,7 +170,7 @@ struct js_name< fc::static_variant<T...> >
    }
 };
 template<>
-struct js_name< fc::static_variant<> >
+struct js_name< fc_pp::static_variant<> >
 {
    static std::string name( std::string n = ""){
       static const std::string name = n;
@@ -182,7 +182,7 @@ struct js_name< fc::static_variant<> >
 
 
 
-template<typename T, bool reflected = fc::reflector<T>::is_defined::value>
+template<typename T, bool reflected = fc_pp::reflector<T>::is_defined::value>
 struct serializer;
 
 
@@ -206,7 +206,7 @@ struct serialize_type_visitor
    template<typename Type>
    result_type operator()( const Type& op )const
    {
-      std::cout << "    " <<remove_namespace( fc::get_typename<Type>::name() )  <<": "<<t<<"\n";
+      std::cout << "    " <<remove_namespace( fc_pp::get_typename<Type>::name() )  <<": "<<t<<"\n";
    }
 };
 
@@ -224,7 +224,7 @@ class serialize_member_visitor
 template<typename T>
 struct serializer<T,false>
 {
-   static_assert( fc::reflector<T>::is_defined::value == false, "invalid template arguments" );
+   static_assert( fc_pp::reflector<T>::is_defined::value == false, "invalid template arguments" );
    static void init()
    {}
 
@@ -233,7 +233,7 @@ struct serializer<T,false>
 };
 
 template<typename T, size_t N>
-struct serializer<fc::array<T,N>,false>
+struct serializer<fc_pp::array<T,N>,false>
 {
    static void init() { serializer<T>::init(); }
    static void generate() {}
@@ -246,7 +246,7 @@ struct serializer<std::vector<T>,false>
 };
 
 template<typename T>
-struct serializer<fc::smart_ref<T>,false>
+struct serializer<fc_pp::smart_ref<T>,false>
 {
    static void init() { 
       serializer<T>::init(); }
@@ -282,7 +282,7 @@ template<> struct serializer<int64_t,false> { static void init() {} static void 
 template<> struct serializer<int64_t,true> { static void init() {} static void generate() {} };
 
 template<typename T>
-struct serializer<fc::optional<T>,false>
+struct serializer<fc_pp::optional<T>,false>
 {
    static void init() { serializer<T>::init(); }
    static void generate(){}
@@ -296,7 +296,7 @@ struct serializer< graphene::db::object_id<SpaceID,TypeID,T> ,true>
 };
 
 template<typename... T>
-struct serializer< fc::static_variant<T...>, false >
+struct serializer< fc_pp::static_variant<T...>, false >
 {
    static void init()
    {
@@ -304,23 +304,23 @@ struct serializer< fc::static_variant<T...>, false >
       if( !init )
       {
          init = true;
-         fc::static_variant<T...> var;
+         fc_pp::static_variant<T...> var;
          for( int i = 0; i < var.count(); ++i )
          {
             var.set_which(i);
             var.visit( register_type_visitor() );
          }
-         register_serializer( js_name<fc::static_variant<T...>>::name(), [=](){ generate(); } );
+         register_serializer( js_name<fc_pp::static_variant<T...>>::name(), [=](){ generate(); } );
       }
    }
 
    static void generate()
    {
-      std::cout <<  js_name<fc::static_variant<T...>>::name() << " = static_variant [" + js_sv_name<T...>::name() + "\n]\n\n";
+      std::cout <<  js_name<fc_pp::static_variant<T...>>::name() << " = static_variant [" + js_sv_name<T...>::name() + "\n]\n\n";
    }
 };
 template<>
-struct serializer< fc::static_variant<>, false >
+struct serializer< fc_pp::static_variant<>, false >
 {
    static void init()
    {
@@ -328,14 +328,14 @@ struct serializer< fc::static_variant<>, false >
       if( !init )
       {
          init = true;
-         fc::static_variant<> var;
-         register_serializer( js_name<fc::static_variant<>>::name(), [=](){ generate(); } );
+         fc_pp::static_variant<> var;
+         register_serializer( js_name<fc_pp::static_variant<>>::name(), [=](){ generate(); } );
       }
    }
 
    static void generate()
    {
-      std::cout <<  js_name<fc::static_variant<>>::name() << " = static_variant []\n\n";
+      std::cout <<  js_name<fc_pp::static_variant<>>::name() << " = static_variant []\n\n";
    }
 };
 
@@ -350,14 +350,14 @@ class register_member_visitor
       }
 };
 
-template <typename T, typename IsEnum = fc::false_type>
+template <typename T, typename IsEnum = fc_pp::false_type>
 struct serializer_init_helper {
   static void init()
   {
     auto name = js_name<T>::name();
     if( st.find(name) == st.end() )
     {
-       fc::reflector<T>::visit( register_member_visitor() );
+       fc_pp::reflector<T>::visit( register_member_visitor() );
        register_serializer( name, [=](){ generate(); } );
     }
   }
@@ -369,14 +369,14 @@ struct serializer_init_helper {
                << " = new Serializer( \n"
                << "    \"" + name + "\"\n";
 
-     fc::reflector<T>::visit( serialize_member_visitor() );
+     fc_pp::reflector<T>::visit( serialize_member_visitor() );
 
      std::cout <<")\n\n";
   }
 };
 
 template <typename T>
-struct serializer_init_helper<T, fc::true_type> {
+struct serializer_init_helper<T, fc_pp::true_type> {
   static void init()
   {
   }
@@ -385,11 +385,11 @@ struct serializer_init_helper<T, fc::true_type> {
 template<typename T, bool reflected>
 struct serializer
 {
-   static_assert( fc::reflector<T>::is_defined::value == reflected, "invalid template arguments" );
+   static_assert( fc_pp::reflector<T>::is_defined::value == reflected, "invalid template arguments" );
 
    static void init()
    {
-     serializer_init_helper< T, typename fc::reflector<T>::is_enum >::init();
+     serializer_init_helper< T, typename fc_pp::reflector<T>::is_enum >::init();
    }
 };
 
@@ -426,6 +426,6 @@ int main( int argc, char** argv )
     for( const auto& gen : detail_ns::serializers )
        gen();
 
-  } catch ( const fc::exception& e ){ edump((e.to_detail_string())); }
+  } catch ( const fc_pp::exception& e ){ edump((e.to_detail_string())); }
    return 0;
 }

@@ -25,8 +25,8 @@
 
 #include <graphene/app/application.hpp>
 #include <graphene/chain/database.hpp>
-#include <fc/io/json.hpp>
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/io/json.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 
 #include <graphene/chain/operation_history_object.hpp>
 
@@ -63,36 +63,36 @@ extern uint32_t GRAPHENE_TESTING_GENESIS_TIMESTAMP;
 
 #define GRAPHENE_REQUIRE_THROW( expr, exc_type )          \
 {                                                         \
-   std::string req_throw_info = fc::json::to_string(      \
-      fc::mutable_variant_object()                        \
+   std::string req_throw_info = fc_pp::json::to_string(      \
+      fc_pp::mutable_variant_object()                        \
       ("source_file", __FILE__)                           \
       ("source_lineno", __LINE__)                         \
       ("expr", #expr)                                     \
       ("exc_type", #exc_type)                             \
       );                                                  \
-   if( fc::enable_record_assert_trip )                    \
+   if( fc_pp::enable_record_assert_trip )                    \
       std::cout << "GRAPHENE_REQUIRE_THROW begin "        \
          << req_throw_info << std::endl;                  \
    BOOST_REQUIRE_THROW( expr, exc_type );                 \
-   if( fc::enable_record_assert_trip )                    \
+   if( fc_pp::enable_record_assert_trip )                    \
       std::cout << "GRAPHENE_REQUIRE_THROW end "          \
          << req_throw_info << std::endl;                  \
 }
 
 #define GRAPHENE_CHECK_THROW( expr, exc_type )            \
 {                                                         \
-   std::string req_throw_info = fc::json::to_string(      \
-      fc::mutable_variant_object()                        \
+   std::string req_throw_info = fc_pp::json::to_string(      \
+      fc_pp::mutable_variant_object()                        \
       ("source_file", __FILE__)                           \
       ("source_lineno", __LINE__)                         \
       ("expr", #expr)                                     \
       ("exc_type", #exc_type)                             \
       );                                                  \
-   if( fc::enable_record_assert_trip )                    \
+   if( fc_pp::enable_record_assert_trip )                    \
       std::cout << "GRAPHENE_CHECK_THROW begin "          \
          << req_throw_info << std::endl;                  \
    BOOST_CHECK_THROW( expr, exc_type );                   \
-   if( fc::enable_record_assert_trip )                    \
+   if( fc_pp::enable_record_assert_trip )                    \
       std::cout << "GRAPHENE_CHECK_THROW end "            \
          << req_throw_info << std::endl;                  \
 }
@@ -105,7 +105,7 @@ extern uint32_t GRAPHENE_TESTING_GENESIS_TIMESTAMP;
    op.field = temp; \
 }
 #define REQUIRE_OP_VALIDATION_FAILURE( op, field, value ) \
-   REQUIRE_OP_VALIDATION_FAILURE_2( op, field, value, fc::exception )
+   REQUIRE_OP_VALIDATION_FAILURE_2( op, field, value, fc_pp::exception )
 
 #define REQUIRE_THROW_WITH_VALUE_2(op, field, value, exc_type) \
 { \
@@ -117,7 +117,7 @@ extern uint32_t GRAPHENE_TESTING_GENESIS_TIMESTAMP;
 }
 
 #define REQUIRE_THROW_WITH_VALUE( op, field, value ) \
-   REQUIRE_THROW_WITH_VALUE_2( op, field, value, fc::exception )
+   REQUIRE_THROW_WITH_VALUE_2( op, field, value, fc_pp::exception )
 
 ///This simply resets v back to its default-constructed value. Requires v to have a working assingment operator and
 /// default constructor.
@@ -127,7 +127,7 @@ extern uint32_t GRAPHENE_TESTING_GENESIS_TIMESTAMP;
 #define INVOKE(test) ((struct test*)this)->test_method(); trx.clear()
 
 #define PREP_ACTOR(name) \
-   fc::ecc::private_key name ## _private_key = generate_private_key(BOOST_PP_STRINGIZE(name));   \
+   fc_pp::ecc::private_key name ## _private_key = generate_private_key(BOOST_PP_STRINGIZE(name));   \
    public_key_type name ## _public_key = name ## _private_key.get_public_key();
 
 #define ACTOR(name) \
@@ -136,7 +136,7 @@ extern uint32_t GRAPHENE_TESTING_GENESIS_TIMESTAMP;
    account_id_type name ## _id = name.id; (void)name ## _id;
 
 #define GET_ACTOR(name) \
-   fc::ecc::private_key name ## _private_key = generate_private_key(BOOST_PP_STRINGIZE(name)); \
+   fc_pp::ecc::private_key name ## _private_key = generate_private_key(BOOST_PP_STRINGIZE(name)); \
    const account_object& name = get_account(BOOST_PP_STRINGIZE(name)); \
    account_id_type name ## _id = name.id; \
    (void)name ##_id
@@ -167,24 +167,24 @@ struct database_fixture {
    signed_transaction trx;
    public_key_type committee_key;
    account_id_type committee_account;
-   fc::ecc::private_key private_key = fc::ecc::private_key::generate();
-   fc::ecc::private_key init_account_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("null_key")) );
+   fc_pp::ecc::private_key private_key = fc_pp::ecc::private_key::generate();
+   fc_pp::ecc::private_key init_account_priv_key = fc_pp::ecc::private_key::regenerate(fc_pp::sha256::hash(string("null_key")) );
    public_key_type init_account_pub_key;
 
-   optional<fc::temp_directory> data_dir;
+   optional<fc_pp::temp_directory> data_dir;
    bool skip_key_index_test = false;
    uint32_t anon_acct_count;
 
    database_fixture();
    ~database_fixture();
 
-   static fc::ecc::private_key generate_private_key(string seed);
+   static fc_pp::ecc::private_key generate_private_key(string seed);
    string generate_anon_acct_name();
    static void verify_asset_supplies( const database& db );
    void verify_account_history_plugin_index( )const;
    void open_database();
    signed_block generate_block(uint32_t skip = ~0,
-                               const fc::ecc::private_key& key = generate_private_key("null_key"),
+                               const fc_pp::ecc::private_key& key = generate_private_key("null_key"),
                                int miss_blocks = 0);
 
    /**
@@ -197,7 +197,7 @@ struct database_fixture {
     * @brief Generates blocks until the head block time matches or exceeds timestamp
     * @param timestamp target time to generate blocks until
     */
-   void generate_blocks(fc::time_point_sec timestamp, bool miss_intermediate_blocks = true, uint32_t skip = ~0);
+   void generate_blocks(fc_pp::time_point_sec timestamp, bool miss_intermediate_blocks = true, uint32_t skip = ~0);
 
    account_create_operation make_account(
       const std::string& name = "nathan",
@@ -269,12 +269,12 @@ struct database_fixture {
 
    const committee_member_object& create_committee_member( const account_object& owner );
    const witness_object& create_witness(account_id_type owner,
-                                        const fc::ecc::private_key& signing_private_key = generate_private_key("null_key"));
+                                        const fc_pp::ecc::private_key& signing_private_key = generate_private_key("null_key"));
    const witness_object& create_witness(const account_object& owner,
-                                        const fc::ecc::private_key& signing_private_key = generate_private_key("null_key"));
+                                        const fc_pp::ecc::private_key& signing_private_key = generate_private_key("null_key"));
    uint64_t fund( const account_object& account, const asset& amount = asset(500000) );
    digest_type digest( const transaction& tx );
-   void sign( signed_transaction& trx, const fc::ecc::private_key& key );
+   void sign( signed_transaction& trx, const fc_pp::ecc::private_key& key );
    const limit_order_object* create_sell_order( account_id_type user, const asset& amount, const asset& recv );
    const limit_order_object* create_sell_order( const account_object& user, const asset& amount, const asset& recv );
    asset cancel_limit_order( const limit_order_object& order );
@@ -307,26 +307,26 @@ struct database_fixture {
    void  delete_sport(sport_id_type sport_id);
    const event_group_object& create_event_group(internationalized_string_type name, sport_id_type sport_id);
    void  update_event_group(event_group_id_type event_group_id,
-                            fc::optional<object_id_type> sport_id,
-                            fc::optional<internationalized_string_type> name);
+                            fc_pp::optional<object_id_type> sport_id,
+                            fc_pp::optional<internationalized_string_type> name);
    void  delete_event_group(event_group_id_type event_group_id);
    void  try_update_event_group(event_group_id_type event_group_id,
-                                fc::optional<object_id_type> sport_id,
-                                fc::optional<internationalized_string_type> name,
+                                fc_pp::optional<object_id_type> sport_id,
+                                fc_pp::optional<internationalized_string_type> name,
                                 bool dont_set_is_proposed_trx = false);
    const event_object& create_event(internationalized_string_type name, internationalized_string_type season, event_group_id_type event_group_id);
    void update_event_impl(event_id_type event_id,
-                          fc::optional<object_id_type> event_group_id,
-                          fc::optional<internationalized_string_type> name,
-                          fc::optional<internationalized_string_type> season,
-                          fc::optional<event_status> status,
+                          fc_pp::optional<object_id_type> event_group_id,
+                          fc_pp::optional<internationalized_string_type> name,
+                          fc_pp::optional<internationalized_string_type> season,
+                          fc_pp::optional<event_status> status,
                           bool force);
    BOOST_PARAMETER_MEMBER_FUNCTION((void), update_event, keywords::tag, 
                                    (required (event_id, (event_id_type)))
-                                   (optional (event_group_id, (fc::optional<object_id_type>), fc::optional<object_id_type>())
-                                             (name, (fc::optional<internationalized_string_type>), fc::optional<internationalized_string_type>())
-                                             (season, (fc::optional<internationalized_string_type>), fc::optional<internationalized_string_type>())
-                                             (status, (fc::optional<event_status>), fc::optional<event_status>())
+                                   (optional (event_group_id, (fc_pp::optional<object_id_type>), fc_pp::optional<object_id_type>())
+                                             (name, (fc_pp::optional<internationalized_string_type>), fc_pp::optional<internationalized_string_type>())
+                                             (season, (fc_pp::optional<internationalized_string_type>), fc_pp::optional<internationalized_string_type>())
+                                             (status, (fc_pp::optional<event_status>), fc_pp::optional<event_status>())
                                              (force, (bool), false)))
    {
       update_event_impl(event_id, event_group_id, name, season, status, force);
@@ -334,8 +334,8 @@ struct database_fixture {
 
    const betting_market_rules_object& create_betting_market_rules(internationalized_string_type name, internationalized_string_type description);
    void update_betting_market_rules(betting_market_rules_id_type rules_id,
-                                     fc::optional<internationalized_string_type> name,
-                                     fc::optional<internationalized_string_type> description);
+                                     fc_pp::optional<internationalized_string_type> name,
+                                     fc_pp::optional<internationalized_string_type> description);
    const betting_market_group_object& create_betting_market_group(internationalized_string_type description, 
                                                                   event_id_type event_id, 
                                                                   betting_market_rules_id_type rules_id, 
@@ -343,15 +343,15 @@ struct database_fixture {
                                                                   bool never_in_play,
                                                                   uint32_t delay_before_settling);
    void update_betting_market_group_impl(betting_market_group_id_type betting_market_group_id,
-                                         fc::optional<internationalized_string_type> description,
-                                         fc::optional<object_id_type> rules_id,
-                                         fc::optional<betting_market_group_status> status,
+                                         fc_pp::optional<internationalized_string_type> description,
+                                         fc_pp::optional<object_id_type> rules_id,
+                                         fc_pp::optional<betting_market_group_status> status,
                                          bool force);
    BOOST_PARAMETER_MEMBER_FUNCTION((void), update_betting_market_group, keywords::tag, 
                                    (required (betting_market_group_id, (betting_market_group_id_type)))
-                                   (optional (description, (fc::optional<internationalized_string_type>), fc::optional<internationalized_string_type>())
-                                             (rules_id, (fc::optional<object_id_type>), fc::optional<object_id_type>())
-                                             (status, (fc::optional<betting_market_group_status>), fc::optional<betting_market_group_status>())
+                                   (optional (description, (fc_pp::optional<internationalized_string_type>), fc_pp::optional<internationalized_string_type>())
+                                             (rules_id, (fc_pp::optional<object_id_type>), fc_pp::optional<object_id_type>())
+                                             (status, (fc_pp::optional<betting_market_group_status>), fc_pp::optional<betting_market_group_status>())
                                              (force, (bool), false)))
    {
       update_betting_market_group_impl(betting_market_group_id, description, rules_id, status, force);
@@ -359,9 +359,9 @@ struct database_fixture {
 
    const betting_market_object& create_betting_market(betting_market_group_id_type group_id, internationalized_string_type payout_condition);
    void update_betting_market(betting_market_id_type betting_market_id,
-                                                fc::optional<object_id_type> group_id,
-                                                /*fc::optional<internationalized_string_type> description,*/
-                                                fc::optional<internationalized_string_type> payout_condition);
+                                                fc_pp::optional<object_id_type> group_id,
+                                                /*fc_pp::optional<internationalized_string_type> description,*/
+                                                fc_pp::optional<internationalized_string_type> payout_condition);
 
    bet_id_type place_bet(account_id_type bettor_id, betting_market_id_type betting_market_id, bet_type back_or_lay, asset amount_to_bet, bet_multiplier_type backer_multiplier);
    void resolve_betting_market_group(betting_market_group_id_type betting_market_group_id, std::map<betting_market_id_type, betting_market_resolution_type> resolutions);

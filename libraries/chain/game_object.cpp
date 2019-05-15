@@ -33,7 +33,7 @@
 #include <boost/msm/back/tools.hpp>
 #include <boost/range/algorithm/copy.hpp>
 
-#include <fc/crypto/hash_ctr_rng.hpp>
+#include <fc_pp/crypto/hash_ctr_rng.hpp>
 
 namespace graphene { namespace chain {
 
@@ -90,10 +90,10 @@ namespace graphene { namespace chain {
             {
                game_object& game = *fsm.game_obj;
 
-               fc_ilog(fc::logger::get("tournament"),
+               fc_ilog(fc_pp::logger::get("tournament"),
                        "game ${id} is now in progress, expecting commit moves",
                        ("id", game.id));
-               fc_ilog(fc::logger::get("tournament"),
+               fc_ilog(fc_pp::logger::get("tournament"),
                        "game ${id} is associtated with match ${match_id}",
                        ("id", game.id)
                        ("match_id", game.match_id));
@@ -103,7 +103,7 @@ namespace graphene { namespace chain {
             {
                game_object& game = *fsm.game_obj;
 
-               fc_ilog(fc::logger::get("tournament"),
+               fc_ilog(fc_pp::logger::get("tournament"),
                        "game ${id} received a commit move, still expecting another commit move",
                        ("id", game.id));
             }
@@ -120,7 +120,7 @@ namespace graphene { namespace chain {
             void on_entry(const timeout& event, game_state_machine_& fsm)
             {
                game_object& game = *fsm.game_obj;
-               fc_ilog(fc::logger::get("tournament"),
+               fc_ilog(fc_pp::logger::get("tournament"),
                        "game ${id} timed out waiting for commit moves, now expecting reveal move",
                        ("id", game.id));
                set_next_timeout(event.db, game);
@@ -131,13 +131,13 @@ namespace graphene { namespace chain {
 
                if (event.move.move.which() == game_specific_moves::tag<rock_paper_scissors_throw_commit>::value)
                {
-                  fc_ilog(fc::logger::get("tournament"),
+                  fc_ilog(fc_pp::logger::get("tournament"),
                           "game ${id} received a commit move, now expecting reveal moves",
                           ("id", game.id));
                   set_next_timeout(event.db, game);
                }
                else
-                  fc_ilog(fc::logger::get("tournament"),
+                  fc_ilog(fc_pp::logger::get("tournament"),
                           "game ${id} received a reveal move, still expecting reveal moves",
                           ("id", game.id));
             }
@@ -150,12 +150,12 @@ namespace graphene { namespace chain {
                //const match_object& match_obj = game.match_id(db);
                //const tournament_object& tournament_obj = match_obj.tournament_id(db);
                //const rock_paper_scissors_game_options& game_options = tournament_obj.options.game_options.get<rock_paper_scissors_game_options>();
-               game.next_timeout = fc::optional<fc::time_point_sec>();
+               game.next_timeout = fc_pp::optional<fc_pp::time_point_sec>();
             }
             void on_entry(const timeout& event, game_state_machine_& fsm)
             {
                game_object& game = *fsm.game_obj;
-               fc_ilog(fc::logger::get("tournament"),
+               fc_ilog(fc_pp::logger::get("tournament"),
                        "timed out waiting for commits or reveals, game ${id} is complete",
                        ("id", game.id));
 
@@ -167,7 +167,7 @@ namespace graphene { namespace chain {
             void on_entry(const game_move& event, game_state_machine_& fsm)
             {
                game_object& game = *fsm.game_obj;
-               fc_ilog(fc::logger::get("tournament"),
+               fc_ilog(fc_pp::logger::get("tournament"),
                        "received a reveal move, game ${id} is complete",
                        ("id", fsm.game_obj->id));
 
@@ -234,7 +234,7 @@ namespace graphene { namespace chain {
 
          void start_next_game(const game_complete& event)
          {
-            fc_ilog(fc::logger::get("tournament"),
+            fc_ilog(fc_pp::logger::get("tournament"),
                     "In start_next_game action");
          }
 
@@ -322,15 +322,15 @@ namespace graphene { namespace chain {
          {
             // this is an approximate test, the state name provided by typeinfo will be mangled, but should
             // at least contain the string we're looking for
-            const char* fc_reflected_value_name = fc::reflector<game_state>::to_string((game_state)i);
+            const char* fc_reflected_value_name = fc_pp::reflector<game_state>::to_string((game_state)i);
             if (!strcmp(fc_reflected_value_name, filled_state_names[i]))
-               fc_elog(fc::logger::get("game"),
-                       "Error, state string misgame between fc and boost::msm for int value ${int_value}: boost::msm -> ${boost_string}, fc::reflect -> ${fc_string}",
+               fc_elog(fc_pp::logger::get("game"),
+                       "Error, state string misgame between fc_pp and boost::msm for int value ${int_value}: boost::msm -> ${boost_string}, fc_pp::reflect -> ${fc_string}",
                        ("int_value", i)("boost_string", filled_state_names[i])("fc_string", fc_reflected_value_name));
          }
-         catch (const fc::bad_cast_exception&)
+         catch (const fc_pp::bad_cast_exception&)
          {
-            fc_elog(fc::logger::get("game"),
+            fc_elog(fc_pp::logger::get("game"),
                     "Error, no reflection for value ${int_value} in enum game_state",
                     ("int_value", i));
             ++error_count;
@@ -410,7 +410,7 @@ namespace graphene { namespace chain {
             reconstructed_throw.nonce1 = commit.nonce1;
             reconstructed_throw.nonce2 = reveal.nonce2;
             reconstructed_throw.gesture = reveal.gesture;
-            fc::sha256 reconstructed_hash = reconstructed_throw.calculate_hash();
+            fc_pp::sha256 reconstructed_hash = reconstructed_throw.calculate_hash();
 
             if (commit.throw_hash != reconstructed_hash)
                FC_THROW("Reveal does not match commit's hash of ${commit_hash}", 
@@ -547,13 +547,13 @@ namespace graphene { namespace chain {
 
 } } // graphene::chain
 
-namespace fc { 
+namespace fc_pp { 
    // Manually reflect game_object to variant to properly reflect "state"
-   void to_variant(const graphene::chain::game_object& game_obj, fc::variant& v)
+   void to_variant(const graphene::chain::game_object& game_obj, fc_pp::variant& v)
    {
-      fc_elog(fc::logger::get("tournament"), "In game_obj to_variant");
+      fc_elog(fc_pp::logger::get("tournament"), "In game_obj to_variant");
       elog("In game_obj to_variant");
-      fc::mutable_variant_object o;
+      fc_pp::mutable_variant_object o;
       o("id", game_obj.id)
        ("match_id", game_obj.match_id)
        ("players", game_obj.players)
@@ -566,18 +566,18 @@ namespace fc {
    }
 
    // Manually reflect game_object to variant to properly reflect "state"
-   void from_variant(const fc::variant& v, graphene::chain::game_object& game_obj)
+   void from_variant(const fc_pp::variant& v, graphene::chain::game_object& game_obj)
    {
-      fc_elog(fc::logger::get("tournament"), "In game_obj from_variant");
+      fc_elog(fc_pp::logger::get("tournament"), "In game_obj from_variant");
       game_obj.id = v["id"].as<graphene::chain::game_id_type>();
       game_obj.match_id = v["match_id"].as<graphene::chain::match_id_type>();
       game_obj.players = v["players"].as<std::vector<graphene::chain::account_id_type> >();
       game_obj.winners = v["winners"].as<flat_set<graphene::chain::account_id_type> >();
       game_obj.game_details = v["game_details"].as<graphene::chain::game_specific_details>();
-      game_obj.next_timeout = v["next_timeout"].as<fc::optional<time_point_sec> >();
+      game_obj.next_timeout = v["next_timeout"].as<fc_pp::optional<time_point_sec> >();
       graphene::chain::game_state state = v["state"].as<graphene::chain::game_state>();
       const_cast<int*>(game_obj.my->state_machine.current_state())[0] = (int)state;
    }
-} //end namespace fc
+} //end namespace fc_pp
 
 

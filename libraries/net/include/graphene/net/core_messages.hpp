@@ -26,15 +26,15 @@
 #include <graphene/net/config.hpp>
 #include <graphene/chain/protocol/block.hpp>
 
-#include <fc/crypto/ripemd160.hpp>
-#include <fc/crypto/elliptic.hpp>
-#include <fc/crypto/sha256.hpp>
-#include <fc/network/ip.hpp>
-#include <fc/reflect/reflect.hpp>
-#include <fc/time.hpp>
-#include <fc/variant_object.hpp>
-#include <fc/exception/exception.hpp>
-#include <fc/io/enum_type.hpp>
+#include <fc_pp/crypto/ripemd160.hpp>
+#include <fc_pp/crypto/elliptic.hpp>
+#include <fc_pp/crypto/sha256.hpp>
+#include <fc_pp/network/ip.hpp>
+#include <fc_pp/reflect/reflect.hpp>
+#include <fc_pp/time.hpp>
+#include <fc_pp/variant_object.hpp>
+#include <fc_pp/exception/exception.hpp>
+#include <fc_pp/io/enum_type.hpp>
 
 
 #include <vector>
@@ -45,8 +45,8 @@ namespace graphene { namespace net {
   using graphene::chain::transaction_id_type;
   using graphene::chain::signed_block;
 
-  typedef fc::ecc::public_key_data node_id_t;
-  typedef fc::ripemd160 item_hash_t;
+  typedef fc_pp::ecc::public_key_data node_id_t;
+  typedef fc_pp::ripemd160 item_hash_t;
   struct item_id
   {
       uint32_t      item_type;
@@ -193,24 +193,24 @@ namespace graphene { namespace net {
 
     std::string                user_agent;
     uint32_t                   core_protocol_version;
-    fc::ip::address            inbound_address;
+    fc_pp::ip::address            inbound_address;
     uint16_t                   inbound_port;
     uint16_t                   outbound_port;
     node_id_t                  node_public_key;
-    fc::ecc::compact_signature signed_shared_secret;
-    fc::sha256                 chain_id;
-    fc::variant_object         user_data;
+    fc_pp::ecc::compact_signature signed_shared_secret;
+    fc_pp::sha256                 chain_id;
+    fc_pp::variant_object         user_data;
 
     hello_message() {}
     hello_message(const std::string& user_agent,
                   uint32_t core_protocol_version,
-                  const fc::ip::address& inbound_address,
+                  const fc_pp::ip::address& inbound_address,
                   uint16_t inbound_port,
                   uint16_t outbound_port,
                   const node_id_t& node_public_key,
-                  const fc::ecc::compact_signature& signed_shared_secret,
-                  const fc::sha256& chain_id_arg,
-                  const fc::variant_object& user_data ) :
+                  const fc_pp::ecc::compact_signature& signed_shared_secret,
+                  const fc_pp::sha256& chain_id_arg,
+                  const fc_pp::variant_object& user_data ) :
       user_agent(user_agent),
       core_protocol_version(core_protocol_version),
       inbound_address(inbound_address),
@@ -245,13 +245,13 @@ namespace graphene { namespace net {
 
     std::string                                   user_agent;
     uint32_t                                      core_protocol_version;
-    fc::ip::endpoint                              remote_endpoint;
+    fc_pp::ip::endpoint                              remote_endpoint;
     std::string                                   reason_string;
-    fc::enum_type<uint8_t, rejection_reason_code> reason_code;
+    fc_pp::enum_type<uint8_t, rejection_reason_code> reason_code;
 
     connection_rejected_message() {}
     connection_rejected_message(const std::string& user_agent, uint32_t core_protocol_version,
-                                const fc::ip::endpoint& remote_endpoint, rejection_reason_code reason_code,
+                                const fc_pp::ip::endpoint& remote_endpoint, rejection_reason_code reason_code,
                                 const std::string& reason_string) :
       user_agent(user_agent),
       core_protocol_version(core_protocol_version),
@@ -273,17 +273,17 @@ namespace graphene { namespace net {
 
   struct address_info
   {
-    fc::ip::endpoint          remote_endpoint;
-    fc::time_point_sec        last_seen_time;
-    fc::microseconds          latency;
+    fc_pp::ip::endpoint          remote_endpoint;
+    fc_pp::time_point_sec        last_seen_time;
+    fc_pp::microseconds          latency;
     node_id_t                 node_id;
-    fc::enum_type<uint8_t, peer_connection_direction> direction;
-    fc::enum_type<uint8_t, firewalled_state> firewalled;
+    fc_pp::enum_type<uint8_t, peer_connection_direction> direction;
+    fc_pp::enum_type<uint8_t, firewalled_state> firewalled;
 
     address_info() {}
-    address_info(const fc::ip::endpoint& remote_endpoint,
-                 const fc::time_point_sec last_seen_time,
-                 const fc::microseconds latency,
+    address_info(const fc_pp::ip::endpoint& remote_endpoint,
+                 const fc_pp::time_point_sec last_seen_time,
+                 const fc_pp::microseconds latency,
                  const node_id_t& node_id,
                  peer_connection_direction direction,
                  firewalled_state firewalled) :
@@ -309,12 +309,12 @@ namespace graphene { namespace net {
 
     std::string        reason_for_closing;
     bool               closing_due_to_error;
-    fc::oexception     error;
+    fc_pp::oexception     error;
 
     closing_connection_message() : closing_due_to_error(false) {}
     closing_connection_message(const std::string& reason_for_closing,
                                bool closing_due_to_error = false,
-                               const fc::oexception& error = fc::oexception()) :
+                               const fc_pp::oexception& error = fc_pp::oexception()) :
       reason_for_closing(reason_for_closing),
       closing_due_to_error(closing_due_to_error),
       error(error)
@@ -324,10 +324,10 @@ namespace graphene { namespace net {
   struct current_time_request_message
   {
     static const core_message_type_enum type;
-    fc::time_point request_sent_time;
+    fc_pp::time_point request_sent_time;
 
     current_time_request_message(){}
-    current_time_request_message(const fc::time_point request_sent_time) :
+    current_time_request_message(const fc_pp::time_point request_sent_time) :
       request_sent_time(request_sent_time)
     {}
   };
@@ -335,14 +335,14 @@ namespace graphene { namespace net {
   struct current_time_reply_message
   {
     static const core_message_type_enum type;
-    fc::time_point request_sent_time;
-    fc::time_point request_received_time;
-    fc::time_point reply_transmitted_time;
+    fc_pp::time_point request_sent_time;
+    fc_pp::time_point request_received_time;
+    fc_pp::time_point reply_transmitted_time;
 
     current_time_reply_message(){}
-    current_time_reply_message(const fc::time_point request_sent_time,
-                               const fc::time_point request_received_time,
-                               const fc::time_point reply_transmitted_time = fc::time_point()) :
+    current_time_reply_message(const fc_pp::time_point request_sent_time,
+                               const fc_pp::time_point request_received_time,
+                               const fc_pp::time_point reply_transmitted_time = fc_pp::time_point()) :
       request_sent_time(request_sent_time),
       request_received_time(request_received_time),
       reply_transmitted_time(reply_transmitted_time)
@@ -353,7 +353,7 @@ namespace graphene { namespace net {
   {
     static const core_message_type_enum type;
     node_id_t node_id;
-    fc::ip::endpoint endpoint_to_check;
+    fc_pp::ip::endpoint endpoint_to_check;
   };
 
   enum class firewall_check_result
@@ -367,8 +367,8 @@ namespace graphene { namespace net {
   {
     static const core_message_type_enum type;
     node_id_t node_id;
-    fc::ip::endpoint endpoint_checked;
-    fc::enum_type<uint8_t, firewall_check_result> result;
+    fc_pp::ip::endpoint endpoint_checked;
+    fc_pp::enum_type<uint8_t, firewall_check_result> result;
   };
 
   struct get_current_connections_request_message
@@ -379,13 +379,13 @@ namespace graphene { namespace net {
   struct current_connection_data
   {
     uint32_t           connection_duration; // in seconds
-    fc::ip::endpoint   remote_endpoint;
+    fc_pp::ip::endpoint   remote_endpoint;
     node_id_t          node_id;
-    fc::microseconds   clock_offset;
-    fc::microseconds   round_trip_delay;
-    fc::enum_type<uint8_t, peer_connection_direction> connection_direction;
-    fc::enum_type<uint8_t, firewalled_state> firewalled;
-    fc::variant_object user_data;
+    fc_pp::microseconds   clock_offset;
+    fc_pp::microseconds   round_trip_delay;
+    fc_pp::enum_type<uint8_t, peer_connection_direction> connection_direction;
+    fc_pp::enum_type<uint8_t, firewalled_state> firewalled;
+    fc_pp::variant_object user_data;
   };
 
   struct get_current_connections_reply_message
@@ -510,8 +510,8 @@ FC_REFLECT(graphene::net::get_current_connections_reply_message, (upload_rate_on
                                                             (current_connections))
 
 #include <unordered_map>
-#include <fc/crypto/city.hpp>
-#include <fc/crypto/sha224.hpp>
+#include <fc_pp/crypto/city.hpp>
+#include <fc_pp/crypto/sha224.hpp>
 namespace std
 {
     template<>
@@ -519,7 +519,7 @@ namespace std
     {
        size_t operator()(const graphene::net::item_id& item_to_hash) const
        {
-          return fc::city_hash_size_t((char*)&item_to_hash, sizeof(item_to_hash));
+          return fc_pp::city_hash_size_t((char*)&item_to_hash, sizeof(item_to_hash));
        }
     };
 }

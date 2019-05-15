@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #define DEFAULT_LOGGER "betting"
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 
 #include <graphene/chain/betting_market_evaluator.hpp>
 #include <graphene/chain/betting_market_object.hpp>

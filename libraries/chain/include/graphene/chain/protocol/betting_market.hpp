@@ -59,9 +59,9 @@ struct betting_market_rules_update_operation : public base_operation
 
    betting_market_rules_id_type betting_market_rules_id;
 
-   fc::optional<internationalized_string_type> new_name;
+   fc_pp::optional<internationalized_string_type> new_name;
 
-   fc::optional<internationalized_string_type> new_description;
+   fc_pp::optional<internationalized_string_type> new_description;
 
    extensions_type   extensions;
 

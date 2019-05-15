@@ -27,7 +27,7 @@
 
 namespace graphene { namespace app {
 
-using namespace fc;
+using namespace fc_pp;
 using namespace graphene::chain;
 
 // TODO:  Review all of these, especially no-ops

@@ -35,12 +35,12 @@ namespace graphene { namespace chain {
    class betting_market_group_object;
 } }
 
-namespace fc { 
-   void to_variant(const graphene::chain::betting_market_object& betting_market_obj, fc::variant& v);
-   void from_variant(const fc::variant& v, graphene::chain::betting_market_object& betting_market_obj);
-   void to_variant(const graphene::chain::betting_market_group_object& betting_market_group_obj, fc::variant& v);
-   void from_variant(const fc::variant& v, graphene::chain::betting_market_group_object& betting_market_group_obj);
-} //end namespace fc
+namespace fc_pp { 
+   void to_variant(const graphene::chain::betting_market_object& betting_market_obj, fc_pp::variant& v);
+   void from_variant(const fc_pp::variant& v, graphene::chain::betting_market_object& betting_market_obj);
+   void to_variant(const graphene::chain::betting_market_group_object& betting_market_group_obj, fc_pp::variant& v);
+   void from_variant(const fc_pp::variant& v, graphene::chain::betting_market_group_object& betting_market_group_obj);
+} //end namespace fc_pp
 
 namespace graphene { namespace chain {
 
@@ -87,7 +87,7 @@ class betting_market_group_object : public graphene::db::abstract_object< bettin
 
       uint32_t delay_before_settling;
 
-      fc::optional<fc::time_point_sec> settling_time;  // the time the payout will occur (set after grading)
+      fc_pp::optional<fc_pp::time_point_sec> settling_time;  // the time the payout will occur (set after grading)
 
       bool bets_are_allowed() const { 
         return get_status() == betting_market_group_status::upcoming || 
@@ -109,8 +109,8 @@ class betting_market_group_object : public graphene::db::abstract_object< bettin
       template<typename Stream>
       friend Stream& operator>>( Stream& s, betting_market_group_object& betting_market_group_obj );
 
-      friend void ::fc::to_variant(const graphene::chain::betting_market_group_object& betting_market_group_obj, fc::variant& v);
-      friend void ::fc::from_variant(const fc::variant& v, graphene::chain::betting_market_group_object& betting_market_group_obj);
+      friend void ::fc_pp::to_variant(const graphene::chain::betting_market_group_object& betting_market_group_obj, fc_pp::variant& v);
+      friend void ::fc_pp::from_variant(const fc_pp::variant& v, graphene::chain::betting_market_group_object& betting_market_group_obj);
 
       void pack_impl(std::ostream& stream) const;
       void unpack_impl(std::istream& stream);
@@ -149,7 +149,7 @@ class betting_market_object : public graphene::db::abstract_object< betting_mark
 
       // once the market is graded, this holds the proposed grading
       // after settling/canceling, this is the actual grading
-      fc::optional<betting_market_resolution_type> resolution;
+      fc_pp::optional<betting_market_resolution_type> resolution;
 
       betting_market_status get_status() const;
 
@@ -165,8 +165,8 @@ class betting_market_object : public graphene::db::abstract_object< betting_mark
       template<typename Stream>
       friend Stream& operator>>( Stream& s, betting_market_object& betting_market_obj );
 
-      friend void ::fc::to_variant(const graphene::chain::betting_market_object& betting_market_obj, fc::variant& v);
-      friend void ::fc::from_variant(const fc::variant& v, graphene::chain::betting_market_object& betting_market_obj);
+      friend void ::fc_pp::to_variant(const graphene::chain::betting_market_object& betting_market_obj, fc_pp::variant& v);
+      friend void ::fc_pp::from_variant(const fc_pp::variant& v, graphene::chain::betting_market_object& betting_market_obj);
 
       void pack_impl(std::ostream& stream) const;
       void unpack_impl(std::istream& stream);
@@ -198,7 +198,7 @@ class bet_object : public graphene::db::abstract_object< bet_object >
 
       bet_type back_or_lay;
 
-      fc::optional<fc::time_point_sec> end_of_delay;
+      fc_pp::optional<fc_pp::time_point_sec> end_of_delay;
 
       static share_type get_approximate_matching_amount(share_type bet_amount, bet_multiplier_type backer_multiplier, bet_type back_or_lay, bool round_up = false);
 
@@ -277,31 +277,31 @@ struct compare_bet_by_odds {
    template<typename T0>
    bool operator() (const std::tuple<T0>& lhs, const bet_object& rhs) const
    {
-      return compare(fc::optional<time_point_sec>(), std::get<0>(lhs), rhs.end_of_delay, rhs.betting_market_id);
+      return compare(fc_pp::optional<time_point_sec>(), std::get<0>(lhs), rhs.end_of_delay, rhs.betting_market_id);
    }
 
    template<typename T0>
    bool operator() (const bet_object& lhs, const std::tuple<T0>& rhs) const
    {
-      return compare(lhs.end_of_delay, lhs.betting_market_id, fc::optional<time_point_sec>(), std::get<0>(rhs));
+      return compare(lhs.end_of_delay, lhs.betting_market_id, fc_pp::optional<time_point_sec>(), std::get<0>(rhs));
    }
 
    template<typename T0, typename T1>
    bool operator() (const std::tuple<T0, T1>& lhs, const bet_object& rhs) const
    {
-      return compare(fc::optional<fc::time_point_sec>(), std::get<0>(lhs), std::get<1>(lhs), rhs.end_of_delay, rhs.betting_market_id, rhs.back_or_lay);
+      return compare(fc_pp::optional<fc_pp::time_point_sec>(), std::get<0>(lhs), std::get<1>(lhs), rhs.end_of_delay, rhs.betting_market_id, rhs.back_or_lay);
    }
 
    template<typename T0, typename T1>
    bool operator() (const bet_object& lhs, const std::tuple<T0, T1>& rhs) const
    {
-      return compare(lhs.end_of_delay, lhs.betting_market_id, lhs.back_or_lay, fc::optional<time_point_sec>(), std::get<0>(rhs), std::get<1>(rhs));
+      return compare(lhs.end_of_delay, lhs.betting_market_id, lhs.back_or_lay, fc_pp::optional<time_point_sec>(), std::get<0>(rhs), std::get<1>(rhs));
    }
 
    template<typename T0, typename T1, typename T2>
    bool operator() (const std::tuple<T0, T1, T2>& lhs, const bet_object& rhs) const
    {
-      return compare(fc::optional<time_point_sec>(), std::get<0>(lhs), std::get<1>(lhs), std::get<2>(lhs),
+      return compare(fc_pp::optional<time_point_sec>(), std::get<0>(lhs), std::get<1>(lhs), std::get<2>(lhs),
                      rhs.end_of_delay, rhs.betting_market_id, rhs.back_or_lay, rhs.backer_multiplier);
    }
 
@@ -309,12 +309,12 @@ struct compare_bet_by_odds {
    bool operator() (const bet_object& lhs, const std::tuple<T0, T1, T2>& rhs) const
    {
       return compare(lhs.end_of_delay, lhs.betting_market_id, lhs.back_or_lay, lhs.backer_multiplier,
-                     fc::optional<time_point_sec>(), std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs));
+                     fc_pp::optional<time_point_sec>(), std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs));
    }
    template<typename T0, typename T1, typename T2, typename T3>
    bool operator() (const std::tuple<T0, T1, T2, T3>& lhs, const bet_object& rhs) const
    {
-      return compare(fc::optional<time_point_sec>(), std::get<0>(lhs), std::get<1>(lhs), std::get<2>(lhs), std::get<3>(lhs),
+      return compare(fc_pp::optional<time_point_sec>(), std::get<0>(lhs), std::get<1>(lhs), std::get<2>(lhs), std::get<3>(lhs),
                      rhs.end_of_delay, rhs.betting_market_id, rhs.back_or_lay, rhs.backer_multiplier, rhs.id);
    }
 
@@ -322,11 +322,11 @@ struct compare_bet_by_odds {
    bool operator() (const bet_object& lhs, const std::tuple<T0, T1, T2, T3>& rhs) const
    {
       return compare(lhs.end_of_delay, lhs.betting_market_id, lhs.back_or_lay, lhs.backer_multiplier, lhs.id,
-                     fc::optional<time_point_sec>(), std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs), std::get<3>(rhs));
+                     fc_pp::optional<time_point_sec>(), std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs), std::get<3>(rhs));
    }
-   bool compare(const fc::optional<fc::time_point_sec>& lhs_end_of_delay, 
+   bool compare(const fc_pp::optional<fc_pp::time_point_sec>& lhs_end_of_delay, 
                 const betting_market_id_type& lhs_betting_market_id, 
-                const fc::optional<fc::time_point_sec>& rhs_end_of_delay, 
+                const fc_pp::optional<fc_pp::time_point_sec>& rhs_end_of_delay, 
                 const betting_market_id_type& rhs_betting_market_id) const
    {
       // if either bet is delayed, sort the delayed bet to the
@@ -343,9 +343,9 @@ struct compare_bet_by_odds {
 
       return lhs_betting_market_id < rhs_betting_market_id;
    }
-   bool compare(const fc::optional<fc::time_point_sec>& lhs_end_of_delay,
+   bool compare(const fc_pp::optional<fc_pp::time_point_sec>& lhs_end_of_delay,
                 const betting_market_id_type& lhs_betting_market_id, bet_type lhs_bet_type, 
-                const fc::optional<fc::time_point_sec>& rhs_end_of_delay, 
+                const fc_pp::optional<fc_pp::time_point_sec>& rhs_end_of_delay, 
                 const betting_market_id_type& rhs_betting_market_id, bet_type rhs_bet_type) const
    {
       // if either bet is delayed, sort the delayed bet to the
@@ -366,10 +366,10 @@ struct compare_bet_by_odds {
          return false;
       return lhs_bet_type < rhs_bet_type;
    }
-   bool compare(const fc::optional<fc::time_point_sec>& lhs_end_of_delay, 
+   bool compare(const fc_pp::optional<fc_pp::time_point_sec>& lhs_end_of_delay, 
                 const betting_market_id_type& lhs_betting_market_id, bet_type lhs_bet_type, 
                 bet_multiplier_type lhs_backer_multiplier,
-                const fc::optional<fc::time_point_sec>& rhs_end_of_delay, 
+                const fc_pp::optional<fc_pp::time_point_sec>& rhs_end_of_delay, 
                 const betting_market_id_type& rhs_betting_market_id, bet_type rhs_bet_type,
                 bet_multiplier_type rhs_backer_multiplier) const
    {
@@ -398,10 +398,10 @@ struct compare_bet_by_odds {
       else
         return lhs_backer_multiplier > rhs_backer_multiplier;
    }
-   bool compare(const fc::optional<fc::time_point_sec>& lhs_end_of_delay, 
+   bool compare(const fc_pp::optional<fc_pp::time_point_sec>& lhs_end_of_delay, 
                 const betting_market_id_type& lhs_betting_market_id, bet_type lhs_bet_type, 
                 bet_multiplier_type lhs_backer_multiplier, const bet_id_type& lhs_bet_id,
-                const fc::optional<fc::time_point_sec>& rhs_end_of_delay, 
+                const fc_pp::optional<fc_pp::time_point_sec>& rhs_end_of_delay, 
                 const betting_market_id_type& rhs_betting_market_id, bet_type rhs_bet_type,
                 bet_multiplier_type rhs_backer_multiplier, const bet_id_type& rhs_bet_id) const
    {
@@ -631,18 +631,18 @@ inline Stream& operator<<( Stream& s, const betting_market_object& betting_marke
 { 
    // pack all fields exposed in the header in the usual way
    // instead of calling the derived pack, just serialize the one field in the base class
-   //   fc::raw::pack<Stream, const graphene::db::abstract_object<betting_market_object> >(s, betting_market_obj);
-   fc::raw::pack(s, betting_market_obj.id);
-   fc::raw::pack(s, betting_market_obj.group_id);
-   fc::raw::pack(s, betting_market_obj.description);
-   fc::raw::pack(s, betting_market_obj.payout_condition);
-   fc::raw::pack(s, betting_market_obj.resolution);
+   //   fc_pp::raw::pack<Stream, const graphene::db::abstract_object<betting_market_object> >(s, betting_market_obj);
+   fc_pp::raw::pack(s, betting_market_obj.id);
+   fc_pp::raw::pack(s, betting_market_obj.group_id);
+   fc_pp::raw::pack(s, betting_market_obj.description);
+   fc_pp::raw::pack(s, betting_market_obj.payout_condition);
+   fc_pp::raw::pack(s, betting_market_obj.resolution);
 
-   // fc::raw::pack the contents hidden in the impl class
+   // fc_pp::raw::pack the contents hidden in the impl class
    std::ostringstream stream;
    betting_market_obj.pack_impl(stream);
    std::string stringified_stream(stream.str());
-   fc::raw::pack(s, stream.str());
+   fc_pp::raw::pack(s, stream.str());
 
    return s;
 }
@@ -650,16 +650,16 @@ template<typename Stream>
 inline Stream& operator>>( Stream& s, betting_market_object& betting_market_obj )
 { 
    // unpack all fields exposed in the header in the usual way
-   //fc::raw::unpack<Stream, graphene::db::abstract_object<betting_market_object> >(s, betting_market_obj);
-   fc::raw::unpack(s, betting_market_obj.id);
-   fc::raw::unpack(s, betting_market_obj.group_id);
-   fc::raw::unpack(s, betting_market_obj.description);
-   fc::raw::unpack(s, betting_market_obj.payout_condition);
-   fc::raw::unpack(s, betting_market_obj.resolution);
+   //fc_pp::raw::unpack<Stream, graphene::db::abstract_object<betting_market_object> >(s, betting_market_obj);
+   fc_pp::raw::unpack(s, betting_market_obj.id);
+   fc_pp::raw::unpack(s, betting_market_obj.group_id);
+   fc_pp::raw::unpack(s, betting_market_obj.description);
+   fc_pp::raw::unpack(s, betting_market_obj.payout_condition);
+   fc_pp::raw::unpack(s, betting_market_obj.resolution);
 
-   // fc::raw::unpack the contents hidden in the impl class
+   // fc_pp::raw::unpack the contents hidden in the impl class
    std::string stringified_stream;
-   fc::raw::unpack(s, stringified_stream);
+   fc_pp::raw::unpack(s, stringified_stream);
    std::istringstream stream(stringified_stream);
    betting_market_obj.unpack_impl(stream);
    
@@ -672,21 +672,21 @@ inline Stream& operator<<( Stream& s, const betting_market_group_object& betting
 { 
    // pack all fields exposed in the header in the usual way
    // instead of calling the derived pack, just serialize the one field in the base class
-   //   fc::raw::pack<Stream, const graphene::db::abstract_object<betting_market_group_object> >(s, betting_market_group_obj);
-   fc::raw::pack(s, betting_market_group_obj.id);
-   fc::raw::pack(s, betting_market_group_obj.description);
-   fc::raw::pack(s, betting_market_group_obj.event_id);
-   fc::raw::pack(s, betting_market_group_obj.rules_id);
-   fc::raw::pack(s, betting_market_group_obj.asset_id);
-   fc::raw::pack(s, betting_market_group_obj.total_matched_bets_amount);
-   fc::raw::pack(s, betting_market_group_obj.never_in_play);
-   fc::raw::pack(s, betting_market_group_obj.delay_before_settling);
-   fc::raw::pack(s, betting_market_group_obj.settling_time);
-   // fc::raw::pack the contents hidden in the impl class
+   //   fc_pp::raw::pack<Stream, const graphene::db::abstract_object<betting_market_group_object> >(s, betting_market_group_obj);
+   fc_pp::raw::pack(s, betting_market_group_obj.id);
+   fc_pp::raw::pack(s, betting_market_group_obj.description);
+   fc_pp::raw::pack(s, betting_market_group_obj.event_id);
+   fc_pp::raw::pack(s, betting_market_group_obj.rules_id);
+   fc_pp::raw::pack(s, betting_market_group_obj.asset_id);
+   fc_pp::raw::pack(s, betting_market_group_obj.total_matched_bets_amount);
+   fc_pp::raw::pack(s, betting_market_group_obj.never_in_play);
+   fc_pp::raw::pack(s, betting_market_group_obj.delay_before_settling);
+   fc_pp::raw::pack(s, betting_market_group_obj.settling_time);
+   // fc_pp::raw::pack the contents hidden in the impl class
    std::ostringstream stream;
    betting_market_group_obj.pack_impl(stream);
    std::string stringified_stream(stream.str());
-   fc::raw::pack(s, stream.str());
+   fc_pp::raw::pack(s, stream.str());
 
    return s;
 }
@@ -694,20 +694,20 @@ template<typename Stream>
 inline Stream& operator>>( Stream& s, betting_market_group_object& betting_market_group_obj )
 { 
    // unpack all fields exposed in the header in the usual way
-   //fc::raw::unpack<Stream, graphene::db::abstract_object<betting_market_group_object> >(s, betting_market_group_obj);
-   fc::raw::unpack(s, betting_market_group_obj.id);
-   fc::raw::unpack(s, betting_market_group_obj.description);
-   fc::raw::unpack(s, betting_market_group_obj.event_id);
-   fc::raw::unpack(s, betting_market_group_obj.rules_id);
-   fc::raw::unpack(s, betting_market_group_obj.asset_id);
-   fc::raw::unpack(s, betting_market_group_obj.total_matched_bets_amount);
-   fc::raw::unpack(s, betting_market_group_obj.never_in_play);
-   fc::raw::unpack(s, betting_market_group_obj.delay_before_settling);
-   fc::raw::unpack(s, betting_market_group_obj.settling_time);
+   //fc_pp::raw::unpack<Stream, graphene::db::abstract_object<betting_market_group_object> >(s, betting_market_group_obj);
+   fc_pp::raw::unpack(s, betting_market_group_obj.id);
+   fc_pp::raw::unpack(s, betting_market_group_obj.description);
+   fc_pp::raw::unpack(s, betting_market_group_obj.event_id);
+   fc_pp::raw::unpack(s, betting_market_group_obj.rules_id);
+   fc_pp::raw::unpack(s, betting_market_group_obj.asset_id);
+   fc_pp::raw::unpack(s, betting_market_group_obj.total_matched_bets_amount);
+   fc_pp::raw::unpack(s, betting_market_group_obj.never_in_play);
+   fc_pp::raw::unpack(s, betting_market_group_obj.delay_before_settling);
+   fc_pp::raw::unpack(s, betting_market_group_obj.settling_time);
 
-   // fc::raw::unpack the contents hidden in the impl class
+   // fc_pp::raw::unpack the contents hidden in the impl class
    std::string stringified_stream;
-   fc::raw::unpack(s, stringified_stream);
+   fc_pp::raw::unpack(s, stringified_stream);
    std::istringstream stream(stringified_stream);
    betting_market_group_obj.unpack_impl(stream);
    

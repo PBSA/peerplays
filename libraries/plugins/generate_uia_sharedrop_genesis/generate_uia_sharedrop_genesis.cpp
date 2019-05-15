@@ -29,8 +29,8 @@
 
 #include <graphene/utilities/key_conversion.hpp>
 
-#include <fc/smart_ref_impl.hpp>
-#include <fc/thread/thread.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
+#include <fc_pp/thread/thread.hpp>
 
 #include <graphene/chain/market_object.hpp>
 
@@ -199,7 +199,7 @@ void generate_uia_sharedrop_genesis_plugin::generate_snapshot()
     graphene::chain::genesis_state_type new_genesis_state;
     if (!_input_genesis_filename.empty())
     {
-        new_genesis_state = fc::json::from_file<graphene::chain::genesis_state_type>(_input_genesis_filename);
+        new_genesis_state = fc_pp::json::from_file<graphene::chain::genesis_state_type>(_input_genesis_filename);
         for (const graphene::chain::genesis_state_type::initial_bts_account_type& initial_bts_account : new_genesis_state.initial_bts_accounts)
         {
             std::string account_name = unmodify_account_name(initial_bts_account.name);
@@ -352,7 +352,7 @@ void generate_uia_sharedrop_genesis_plugin::generate_snapshot()
         if (accounts_generated_this_round == 0)
             break;
     }
-    fc::json::save_to_file(new_genesis_state, _output_genesis_filename);
+    fc_pp::json::save_to_file(new_genesis_state, _output_genesis_filename);
     ilog("New genesis state written to file ${filename}", ("filename", _output_genesis_filename));
 }
 

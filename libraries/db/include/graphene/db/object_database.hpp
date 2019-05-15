@@ -26,7 +26,7 @@
 #include <graphene/db/index.hpp>
 #include <graphene/db/undo_database.hpp>
 
-#include <fc/log/logger.hpp>
+#include <fc_pp/log/logger.hpp>
 
 #include <map>
 
@@ -44,13 +44,13 @@ namespace graphene { namespace db {
 
          void reset_indexes() { _index.clear(); _index.resize(255); }
 
-         void open(const fc::path& data_dir );
+         void open(const fc_pp::path& data_dir );
 
          /**
           * Saves the complete state of the object_database to disk, this could take a while
           */
          void flush();
-         void wipe(const fc::path& data_dir); // remove from disk
+         void wipe(const fc_pp::path& data_dir); // remove from disk
          void close();
 
          template<typename T, typename F>
@@ -141,7 +141,7 @@ namespace graphene { namespace db {
 
          void pop_undo();
 
-         fc::path get_data_dir()const { return _data_dir; }
+         fc_pp::path get_data_dir()const { return _data_dir; }
 
          /** public for testing purposes only... should be private in practice. */
          undo_database                          _undo_db;
@@ -164,7 +164,7 @@ namespace graphene { namespace db {
          void save_undo_add( const object& obj );
          void save_undo_remove( const object& obj );
 
-         fc::path                                                  _data_dir;
+         fc_pp::path                                                  _data_dir;
          vector< vector< unique_ptr<index> > >                     _index;
    };
 

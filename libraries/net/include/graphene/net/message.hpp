@@ -22,12 +22,12 @@
  * THE SOFTWARE.
  */
 #pragma once
-#include <fc/array.hpp>
-#include <fc/io/varint.hpp>
-#include <fc/network/ip.hpp>
-#include <fc/io/raw.hpp>
-#include <fc/crypto/ripemd160.hpp>
-#include <fc/reflect/variant.hpp>
+#include <fc_pp/array.hpp>
+#include <fc_pp/io/varint.hpp>
+#include <fc_pp/network/ip.hpp>
+#include <fc_pp/io/raw.hpp>
+#include <fc_pp/crypto/ripemd160.hpp>
+#include <fc_pp/reflect/variant.hpp>
 
 namespace graphene { namespace net {
 
@@ -43,7 +43,7 @@ namespace graphene { namespace net {
      uint32_t  msg_type = 0;  // every channel gets a 16 bit message type specifier
   };
 
-  typedef fc::uint160_t message_hash_type;
+  typedef fc_pp::uint160_t message_hash_type;
 
   /**
    *  Abstracts the process of packing/unpacking a message for a 
@@ -68,13 +68,13 @@ namespace graphene { namespace net {
      message( const T& m ) 
      {
         msg_type = T::type;
-        data     = fc::raw::pack(m);
+        data     = fc_pp::raw::pack(m);
         size     = (uint32_t)data.size();
      }
 
-     fc::uint160_t id()const
+     fc_pp::uint160_t id()const
      {
-        return fc::ripemd160::hash( data.data(), (uint32_t)data.size() );
+        return fc_pp::ripemd160::hash( data.data(), (uint32_t)data.size() );
      }
 
      /**
@@ -89,19 +89,19 @@ namespace graphene { namespace net {
           T tmp;
           if( data.size() )
           {
-             fc::datastream<const char*> ds( data.data(), data.size() );
-             fc::raw::unpack( ds, tmp );
+             fc_pp::datastream<const char*> ds( data.data(), data.size() );
+             fc_pp::raw::unpack( ds, tmp );
           }
           else
           {
              // just to make sure that tmp shouldn't have any data
-             fc::datastream<const char*> ds( nullptr, 0 );
-             fc::raw::unpack( ds, tmp );
+             fc_pp::datastream<const char*> ds( nullptr, 0 );
+             fc_pp::raw::unpack( ds, tmp );
           }
           return tmp;
          } FC_RETHROW_EXCEPTIONS( warn, 
               "error unpacking network message as a '${type}'  ${x} !=? ${msg_type}", 
-              ("type", fc::get_typename<T>::name() )
+              ("type", fc_pp::get_typename<T>::name() )
               ("x", T::type)
               ("msg_type", msg_type)
               );

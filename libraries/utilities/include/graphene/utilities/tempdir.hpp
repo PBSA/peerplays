@@ -25,10 +25,10 @@
 
 #include <cstdlib>
 
-#include <fc/filesystem.hpp>
+#include <fc_pp/filesystem.hpp>
 
 namespace graphene { namespace utilities {
 
-fc::path temp_directory_path();
+fc_pp::path temp_directory_path();
 
 } } // graphene::utilities

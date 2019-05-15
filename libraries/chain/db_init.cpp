@@ -79,9 +79,9 @@
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
-#include <fc/smart_ref_impl.hpp>
-#include <fc/uint128.hpp>
-#include <fc/crypto/digest.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
+#include <fc_pp/uint128.hpp>
+#include <fc_pp/crypto/digest.hpp>
 
 #include <boost/algorithm/string.hpp>
 
@@ -330,7 +330,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    bsi.resize(0xffff+1);
 
    // Create blockchain accounts
-   fc::ecc::private_key null_private_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("null_key")));
+   fc_pp::ecc::private_key null_private_key = fc_pp::ecc::private_key::regenerate(fc_pp::sha256::hash(string("null_key")));
    create<account_balance_object>([](account_balance_object& b) {
       b.balance = GRAPHENE_MAX_SHARE_SUPPLY;
    });
@@ -435,7 +435,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       create<asset_dividend_data_object>([&](asset_dividend_data_object& a) {
            a.options.minimum_distribution_interval = 3*24*60*60;
            a.options.minimum_fee_percentage = 10*GRAPHENE_1_PERCENT;
-           a.options.next_payout_time = genesis_state.initial_timestamp + fc::days(1);
+           a.options.next_payout_time = genesis_state.initial_timestamp + fc_pp::days(1);
            a.options.payout_interval = 30*24*60*60;
            a.dividend_distribution_account = GRAPHENE_RAKE_FEE_ACCOUNT_ID;
       });
@@ -468,7 +468,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       create<asset_dividend_data_object>([&](asset_dividend_data_object& a) {
            a.options.minimum_distribution_interval = 3*24*60*60;
            a.options.minimum_fee_percentage = 10*GRAPHENE_1_PERCENT;
-           a.options.next_payout_time = genesis_state.initial_timestamp + fc::hours(1);
+           a.options.next_payout_time = genesis_state.initial_timestamp + fc_pp::hours(1);
            a.options.payout_interval = 7*24*60*60;
            a.dividend_distribution_account = GRAPHENE_RAKE_FEE_ACCOUNT_ID;
       });
@@ -533,7 +533,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       p.time = genesis_state.initial_timestamp;
       p.dynamic_flags = 0;
       p.witness_budget = 0;
-      p.recent_slots_filled = fc::uint128::max_value();
+      p.recent_slots_filled = fc_pp::uint128::max_value();
    });
    create<global_betting_statistics_object>([&](global_betting_statistics_object& betting_statistics) {
       betting_statistics.number_of_active_events = 0;
@@ -911,7 +911,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
 
       _wso.last_scheduling_block = 0;
 
-      _wso.recent_slots_filled = fc::uint128::max_value();
+      _wso.recent_slots_filled = fc_pp::uint128::max_value();
 
       // for shuffled
       for( const witness_id_type& wid : get_global_properties().active_witnesses )

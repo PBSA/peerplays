@@ -26,7 +26,7 @@
 #include <graphene/app/plugin.hpp>
 #include <graphene/chain/database.hpp>
 
-#include <fc/thread/future.hpp>
+#include <fc_pp/thread/future.hpp>
 
 namespace graphene { namespace affiliate_stats {
    using namespace chain;

@@ -23,10 +23,10 @@
  */
 #pragma once
 
-#include <fc/array.hpp>
+#include <fc_pp/array.hpp>
 #include <string>
 
-namespace fc { namespace ecc { class public_key; } }
+namespace fc_pp { namespace ecc { class public_key; } }
 
 namespace graphene { namespace chain {
 
@@ -37,14 +37,14 @@ namespace graphene { namespace chain {
    {
        pts_address(); ///< constructs empty / null address
        pts_address( const std::string& base58str );   ///< converts to binary, validates checksum
-       pts_address( const fc::ecc::public_key& pub, bool compressed = true, uint8_t version=56 ); ///< converts to binary
+       pts_address( const fc_pp::ecc::public_key& pub, bool compressed = true, uint8_t version=56 ); ///< converts to binary
 
        uint8_t version()const { return addr.at(0); }
        bool is_valid()const;
 
        operator std::string()const; ///< converts to base58 + checksum
 
-       fc::array<char,25> addr; ///< binary representation of address
+       fc_pp::array<char,25> addr; ///< binary representation of address
    };
 
    inline bool operator == ( const pts_address& a, const pts_address& b ) { return a.addr == b.addr; }
@@ -68,11 +68,11 @@ namespace std
    };
 }
 
-#include <fc/reflect/reflect.hpp>
+#include <fc_pp/reflect/reflect.hpp>
 FC_REFLECT( graphene::chain::pts_address, (addr) )
 
-namespace fc 
+namespace fc_pp 
 { 
-   void to_variant( const graphene::chain::pts_address& var,  fc::variant& vo );
-   void from_variant( const fc::variant& var,  graphene::chain::pts_address& vo );
+   void to_variant( const graphene::chain::pts_address& var,  fc_pp::variant& vo );
+   void from_variant( const fc_pp::variant& var,  graphene::chain::pts_address& vo );
 }

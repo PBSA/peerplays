@@ -31,8 +31,8 @@
 #include "../common/betting_test_markets.hpp"
 
 #include <boost/test/unit_test.hpp>
-#include <fc/crypto/openssl.hpp>
-#include <fc/log/appender.hpp>
+#include <fc_pp/crypto/openssl.hpp>
+#include <fc_pp/log/appender.hpp>
 #include <openssl/rand.h>
 
 #include <graphene/chain/protocol/proposal.hpp>
@@ -50,11 +50,11 @@
 struct enable_betting_logging_config {
    enable_betting_logging_config()
    { 
-      fc::logger::get("betting").add_appender(fc::appender::get("stdout"));
-      fc::logger::get("betting").set_log_level(fc::log_level::debug);
+      fc_pp::logger::get("betting").add_appender(fc_pp::appender::get("stdout"));
+      fc_pp::logger::get("betting").set_log_level(fc_pp::log_level::debug);
    }
    ~enable_betting_logging_config()  { 
-      fc::logger::get("betting").remove_appender(fc::appender::get("stdout"));
+      fc_pp::logger::get("betting").remove_appender(fc_pp::appender::get("stdout"));
    }
 };
 BOOST_GLOBAL_FIXTURE( enable_betting_logging_config );
@@ -900,7 +900,7 @@ BOOST_AUTO_TEST_CASE(bet_reversal_test)
       BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), 0);
 
       // try to re-reverse it, but go too far
-      BOOST_CHECK_THROW( place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(30000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION), fc::exception);
+      BOOST_CHECK_THROW( place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(30000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION), fc_pp::exception);
       BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), 0);
    }
    FC_LOG_AND_RETHROW()
@@ -937,7 +937,7 @@ BOOST_AUTO_TEST_CASE(bet_against_exposure_test)
       BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance);
 
       // try to re-reverse it, but go too far
-      BOOST_CHECK_THROW( place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(30000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION), fc::exception);
+      BOOST_CHECK_THROW( place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(30000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION), fc_pp::exception);
       BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance);
    }
    FC_LOG_AND_RETHROW()
@@ -966,7 +966,7 @@ BOOST_AUTO_TEST_CASE(persistent_objects_test)
       bet_id_type automatically_canceled_bet_id = place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(46, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
       generate_blocks(1);
       BOOST_CHECK_MESSAGE(!db.find(automatically_canceled_bet_id), "Bet should have been canceled, but the blockchain still knows about it");
-      fc::variants objects_from_bookie = bookie_api.get_objects({automatically_canceled_bet_id});
+      fc_pp::variants objects_from_bookie = bookie_api.get_objects({automatically_canceled_bet_id});
       idump((objects_from_bookie));
       BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 1u);
       BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>() == automatically_canceled_bet_id, "Bookie Plugin didn't return a deleted bet it");
@@ -1028,8 +1028,8 @@ BOOST_AUTO_TEST_CASE(persistent_objects_test)
 
       // test getting markets
       //  test that we cannot get them from the database directly
-      BOOST_CHECK_THROW(capitals_win_market_id(db), fc::exception);
-      BOOST_CHECK_THROW(blackhawks_win_market_id(db), fc::exception);
+      BOOST_CHECK_THROW(capitals_win_market_id(db), fc_pp::exception);
+      BOOST_CHECK_THROW(blackhawks_win_market_id(db), fc_pp::exception);
 
       objects_from_bookie = bookie_api.get_objects({capitals_win_market_id, blackhawks_win_market_id});
       BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 2u);
@@ -1080,10 +1080,10 @@ BOOST_AUTO_TEST_CASE(test_settled_market_states)
 
       // test getting markets
       //  test that we cannot get them from the database directly
-      BOOST_CHECK_THROW(capitals_win_market_id(db), fc::exception);
-      BOOST_CHECK_THROW(blackhawks_win_market_id(db), fc::exception);
+      BOOST_CHECK_THROW(capitals_win_market_id(db), fc_pp::exception);
+      BOOST_CHECK_THROW(blackhawks_win_market_id(db), fc_pp::exception);
 
-      fc::variants objects_from_bookie = bookie_api.get_objects({capitals_win_market_id, blackhawks_win_market_id});
+      fc_pp::variants objects_from_bookie = bookie_api.get_objects({capitals_win_market_id, blackhawks_win_market_id});
       BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 2u);
       idump((objects_from_bookie));
       BOOST_CHECK(!objects_from_bookie[0].is_null());
@@ -1240,7 +1240,7 @@ BOOST_AUTO_TEST_CASE( chained_market_create_test )
             proposal_op.proposed_ops.emplace_back(betting_market_group_create_op);
             proposal_op.proposed_ops.emplace_back(caps_win_betting_market_create_op);
             proposal_op.proposed_ops.emplace_back(blackhawks_win_betting_market_create_op);
-            proposal_op.expiration_time =  db.head_block_time() + fc::days(1);
+            proposal_op.expiration_time =  db.head_block_time() + fc_pp::days(1);
 
             signed_transaction tx;
             tx.operations.push_back(proposal_op);
@@ -1256,7 +1256,7 @@ BOOST_AUTO_TEST_CASE( chained_market_create_test )
 
             for (const witness_id_type& witness_id : active_witnesses)
             {
-               BOOST_TEST_MESSAGE("Approving sport+competitors creation from witness " << fc::variant(witness_id).as<std::string>());
+               BOOST_TEST_MESSAGE("Approving sport+competitors creation from witness " << fc_pp::variant(witness_id).as<std::string>());
                const witness_object& witness = witness_id(db);
                const account_object& witness_account = witness.witness_account(db);
 
@@ -1274,7 +1274,7 @@ BOOST_AUTO_TEST_CASE( chained_market_create_test )
                db.push_transaction(tx, ~0);
                if (db.get_index_type<sport_object_index>().indices().size() == 1)
                {
-                  //BOOST_TEST_MESSAGE("The sport creation operation has been approved, new sport object on the blockchain is " << fc::json::to_pretty_string(*db.get_index_type<sport_object_index>().indices().rbegin()));
+                  //BOOST_TEST_MESSAGE("The sport creation operation has been approved, new sport object on the blockchain is " << fc_pp::json::to_pretty_string(*db.get_index_type<sport_object_index>().indices().rbegin()));
                 break;
                }
             }
@@ -1530,7 +1530,7 @@ BOOST_AUTO_TEST_CASE(sport_delete_test_not_proposal)
         sport_delete_operation sport_delete_op;
         sport_delete_op.sport_id = ice_hockey.id;
         
-        BOOST_CHECK_THROW(force_operation_by_witnesses(sport_delete_op), fc::exception);
+        BOOST_CHECK_THROW(force_operation_by_witnesses(sport_delete_op), fc_pp::exception);
     } FC_LOG_AND_RETHROW()
 }
 
@@ -1542,7 +1542,7 @@ BOOST_AUTO_TEST_CASE(sport_delete_test_not_existed_sport)
         
         delete_sport(ice_hockey.id);
         
-        BOOST_CHECK_THROW(delete_sport(ice_hockey.id), fc::exception);
+        BOOST_CHECK_THROW(delete_sport(ice_hockey.id), fc_pp::exception);
     } FC_LOG_AND_RETHROW()
 }
 
@@ -1559,12 +1559,12 @@ BOOST_AUTO_TEST_CASE(event_group_update_test)
       place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
  
       const sport_object& ice_on_hockey = create_sport({{"en", "Hockey on Ice"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}}); \
-      fc::optional<object_id_type> sport_id = ice_on_hockey.id;
+      fc_pp::optional<object_id_type> sport_id = ice_on_hockey.id;
  
-      fc::optional<internationalized_string_type> name =  internationalized_string_type({{"en", "IBM"}, {"zh_Hans", "國家冰球聯"}, {"ja", "ナショナルホッケーリー"}});
+      fc_pp::optional<internationalized_string_type> name =  internationalized_string_type({{"en", "IBM"}, {"zh_Hans", "國家冰球聯"}, {"ja", "ナショナルホッケーリー"}});
  
-      update_event_group(nhl.id, fc::optional<object_id_type>(), name);
-      update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>());
+      update_event_group(nhl.id, fc_pp::optional<object_id_type>(), name);
+      update_event_group(nhl.id, sport_id, fc_pp::optional<internationalized_string_type>());
       update_event_group(nhl.id, sport_id, name);
  
       place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
@@ -1771,8 +1771,8 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test)
         const auto& market_group = create_betting_market_group({{"en", "market group"}}, event.id, betting_market_rules.id, asset_id_type(), false, 0);
         //to make bets be not removed immediately
         update_betting_market_group_impl(market_group.id,
-                                         fc::optional<internationalized_string_type>(),
-                                         fc::optional<object_id_type>(),
+                                         fc_pp::optional<internationalized_string_type>(),
+                                         fc_pp::optional<object_id_type>(),
                                          betting_market_group_status::in_play,
                                          false);
         
@@ -1874,7 +1874,7 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test_not_proposal)
         event_group_delete_operation event_group_delete_op;
         event_group_delete_op.event_group_id = nhl.id;
         
-        BOOST_CHECK_THROW(force_operation_by_witnesses(event_group_delete_op), fc::exception);
+        BOOST_CHECK_THROW(force_operation_by_witnesses(event_group_delete_op), fc_pp::exception);
     } FC_LOG_AND_RETHROW()
 }
 
@@ -1886,7 +1886,7 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test_not_existed_event_group)
         
         delete_event_group(nhl.id);
         
-        BOOST_CHECK_THROW(delete_event_group(nhl.id), fc::exception);
+        BOOST_CHECK_THROW(delete_event_group(nhl.id), fc_pp::exception);
     } FC_LOG_AND_RETHROW()
 }
 
@@ -1902,8 +1902,8 @@ BOOST_AUTO_TEST_CASE(event_update_test)
 
       place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
-      fc::optional<internationalized_string_type> name = internationalized_string_type({{"en", "Washington Capitals vs. Chicago Blackhawks"}, {"zh_Hans", "華盛頓首都隊/芝加哥黑"}, {"ja", "ワシントン・キャピタルズ/シカゴ・ブラックホーク"}});
-      fc::optional<internationalized_string_type> season = internationalized_string_type({{"en", "2017-18"}});
+      fc_pp::optional<internationalized_string_type> name = internationalized_string_type({{"en", "Washington Capitals vs. Chicago Blackhawks"}, {"zh_Hans", "華盛頓首都隊/芝加哥黑"}, {"ja", "ワシントン・キャピタルズ/シカゴ・ブラックホーク"}});
+      fc_pp::optional<internationalized_string_type> season = internationalized_string_type({{"en", "2017-18"}});
 
       update_event(capitals_vs_blackhawks.id, _name = name);
       update_event(capitals_vs_blackhawks.id, _season = season);
@@ -1945,9 +1945,9 @@ BOOST_AUTO_TEST_CASE(betting_market_rules_update_test)
      ACTORS( (alice) );
      CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
 
-     fc::optional<internationalized_string_type> empty;
-     fc::optional<internationalized_string_type> name = internationalized_string_type({{"en", "NHL Rules v1.1"}});
-     fc::optional<internationalized_string_type> desc = internationalized_string_type({{"en", "The winner will be the team with the most points at the end of the game. The team with fewer points will not be the winner."}});
+     fc_pp::optional<internationalized_string_type> empty;
+     fc_pp::optional<internationalized_string_type> name = internationalized_string_type({{"en", "NHL Rules v1.1"}});
+     fc_pp::optional<internationalized_string_type> desc = internationalized_string_type({{"en", "The winner will be the team with the most points at the end of the game. The team with fewer points will not be the winner."}});
 
      update_betting_market_rules(betting_market_rules.id, name, empty);
      update_betting_market_rules(betting_market_rules.id, empty, desc);
@@ -1974,7 +1974,7 @@ BOOST_AUTO_TEST_CASE(betting_market_group_update_test)
       internationalized_string_type new_description = internationalized_string_type({{"en", "Money line"}});
 
       const betting_market_rules_object& new_betting_market_rules = create_betting_market_rules({{"en", "NHL Rules v2.0"}}, {{"en", "The winner will be the team with the most points at the end of the game. The team with fewer points will not be the winner."}});
-      fc::optional<object_id_type> new_rule = new_betting_market_rules.id;
+      fc_pp::optional<object_id_type> new_rule = new_betting_market_rules.id;
 
       update_betting_market_group(moneyline_betting_markets.id, _description = new_description);
       update_betting_market_group(moneyline_betting_markets.id, _rules_id =  new_betting_market_rules.id);
@@ -2013,10 +2013,10 @@ BOOST_AUTO_TEST_CASE(betting_market_update_test)
       transfer(account_id_type(), alice_id, asset(10000000));
       place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
-      fc::optional<internationalized_string_type> payout_condition = internationalized_string_type({{"en", "Washington Capitals lose"}});
+      fc_pp::optional<internationalized_string_type> payout_condition = internationalized_string_type({{"en", "Washington Capitals lose"}});
 
       // update the payout condition
-      update_betting_market(capitals_win_market.id, fc::optional<object_id_type>(), payout_condition);
+      update_betting_market(capitals_win_market.id, fc_pp::optional<object_id_type>(), payout_condition);
 
       transfer(account_id_type(), bob_id, asset(10000000));
       place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
@@ -2081,7 +2081,7 @@ BOOST_AUTO_TEST_CASE(event_driven_standard_progression_1)
       // as soon as a block is generated, the betting market group will settle, and the market
       // and group will cease to exist.  The event should transition to "settled", then
       // removed.
-      fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
+      fc_pp::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
 
       BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
    } FC_LOG_AND_RETHROW()
@@ -2138,7 +2138,7 @@ BOOST_AUTO_TEST_CASE(event_driven_standard_progression_1_with_delay)
       // as soon as a block is generated, the betting market group will settle, and the market
       // and group will cease to exist.  The event should transition to "settled", then
       // removed.
-      fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id, 
+      fc_pp::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id, 
                                                                  moneyline_betting_markets_id, 
                                                                  capitals_win_market_id, 
                                                                  blackhawks_win_market_id});
@@ -2234,7 +2234,7 @@ BOOST_AUTO_TEST_CASE(event_driven_standard_progression_2)
       // as soon as a block is generated, the betting market group will settle, and the market
       // and group will cease to exist.  The event should transition to "settled", then
       // removed.
-      fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
+      fc_pp::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
 
       BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
    } FC_LOG_AND_RETHROW()
@@ -2322,7 +2322,7 @@ BOOST_AUTO_TEST_CASE(event_driven_standard_progression_2_never_in_play)
       // as soon as a block is generated, the betting market group will settle, and the market
       // and group will cease to exist.  The event should transition to "settled", then
       // removed.
-      fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
+      fc_pp::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
 
       BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
    } FC_LOG_AND_RETHROW()
@@ -2397,7 +2397,7 @@ BOOST_AUTO_TEST_CASE(event_driven_standard_progression_3)
 
       // as soon as a block is generated, the betting market group will cancel, and the market
       // and group will cease to exist.  The event should transition to "canceled", then be removed
-      fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
+      fc_pp::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
 
       BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "canceled");
  
@@ -2428,7 +2428,7 @@ BOOST_AUTO_TEST_CASE(event_driven_progression_errors_1)
 
       // settled is the only illegal transition from upcoming
       BOOST_TEST_MESSAGE("verifying we can't jump to settled");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::settled, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::settled, _force = true), fc_pp::exception);
 
       BOOST_TEST_MESSAGE("setting the event frozen");
       update_event(capitals_vs_blackhawks.id, _status = event_status::frozen);
@@ -2440,7 +2440,7 @@ BOOST_AUTO_TEST_CASE(event_driven_progression_errors_1)
 
       // settled is the only illegal transition from this frozen event
       BOOST_TEST_MESSAGE("verifying we can't jump to settled");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::settled, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::settled, _force = true), fc_pp::exception);
 
       BOOST_TEST_MESSAGE("setting the event in progress");
       update_event(capitals_vs_blackhawks.id, _status = event_status::in_progress);
@@ -2451,9 +2451,9 @@ BOOST_AUTO_TEST_CASE(event_driven_progression_errors_1)
       // we can't go back to upcoming from in_progress.
       // settled is disallowed everywhere
       BOOST_TEST_MESSAGE("verifying we can't jump to upcoming");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::upcoming, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::upcoming, _force = true), fc_pp::exception);
       BOOST_TEST_MESSAGE("verifying we can't jump to settled");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::settled, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::settled, _force = true), fc_pp::exception);
 
       BOOST_TEST_MESSAGE("setting the event frozen");
       update_event(capitals_vs_blackhawks.id, _status = event_status::frozen);
@@ -2466,9 +2466,9 @@ BOOST_AUTO_TEST_CASE(event_driven_progression_errors_1)
       // we can't go back to upcoming from frozen once we've gone in_progress.
       // settled is disallowed everywhere
       BOOST_TEST_MESSAGE("verifying we can't jump to upcoming");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::upcoming, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::upcoming, _force = true), fc_pp::exception);
       BOOST_TEST_MESSAGE("verifying we can't jump to settled");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::settled, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::settled, _force = true), fc_pp::exception);
 
       BOOST_TEST_MESSAGE("setting the event to finished");
       update_event(capitals_vs_blackhawks.id, _status = event_status::finished);
@@ -2481,33 +2481,33 @@ BOOST_AUTO_TEST_CASE(event_driven_progression_errors_1)
       // we can't go back to upcoming, in_progress, or frozen once we're finished.
       // settled is disallowed everywhere
       BOOST_TEST_MESSAGE("verifying we can't jump to upcoming");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::upcoming, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::upcoming, _force = true), fc_pp::exception);
       BOOST_TEST_MESSAGE("verifying we can't jump to in_progress");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::in_progress, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::in_progress, _force = true), fc_pp::exception);
       BOOST_TEST_MESSAGE("verifying we can't jump to frozen");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::frozen, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::frozen, _force = true), fc_pp::exception);
       BOOST_TEST_MESSAGE("verifying we can't jump to settled");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::settled, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks.id, _status = event_status::settled, _force = true), fc_pp::exception);
 
       BOOST_TEST_MESSAGE("setting the event to canceled");
       update_event(capitals_vs_blackhawks.id, _status = event_status::canceled);
       generate_blocks(1);
 
-      fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
+      fc_pp::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
       BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "canceled");
 
       // we can't go back to upcoming, in_progress, frozen, or finished once we're canceled.
       // (this won't work because the event has been deleted)
       BOOST_TEST_MESSAGE("verifying we can't jump to upcoming");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::upcoming, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::upcoming, _force = true), fc_pp::exception);
       BOOST_TEST_MESSAGE("verifying we can't jump to in_progress");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::in_progress, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::in_progress, _force = true), fc_pp::exception);
       BOOST_TEST_MESSAGE("verifying we can't jump to frozen");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::frozen, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::frozen, _force = true), fc_pp::exception);
       BOOST_TEST_MESSAGE("verifying we can't jump to finished");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::finished, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::finished, _force = true), fc_pp::exception);
       BOOST_TEST_MESSAGE("verifying we can't jump to settled");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::settled, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::settled, _force = true), fc_pp::exception);
    } FC_LOG_AND_RETHROW()
 }
 
@@ -2545,21 +2545,21 @@ BOOST_AUTO_TEST_CASE(event_driven_progression_errors_2)
 
       // as soon as a block is generated, the betting market group will settle, and the market
       // and group will cease to exist.  The event should transition to "settled", then removed
-      fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
+      fc_pp::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
       BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
 
       // we can't go back to upcoming, in_progress, frozen, or finished once we're canceled.
       // (this won't work because the event has been deleted)
       BOOST_TEST_MESSAGE("verifying we can't jump to upcoming");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::upcoming, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::upcoming, _force = true), fc_pp::exception);
       BOOST_TEST_MESSAGE("verifying we can't jump to in_progress");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::in_progress, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::in_progress, _force = true), fc_pp::exception);
       BOOST_TEST_MESSAGE("verifying we can't jump to frozen");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::frozen, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::frozen, _force = true), fc_pp::exception);
       BOOST_TEST_MESSAGE("verifying we can't jump to finished");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::finished, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::finished, _force = true), fc_pp::exception);
       BOOST_TEST_MESSAGE("verifying we can't jump to canceled");
-      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::canceled, _force = true), fc::exception);
+      BOOST_CHECK_THROW(update_event(capitals_vs_blackhawks_id, _status = event_status::canceled, _force = true), fc_pp::exception);
    } FC_LOG_AND_RETHROW()
 }
 
@@ -2617,7 +2617,7 @@ BOOST_AUTO_TEST_CASE(betting_market_group_driven_standard_progression)
 
       // as soon as a block is generated, the betting market group will settle, and the market
       // and group will cease to exist.  The event should transition to "settled"
-      fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
+      fc_pp::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
       BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
    } FC_LOG_AND_RETHROW()
 }
@@ -2728,7 +2728,7 @@ BOOST_AUTO_TEST_CASE(multi_betting_market_group_driven_standard_progression)
 
       // as soon as a block is generated, the two betting market groups will settle, and the market
       // and group will cease to exist.  The event should transition to "settled"
-      fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
+      fc_pp::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
       BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
    } FC_LOG_AND_RETHROW()
 }
@@ -2774,32 +2774,32 @@ BOOST_FIXTURE_TEST_CASE( another_event_group_update_test, database_fixture)
  
       place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
  
-      fc::optional<internationalized_string_type> name = internationalized_string_type({{"en", "IBM"}, {"zh_Hans", "國家冰球聯"}, {"ja", "ナショナルホッケーリー"}});
+      fc_pp::optional<internationalized_string_type> name = internationalized_string_type({{"en", "IBM"}, {"zh_Hans", "國家冰球聯"}, {"ja", "ナショナルホッケーリー"}});
  
       const sport_object& ice_on_hockey = create_sport({{"en", "Hockey on Ice"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}}); \
-      fc::optional<object_id_type> sport_id = ice_on_hockey.id;
+      fc_pp::optional<object_id_type> sport_id = ice_on_hockey.id;
  
-      update_event_group(nhl.id, fc::optional<object_id_type>(), name);
-      update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>());
+      update_event_group(nhl.id, fc_pp::optional<object_id_type>(), name);
+      update_event_group(nhl.id, sport_id, fc_pp::optional<internationalized_string_type>());
       update_event_group(nhl.id, sport_id, name);
  
       // trx_state->_is_proposed_trx
-      //GRAPHENE_REQUIRE_THROW(try_update_event_group(nhl.id, fc::optional<object_id_type>(), fc::optional<internationalized_string_type>(), true), fc::exception);
-      TRY_EXPECT_THROW(try_update_event_group(nhl.id, fc::optional<object_id_type>(), fc::optional<internationalized_string_type>(), true), fc::exception, "_is_proposed_trx");
+      //GRAPHENE_REQUIRE_THROW(try_update_event_group(nhl.id, fc_pp::optional<object_id_type>(), fc_pp::optional<internationalized_string_type>(), true), fc_pp::exception);
+      TRY_EXPECT_THROW(try_update_event_group(nhl.id, fc_pp::optional<object_id_type>(), fc_pp::optional<internationalized_string_type>(), true), fc_pp::exception, "_is_proposed_trx");
  
       // #! nothing to change
-      //GRAPHENE_REQUIRE_THROW(try_update_event_group(nhl.id, fc::optional<object_id_type>(), fc::optional<internationalized_string_type>()), fc::exception);
-      TRY_EXPECT_THROW(try_update_event_group(nhl.id, fc::optional<object_id_type>(), fc::optional<internationalized_string_type>()), fc::exception, "nothing to change");
+      //GRAPHENE_REQUIRE_THROW(try_update_event_group(nhl.id, fc_pp::optional<object_id_type>(), fc_pp::optional<internationalized_string_type>()), fc_pp::exception);
+      TRY_EXPECT_THROW(try_update_event_group(nhl.id, fc_pp::optional<object_id_type>(), fc_pp::optional<internationalized_string_type>()), fc_pp::exception, "nothing to change");
  
       // #! sport_id must refer to a sport_id_type
       sport_id = capitals_win_market.id;
-      //GRAPHENE_REQUIRE_THROW(try_update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>()), fc::exception);
-      TRY_EXPECT_THROW(try_update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>()), fc::exception, "sport_id must refer to a sport_id_type");
+      //GRAPHENE_REQUIRE_THROW(try_update_event_group(nhl.id, sport_id, fc_pp::optional<internationalized_string_type>()), fc_pp::exception);
+      TRY_EXPECT_THROW(try_update_event_group(nhl.id, sport_id, fc_pp::optional<internationalized_string_type>()), fc_pp::exception, "sport_id must refer to a sport_id_type");
  
       // #! invalid sport specified
       sport_id = sport_id_type(13);
-      //GRAPHENE_REQUIRE_THROW(try_update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>()), fc::exception);
-      TRY_EXPECT_THROW(try_update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>()), fc::exception, "invalid sport specified");
+      //GRAPHENE_REQUIRE_THROW(try_update_event_group(nhl.id, sport_id, fc_pp::optional<internationalized_string_type>()), fc_pp::exception);
+      TRY_EXPECT_THROW(try_update_event_group(nhl.id, sport_id, fc_pp::optional<internationalized_string_type>()), fc_pp::exception, "invalid sport specified");
  
       place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
  
@@ -2838,13 +2838,13 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_sf_test )
       transfer(account_id_type(), alice_id, asset(10000000));
       transfer(account_id_type(), bob_id, asset(10000000));
 
-      BOOST_TEST_MESSAGE("moneyline_berdych_vs_federer  " << fc::variant(moneyline_berdych_vs_federer.id).as<std::string>());
-      BOOST_TEST_MESSAGE("moneyline_cilic_vs_querrey  " << fc::variant(moneyline_cilic_vs_querrey.id).as<std::string>());
+      BOOST_TEST_MESSAGE("moneyline_berdych_vs_federer  " << fc_pp::variant(moneyline_berdych_vs_federer.id).as<std::string>());
+      BOOST_TEST_MESSAGE("moneyline_cilic_vs_querrey  " << fc_pp::variant(moneyline_cilic_vs_querrey.id).as<std::string>());
 
-      BOOST_TEST_MESSAGE("berdych_wins_market " << fc::variant(berdych_wins_market.id).as<std::string>());
-      BOOST_TEST_MESSAGE("federer_wins_market " << fc::variant(federer_wins_market.id).as<std::string>());
-      BOOST_TEST_MESSAGE("cilic_wins_market " << fc::variant(cilic_wins_market.id).as<std::string>());
-      BOOST_TEST_MESSAGE("querrey_wins_market " << fc::variant(querrey_wins_market.id).as<std::string>());
+      BOOST_TEST_MESSAGE("berdych_wins_market " << fc_pp::variant(berdych_wins_market.id).as<std::string>());
+      BOOST_TEST_MESSAGE("federer_wins_market " << fc_pp::variant(federer_wins_market.id).as<std::string>());
+      BOOST_TEST_MESSAGE("cilic_wins_market " << fc_pp::variant(cilic_wins_market.id).as<std::string>());
+      BOOST_TEST_MESSAGE("querrey_wins_market " << fc_pp::variant(querrey_wins_market.id).as<std::string>());
 
       place_bet(alice_id, berdych_wins_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
       place_bet(bob_id, berdych_wins_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
@@ -2899,10 +2899,10 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_final_test )
       transfer(account_id_type(), alice_id, asset(10000000));
       transfer(account_id_type(), bob_id, asset(10000000));
 
-      BOOST_TEST_MESSAGE("moneyline_cilic_vs_federer  " << fc::variant(moneyline_cilic_vs_federer.id).as<std::string>());
+      BOOST_TEST_MESSAGE("moneyline_cilic_vs_federer  " << fc_pp::variant(moneyline_cilic_vs_federer.id).as<std::string>());
 
-      BOOST_TEST_MESSAGE("federer_wins_final_market " << fc::variant(federer_wins_final_market.id).as<std::string>());
-      BOOST_TEST_MESSAGE("cilic_wins_final_market " << fc::variant(cilic_wins_final_market.id).as<std::string>());
+      BOOST_TEST_MESSAGE("federer_wins_final_market " << fc_pp::variant(federer_wins_final_market.id).as<std::string>());
+      BOOST_TEST_MESSAGE("cilic_wins_final_market " << fc_pp::variant(cilic_wins_final_market.id).as<std::string>());
 
       betting_market_group_id_type moneyline_cilic_vs_federer_id = moneyline_cilic_vs_federer.id;
       update_betting_market_group(moneyline_cilic_vs_federer_id, _status = betting_market_group_status::in_play);

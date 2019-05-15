@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include <boost/test/unit_test.hpp>
-//#include <fc/crypto/openssl.hpp>
+//#include <fc_pp/crypto/openssl.hpp>
 //#include <openssl/rand.h>
 
 #include <graphene/chain/tournament_object.hpp>
@@ -122,7 +122,7 @@ BOOST_FIXTURE_TEST_CASE( basic, database_fixture )
            }
            BOOST_TEST_MESSAGE("Bye" + o);
     }
-    catch (fc::exception& e)
+    catch (fc_pp::exception& e)
     {
         edump((e.to_detail_string()));
         throw;

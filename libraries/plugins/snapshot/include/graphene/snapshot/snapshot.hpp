@@ -26,7 +26,7 @@
 #include <graphene/app/plugin.hpp>
 #include <graphene/chain/database.hpp>
 
-#include <fc/time.hpp>
+#include <fc_pp/time.hpp>
 
 namespace graphene { namespace snapshot_plugin {
 
@@ -49,8 +49,8 @@ class snapshot_plugin : public graphene::app::plugin {
        void check_snapshot( const graphene::chain::signed_block& b);
 
        uint32_t           snapshot_block = -1, last_block = 0;
-       fc::time_point_sec snapshot_time = fc::time_point_sec::maximum(), last_time = fc::time_point_sec(1);
-       fc::path           dest;
+       fc_pp::time_point_sec snapshot_time = fc_pp::time_point_sec::maximum(), last_time = fc_pp::time_point_sec(1);
+       fc_pp::path           dest;
 };
 
 } } //graphene::snapshot_plugin

@@ -21,10 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <fc/filesystem.hpp>
-#include <fc/optional.hpp>
-#include <fc/variant_object.hpp>
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/filesystem.hpp>
+#include <fc_pp/optional.hpp>
+#include <fc_pp/variant_object.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 
 #include <graphene/app/application.hpp>
 
@@ -53,7 +53,7 @@ class bookie_api_impl
       std::shared_ptr<graphene::bookie::bookie_plugin> get_plugin();
       asset get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id);
       std::vector<event_object> get_events_containing_sub_string(const std::string& sub_string, const std::string& language);
-      fc::variants get_objects(const vector<object_id_type>& ids) const;
+      fc_pp::variants get_objects(const vector<object_id_type>& ids) const;
       std::vector<matched_bet_object> get_matched_bets_for_bettor(account_id_type bettor_id) const;
       std::vector<matched_bet_object> get_all_matched_bets_for_bettor(account_id_type bettor_id, bet_id_type start, unsigned limit) const;
       graphene::app::application& app;
@@ -84,7 +84,7 @@ binned_order_book bookie_api_impl::get_binned_order_book(graphene::chain::bettin
     binned_order_book result; 
 
     // use a bet_object here for convenience. we really only use it to track the amount, odds, and back_or_lay
-    fc::optional<bet_object> current_bin;
+    fc_pp::optional<bet_object> current_bin;
 
     auto flush_current_bin = [&current_bin, &result]()
     {
@@ -146,14 +146,14 @@ binned_order_book bookie_api_impl::get_binned_order_book(graphene::chain::bettin
     return result;
 }
 
-fc::variants bookie_api_impl::get_objects(const vector<object_id_type>& ids) const
+fc_pp::variants bookie_api_impl::get_objects(const vector<object_id_type>& ids) const
 {
    std::shared_ptr<graphene::chain::database> db = app.chain_database();
-   fc::variants result;
+   fc_pp::variants result;
    result.reserve(ids.size());
 
    std::transform(ids.begin(), ids.end(), std::back_inserter(result),
-                  [this, &db](object_id_type id) -> fc::variant {
+                  [this, &db](object_id_type id) -> fc_pp::variant {
       switch (id.type())
       {
       case event_id_type::type_id:
@@ -295,7 +295,7 @@ std::vector<event_object> bookie_api::get_events_containing_sub_string(const std
    return my->get_events_containing_sub_string(sub_string, language);
 }
 
-fc::variants bookie_api::get_objects(const vector<object_id_type>& ids) const
+fc_pp::variants bookie_api::get_objects(const vector<object_id_type>& ids) const
 {
    return my->get_objects(ids);
 }

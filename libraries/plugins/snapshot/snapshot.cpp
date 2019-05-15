@@ -25,7 +25,7 @@
 
 #include <graphene/chain/database.hpp>
 
-#include <fc/io/fstream.hpp>
+#include <fc_pp/io/fstream.hpp>
 
 using namespace graphene::snapshot_plugin;
 using std::string;
@@ -65,7 +65,7 @@ void snapshot_plugin::plugin_initialize(const boost::program_options::variables_
       if( options.count(OPT_BLOCK_NUM) )
          snapshot_block = options[OPT_BLOCK_NUM].as<uint32_t>();
       if( options.count(OPT_BLOCK_TIME) )
-         snapshot_time = fc::time_point_sec::from_iso_string( options[OPT_BLOCK_TIME].as<std::string>() );
+         snapshot_time = fc_pp::time_point_sec::from_iso_string( options[OPT_BLOCK_TIME].as<std::string>() );
       database().applied_block.connect( [&]( const graphene::chain::signed_block& b ) {
          check_snapshot( b );
       });
@@ -79,15 +79,15 @@ void snapshot_plugin::plugin_startup() {}
 
 void snapshot_plugin::plugin_shutdown() {}
 
-static void create_snapshot( const graphene::chain::database& db, const fc::path& dest )
+static void create_snapshot( const graphene::chain::database& db, const fc_pp::path& dest )
 {
    ilog("snapshot plugin: creating snapshot");
-   fc::ofstream out;
+   fc_pp::ofstream out;
    try
    {
       out.open( dest );
    }
-   catch ( fc::exception& e )
+   catch ( fc_pp::exception& e )
    {
       wlog( "Failed to open snapshot destination: ${ex}", ("ex",e) );
       return;
@@ -99,13 +99,13 @@ static void create_snapshot( const graphene::chain::database& db, const fc::path
          {
             db.get_index( (uint8_t)space_id, (uint8_t)type_id );
          }
-         catch (fc::assert_exception& e)
+         catch (fc_pp::assert_exception& e)
          {
             continue;
          }
          auto& index = db.get_index( (uint8_t)space_id, (uint8_t)type_id );
          index.inspect_all_objects( [&out]( const graphene::db::object& o ) {
-            out << fc::json::to_string( o.to_variant() ) << '\n';
+            out << fc_pp::json::to_string( o.to_variant() ) << '\n';
          });
       }
    out.close();

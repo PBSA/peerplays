@@ -25,8 +25,8 @@
 #include <iostream>
 #include <string>
 
-#include <fc/crypto/elliptic.hpp>
-#include <fc/io/json.hpp>
+#include <fc_pp/crypto/elliptic.hpp>
+#include <fc_pp/io/json.hpp>
 
 #include <graphene/chain/protocol/address.hpp>
 #include <graphene/chain/protocol/types.hpp>
@@ -70,9 +70,9 @@ int main( int argc, char** argv )
 
       bool comma = false;
 
-      auto show_key = [&]( const fc::ecc::private_key& priv_key )
+      auto show_key = [&]( const fc_pp::ecc::private_key& priv_key )
       {
-         fc::mutable_variant_object mvo;
+         fc_pp::mutable_variant_object mvo;
          graphene::chain::public_key_type pub_key = priv_key.get_public_key();
          mvo( "private_key", graphene::utilities::key_to_wif( priv_key ) )
             ( "public_key", std::string( pub_key ) )
@@ -80,7 +80,7 @@ int main( int argc, char** argv )
             ;
          if( comma )
             std::cout << ",\n";
-         std::cout << fc::json::to_string( mvo );
+         std::cout << fc_pp::json::to_string( mvo );
          comma = true;
       };
 
@@ -104,23 +104,23 @@ int main( int argc, char** argv )
                rep = std::stoi( rhs.substr( colon_pos+1 ) );
             }
          }
-         vector< fc::ecc::private_key > keys;
+         vector< fc_pp::ecc::private_key > keys;
          if( lep >= 0 )
          {
             for( int k=lep; k<rep; k++ )
             {
                std::string s = dev_key_prefix + prefix + std::to_string(k);
-               show_key( fc::ecc::private_key::regenerate( fc::sha256::hash( s ) ) );
+               show_key( fc_pp::ecc::private_key::regenerate( fc_pp::sha256::hash( s ) ) );
             }
          }
          else
          {
-            show_key( fc::ecc::private_key::regenerate( fc::sha256::hash( dev_key_prefix + arg ) ) );
+            show_key( fc_pp::ecc::private_key::regenerate( fc_pp::sha256::hash( dev_key_prefix + arg ) ) );
          }
       }
       std::cout << "]\n";
    }
-   catch ( const fc::exception& e )
+   catch ( const fc_pp::exception& e )
    {
       std::cout << e.to_detail_string() << "\n";
       return 1;

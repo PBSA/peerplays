@@ -24,7 +24,7 @@
 
 #include <graphene/chain/global_property_object.hpp>
 #include <graphene/chain/protocol/vote.hpp>
-#include <fc/variant.hpp>
+#include <fc_pp/variant.hpp>
 
 namespace graphene { namespace chain {
 
@@ -35,7 +35,7 @@ vote_id_type get_next_vote_id( global_property_object& gpo, vote_id_type::vote_t
 
 } } // graphene::chain
 
-namespace fc
+namespace fc_pp
 {
 
 void to_variant(const graphene::chain::vote_id_type& var, variant& vo)
@@ -48,4 +48,4 @@ void from_variant(const variant& var, graphene::chain::vote_id_type& vo)
    vo = graphene::chain::vote_id_type(var.as_string());
 }
 
-} // fc
+} // fc_pp

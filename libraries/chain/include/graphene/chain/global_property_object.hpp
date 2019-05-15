@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #pragma once
-#include <fc/uint128.hpp>
+#include <fc_pp/uint128.hpp>
 
 #include <graphene/chain/protocol/chain_parameters.hpp>
 #include <graphene/chain/protocol/types.hpp>
@@ -99,7 +99,7 @@ namespace graphene { namespace chain {
          /**
           * used to compute witness participation.
           */
-         fc::uint128_t recent_slots_filled;
+         fc_pp::uint128_t recent_slots_filled;
 
          /**
           * dynamic_flags specifies chain state properties that can be

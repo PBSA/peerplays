@@ -22,9 +22,9 @@
  * THE SOFTWARE.
  */
 #pragma once
-#include <fc/network/tcp_socket.hpp>
-#include <fc/crypto/aes.hpp>
-#include <fc/crypto/elliptic.hpp>
+#include <fc_pp/network/tcp_socket.hpp>
+#include <fc_pp/crypto/aes.hpp>
+#include <fc_pp/crypto/elliptic.hpp>
 
 namespace graphene { namespace net {
 
@@ -32,16 +32,16 @@ namespace graphene { namespace net {
  *  Uses ECDH to negotiate a aes key for communicating
  *  with other nodes on the network.
  */
-class stcp_socket : public virtual fc::iostream
+class stcp_socket : public virtual fc_pp::iostream
 {
   public:
     stcp_socket();
     ~stcp_socket();
-    fc::tcp_socket&  get_socket() { return _sock; }
+    fc_pp::tcp_socket&  get_socket() { return _sock; }
     void             accept();
 
-    void             connect_to( const fc::ip::endpoint& remote_endpoint );
-    void             bind( const fc::ip::endpoint& local_endpoint );
+    void             connect_to( const fc_pp::ip::endpoint& remote_endpoint );
+    void             bind( const fc_pp::ip::endpoint& local_endpoint );
 
     virtual size_t   readsome( char* buffer, size_t max );
     virtual size_t   readsome( const std::shared_ptr<char>& buf, size_t len, size_t offset );
@@ -55,17 +55,17 @@ class stcp_socket : public virtual fc::iostream
 
     using istream::get;
     void             get( char& c ) { read( &c, 1 ); }
-    fc::sha512       get_shared_secret() const { return _shared_secret; }
+    fc_pp::sha512       get_shared_secret() const { return _shared_secret; }
   private:
     void do_key_exchange();
 
-    fc::sha512           _shared_secret;
-    fc::ecc::private_key _priv_key;
-    fc::array<char,8>    _buf;
+    fc_pp::sha512           _shared_secret;
+    fc_pp::ecc::private_key _priv_key;
+    fc_pp::array<char,8>    _buf;
     //uint32_t             _buf_len;
-    fc::tcp_socket       _sock;
-    fc::aes_encoder      _send_aes;
-    fc::aes_decoder      _recv_aes;
+    fc_pp::tcp_socket       _sock;
+    fc_pp::aes_encoder      _send_aes;
+    fc_pp::aes_decoder      _recv_aes;
     std::shared_ptr<char> _read_buffer;
     std::shared_ptr<char> _write_buffer;
 #ifndef NDEBUG

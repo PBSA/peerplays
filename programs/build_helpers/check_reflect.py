@@ -109,7 +109,7 @@ def validate_members(name2members_ref, name2members_test):
             print("")
             print("error in", name)
             print("doxygen:", name2members_ref[name])
-            print("fc     :", name2members_test[name])
+            print("fc_pp     :", name2members_test[name])
         else:
             ok_items.append(name)
     return

@@ -30,8 +30,8 @@
 
 #include <graphene/account_history/account_history_plugin.hpp>
 
-#include <fc/thread/thread.hpp>
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/thread/thread.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 
 #include <boost/filesystem/path.hpp>
 
@@ -47,9 +47,9 @@ BOOST_AUTO_TEST_CASE( two_node_network )
    try {
       BOOST_TEST_MESSAGE( "Creating temporary files" );
 
-      fc::temp_directory app_dir( graphene::utilities::temp_directory_path() );
-      fc::temp_directory app2_dir( graphene::utilities::temp_directory_path() );
-      fc::temp_file genesis_json;
+      fc_pp::temp_directory app_dir( graphene::utilities::temp_directory_path() );
+      fc_pp::temp_directory app2_dir( graphene::utilities::temp_directory_path() );
+      fc_pp::temp_file genesis_json;
 
       BOOST_TEST_MESSAGE( "Creating and initializing app1" );
 
@@ -71,10 +71,10 @@ BOOST_AUTO_TEST_CASE( two_node_network )
 
       BOOST_TEST_MESSAGE( "Starting app1 and waiting 500 ms" );
       app1.startup();                                      
-      fc::usleep(fc::milliseconds(500));
+      fc_pp::usleep(fc_pp::milliseconds(500));
       BOOST_TEST_MESSAGE( "Starting app2 and waiting 500 ms" );
       app2.startup();
-      fc::usleep(fc::milliseconds(500));
+      fc_pp::usleep(fc_pp::milliseconds(500));
 
       BOOST_REQUIRE_EQUAL(app1.p2p_node()->get_connection_count(), 1);
       BOOST_CHECK_EQUAL(std::string(app1.p2p_node()->get_connected_peers().front().host.get_address()), "127.0.0.1");
@@ -90,7 +90,7 @@ BOOST_AUTO_TEST_CASE( two_node_network )
       graphene::chain::signed_transaction trx;
       {
          account_id_type nathan_id = db2->get_index_type<account_index>().indices().get<by_name>().find( "nathan" )->id;
-         fc::ecc::private_key nathan_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+         fc_pp::ecc::private_key nathan_key = fc_pp::ecc::private_key::regenerate(fc_pp::sha256::hash(string("nathan")));
 
          balance_claim_operation claim_op;
          balance_id_type bid = balance_id_type();
@@ -122,13 +122,13 @@ BOOST_AUTO_TEST_CASE( two_node_network )
       BOOST_TEST_MESSAGE( "Broadcasting tx" );
       app1.p2p_node()->broadcast(graphene::net::trx_message(trx));
 
-      fc::usleep(fc::milliseconds(500));
+      fc_pp::usleep(fc_pp::milliseconds(500));
 
       BOOST_CHECK_EQUAL( db1->get_balance( GRAPHENE_NULL_ACCOUNT, asset_id_type() ).amount.value, 1000000 );
       BOOST_CHECK_EQUAL( db2->get_balance( GRAPHENE_NULL_ACCOUNT, asset_id_type() ).amount.value, 1000000 );
 
       BOOST_TEST_MESSAGE( "Generating block on db2" );
-      fc::ecc::private_key committee_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+      fc_pp::ecc::private_key committee_key = fc_pp::ecc::private_key::regenerate(fc_pp::sha256::hash(string("nathan")));
 
       auto block_1 = db2->generate_block(
          db2->get_slot_time(1),
@@ -139,13 +139,13 @@ BOOST_AUTO_TEST_CASE( two_node_network )
       BOOST_TEST_MESSAGE( "Broadcasting block" );
       app2.p2p_node()->broadcast(graphene::net::block_message( block_1 ));
 
-      fc::usleep(fc::milliseconds(500));
+      fc_pp::usleep(fc_pp::milliseconds(500));
       BOOST_TEST_MESSAGE( "Verifying nodes are still connected" );
       BOOST_CHECK_EQUAL(app1.p2p_node()->get_connection_count(), 1);
       BOOST_CHECK_EQUAL(app1.chain_database()->head_block_num(), 1);
 
       BOOST_TEST_MESSAGE( "Checking GRAPHENE_NULL_ACCOUNT has balance" );
-   } catch( fc::exception& e ) {
+   } catch( fc_pp::exception& e ) {
       edump((e.to_detail_string()));
       throw;
    }

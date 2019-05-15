@@ -27,10 +27,10 @@
 #include <iostream>
 #include <iterator>
 
-#include <fc/io/fstream.hpp>
-#include <fc/io/json.hpp>
-#include <fc/io/stdio.hpp>
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/io/fstream.hpp>
+#include <fc_pp/io/json.hpp>
+#include <fc_pp/io/stdio.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 
 #include <graphene/app/api.hpp>
 #include <graphene/chain/protocol/protocol.hpp>
@@ -87,29 +87,29 @@ int main( int argc, char** argv )
          return 0;
       }
 
-      fc::path data_dir;
+      fc_pp::path data_dir;
       if( options.count("data-dir") )
       {
          data_dir = options["data-dir"].as<boost::filesystem::path>();
          if( data_dir.is_relative() )
-            data_dir = fc::current_path() / data_dir;
+            data_dir = fc_pp::current_path() / data_dir;
       }
 
       genesis_state_type genesis;
       if( options.count("genesis-json") )
       {
-         fc::path genesis_json_filename = options["genesis-json"].as<boost::filesystem::path>();
+         fc_pp::path genesis_json_filename = options["genesis-json"].as<boost::filesystem::path>();
          std::cerr << "embed_genesis:  Reading genesis from file " << genesis_json_filename.preferred_string() << "\n";
          std::string genesis_json;
          read_file_contents( genesis_json_filename, genesis_json );
-         genesis = fc::json::from_string( genesis_json ).as< genesis_state_type >();
+         genesis = fc_pp::json::from_string( genesis_json ).as< genesis_state_type >();
       }
       else
          genesis = graphene::app::detail::create_example_genesis();
       uint32_t timestamp = options["genesis-time"].as<uint32_t>();
       if( timestamp != 0 )
       {
-         genesis.initial_timestamp = fc::time_point_sec( timestamp );
+         genesis.initial_timestamp = fc_pp::time_point_sec( timestamp );
          std::cerr << "embed_genesis:  Genesis timestamp is " << genesis.initial_timestamp.sec_since_epoch() << " (from CLI)\n";
       }
       else
@@ -119,11 +119,11 @@ int main( int argc, char** argv )
       uint32_t num_blocks = options["num-blocks"].as<uint32_t>();
       uint32_t miss_rate = options["miss-rate"].as<uint32_t>();
 
-      fc::ecc::private_key init_account_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("null_key")) );
-      fc::ecc::private_key nathan_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+      fc_pp::ecc::private_key init_account_priv_key = fc_pp::ecc::private_key::regenerate(fc_pp::sha256::hash(string("null_key")) );
+      fc_pp::ecc::private_key nathan_priv_key = fc_pp::ecc::private_key::regenerate(fc_pp::sha256::hash(string("nathan")));
 
       database db;
-      fc::path db_path = data_dir / "db";
+      fc_pp::path db_path = data_dir / "db";
       db.open(db_path, [&]() { return genesis; } );
 
       uint32_t slot = 1;
@@ -133,7 +133,7 @@ int main( int argc, char** argv )
       {
          signed_block b = db.generate_block(db.get_slot_time(slot), db.get_scheduled_witness(slot), nathan_priv_key, database::skip_nothing);
          FC_ASSERT( db.head_block_id() == b.id() );
-         fc::sha256 h = b.digest();
+         fc_pp::sha256 h = b.digest();
          uint64_t rand = h._hash[0];
          slot = 1;
          while(true)
@@ -166,7 +166,7 @@ int main( int argc, char** argv )
       std::cerr << "\n";
       db.close();
    }
-   catch ( const fc::exception& e )
+   catch ( const fc_pp::exception& e )
    {
       std::cout << e.to_detail_string() << "\n";
       return 1;

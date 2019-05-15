@@ -59,11 +59,11 @@ namespace graphene { namespace chain {
       vector<char> message;
 
       /// @note custom_nonce is for debugging only; do not set to a nonzero value in production
-      void        set_message(const fc::ecc::private_key& priv,
-                              const fc::ecc::public_key& pub, const string& msg, uint64_t custom_nonce = 0);
+      void        set_message(const fc_pp::ecc::private_key& priv,
+                              const fc_pp::ecc::public_key& pub, const string& msg, uint64_t custom_nonce = 0);
 
-      std::string get_message(const fc::ecc::private_key& priv,
-                              const fc::ecc::public_key& pub)const;
+      std::string get_message(const fc_pp::ecc::private_key& priv,
+                              const fc_pp::ecc::public_key& pub)const;
    };
 
    /**

@@ -26,8 +26,8 @@
 #include <memory>
 #include <string>
 
-#include <fc/api.hpp>
-#include <fc/variant_object.hpp>
+#include <fc_pp/api.hpp>
+#include <fc_pp/variant_object.hpp>
 
 namespace graphene { namespace app {
 class application;
@@ -57,7 +57,7 @@ class debug_api
       /**
        * Directly manipulate database objects (will undo and re-apply last block with new changes post-applied).
        */
-      void debug_update_object( fc::variant_object update );
+      void debug_update_object( fc_pp::variant_object update );
 
       /**
        * Start a node with given initial path.

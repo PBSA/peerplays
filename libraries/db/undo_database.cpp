@@ -23,7 +23,7 @@
  */
 #include <graphene/db/object_database.hpp>
 #include <graphene/db/undo_database.hpp>
-#include <fc/reflect/variant.hpp>
+#include <fc_pp/reflect/variant.hpp>
 
 namespace graphene { namespace db {
 
@@ -273,7 +273,7 @@ void undo_database::pop_commit()
 
       _stack.pop_back();
    }
-   catch ( const fc::exception& e )
+   catch ( const fc_pp::exception& e )
    {
       elog( "error popping commit ${e}", ("e", e.to_detail_string() )  );
       enable();

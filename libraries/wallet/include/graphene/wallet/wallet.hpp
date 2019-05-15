@@ -32,7 +32,7 @@ using namespace graphene::utilities;
 using namespace graphene::bookie;
 using namespace std;
 
-namespace fc
+namespace fc_pp
 {
    void to_variant(const account_multi_index_type& accts, variant& vo);
    void from_variant(const variant &var, account_multi_index_type &vo);
@@ -52,7 +52,7 @@ object* create_object( const variant& v );
 struct plain_keys
 {
    map<public_key_type, string>  keys;
-   fc::sha512                    checksum;
+   fc_pp::sha512                    checksum;
 };
 
 struct brain_key_info
@@ -90,19 +90,19 @@ struct blind_balance
    public_key_type           from; ///< the account this balance came from
    public_key_type           to; ///< the account this balance is logically associated with
    public_key_type           one_time_key; ///< used to derive the authority key and blinding factor
-   fc::sha256                blinding_factor;
-   fc::ecc::commitment_type  commitment;
+   fc_pp::sha256                blinding_factor;
+   fc_pp::ecc::commitment_type  commitment;
    bool                      used = false;
 };
 
 struct blind_receipt
 {
-   std::pair<public_key_type,fc::time_point>        from_date()const { return std::make_pair(from_key,date); }
-   std::pair<public_key_type,fc::time_point>        to_date()const   { return std::make_pair(to_key,date);   }
+   std::pair<public_key_type,fc_pp::time_point>        from_date()const { return std::make_pair(from_key,date); }
+   std::pair<public_key_type,fc_pp::time_point>        to_date()const   { return std::make_pair(to_key,date);   }
    std::tuple<public_key_type,asset_id_type,bool>   to_asset_used()const   { return std::make_tuple(to_key,amount.asset_id,used);   }
    const commitment_type& commitment()const        { return data.commitment; }
 
-   fc::time_point                  date;
+   fc_pp::time_point                  date;
    public_key_type                 from_key;
    string                          from_label;
    public_key_type                 to_key;
@@ -123,9 +123,9 @@ struct by_commitment;
 typedef multi_index_container< blind_receipt,
    indexed_by<
       ordered_unique< tag<by_commitment>, const_mem_fun< blind_receipt, const commitment_type&, &blind_receipt::commitment > >,
-      ordered_unique< tag<by_to>, const_mem_fun< blind_receipt, std::pair<public_key_type,fc::time_point>, &blind_receipt::to_date > >,
+      ordered_unique< tag<by_to>, const_mem_fun< blind_receipt, std::pair<public_key_type,fc_pp::time_point>, &blind_receipt::to_date > >,
       ordered_non_unique< tag<by_to_asset_used>, const_mem_fun< blind_receipt, std::tuple<public_key_type,asset_id_type,bool>, &blind_receipt::to_asset_used > >,
-      ordered_unique< tag<by_from>, const_mem_fun< blind_receipt, std::pair<public_key_type,fc::time_point>, &blind_receipt::from_date > >
+      ordered_unique< tag<by_from>, const_mem_fun< blind_receipt, std::pair<public_key_type,fc_pp::time_point>, &blind_receipt::from_date > >
    >
 > blind_receipt_index_type;
 
@@ -208,7 +208,7 @@ struct exported_account_keys
 
 struct exported_keys
 {
-    fc::sha512 password_checksum;
+    fc_pp::sha512 password_checksum;
     vector<exported_account_keys> account_keys;
 };
 
@@ -243,7 +243,7 @@ struct signed_block_with_info : public signed_block
 struct vesting_balance_object_with_info : public vesting_balance_object
 {
    vesting_balance_object_with_info();
-   vesting_balance_object_with_info( const vesting_balance_object& vbo, fc::time_point_sec now );
+   vesting_balance_object_with_info( const vesting_balance_object& vbo, fc_pp::time_point_sec now );
    vesting_balance_object_with_info( const vesting_balance_object_with_info& vbo ) = default;
 
    /**
@@ -254,7 +254,7 @@ struct vesting_balance_object_with_info : public vesting_balance_object
    /**
     * The time at which allowed_withdrawal was calculated.
     */
-   fc::time_point_sec allowed_withdraw_time;
+   fc_pp::time_point_sec allowed_withdraw_time;
 };
 
 namespace detail {
@@ -294,15 +294,15 @@ struct operation_detail {
 class wallet_api
 {
    public:
-      wallet_api( const wallet_data& initial_data, fc::api<login_api> rapi );
+      wallet_api( const wallet_data& initial_data, fc_pp::api<login_api> rapi );
       virtual ~wallet_api();
 
       bool copy_wallet_file( string destination_filename );
 
-      fc::ecc::private_key derive_private_key(const std::string& prefix_string, int sequence_number) const;
+      fc_pp::ecc::private_key derive_private_key(const std::string& prefix_string, int sequence_number) const;
 
       variant                           info();
-      /** Returns info such as client version, git version of graphene/fc, version of boost, openssl.
+      /** Returns info such as client version, git version of graphene/fc_pp, version of boost, openssl.
        * @returns compile time info and client and dependencies versions
        */
       variant_object                    about() const;
@@ -371,7 +371,7 @@ class wallet_api
 
       vector<account_balance_object> list_core_accounts()const;
 
-      vector<bucket_object>             get_market_history(string symbol, string symbol2, uint32_t bucket, fc::time_point_sec start, fc::time_point_sec end)const;
+      vector<bucket_object>             get_market_history(string symbol, string symbol2, uint32_t bucket, fc_pp::time_point_sec start, fc_pp::time_point_sec end)const;
       vector<limit_order_object>        get_limit_orders(string a, string b, uint32_t limit)const;
       vector<call_order_object>         get_call_orders(string a, uint32_t limit)const;
       vector<force_settlement_object>   get_settle_orders(string a, uint32_t limit)const;
@@ -486,7 +486,7 @@ class wallet_api
        */
       signed_transaction propose_builder_transaction(
           transaction_handle_type handle,
-          time_point_sec expiration = time_point::now() + fc::minutes(1),
+          time_point_sec expiration = time_point::now() + fc_pp::minutes(1),
           uint32_t review_period_seconds = 0,
           bool broadcast = true
          );
@@ -494,7 +494,7 @@ class wallet_api
       signed_transaction propose_builder_transaction2(
          transaction_handle_type handle,
          string account_name_or_id,
-         time_point_sec expiration = time_point::now() + fc::minutes(1),
+         time_point_sec expiration = time_point::now() + fc_pp::minutes(1),
          uint32_t review_period_seconds = 0,
          bool broadcast = true
         );
@@ -1006,7 +1006,7 @@ class wallet_api
                                       string symbol,
                                       uint8_t precision,
                                       asset_options common,
-                                      fc::optional<bitasset_options> bitasset_opts,
+                                      fc_pp::optional<bitasset_options> bitasset_opts,
                                       bool broadcast = false);
 
       /** Issue new shares of an asset.
@@ -1520,7 +1520,7 @@ class wallet_api
        */
       signed_transaction propose_parameter_change(
          const string& proposing_account,
-         fc::time_point_sec expiration_time,
+         fc_pp::time_point_sec expiration_time,
          const variant_object& changed_values,
          bool broadcast = false);
 
@@ -1535,7 +1535,7 @@ class wallet_api
        */
       signed_transaction propose_fee_change(
          const string& proposing_account,
-         fc::time_point_sec expiration_time,
+         fc_pp::time_point_sec expiration_time,
          const variant_object& changed_values,
          bool broadcast = false);
 
@@ -1549,7 +1549,7 @@ class wallet_api
        */
       signed_transaction propose_dividend_asset_update(
          const string& proposing_account,
-         fc::time_point_sec expiration_time,
+         fc_pp::time_point_sec expiration_time,
          const variant_object& changed_values,
          bool broadcast = false);
 
@@ -1596,82 +1596,82 @@ class wallet_api
 
       signed_transaction propose_create_sport(
               const string& proposing_account,
-              fc::time_point_sec expiration_time,
+              fc_pp::time_point_sec expiration_time,
               internationalized_string_type name,
               bool broadcast = false);
 
       signed_transaction propose_update_sport(
               const string& proposing_account,
-              fc::time_point_sec expiration_time,
+              fc_pp::time_point_sec expiration_time,
               sport_id_type sport_id,
-              fc::optional<internationalized_string_type> name,
+              fc_pp::optional<internationalized_string_type> name,
               bool broadcast = false);
     
       signed_transaction propose_delete_sport(
               const string& proposing_account,
-              fc::time_point_sec expiration_time,
+              fc_pp::time_point_sec expiration_time,
               sport_id_type sport_id,
               bool broadcast = false);
 
       signed_transaction propose_create_event_group(
               const string& proposing_account,
-              fc::time_point_sec expiration_time,
+              fc_pp::time_point_sec expiration_time,
               internationalized_string_type name,
               sport_id_type sport_id,
               bool broadcast = false);
 
       signed_transaction propose_update_event_group(
               const string& proposing_account,
-              fc::time_point_sec expiration_time,
+              fc_pp::time_point_sec expiration_time,
               event_group_id_type event_group,
-              fc::optional<object_id_type> sport_id,
-              fc::optional<internationalized_string_type> name,
+              fc_pp::optional<object_id_type> sport_id,
+              fc_pp::optional<internationalized_string_type> name,
               bool broadcast = false);
 
       signed_transaction propose_delete_event_group(
               const string& proposing_account,
-              fc::time_point_sec expiration_time,
+              fc_pp::time_point_sec expiration_time,
               event_group_id_type event_group,
               bool broadcast = false);
     
       signed_transaction propose_create_event(
               const string& proposing_account,
-              fc::time_point_sec expiration_time,
+              fc_pp::time_point_sec expiration_time,
               internationalized_string_type name,
               internationalized_string_type season,
-              fc::optional<time_point_sec> start_time,
+              fc_pp::optional<time_point_sec> start_time,
               event_group_id_type event_group_id,
               bool broadcast = false);
 
       signed_transaction propose_update_event(
               const string& proposing_account,
-              fc::time_point_sec expiration_time,
+              fc_pp::time_point_sec expiration_time,
               event_id_type event_id,
-              fc::optional<object_id_type> event_group_id,
-              fc::optional<internationalized_string_type> name,
-              fc::optional<internationalized_string_type> season,
-              fc::optional<event_status> status,
-              fc::optional<time_point_sec> start_time,
+              fc_pp::optional<object_id_type> event_group_id,
+              fc_pp::optional<internationalized_string_type> name,
+              fc_pp::optional<internationalized_string_type> season,
+              fc_pp::optional<event_status> status,
+              fc_pp::optional<time_point_sec> start_time,
               bool broadcast = false);
 
       signed_transaction propose_create_betting_market_rules(
               const string& proposing_account,
-              fc::time_point_sec expiration_time,
+              fc_pp::time_point_sec expiration_time,
               internationalized_string_type name,
               internationalized_string_type description,
               bool broadcast = false);
 
       signed_transaction propose_update_betting_market_rules(
               const string& proposing_account,
-              fc::time_point_sec expiration_time,
+              fc_pp::time_point_sec expiration_time,
               betting_market_rules_id_type rules_id,
-              fc::optional<internationalized_string_type> name,
-              fc::optional<internationalized_string_type> description,
+              fc_pp::optional<internationalized_string_type> name,
+              fc_pp::optional<internationalized_string_type> description,
               bool broadcast = false);
 
       signed_transaction propose_create_betting_market_group(
               const string& proposing_account,
-              fc::time_point_sec expiration_time,
+              fc_pp::time_point_sec expiration_time,
               internationalized_string_type description,
               event_id_type event_id,
               betting_market_rules_id_type rules_id,
@@ -1680,16 +1680,16 @@ class wallet_api
 
       signed_transaction propose_update_betting_market_group(
               const string& proposing_account,
-              fc::time_point_sec expiration_time,
+              fc_pp::time_point_sec expiration_time,
               betting_market_group_id_type betting_market_group_id,
-              fc::optional<internationalized_string_type> description,
-              fc::optional<object_id_type> rules_id,
-              fc::optional<betting_market_group_status> status,
+              fc_pp::optional<internationalized_string_type> description,
+              fc_pp::optional<object_id_type> rules_id,
+              fc_pp::optional<betting_market_group_status> status,
               bool broadcast = false);
 
       signed_transaction propose_create_betting_market(
               const string& proposing_account,
-              fc::time_point_sec expiration_time,
+              fc_pp::time_point_sec expiration_time,
               betting_market_group_id_type group_id,
               internationalized_string_type description,
               internationalized_string_type payout_condition,
@@ -1697,11 +1697,11 @@ class wallet_api
 
       signed_transaction propose_update_betting_market(
               const string& proposing_account,
-              fc::time_point_sec expiration_time,
+              fc_pp::time_point_sec expiration_time,
               betting_market_id_type market_id,
-              fc::optional<object_id_type> group_id,
-              fc::optional<internationalized_string_type> description,
-              fc::optional<internationalized_string_type> payout_condition,
+              fc_pp::optional<object_id_type> group_id,
+              fc_pp::optional<internationalized_string_type> description,
+              fc_pp::optional<internationalized_string_type> payout_condition,
               bool broadcast = false);
 
       /** Place a bet  
@@ -1727,14 +1727,14 @@ class wallet_api
 
       signed_transaction propose_resolve_betting_market_group(
               const string& proposing_account,
-              fc::time_point_sec expiration_time,
+              fc_pp::time_point_sec expiration_time,
               betting_market_group_id_type betting_market_group_id,
               const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions,
               bool broadcast = false);
 
       signed_transaction propose_cancel_betting_market_group(
               const string& proposing_account,
-              fc::time_point_sec expiration_time,
+              fc_pp::time_point_sec expiration_time,
               betting_market_group_id_type betting_market_group_id,
               bool broadcast = false);
 
@@ -1800,7 +1800,7 @@ class wallet_api
       void dbg_push_blocks( std::string src_filename, uint32_t count );
       void dbg_generate_blocks( std::string debug_wif_key, uint32_t count );
       void dbg_stream_json_objects( const std::string& filename );
-      void dbg_update_object( fc::variant_object update );
+      void dbg_update_object( fc_pp::variant_object update );
 
       void flood_network(string prefix, uint32_t number_of_transactions);
 
@@ -1818,9 +1818,9 @@ class wallet_api
                                          bool to_temp = false );
 
 
-      std::map<string,std::function<string(fc::variant,const fc::variants&)>> get_result_formatters() const;
+      std::map<string,std::function<string(fc_pp::variant,const fc_pp::variants&)>> get_result_formatters() const;
 
-      fc::signal<void(bool)> lock_changed;
+      fc_pp::signal<void(bool)> lock_changed;
       std::shared_ptr<detail::wallet_api_impl> my;
       void encrypt_keys();
 };

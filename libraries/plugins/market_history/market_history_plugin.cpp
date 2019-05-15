@@ -33,8 +33,8 @@
 #include <graphene/chain/transaction_evaluation_state.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
-#include <fc/thread/thread.hpp>
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/thread/thread.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 
 namespace graphene { namespace market_history {
 
@@ -67,9 +67,9 @@ class market_history_plugin_impl
 struct operation_process_fill_order
 {
    market_history_plugin&    _plugin;
-   fc::time_point_sec        _now;
+   fc_pp::time_point_sec        _now;
 
-   operation_process_fill_order( market_history_plugin& mhp, fc::time_point_sec n )
+   operation_process_fill_order( market_history_plugin& mhp, fc_pp::time_point_sec n )
    :_plugin(mhp),_now(n) {}
 
    typedef void result_type;
@@ -126,7 +126,7 @@ struct operation_process_fill_order
       auto max_history = _plugin.max_history();
       for( auto bucket : buckets )
       {
-          auto cutoff      = (fc::time_point() + fc::seconds( bucket * max_history));
+          auto cutoff      = (fc_pp::time_point() + fc_pp::seconds( bucket * max_history));
 
           bucket_key key;
           key.base    = o.pays.asset_id;
@@ -146,7 +146,7 @@ struct operation_process_fill_order
           price trade_price = o.pays / o.receives;
 
           key.seconds = bucket;
-          key.open    = fc::time_point() + fc::seconds((_now.sec_since_epoch() / key.seconds) * key.seconds);
+          key.open    = fc_pp::time_point() + fc_pp::seconds((_now.sec_since_epoch() / key.seconds) * key.seconds);
 
           const auto& by_key_idx = bucket_idx.indices().get<by_key>();
           auto itr = by_key_idx.find( key );
@@ -192,7 +192,7 @@ struct operation_process_fill_order
 
           if( max_history != 0  )
           {
-             key.open = fc::time_point_sec();
+             key.open = fc_pp::time_point_sec();
              auto itr = by_key_idx.lower_bound( key );
 
              while( itr != by_key_idx.end() && 
@@ -272,7 +272,7 @@ void market_history_plugin::plugin_initialize(const boost::program_options::vari
    if( options.count( "bucket-size" ) )
    {
       const std::string& buckets = options["bucket-size"].as<string>(); 
-      my->_tracked_buckets = fc::json::from_string(buckets).as<flat_set<uint32_t>>();
+      my->_tracked_buckets = fc_pp::json::from_string(buckets).as<flat_set<uint32_t>>();
    }
    if( options.count( "history-per-size" ) )
       my->_maximum_history_per_bucket_size = options["history-per-size"].as<uint32_t>();

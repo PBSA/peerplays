@@ -13,7 +13,7 @@ namespace graphene { namespace chain {
       database& d = db();
       FC_ASSERT(op.options.registration_deadline >= d.head_block_time(), "Registration deadline has already passed");
 
-      const fc::time_point_sec maximum_registration_deadline = d.head_block_time() + d.get_global_properties().parameters.maximum_registration_deadline;
+      const fc_pp::time_point_sec maximum_registration_deadline = d.head_block_time() + d.get_global_properties().parameters.maximum_registration_deadline;
       FC_ASSERT(op.options.registration_deadline <= maximum_registration_deadline, 
                 "Registration deadline must be before ${maximum_registration_deadline}", 
                 ("maximum_registration_deadline", maximum_registration_deadline));
@@ -122,7 +122,7 @@ namespace graphene { namespace chain {
           });
 
 
-      fc_ilog(fc::logger::get("tournament"),
+      fc_ilog(fc_pp::logger::get("tournament"),
               "Created tournament ${id} with details id ${details_id}", 
               ("id", new_tournament.id)("details_id", tournament_details.id));
       return new_tournament.id;
@@ -132,7 +132,7 @@ namespace graphene { namespace chain {
    { try {
       const database& d = db();
       _tournament_obj = &op.tournament_id(d);
-      fc_ilog(fc::logger::get("tournament"), "details_id = ${id}",("id", _tournament_obj->tournament_details_id));
+      fc_ilog(fc_pp::logger::get("tournament"), "details_id = ${id}",("id", _tournament_obj->tournament_details_id));
       _tournament_details_obj = &_tournament_obj->tournament_details_id(d);
       _payer_account = &op.payer_account_id(d);
       const account_object& player_account = op.player_account_id(d);
@@ -193,7 +193,7 @@ namespace graphene { namespace chain {
      try {
       const database& d = db();
       _tournament_obj = &op.tournament_id(d);
-      fc_ilog(fc::logger::get("tournament"), "details_id = ${id}",("id", _tournament_obj->tournament_details_id));
+      fc_ilog(fc_pp::logger::get("tournament"), "details_id = ${id}",("id", _tournament_obj->tournament_details_id));
 
       _tournament_details_obj = &_tournament_obj->tournament_details_id(d);
       FC_ASSERT(_tournament_details_obj->registered_players.find(op.player_account_id) != _tournament_details_obj->registered_players.end(),

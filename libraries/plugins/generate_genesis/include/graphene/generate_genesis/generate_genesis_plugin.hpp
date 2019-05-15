@@ -26,7 +26,7 @@
 #include <graphene/app/plugin.hpp>
 #include <graphene/chain/database.hpp>
 
-#include <fc/thread/future.hpp>
+#include <fc_pp/thread/future.hpp>
 
 namespace graphene { namespace generate_genesis_plugin {
 
@@ -52,7 +52,7 @@ private:
 
    boost::program_options::variables_map _options;
 
-   fc::optional<uint32_t> _block_to_snapshot;
+   fc_pp::optional<uint32_t> _block_to_snapshot;
    std::string _genesis_filename;
    std::string _csvlog_filename;
 };

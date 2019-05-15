@@ -25,7 +25,8 @@
 #define DEFAULT_LOGGER "betting"
 #include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/database.hpp>
-#include <boost/math/common_factor_rt.hpp>
+#include <boost/integer/common_factor_rt.hpp>
+//#include <boost/container/detail/math_functions.hpp>
 
 #include <boost/msm/back/state_machine.hpp>
 #include <boost/msm/front/state_machine_def.hpp>
@@ -59,7 +60,7 @@ namespace mpl = boost::mpl;
 
 /* static */ share_type bet_object::get_approximate_matching_amount(share_type bet_amount, bet_multiplier_type backer_multiplier, bet_type back_or_lay, bool round_up /* = false */)
 {
-   fc::uint128_t amount_to_match_128 = bet_amount.value;
+   fc_pp::uint128_t amount_to_match_128 = bet_amount.value;
 
    if (back_or_lay == bet_type::back)
    {
@@ -101,7 +102,7 @@ share_type bet_object::get_exact_matching_amount() const
 
 /* static */ std::pair<share_type, share_type> bet_object::get_ratio(bet_multiplier_type backer_multiplier)
 {
-   share_type gcd = boost::math::gcd<bet_multiplier_type>(GRAPHENE_BETTING_ODDS_PRECISION, backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION);
+   share_type gcd = boost::integer::gcd((bet_multiplier_type)GRAPHENE_BETTING_ODDS_PRECISION, backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION);
    return std::make_pair(GRAPHENE_BETTING_ODDS_PRECISION / gcd, (backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION) / gcd);
 }
 
@@ -112,13 +113,13 @@ std::pair<share_type, share_type> bet_object::get_ratio() const
 
 share_type bet_object::get_minimum_matchable_amount() const
 {
-   share_type gcd = boost::math::gcd<bet_multiplier_type>(GRAPHENE_BETTING_ODDS_PRECISION, backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION);
+   share_type gcd = boost::integer::gcd((bet_multiplier_type)GRAPHENE_BETTING_ODDS_PRECISION, backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION);
    return (back_or_lay == bet_type::back ? GRAPHENE_BETTING_ODDS_PRECISION : backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION) / gcd;
 }
 
 share_type bet_object::get_minimum_matching_amount() const
 {
-   share_type gcd = boost::math::gcd<bet_multiplier_type>(GRAPHENE_BETTING_ODDS_PRECISION, backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION);
+   share_type gcd = boost::integer::gcd((bet_multiplier_type)GRAPHENE_BETTING_ODDS_PRECISION, backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION);
    return (back_or_lay == bet_type::lay ? GRAPHENE_BETTING_ODDS_PRECISION : backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION) / gcd;
 }
 
@@ -326,19 +327,19 @@ namespace {
          {
             // this is an approximate test, the state name provided by typeinfo will be mangled, but should
             // at least contain the string we're looking for
-            const char* fc_reflected_value_name = fc::reflector<betting_market_state>::to_string((betting_market_state)i);
+            const char* fc_reflected_value_name = fc_pp::reflector<betting_market_state>::to_string((betting_market_state)i);
             if (!strstr(filled_state_names[i], fc_reflected_value_name))
             {
-               fc_elog(fc::logger::get("default"),
-                       "Error, state string mismatch between fc and boost::msm for int value ${int_value}: "
-                       "boost::msm -> ${boost_string}, fc::reflect -> ${fc_string}",
+               fc_elog(fc_pp::logger::get("default"),
+                       "Error, state string mismatch between fc_pp and boost::msm for int value ${int_value}: "
+                       "boost::msm -> ${boost_string}, fc_pp::reflect -> ${fc_string}",
                        ("int_value", i)("boost_string", filled_state_names[i])("fc_string", fc_reflected_value_name));
                ++error_count;
             }
          }
-         catch (const fc::bad_cast_exception&)
+         catch (const fc_pp::bad_cast_exception&)
          {
-            fc_elog(fc::logger::get("default"), 
+            fc_elog(fc_pp::logger::get("default"), 
                     "Error, no reflection for value ${int_value} in enum betting_market_status",
                     ("int_value", i));
             ++error_count;
@@ -466,11 +467,11 @@ void betting_market_object::on_canceled_event(database& db)
 
 } } // graphene::chain
 
-namespace fc { 
+namespace fc_pp { 
    // Manually reflect betting_market_object to variant to properly reflect "state"
-   void to_variant(const graphene::chain::betting_market_object& event_obj, fc::variant& v)
+   void to_variant(const graphene::chain::betting_market_object& event_obj, fc_pp::variant& v)
    {
-      fc::mutable_variant_object o;
+      fc_pp::mutable_variant_object o;
       o("id", event_obj.id)
        ("group_id", event_obj.group_id)
        ("description", event_obj.description)
@@ -482,15 +483,15 @@ namespace fc {
    }
 
    // Manually reflect betting_market_object to variant to properly reflect "state"
-   void from_variant(const fc::variant& v, graphene::chain::betting_market_object& event_obj)
+   void from_variant(const fc_pp::variant& v, graphene::chain::betting_market_object& event_obj)
    {
       event_obj.id = v["id"].as<graphene::chain::betting_market_id_type>();
       event_obj.group_id = v["name"].as<graphene::chain::betting_market_group_id_type>();
       event_obj.description = v["description"].as<graphene::chain::internationalized_string_type>();
       event_obj.payout_condition = v["payout_condition"].as<graphene::chain::internationalized_string_type>();
-      event_obj.resolution = v["resolution"].as<fc::optional<graphene::chain::betting_market_resolution_type>>();
+      event_obj.resolution = v["resolution"].as<fc_pp::optional<graphene::chain::betting_market_resolution_type>>();
       graphene::chain::betting_market_status status = v["status"].as<graphene::chain::betting_market_status>();
       const_cast<int*>(event_obj.my->state_machine.current_state())[0] = (int)status;
    }
-} //end namespace fc
+} //end namespace fc_pp
 

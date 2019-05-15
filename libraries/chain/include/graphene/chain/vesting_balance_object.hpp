@@ -27,8 +27,8 @@
 #include <graphene/db/object.hpp>
 #include <graphene/db/generic_index.hpp>
 
-#include <fc/static_variant.hpp>
-#include <fc/uint128.hpp>
+#include <fc_pp/static_variant.hpp>
+#include <fc_pp/uint128.hpp>
 
 #include <algorithm>
 #include <boost/multi_index/composite_key.hpp>
@@ -45,12 +45,12 @@ namespace graphene { namespace chain {
    {
       vesting_policy_context(
          asset _balance,
-         fc::time_point_sec _now,
+         fc_pp::time_point_sec _now,
          asset _amount)
          : balance(_balance), now(_now), amount(_amount) {}
 
       asset              balance;
-      fc::time_point_sec now;
+      fc_pp::time_point_sec now;
       asset              amount;
    };
 
@@ -65,7 +65,7 @@ namespace graphene { namespace chain {
    struct linear_vesting_policy
    {
       /// This is the time at which funds begin vesting.
-      fc::time_point_sec begin_timestamp;
+      fc_pp::time_point_sec begin_timestamp;
       /// No amount may be withdrawn before this many seconds of the vesting period have elapsed.
       uint32_t vesting_cliff_seconds = 0;
       /// Duration of the vesting period, in seconds. Must be greater than 0 and greater than vesting_cliff_seconds.
@@ -93,17 +93,17 @@ namespace graphene { namespace chain {
    struct cdd_vesting_policy
    {
       uint32_t                       vesting_seconds = 0;
-      fc::uint128_t                  coin_seconds_earned;
+      fc_pp::uint128_t                  coin_seconds_earned;
       /** while coindays may accrue over time, none may be claimed before first_claim date */
-      fc::time_point_sec             start_claim;
-      fc::time_point_sec             coin_seconds_earned_last_update;
+      fc_pp::time_point_sec             start_claim;
+      fc_pp::time_point_sec             coin_seconds_earned_last_update;
 
       /**
        * Compute coin_seconds_earned.  Used to
        * non-destructively figure out how many coin seconds
        * are available.
        */
-      fc::uint128_t compute_coin_seconds_earned(const vesting_policy_context& ctx)const;
+      fc_pp::uint128_t compute_coin_seconds_earned(const vesting_policy_context& ctx)const;
 
       /**
        * Update coin_seconds_earned and
@@ -121,7 +121,7 @@ namespace graphene { namespace chain {
       void on_withdraw(const vesting_policy_context& ctx);
    };
 
-   typedef fc::static_variant<
+   typedef fc_pp::static_variant<
       linear_vesting_policy,
       cdd_vesting_policy
       > vesting_policy;
@@ -146,12 +146,12 @@ namespace graphene { namespace chain {
          vesting_balance_object() {}
 
          ///@brief Deposit amount into vesting balance, requiring it to vest before withdrawal
-         void deposit(const fc::time_point_sec& now, const asset& amount);
-         bool is_deposit_allowed(const fc::time_point_sec& now, const asset& amount)const;
+         void deposit(const fc_pp::time_point_sec& now, const asset& amount);
+         bool is_deposit_allowed(const fc_pp::time_point_sec& now, const asset& amount)const;
 
          /// @brief Deposit amount into vesting balance, making the new funds vest immediately
-         void deposit_vested(const fc::time_point_sec& now, const asset& amount);
-         bool is_deposit_vested_allowed(const fc::time_point_sec& now, const asset& amount)const;
+         void deposit_vested(const fc_pp::time_point_sec& now, const asset& amount);
+         bool is_deposit_vested_allowed(const fc_pp::time_point_sec& now, const asset& amount)const;
 
          /**
           * Used to remove a vesting balance from the VBO. As well as the
@@ -161,8 +161,8 @@ namespace graphene { namespace chain {
           * The money doesn't "go" anywhere; the caller is responsible for
           * crediting it to the proper account.
           */
-         void withdraw(const fc::time_point_sec& now, const asset& amount);
-         bool is_withdraw_allowed(const fc::time_point_sec& now, const asset& amount)const;
+         void withdraw(const fc_pp::time_point_sec& now, const asset& amount);
+         bool is_withdraw_allowed(const fc_pp::time_point_sec& now, const asset& amount)const;
 
          /**
           * Get amount of allowed withdrawal.

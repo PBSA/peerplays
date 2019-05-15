@@ -24,8 +24,8 @@
 
 #include <boost/multiprecision/integer.hpp>
 
-#include <fc/smart_ref_impl.hpp>
-#include <fc/uint128.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
+#include <fc_pp/uint128.hpp>
 
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/fba_accumulator_id.hpp>
@@ -142,11 +142,11 @@ void database::pay_workers( share_type& budget )
    {
       const worker_object& active_worker = active_workers[i];
       share_type requested_pay = active_worker.daily_pay;
-      if( head_block_time() - get_dynamic_global_properties().last_budget_time != fc::days(1) )
+      if( head_block_time() - get_dynamic_global_properties().last_budget_time != fc_pp::days(1) )
       {
-         fc::uint128 pay(requested_pay.value);
+         fc_pp::uint128 pay(requested_pay.value);
          pay *= (head_block_time() - get_dynamic_global_properties().last_budget_time).count();
-         pay /= fc::days(1).count();
+         pay /= fc_pp::days(1).count();
          requested_pay = pay.to_uint64();
       }
 
@@ -326,7 +326,7 @@ void database::update_active_committee_members()
    });
 } FC_CAPTURE_AND_RETHROW() }
 
-void database::initialize_budget_record( fc::time_point_sec now, budget_record& rec )const
+void database::initialize_budget_record( fc_pp::time_point_sec now, budget_record& rec )const
 {
    const dynamic_global_property_object& dpo = get_dynamic_global_properties();
    const asset_object& core = asset_id_type(0)(*this);
@@ -336,7 +336,7 @@ void database::initialize_budget_record( fc::time_point_sec now, budget_record& 
    rec.from_accumulated_fees = core_dd.accumulated_fees;
    rec.from_unused_witness_budget = dpo.witness_budget;
 
-   if(    (dpo.last_budget_time == fc::time_point_sec())
+   if(    (dpo.last_budget_time == fc_pp::time_point_sec())
        || (now <= dpo.last_budget_time) )
    {
       rec.time_since_last_budget = 0;
@@ -357,7 +357,7 @@ void database::initialize_budget_record( fc::time_point_sec now, budget_record& 
    // at the BEGINNING of the maintenance interval.
    reserve += dpo.witness_budget;
 
-   fc::uint128_t budget_u128 = reserve.value;
+   fc_pp::uint128_t budget_u128 = reserve.value;
    budget_u128 *= uint64_t(dt);
    budget_u128 *= GRAPHENE_CORE_ASSET_CYCLE_RATE;
    //round up to the nearest satoshi -- this is necessary to ensure
@@ -385,7 +385,7 @@ void database::process_budget()
       const dynamic_global_property_object& dpo = get_dynamic_global_properties();
       const asset_dynamic_data_object& core =
          asset_id_type(0)(*this).dynamic_asset_data_id(*this);
-      fc::time_point_sec now = head_block_time();
+      fc_pp::time_point_sec now = head_block_time();
 
       int64_t time_to_maint = (dpo.next_maintenance_time - now).to_seconds();
       //
@@ -415,7 +415,7 @@ void database::process_budget()
       rec.witness_budget = witness_budget;
       available_funds -= witness_budget;
 
-      fc::uint128_t worker_budget_u128 = gpo.parameters.worker_budget_per_day.value;
+      fc_pp::uint128_t worker_budget_u128 = gpo.parameters.worker_budget_per_day.value;
       worker_budget_u128 *= uint64_t(time_to_maint);
       worker_budget_u128 /= 60*60*24;
 
@@ -561,12 +561,12 @@ void split_fba_balance(
       return;
    }
 
-   fc::uint128_t buyback_amount_128 = fba.accumulated_fba_fees.value;
+   fc_pp::uint128_t buyback_amount_128 = fba.accumulated_fba_fees.value;
    buyback_amount_128 *= designated_asset_buyback_pct;
    buyback_amount_128 /= GRAPHENE_100_PERCENT;
    share_type buyback_amount = buyback_amount_128.to_uint64();
 
-   fc::uint128_t issuer_amount_128 = fba.accumulated_fba_fees.value;
+   fc_pp::uint128_t issuer_amount_128 = fba.accumulated_fba_fees.value;
    issuer_amount_128 *= designated_asset_issuer_pct;
    issuer_amount_128 /= GRAPHENE_100_PERCENT;
    share_type issuer_amount = issuer_amount_128.to_uint64();
@@ -682,7 +682,7 @@ void create_buyback_orders( database& db )
                db.apply_operation( buyback_context, cancel_vop );
             }
          }
-         catch( const fc::exception& e )
+         catch( const fc_pp::exception& e )
          {
             // we can in fact get here, e.g. if asset issuer of buy/sell asset blacklists/whitelists the buyback account
             wlog( "Skipping buyback processing selling ${as} for ${ab} for buyback account ${b} at block ${n}; exception was ${e}",
@@ -697,7 +697,7 @@ void create_buyback_orders( database& db )
 void deprecate_annual_members( database& db )
 {
    const auto& account_idx = db.get_index_type<account_index>().indices().get<by_id>();
-   fc::time_point_sec now = db.head_block_time();
+   fc_pp::time_point_sec now = db.head_block_time();
    for( const account_object& acct : account_idx )
    {
       try
@@ -714,7 +714,7 @@ void deprecate_annual_members( database& db )
             db.apply_operation( upgrade_context, upgrade_vop );
          }
       }
-      catch( const fc::exception& e )
+      catch( const fc_pp::exception& e )
       {
          // we can in fact get here, e.g. if asset issuer of buy/sell asset blacklists/whitelists the buyback account
          wlog( "Skipping annual member deprecate processing for account ${a} (${an}) at block ${n}; exception was ${e}",
@@ -732,7 +732,7 @@ void deprecate_annual_members( database& db )
 void schedule_pending_dividend_balances(database& db, 
                                         const asset_object& dividend_holder_asset_obj,
                                         const asset_dividend_data_object& dividend_data,
-                                        const fc::time_point_sec& current_head_block_time, 
+                                        const fc_pp::time_point_sec& current_head_block_time, 
                                         const account_balance_index& balance_index,
                                         const vesting_balance_index& vesting_index,
                                         const total_distributed_dividend_balance_object_index& distributed_dividend_balance_index,
@@ -877,7 +877,7 @@ void schedule_pending_dividend_balances(database& db,
          share_type minimum_shares_to_distribute;
          if (dividend_data.options.minimum_fee_percentage)
          {
-            fc::uint128_t minimum_amount_to_distribute = total_fee_per_asset_in_payout_asset.value;
+            fc_pp::uint128_t minimum_amount_to_distribute = total_fee_per_asset_in_payout_asset.value;
             minimum_amount_to_distribute *= 100 * GRAPHENE_1_PERCENT;
             minimum_amount_to_distribute /= dividend_data.options.minimum_fee_percentage;
             wdump((total_fee_per_asset_in_payout_asset)(dividend_data.options));
@@ -941,7 +941,7 @@ void schedule_pending_dividend_balances(database& db,
                   if (itr != vesting_amounts.end())
                       holder_balance += itr->second;
 
-                  fc::uint128_t amount_to_credit(delta_balance.value);
+                  fc_pp::uint128_t amount_to_credit(delta_balance.value);
                   amount_to_credit *= holder_balance.value;
                   amount_to_credit /= total_balance_of_dividend_asset.value;
                   share_type shares_to_credit((int64_t)amount_to_credit.to_uint64());
@@ -1015,7 +1015,7 @@ void schedule_pending_dividend_balances(database& db,
             share_type remaining_pending_balances = total_pending_balances;
             for (const pending_dividend_payout_balance_for_holder_object& pending_balance_object : boost::make_iterator_range(pending_payouts_range.first, pending_payouts_range.second))
             {
-               fc::uint128_t amount_to_debit(remaining_amount_to_recover.value);
+               fc_pp::uint128_t amount_to_debit(remaining_amount_to_recover.value);
                amount_to_debit *= pending_balance_object.pending_balance.value;
                amount_to_debit /= remaining_pending_balances.value;
                share_type shares_to_debit((int64_t)amount_to_debit.to_uint64());
@@ -1036,7 +1036,7 @@ void schedule_pending_dividend_balances(database& db,
             });
          } // end if deposit was large enough to distribute
       }
-      catch (const fc::exception& e)
+      catch (const fc_pp::exception& e)
       {
          dlog("${e}", ("e", e));
       }
@@ -1077,7 +1077,7 @@ void process_dividend_assets(database& db)
          const asset_dividend_data_object& dividend_data = dividend_holder_asset_obj.dividend_data(db);
          const account_object& dividend_distribution_account_object = dividend_data.dividend_distribution_account(db);
 
-         fc::time_point_sec current_head_block_time = db.head_block_time();
+         fc_pp::time_point_sec current_head_block_time = db.head_block_time();
 
          schedule_pending_dividend_balances(db, dividend_holder_asset_obj, dividend_data, current_head_block_time,
                                             balance_index, vbalance_index, distributed_dividend_balance_index, pending_payout_balance_index);
@@ -1108,7 +1108,7 @@ void process_dividend_assets(database& db)
                // we iterate in this order so we can build up a list of payouts for each account to put in the 
                // virtual op
                vector<asset> payouts_for_this_holder;
-               fc::optional<account_id_type> last_holder_account_id;
+               fc_pp::optional<account_id_type> last_holder_account_id;
 
                // cache the assets the distribution account is approved to send, we will be asking
                // for these often
@@ -1198,12 +1198,12 @@ void process_dividend_assets(database& db)
                db.modify(dividend_data, [current_head_block_time](asset_dividend_data_object& dividend_data_obj) {
                   dividend_data_obj.last_scheduled_payout_time = dividend_data_obj.options.next_payout_time;
                   dividend_data_obj.last_payout_time = current_head_block_time;
-                  fc::optional<fc::time_point_sec> next_payout_time;
+                  fc_pp::optional<fc_pp::time_point_sec> next_payout_time;
                   if (dividend_data_obj.options.payout_interval)
                   {
                      // if there was a previous payout, make our next payment one interval 
                      uint32_t current_time_sec = current_head_block_time.sec_since_epoch();
-                     fc::time_point_sec reference_time = *dividend_data_obj.last_scheduled_payout_time;
+                     fc_pp::time_point_sec reference_time = *dividend_data_obj.last_scheduled_payout_time;
                      uint32_t next_possible_time_sec = dividend_data_obj.last_scheduled_payout_time->sec_since_epoch();
                      do
                         next_possible_time_sec += *dividend_data_obj.options.payout_interval;

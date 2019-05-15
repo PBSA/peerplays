@@ -22,12 +22,12 @@
  * THE SOFTWARE.
  */
 #pragma once
-#include <fc/io/raw.hpp>
+#include <fc_pp/io/raw.hpp>
 
 #include <graphene/chain/protocol/transaction.hpp>
 #include <graphene/db/index.hpp>
 #include <graphene/db/generic_index.hpp>
-#include <fc/uint128.hpp>
+#include <fc_pp/uint128.hpp>
 
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>

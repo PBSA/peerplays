@@ -23,8 +23,8 @@
  */
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/chain/protocol/address.hpp>
-#include <fc/crypto/elliptic.hpp>
-#include <fc/crypto/base58.hpp>
+#include <fc_pp/crypto/elliptic.hpp>
+#include <fc_pp/crypto/base58.hpp>
 #include <algorithm>
 
 namespace graphene {
@@ -36,7 +36,7 @@ namespace graphene {
       std::string prefix( GRAPHENE_ADDRESS_PREFIX );
       FC_ASSERT( is_valid( base58str, prefix ), "${str}", ("str",base58str) );
 
-      std::vector<char> v = fc::from_base58( base58str.substr( prefix.size() ) );
+      std::vector<char> v = fc_pp::from_base58( base58str.substr( prefix.size() ) );
       memcpy( (char*)addr._hash, v.data(), std::min<size_t>( v.size()-4, sizeof( addr ) ) );
    }
 
@@ -50,56 +50,56 @@ namespace graphene {
       std::vector<char> v;
       try
       {
-		     v = fc::from_base58( base58str.substr( prefix_len ) );
+		     v = fc_pp::from_base58( base58str.substr( prefix_len ) );
       }
-      catch( const fc::parse_error_exception& e )
+      catch( const fc_pp::parse_error_exception& e )
       {
         return false;
       }
 
-      if( v.size() != sizeof( fc::ripemd160 ) + 4 )
+      if( v.size() != sizeof( fc_pp::ripemd160 ) + 4 )
           return false;
 
-      const fc::ripemd160 checksum = fc::ripemd160::hash( v.data(), v.size() - 4 );
+      const fc_pp::ripemd160 checksum = fc_pp::ripemd160::hash( v.data(), v.size() - 4 );
       if( memcmp( v.data() + 20, (char*)checksum._hash, 4 ) != 0 )
           return false;
 
       return true;
    }
 
-   address::address( const fc::ecc::public_key& pub )
+   address::address( const fc_pp::ecc::public_key& pub )
    {
        auto dat = pub.serialize();
-       addr = fc::ripemd160::hash( fc::sha512::hash( dat.data, sizeof( dat ) ) );
+       addr = fc_pp::ripemd160::hash( fc_pp::sha512::hash( dat.data, sizeof( dat ) ) );
    }
 
    address::address( const pts_address& ptsaddr )
    {
-       addr = fc::ripemd160::hash( (char*)&ptsaddr, sizeof( ptsaddr ) );
+       addr = fc_pp::ripemd160::hash( (char*)&ptsaddr, sizeof( ptsaddr ) );
    }
 
-   address::address( const fc::ecc::public_key_data& pub )
+   address::address( const fc_pp::ecc::public_key_data& pub )
    {
-       addr = fc::ripemd160::hash( fc::sha512::hash( pub.data, sizeof( pub ) ) );
+       addr = fc_pp::ripemd160::hash( fc_pp::sha512::hash( pub.data, sizeof( pub ) ) );
    }
 
    address::address( const graphene::chain::public_key_type& pub )
    {
-       addr = fc::ripemd160::hash( fc::sha512::hash( pub.key_data.data, sizeof( pub.key_data ) ) );
+       addr = fc_pp::ripemd160::hash( fc_pp::sha512::hash( pub.key_data.data, sizeof( pub.key_data ) ) );
    }
 
    address::operator std::string()const
    {
-        fc::array<char,24> bin_addr;
+        fc_pp::array<char,24> bin_addr;
         memcpy( (char*)&bin_addr, (char*)&addr, sizeof( addr ) );
-        auto checksum = fc::ripemd160::hash( (char*)&addr, sizeof( addr ) );
+        auto checksum = fc_pp::ripemd160::hash( (char*)&addr, sizeof( addr ) );
         memcpy( ((char*)&bin_addr)+20, (char*)&checksum._hash[0], 4 );
-        return GRAPHENE_ADDRESS_PREFIX + fc::to_base58( bin_addr.data, sizeof( bin_addr ) );
+        return GRAPHENE_ADDRESS_PREFIX + fc_pp::to_base58( bin_addr.data, sizeof( bin_addr ) );
    }
 
 } } // namespace graphene::chain
 
-namespace fc
+namespace fc_pp
 {
     void to_variant( const graphene::chain::address& var,  variant& vo )
     {

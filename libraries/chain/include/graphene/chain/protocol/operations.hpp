@@ -52,7 +52,7 @@ namespace graphene { namespace chain {
     *
     * Defines the set of valid operations as a discriminated union type.
     */
-   typedef fc::static_variant<
+   typedef fc_pp::static_variant<
             transfer_operation,
             limit_order_create_operation,
             limit_order_cancel_operation,

@@ -131,7 +131,7 @@ class worker_object : public abstract_object<worker_object>
       uint64_t total_votes_for = 0;
       uint64_t total_votes_against = 0;
 
-      bool is_active(fc::time_point_sec now)const {
+      bool is_active(fc_pp::time_point_sec now)const {
          return now >= work_begin_date && now <= work_end_date;
       }
 

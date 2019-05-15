@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include <fc/container/flat.hpp>
+#include <fc_pp/container/flat.hpp>
 
 #include <graphene/chain/protocol/authority.hpp>
 #include <graphene/chain/protocol/operations.hpp>
@@ -34,7 +34,7 @@
 #include <graphene/chain/market_object.hpp>
 #include <graphene/chain/committee_member_object.hpp>
 
-using namespace fc;
+using namespace fc_pp;
 using namespace graphene::chain;
 
 // TODO:  Review all of these, especially no-ops

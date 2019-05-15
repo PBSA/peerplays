@@ -87,7 +87,7 @@ optional< vesting_balance_id_type > database::deposit_lazy_vesting(
    if( amount == 0 )
       return optional< vesting_balance_id_type >();
 
-   fc::time_point_sec now = head_block_time();
+   fc_pp::time_point_sec now = head_block_time();
 
    while( true )
    {

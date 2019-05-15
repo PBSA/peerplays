@@ -48,8 +48,8 @@
 
 #include <graphene/utilities/tempdir.hpp>
 
-#include <fc/crypto/digest.hpp>
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/crypto/digest.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 
 #include <iostream>
 #include <iomanip>
@@ -76,7 +76,7 @@ database_fixture::database_fixture()
    {
       const std::string arg = argv[i];
       if( arg == "--record-assert-trip" )
-         fc::enable_record_assert_trip = true;
+         fc_pp::enable_record_assert_trip = true;
       if( arg == "--show-test-names" )
          std::cout << "running test " << boost::unit_test::framework::current_test_case().p_name << std::endl;
    }
@@ -92,13 +92,13 @@ database_fixture::database_fixture()
    genesis_state.initial_timestamp = time_point_sec( GRAPHENE_TESTING_GENESIS_TIMESTAMP );
    //int back_to_the_past = 0;
    //back_to_the_past = 7 * 24 * 60 * 60; // week
-   //genesis_state.initial_timestamp = time_point_sec( (fc::time_point::now().sec_since_epoch() - back_to_the_past) / GRAPHENE_DEFAULT_BLOCK_INTERVAL * GRAPHENE_DEFAULT_BLOCK_INTERVAL );
+   //genesis_state.initial_timestamp = time_point_sec( (fc_pp::time_point::now().sec_since_epoch() - back_to_the_past) / GRAPHENE_DEFAULT_BLOCK_INTERVAL * GRAPHENE_DEFAULT_BLOCK_INTERVAL );
    genesis_state.initial_parameters.witness_schedule_algorithm = GRAPHENE_WITNESS_SHUFFLED_ALGORITHM;
 
    genesis_state.initial_active_witnesses = 10;
    for( unsigned i = 0; i < genesis_state.initial_active_witnesses; ++i )
    {
-      auto name = "init"+fc::to_string(i);
+      auto name = "init"+fc_pp::to_string(i);
       genesis_state.initial_accounts.emplace_back(name,
                                                   init_account_priv_key.get_public_key(),
                                                   init_account_priv_key.get_public_key(),
@@ -127,7 +127,7 @@ database_fixture::database_fixture()
    generate_block();
 
    set_expiration( db, trx );
-   } catch ( const fc::exception& e )
+   } catch ( const fc_pp::exception& e )
    {
       edump( (e.to_detail_string()) );
       throw;
@@ -152,12 +152,12 @@ database_fixture::~database_fixture()
    return;
 } FC_CAPTURE_AND_RETHROW() }
 
-fc::ecc::private_key database_fixture::generate_private_key(string seed)
+fc_pp::ecc::private_key database_fixture::generate_private_key(string seed)
 {
-   static const fc::ecc::private_key committee = fc::ecc::private_key::regenerate(fc::sha256::hash(string("null_key")));
+   static const fc_pp::ecc::private_key committee = fc_pp::ecc::private_key::regenerate(fc_pp::sha256::hash(string("null_key")));
    if( seed == "null_key" )
       return committee;
-   return fc::ecc::private_key::regenerate(fc::sha256::hash(seed));
+   return fc_pp::ecc::private_key::regenerate(fc_pp::sha256::hash(seed));
 }
 
 string database_fixture::generate_anon_acct_name()
@@ -342,12 +342,12 @@ void database_fixture::verify_account_history_plugin_index( )const
 void database_fixture::open_database()
 {
    if( !data_dir ) {
-      data_dir = fc::temp_directory( graphene::utilities::temp_directory_path() );
+      data_dir = fc_pp::temp_directory( graphene::utilities::temp_directory_path() );
       db.open(data_dir->path(), [this]{return genesis_state;});
    }
 }
 
-signed_block database_fixture::generate_block(uint32_t skip, const fc::ecc::private_key& key, int miss_blocks)
+signed_block database_fixture::generate_block(uint32_t skip, const fc_pp::ecc::private_key& key, int miss_blocks)
 {
    skip |= database::skip_undo_history_check;
    // skip == ~0 will skip checks specified in database::validation_steps
@@ -364,7 +364,7 @@ void database_fixture::generate_blocks( uint32_t block_count )
       generate_block();
 }
 
-void database_fixture::generate_blocks(fc::time_point_sec timestamp, bool miss_intermediate_blocks, uint32_t skip)
+void database_fixture::generate_blocks(fc_pp::time_point_sec timestamp, bool miss_intermediate_blocks, uint32_t skip)
 {
    if( miss_intermediate_blocks )
    {
@@ -688,20 +688,20 @@ const committee_member_object& database_fixture::create_committee_member( const 
    return db.get<committee_member_object>(ptx.operation_results[0].get<object_id_type>());
 }
 
-const witness_object&database_fixture::create_witness(account_id_type owner, const fc::ecc::private_key& signing_private_key)
+const witness_object&database_fixture::create_witness(account_id_type owner, const fc_pp::ecc::private_key& signing_private_key)
 {
    return create_witness(owner(db), signing_private_key);
 }
 
 const witness_object& database_fixture::create_witness( const account_object& owner,
-                                                        const fc::ecc::private_key& signing_private_key )
+                                                        const fc_pp::ecc::private_key& signing_private_key )
 { try {
    witness_create_operation op;
    op.witness_account = owner.id;
    op.block_signing_key = signing_private_key.get_public_key();
    secret_hash_type::encoder enc;
-   fc::raw::pack(enc, signing_private_key);
-   fc::raw::pack(enc, secret_hash_type());
+   fc_pp::raw::pack(enc, signing_private_key);
+   fc_pp::raw::pack(enc, secret_hash_type());
    op.initial_secret = secret_hash_type::hash(enc.result());
    trx.operations.push_back(op);
    trx.validate();
@@ -719,7 +719,7 @@ uint64_t database_fixture::fund(
    return get_balance(account, amount.asset_id(db));
 }
 
-void database_fixture::sign(signed_transaction& trx, const fc::ecc::private_key& key)
+void database_fixture::sign(signed_transaction& trx, const fc_pp::ecc::private_key& key)
 {
    trx.sign( key, db.get_chain_id() );
 }
@@ -1123,7 +1123,7 @@ void database_fixture::process_operation_by_witnesses(operation op)
    proposal_create_operation proposal_op;
    proposal_op.fee_paying_account = (*active_witnesses.begin())(db).witness_account;
    proposal_op.proposed_ops.emplace_back(op);
-   proposal_op.expiration_time =  db.head_block_time() + fc::days(1);
+   proposal_op.expiration_time =  db.head_block_time() + fc_pp::days(1);
 
    signed_transaction tx;
    tx.operations.push_back(proposal_op);
@@ -1162,7 +1162,7 @@ void database_fixture::process_operation_by_committee(operation op)
    proposal_create_operation proposal_op;
    proposal_op.fee_paying_account = (*active_committee_members.begin())(db).committee_member_account;
    proposal_op.proposed_ops.emplace_back(op);
-   proposal_op.expiration_time =  db.head_block_time() + fc::days(1);
+   proposal_op.expiration_time =  db.head_block_time() + fc_pp::days(1);
 
    signed_transaction tx;
    tx.operations.push_back(proposal_op);
@@ -1202,7 +1202,7 @@ void database_fixture::force_operation_by_witnesses(operation op)
    for( auto& op : trx.operations )
        db.current_fee_schedule().set_fee(op);
    trx.validate();
-   trx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
+   trx.set_expiration(db.head_block_time() + fc_pp::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
    sign(trx, init_account_priv_key);
    PUSH_TX(db, trx);
 }
@@ -1214,7 +1214,7 @@ void database_fixture::set_is_proposed_trx(operation op)
     proposal_create_operation proposal_op;
     proposal_op.fee_paying_account = (*active_witnesses.begin())(db).witness_account;
     proposal_op.proposed_ops.emplace_back(op);
-    proposal_op.expiration_time =  db.head_block_time() + fc::days(1);
+    proposal_op.expiration_time =  db.head_block_time() + fc_pp::days(1);
 
     signed_transaction tx;
     tx.operations.push_back(proposal_op);
@@ -1246,7 +1246,7 @@ proposal_id_type database_fixture::propose_operation(operation op)
     proposal_create_operation proposal_op;
     proposal_op.fee_paying_account = (*active_witnesses.begin())(db).witness_account;
     proposal_op.proposed_ops.emplace_back(op);
-    proposal_op.expiration_time =  db.head_block_time() + fc::days(1);
+    proposal_op.expiration_time =  db.head_block_time() + fc_pp::days(1);
 
     signed_transaction tx;
     tx.operations.push_back(proposal_op);
@@ -1323,8 +1323,8 @@ const event_group_object& database_fixture::create_event_group(internationalized
 } FC_CAPTURE_AND_RETHROW( (name) ) }
 
 void database_fixture::update_event_group(event_group_id_type event_group_id,
-                                          fc::optional<object_id_type> sport_id,
-                                          fc::optional<internationalized_string_type> name)
+                                          fc_pp::optional<object_id_type> sport_id,
+                                          fc_pp::optional<internationalized_string_type> name)
 { try {
    event_group_update_operation event_group_update_op;
    event_group_update_op.new_name = name;
@@ -1343,8 +1343,8 @@ void database_fixture::delete_event_group(event_group_id_type event_group_id)
 }
     
 void database_fixture::try_update_event_group(event_group_id_type event_group_id,
-                                              fc::optional<object_id_type> sport_id,
-                                              fc::optional<internationalized_string_type> name,
+                                              fc_pp::optional<object_id_type> sport_id,
+                                              fc_pp::optional<internationalized_string_type> name,
                                               bool dont_set_is_proposed_trx /* = false */)
 {
    event_group_update_operation event_group_update_op;
@@ -1361,7 +1361,7 @@ void database_fixture::try_update_event_group(event_group_id_type event_group_id
    for( auto& op : trx.operations )
        db.current_fee_schedule().set_fee(op);
    trx.validate();
-   trx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
+   trx.set_expiration(db.head_block_time() + fc_pp::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
    sign(trx, init_account_priv_key);
    PUSH_TX(db, trx);
 }
@@ -1378,10 +1378,10 @@ const event_object& database_fixture::create_event(internationalized_string_type
 } FC_CAPTURE_AND_RETHROW( (event_group_id) ) }
 
 void database_fixture::update_event_impl(event_id_type event_id,
-                                         fc::optional<object_id_type> event_group_id,
-                                         fc::optional<internationalized_string_type> name,
-                                         fc::optional<internationalized_string_type> season,
-                                         fc::optional<event_status> status, 
+                                         fc_pp::optional<object_id_type> event_group_id,
+                                         fc_pp::optional<internationalized_string_type> name,
+                                         fc_pp::optional<internationalized_string_type> season,
+                                         fc_pp::optional<event_status> status, 
                                          bool force)
 { try {
    event_update_operation event_update_op;
@@ -1408,8 +1408,8 @@ const betting_market_rules_object& database_fixture::create_betting_market_rules
 } FC_CAPTURE_AND_RETHROW( (name) ) }
 
 void database_fixture::update_betting_market_rules(betting_market_rules_id_type rules_id,
-                                                   fc::optional<internationalized_string_type> name,
-                                                   fc::optional<internationalized_string_type> description)
+                                                   fc_pp::optional<internationalized_string_type> name,
+                                                   fc_pp::optional<internationalized_string_type> description)
 { try {
    betting_market_rules_update_operation betting_market_rules_update_op;
    betting_market_rules_update_op.betting_market_rules_id = rules_id;
@@ -1440,9 +1440,9 @@ const betting_market_group_object& database_fixture::create_betting_market_group
 
 
 void database_fixture::update_betting_market_group_impl(betting_market_group_id_type betting_market_group_id,
-                                                        fc::optional<internationalized_string_type> description,
-                                                        fc::optional<object_id_type> rules_id,
-                                                        fc::optional<betting_market_group_status> status,
+                                                        fc_pp::optional<internationalized_string_type> description,
+                                                        fc_pp::optional<object_id_type> rules_id,
+                                                        fc_pp::optional<betting_market_group_status> status,
                                                         bool force)
 { try {
    betting_market_group_update_operation betting_market_group_update_op;
@@ -1469,9 +1469,9 @@ const betting_market_object& database_fixture::create_betting_market(betting_mar
 } FC_CAPTURE_AND_RETHROW( (payout_condition) ) }
 
 void database_fixture::update_betting_market(betting_market_id_type betting_market_id,
-                                             fc::optional<object_id_type> group_id,
-                                             /*fc::optional<internationalized_string_type> description,*/
-                                             fc::optional<internationalized_string_type> payout_condition)
+                                             fc_pp::optional<object_id_type> group_id,
+                                             /*fc_pp::optional<internationalized_string_type> description,*/
+                                             fc_pp::optional<internationalized_string_type> payout_condition)
 { try {
    betting_market_update_operation betting_market_update_op;
    betting_market_update_op.betting_market_id = betting_market_id;
@@ -1523,7 +1523,7 @@ void set_expiration( const database& db, transaction& tx )
 {
    const chain_parameters& params = db.get_global_properties().parameters;
    tx.set_reference_block(db.head_block_id());
-   tx.set_expiration( db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3 ) );
+   tx.set_expiration( db.head_block_time() + fc_pp::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3 ) );
 }
 
 bool _push_block( database& db, const signed_block& b, uint32_t skip_flags /* = 0 */ )

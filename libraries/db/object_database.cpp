@@ -23,9 +23,9 @@
  */
 #include <graphene/db/object_database.hpp>
 
-#include <fc/io/raw.hpp>
-#include <fc/container/flat.hpp>
-#include <fc/uint128.hpp>
+#include <fc_pp/io/raw.hpp>
+#include <fc_pp/container/flat.hpp>
+#include <fc_pp/uint128.hpp>
 
 namespace graphene { namespace db {
 
@@ -73,30 +73,30 @@ void object_database::flush()
 //   ilog("Save object_database in ${d}", ("d", _data_dir));
    for( uint32_t space = 0; space < _index.size(); ++space )
    {
-      fc::create_directories( _data_dir / "object_database" / fc::to_string(space) );
+      fc_pp::create_directories( _data_dir / "object_database" / fc_pp::to_string(space) );
       const auto types = _index[space].size();
       for( uint32_t type = 0; type  <  types; ++type )
          if( _index[space][type] )
-            _index[space][type]->save( _data_dir / "object_database" / fc::to_string(space)/fc::to_string(type) );
+            _index[space][type]->save( _data_dir / "object_database" / fc_pp::to_string(space)/fc_pp::to_string(type) );
    }
 }
 
-void object_database::wipe(const fc::path& data_dir)
+void object_database::wipe(const fc_pp::path& data_dir)
 {
    close();
    ilog("Wiping object database...");
-   fc::remove_all(data_dir / "object_database");
+   fc_pp::remove_all(data_dir / "object_database");
    ilog("Done wiping object databse.");
 }
 
-void object_database::open(const fc::path& data_dir)
+void object_database::open(const fc_pp::path& data_dir)
 { try {
    ilog("Opening object database from ${d} ...", ("d", data_dir));
    _data_dir = data_dir;
    for( uint32_t space = 0; space < _index.size(); ++space )
       for( uint32_t type = 0; type  < _index[space].size(); ++type )
          if( _index[space][type] )
-            _index[space][type]->open( _data_dir / "object_database" / fc::to_string(space)/fc::to_string(type) );
+            _index[space][type]->open( _data_dir / "object_database" / fc_pp::to_string(space)/fc_pp::to_string(type) );
    ilog( "Done opening object database." );
 
 } FC_CAPTURE_AND_RETHROW( (data_dir) ) }

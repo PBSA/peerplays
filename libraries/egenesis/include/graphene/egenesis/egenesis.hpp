@@ -26,7 +26,7 @@
 
 #include <string>
 
-#include <fc/crypto/sha256.hpp>
+#include <fc_pp/crypto/sha256.hpp>
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/chain/genesis_state.hpp>
 
@@ -46,6 +46,6 @@ void compute_egenesis_json( std::string& result );
 /**
  * The file returned by compute_egenesis_json() should have this hash.
  */
-fc::sha256 get_egenesis_json_hash();
+fc_pp::sha256 get_egenesis_json_hash();
 
 } } // graphene::egenesis

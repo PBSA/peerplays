@@ -35,7 +35,7 @@ namespace graphene { namespace chain {
 
          bool is_vesting_balance()const
          { return vesting_policy.valid(); }
-         asset available(fc::time_point_sec now)const
+         asset available(fc_pp::time_point_sec now)const
          {
             return is_vesting_balance()? vesting_policy->get_allowed_withdraw({balance, now, {}})
                                        : balance;

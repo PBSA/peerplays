@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <fc/io/raw.hpp>
+#include <fc_pp/io/raw.hpp>
 #include <graphene/db/index.hpp>
 #include <graphene/db/object_database.hpp>
 

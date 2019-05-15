@@ -26,9 +26,9 @@
 namespace graphene { namespace utilities {
 
 template<size_t BlockSize=16, char PaddingChar=' '>
-class padding_ostream : public fc::buffered_ostream {
+class padding_ostream : public fc_pp::buffered_ostream {
 public:
-   padding_ostream( fc::ostream_ptr o, size_t bufsize = 4096 ) : buffered_ostream(o, bufsize) {}
+   padding_ostream( fc_pp::ostream_ptr o, size_t bufsize = 4096 ) : buffered_ostream(o, bufsize) {}
    virtual ~padding_ostream() {}
 
    virtual size_t writesome( const char* buffer, size_t len ) {

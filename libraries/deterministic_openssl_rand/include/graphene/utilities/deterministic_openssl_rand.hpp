@@ -22,10 +22,10 @@
  * THE SOFTWARE.
  */
 #pragma once
-#include <fc/crypto/sha512.hpp>
+#include <fc_pp/crypto/sha512.hpp>
 
 namespace graphene { namespace utilities {
 
-void set_random_seed_for_testing(const fc::sha512& new_seed);
+void set_random_seed_for_testing(const fc_pp::sha512& new_seed);
 
 } } // end namespace graphene::utilities

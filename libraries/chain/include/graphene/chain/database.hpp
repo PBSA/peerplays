@@ -34,13 +34,13 @@
 #include <graphene/db/object_database.hpp>
 #include <graphene/db/object.hpp>
 #include <graphene/db/simple_index.hpp>
-#include <fc/signals.hpp>
+#include <fc_pp/signals.hpp>
 
-#include <fc/crypto/hash_ctr_rng.hpp>
+#include <fc_pp/crypto/hash_ctr_rng.hpp>
 
 #include <graphene/chain/protocol/protocol.hpp>
 
-#include <fc/log/logger.hpp>
+#include <fc_pp/log/logger.hpp>
 
 #include <map>
 
@@ -93,7 +93,7 @@ namespace graphene { namespace chain {
           * @param genesis_loader A callable object which returns the genesis state to initialize new databases on
           */
           void open(
-             const fc::path& data_dir,
+             const fc_pp::path& data_dir,
              std::function<genesis_state_type()> genesis_loader );
 
          /**
@@ -102,7 +102,7 @@ namespace graphene { namespace chain {
           * This method may be called after or instead of @ref database::open, and will rebuild the object graph by
           * replaying blockchain history. When this method exits successfully, the database will be open.
           */
-         void reindex(fc::path data_dir, const genesis_state_type& initial_allocation = genesis_state_type());
+         void reindex(fc_pp::path data_dir, const genesis_state_type& initial_allocation = genesis_state_type());
 
          /**
           * @brief wipe Delete database from disk, and potentially the raw chain as well.
@@ -110,7 +110,7 @@ namespace graphene { namespace chain {
           *
           * Will close the database before wiping. Database will be closed when this function returns.
           */
-         void wipe(const fc::path& data_dir, bool include_blocks);
+         void wipe(const fc_pp::path& data_dir, bool include_blocks);
          void close(bool rewind = true);
 
          //////////////////// db_block.cpp ////////////////////
@@ -144,19 +144,19 @@ namespace graphene { namespace chain {
          bool _push_block( const signed_block& b );
          processed_transaction _push_transaction( const signed_transaction& trx );
 
-         ///@throws fc::exception if the proposed transaction fails to apply.
+         ///@throws fc_pp::exception if the proposed transaction fails to apply.
          processed_transaction push_proposal( const proposal_object& proposal );
 
          signed_block generate_block(
-            const fc::time_point_sec when,
+            const fc_pp::time_point_sec when,
             witness_id_type witness_id,
-            const fc::ecc::private_key& block_signing_private_key,
+            const fc_pp::ecc::private_key& block_signing_private_key,
             uint32_t skip
             );
          signed_block _generate_block(
-            const fc::time_point_sec when,
+            const fc_pp::time_point_sec when,
             witness_id_type witness_id,
-            const fc::ecc::private_key& block_signing_private_key
+            const fc_pp::ecc::private_key& block_signing_private_key
             );
 
          void pop_block();
@@ -195,30 +195,30 @@ namespace graphene { namespace chain {
           *  the write lock and may be in an "inconstant state" until after it is
           *  released.
           */
-         fc::signal<void(const signed_block&)>           applied_block;
+         fc_pp::signal<void(const signed_block&)>           applied_block;
 
          /**
           * This signal is emitted any time a new transaction is added to the pending
           * block state.
           */
-         fc::signal<void(const signed_transaction&)>     on_pending_transaction;
+         fc_pp::signal<void(const signed_transaction&)>     on_pending_transaction;
 
          /**
           *  Emitted After a block has been applied and committed.  The callback
           *  should not yield and should execute quickly.
           */
-         fc::signal<void(const vector<object_id_type>&, const flat_set<account_id_type>&)> new_objects;
+         fc_pp::signal<void(const vector<object_id_type>&, const flat_set<account_id_type>&)> new_objects;
 
          /**
           *  Emitted After a block has been applied and committed.  The callback
           *  should not yield and should execute quickly.
           */
-         fc::signal<void(const vector<object_id_type>&, const flat_set<account_id_type>&)> changed_objects;
+         fc_pp::signal<void(const vector<object_id_type>&, const flat_set<account_id_type>&)> changed_objects;
 
          /** this signal is emitted any time an object is removed and contains a
           * pointer to the last value of every object that was removed.
           */
-         fc::signal<void(const vector<object_id_type>&, const vector<const object*>&, const flat_set<account_id_type>&)>  removed_objects;
+         fc_pp::signal<void(const vector<object_id_type>&, const vector<const object*>&, const flat_set<account_id_type>&)>  removed_objects;
 
          //////////////////// db_witness_schedule.cpp ////////////////////
 
@@ -246,7 +246,7 @@ namespace graphene { namespace chain {
           * If slot_num == N for N > 0, return the Nth next
           * block-interval-aligned time greater than head_block_time().
           */
-         fc::time_point_sec get_slot_time(uint32_t slot_num)const;
+         fc_pp::time_point_sec get_slot_time(uint32_t slot_num)const;
 
          /**
           * Get the last slot which occurs AT or BEFORE the given time.
@@ -256,7 +256,7 @@ namespace graphene { namespace chain {
           *
           * If no such N exists, return 0.
           */
-         uint32_t get_slot_at_time(fc::time_point_sec when)const;
+         uint32_t get_slot_at_time(fc_pp::time_point_sec when)const;
 
          vector<witness_id_type> get_near_witness_schedule()const;
          void update_witness_schedule();
@@ -347,7 +347,7 @@ namespace graphene { namespace chain {
 
          void debug_dump();
          void apply_debug_updates();
-         void debug_update( const fc::variant_object& update );
+         void debug_update( const fc_pp::variant_object& update );
 
          //////////////////// db_market.cpp ////////////////////
 
@@ -483,7 +483,7 @@ namespace graphene { namespace chain {
          void update_maintenance_flag( bool new_maintenance_flag );
          void update_withdraw_permissions();
          void update_tournaments();
-         void update_betting_markets(fc::time_point_sec current_block_time);
+         void update_betting_markets(fc_pp::time_point_sec current_block_time);
          bool check_for_blackswan( const asset_object& mia, bool enable_black_swan = true );
 
          ///Steps performed only at maintenance intervals
@@ -491,7 +491,7 @@ namespace graphene { namespace chain {
 
          //////////////////// db_maint.cpp ////////////////////
 
-         void initialize_budget_record( fc::time_point_sec now, budget_record& rec )const;
+         void initialize_budget_record( fc_pp::time_point_sec now, budget_record& rec )const;
          void process_budget();
          void pay_workers( share_type& budget );
          void perform_chain_maintenance(const signed_block& next_block, const global_property_object& global_props);
@@ -539,7 +539,7 @@ namespace graphene { namespace chain {
          flat_map<uint32_t,block_id_type>  _checkpoints;
 
          node_property_object              _node_property_object;
-         fc::hash_ctr_rng<secret_hash_type, 20> _random_number_generator;
+         fc_pp::hash_ctr_rng<secret_hash_type, 20> _random_number_generator;
          bool                              _slow_replays = false;
    };
 

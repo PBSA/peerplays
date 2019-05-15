@@ -28,9 +28,9 @@
 
 namespace graphene { namespace chain {
 
-fc::variant_object get_config()
+fc_pp::variant_object get_config()
 {
-   fc::mutable_variant_object result;
+   fc_pp::mutable_variant_object result;
 
    result[ "GRAPHENE_SYMBOL" ] = GRAPHENE_SYMBOL;
    result[ "GRAPHENE_ADDRESS_PREFIX" ] = GRAPHENE_ADDRESS_PREFIX;

@@ -23,11 +23,11 @@
  */
 #include <graphene/chain/protocol/operations.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 
 namespace graphene { namespace chain {
 
-proposal_create_operation proposal_create_operation::committee_proposal(const chain_parameters& global_params, fc::time_point_sec head_block_time )
+proposal_create_operation proposal_create_operation::committee_proposal(const chain_parameters& global_params, fc_pp::time_point_sec head_block_time )
 {
    // TODO move this method to unit tests as it is not useful
    proposal_create_operation op;
@@ -44,7 +44,7 @@ void proposal_create_operation::validate() const
 
 share_type proposal_create_operation::calculate_fee(const fee_parameters_type& k) const
 {
-   return k.fee + calculate_data_fee( fc::raw::pack_size(*this), k.price_per_kbyte );
+   return k.fee + calculate_data_fee( fc_pp::raw::pack_size(*this), k.price_per_kbyte );
 }
 
 void proposal_update_operation::validate() const
@@ -77,7 +77,7 @@ void proposal_delete_operation::validate() const
 
 share_type proposal_update_operation::calculate_fee(const fee_parameters_type& k) const
 {
-   return k.fee + calculate_data_fee( fc::raw::pack_size(*this), k.price_per_kbyte );
+   return k.fee + calculate_data_fee( fc_pp::raw::pack_size(*this), k.price_per_kbyte );
 }
 
 void proposal_update_operation::get_required_authorities( vector<authority>& o )const

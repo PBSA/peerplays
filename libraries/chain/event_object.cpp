@@ -422,18 +422,18 @@ namespace graphene { namespace chain {
             {
                // this is an approximate test, the state name provided by typeinfo will be mangled, but should
                // at least contain the string we're looking for
-               const char* fc_reflected_value_name = fc::reflector<event_state>::to_string((event_state)i);
+               const char* fc_reflected_value_name = fc_pp::reflector<event_state>::to_string((event_state)i);
                if (!strstr(filled_state_names[i], fc_reflected_value_name))
                {
-                  fc_elog(fc::logger::get("default"),
-                          "Error, state string mismatch between fc and boost::msm for int value ${int_value}: boost::msm -> ${boost_string}, fc::reflect -> ${fc_string}",
+                  fc_elog(fc_pp::logger::get("default"),
+                          "Error, state string mismatch between fc_pp and boost::msm for int value ${int_value}: boost::msm -> ${boost_string}, fc_pp::reflect -> ${fc_string}",
                           ("int_value", i)("boost_string", filled_state_names[i])("fc_string", fc_reflected_value_name));
                   ++error_count;
                }
             }
-            catch (const fc::bad_cast_exception&)
+            catch (const fc_pp::bad_cast_exception&)
             {
-               fc_elog(fc::logger::get("default"),
+               fc_elog(fc_pp::logger::get("default"),
                        "Error, no reflection for value ${int_value} in enum event_status",
                        ("int_value", i));
                ++error_count;
@@ -551,11 +551,11 @@ namespace graphene { namespace chain {
 
 } } // graphene::chain
 
-namespace fc { 
+namespace fc_pp { 
    // Manually reflect event_object to variant to properly reflect "state"
-   void to_variant(const graphene::chain::event_object& event_obj, fc::variant& v)
+   void to_variant(const graphene::chain::event_object& event_obj, fc_pp::variant& v)
    {
-      fc::mutable_variant_object o;
+      fc_pp::mutable_variant_object o;
       o("id", event_obj.id)
        ("name", event_obj.name)
        ("season", event_obj.season)
@@ -568,7 +568,7 @@ namespace fc {
    }
 
    // Manually reflect event_object to variant to properly reflect "state"
-   void from_variant(const fc::variant& v, graphene::chain::event_object& event_obj)
+   void from_variant(const fc_pp::variant& v, graphene::chain::event_object& event_obj)
    {
       event_obj.id = v["id"].as<graphene::chain::event_id_type>();
       event_obj.name = v["name"].as<graphene::chain::internationalized_string_type>();
@@ -579,6 +579,6 @@ namespace fc {
       graphene::chain::event_status status = v["status"].as<graphene::chain::event_status>();
       const_cast<int*>(event_obj.my->state_machine.current_state())[0] = (int)status;
    }
-} //end namespace fc
+} //end namespace fc_pp
 
 

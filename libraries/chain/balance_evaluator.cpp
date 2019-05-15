@@ -58,7 +58,7 @@ void_result balance_claim_evaluator::do_evaluate(const balance_claim_operation& 
          ("c", op.total_claimed)("a", balance->available(d.head_block_time()))
          );
       GRAPHENE_ASSERT(
-         d.head_block_time() - balance->last_claim_date >= fc::days(1),
+         d.head_block_time() - balance->last_claim_date >= fc_pp::days(1),
          balance_claim_claimed_too_often,
          "Genesis vesting balances may not be claimed more than once per day."
          );

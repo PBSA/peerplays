@@ -23,8 +23,8 @@
  */
 #include <graphene/chain/block_database.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
-#include <fc/io/raw.hpp>
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/io/raw.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 
 namespace graphene { namespace chain {
 
@@ -39,13 +39,13 @@ FC_REFLECT( graphene::chain::index_entry, (block_pos)(block_size)(block_id) );
 
 namespace graphene { namespace chain {
 
-void block_database::open( const fc::path& dbdir )
+void block_database::open( const fc_pp::path& dbdir )
 { try {
-   fc::create_directories(dbdir);
+   fc_pp::create_directories(dbdir);
    _block_num_to_pos.exceptions(std::ios_base::failbit | std::ios_base::badbit);
    _blocks.exceptions(std::ios_base::failbit | std::ios_base::badbit);
 
-   if( !fc::exists( dbdir/"index" ) )
+   if( !fc_pp::exists( dbdir/"index" ) )
    {
      _block_num_to_pos.open( (dbdir/"index").generic_string().c_str(), std::fstream::binary | std::fstream::in | std::fstream::out | std::fstream::trunc);
      _blocks.open( (dbdir/"blocks").generic_string().c_str(), std::fstream::binary | std::fstream::in | std::fstream::out | std::fstream::trunc);
@@ -86,7 +86,7 @@ void block_database::store( const block_id_type& _id, const signed_block& b )
    _block_num_to_pos.seekp( sizeof( index_entry ) * num );
    index_entry e;
    _blocks.seekp( 0, _blocks.end );
-   auto vec = fc::raw::pack( b );
+   auto vec = fc_pp::raw::pack( b );
    e.block_pos  = _blocks.tellp();
    e.block_size = vec.size();
    e.block_id   = id;
@@ -100,7 +100,7 @@ void block_database::remove( const block_id_type& id )
    auto index_pos = sizeof(e)*block_header::num_from_id(id);
    _block_num_to_pos.seekg( 0, _block_num_to_pos.end );
    if ( _block_num_to_pos.tellg() <= index_pos )
-      FC_THROW_EXCEPTION(fc::key_not_found_exception, "Block ${id} not contained in block database", ("id", id));
+      FC_THROW_EXCEPTION(fc_pp::key_not_found_exception, "Block ${id} not contained in block database", ("id", id));
 
    _block_num_to_pos.seekg( index_pos );
    _block_num_to_pos.read( (char*)&e, sizeof(e) );
@@ -136,7 +136,7 @@ block_id_type block_database::fetch_block_id( uint32_t block_num )const
    auto index_pos = sizeof(e)*block_num;
    _block_num_to_pos.seekg( 0, _block_num_to_pos.end );
    if ( _block_num_to_pos.tellg() <= int64_t(index_pos) )
-      FC_THROW_EXCEPTION(fc::key_not_found_exception, "Block number ${block_num} not contained in block database", ("block_num", block_num));
+      FC_THROW_EXCEPTION(fc_pp::key_not_found_exception, "Block number ${block_num} not contained in block database", ("block_num", block_num));
 
    _block_num_to_pos.seekg( index_pos );
    _block_num_to_pos.read( (char*)&e, sizeof(e) );
@@ -164,11 +164,11 @@ optional<signed_block> block_database::fetch_optional( const block_id_type& id )
       _blocks.seekg( e.block_pos );
       if (e.block_size)
          _blocks.read( data.data(), e.block_size );
-      auto result = fc::raw::unpack<signed_block>(data);
+      auto result = fc_pp::raw::unpack<signed_block>(data);
       FC_ASSERT( result.id() == e.block_id );
       return result;
    }
-   catch (const fc::exception&)
+   catch (const fc_pp::exception&)
    {
    }
    catch (const std::exception&)
@@ -193,11 +193,11 @@ optional<signed_block> block_database::fetch_by_number( uint32_t block_num )cons
       vector<char> data( e.block_size );
       _blocks.seekg( e.block_pos );
       _blocks.read( data.data(), e.block_size );
-      auto result = fc::raw::unpack<signed_block>(data);
+      auto result = fc_pp::raw::unpack<signed_block>(data);
       FC_ASSERT( result.id() == e.block_id );
       return result;
    }
-   catch (const fc::exception&)
+   catch (const fc_pp::exception&)
    {
    }
    catch (const std::exception&)
@@ -232,10 +232,10 @@ optional<signed_block> block_database::last()const
       vector<char> data( e.block_size );
       _blocks.seekg( e.block_pos );
       _blocks.read( data.data(), e.block_size );
-      auto result = fc::raw::unpack<signed_block>(data);
+      auto result = fc_pp::raw::unpack<signed_block>(data);
       return result;
    }
-   catch (const fc::exception&)
+   catch (const fc_pp::exception&)
    {
    }
    catch (const std::exception&)
@@ -269,7 +269,7 @@ optional<block_id_type> block_database::last_id()const
 
       return e.block_id;
    }
-   catch (const fc::exception&)
+   catch (const fc_pp::exception&)
    {
    }
    catch (const std::exception&)

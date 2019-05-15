@@ -9,7 +9,7 @@
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/protocol/committee_member.hpp>
-#include <fc/crypto/digest.hpp>
+#include <fc_pp/crypto/digest.hpp>
 
 #include "../common/database_fixture.hpp"
 
@@ -77,7 +77,7 @@ namespace
             operation_proposal.proposed_ops.push_back(op_wrapper(operation));
         }
 
-        operation_proposal.expiration_time = fixture.db.head_block_time() + fc::days(1);
+        operation_proposal.expiration_time = fixture.db.head_block_time() + fc_pp::days(1);
 
         signed_transaction transaction;
         transaction.operations.push_back(operation_proposal);
@@ -99,9 +99,9 @@ BOOST_AUTO_TEST_CASE( test_exception_throwing_for_the_same_operation_proposed_tw
         create_proposal(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))});
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))});
-        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc_pp::exception);
     }
-    catch( const fc::exception& e )
+    catch( const fc_pp::exception& e )
     {
         edump((e.to_detail_string()));
         throw;
@@ -117,7 +117,7 @@ BOOST_AUTO_TEST_CASE( check_passes_without_duplication )
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))});
         BOOST_CHECK_NO_THROW(db.check_tansaction_for_duplicated_operations(trx));
     }
-    catch( const fc::exception& e )
+    catch( const fc_pp::exception& e )
     {
         edump((e.to_detail_string()));
         throw;
@@ -135,7 +135,7 @@ BOOST_AUTO_TEST_CASE( check_passes_for_the_same_operation_with_different_assets 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(501))});
         BOOST_CHECK_NO_THROW(db.check_tansaction_for_duplicated_operations(trx));
     }
-    catch( const fc::exception& e )
+    catch( const fc_pp::exception& e )
     {
         edump((e.to_detail_string()));
         throw;
@@ -152,9 +152,9 @@ BOOST_AUTO_TEST_CASE( check_fails_for_duplication_in_transaction_with_several_op
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(501)),
                                                                            make_transfer_operation(account_id_type(), alice_id, asset(500))}); //duplicated one
-        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc_pp::exception);
     }
-    catch( const fc::exception& e )
+    catch( const fc_pp::exception& e )
     {
         edump((e.to_detail_string()));
         throw;
@@ -172,9 +172,9 @@ BOOST_AUTO_TEST_CASE( check_fails_for_duplicated_operation_in_existed_proposal_w
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(501)),
                                                                            make_transfer_operation(account_id_type(), alice_id, asset(500))}); //duplicated one
-        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc_pp::exception);
     }
-    catch( const fc::exception& e )
+    catch( const fc_pp::exception& e )
     {
         edump((e.to_detail_string()));
         throw;
@@ -191,9 +191,9 @@ BOOST_AUTO_TEST_CASE( check_fails_for_duplicated_operation_in_existed_proposal_w
                                 make_transfer_operation(account_id_type(), alice_id, asset(500))}); //duplicated one
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))}); //duplicated one
-        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc_pp::exception);
     }
-    catch( const fc::exception& e )
+    catch( const fc_pp::exception& e )
     {
         edump((e.to_detail_string()));
         throw;
@@ -211,7 +211,7 @@ BOOST_AUTO_TEST_CASE( check_passes_for_different_operations_types )
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
         BOOST_CHECK_NO_THROW(db.check_tansaction_for_duplicated_operations(trx));
     }
-    catch( const fc::exception& e )
+    catch( const fc_pp::exception& e )
     {
         edump((e.to_detail_string()));
         throw;
@@ -225,9 +225,9 @@ BOOST_AUTO_TEST_CASE( check_fails_for_same_member_create_operations )
         create_proposal(*this, {make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
-        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc_pp::exception);
     }
-    catch( const fc::exception& e )
+    catch( const fc_pp::exception& e )
     {
         edump((e.to_detail_string()));
         throw;
@@ -243,7 +243,7 @@ BOOST_AUTO_TEST_CASE( check_passes_for_different_member_create_operations )
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_committee_member_create_operation(asset(1001), account_id_type(), "test url")});
         BOOST_CHECK_NO_THROW(db.check_tansaction_for_duplicated_operations(trx));
     }
-    catch( const fc::exception& e )
+    catch( const fc_pp::exception& e )
     {
         edump((e.to_detail_string()));
         throw;
@@ -265,9 +265,9 @@ BOOST_AUTO_TEST_CASE( check_failes_for_several_operations_of_mixed_type )
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(501)), //duplicate
                                                                            make_committee_member_create_operation(asset(1002), account_id_type(), "test url")});
 
-        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc_pp::exception);
     }
-    catch( const fc::exception& e )
+    catch( const fc_pp::exception& e )
     {
         edump((e.to_detail_string()));
         throw;
@@ -280,7 +280,7 @@ BOOST_AUTO_TEST_CASE( check_failes_for_duplicates_in_pending_transactions_list )
     {
         ACTORS((alice))
 
-        fc::ecc::private_key committee_key = init_account_priv_key;
+        fc_pp::ecc::private_key committee_key = init_account_priv_key;
 
         const account_object& moneyman = create_account("moneyman", init_account_pub_key);
         const asset_object& core = asset_id_type()(db);
@@ -291,9 +291,9 @@ BOOST_AUTO_TEST_CASE( check_failes_for_duplicates_in_pending_transactions_list )
         push_proposal(*this, moneyman, {duplicate});
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {duplicate});
-        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc_pp::exception);
     }
-    catch( const fc::exception& e )
+    catch( const fc_pp::exception& e )
     {
         edump((e.to_detail_string()));
         throw;
@@ -306,7 +306,7 @@ BOOST_AUTO_TEST_CASE( check_passes_for_no_duplicates_in_pending_transactions_lis
     {
         ACTORS((alice))
 
-        fc::ecc::private_key committee_key = init_account_priv_key;
+        fc_pp::ecc::private_key committee_key = init_account_priv_key;
 
         const account_object& moneyman = create_account("moneyman", init_account_pub_key);
         const asset_object& core = asset_id_type()(db);
@@ -318,7 +318,7 @@ BOOST_AUTO_TEST_CASE( check_passes_for_no_duplicates_in_pending_transactions_lis
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(alice.id, moneyman.get_id(), asset(101))});
         BOOST_CHECK_NO_THROW(db.check_tansaction_for_duplicated_operations(trx));
     }
-    catch( const fc::exception& e )
+    catch( const fc_pp::exception& e )
     {
         edump((e.to_detail_string()));
         throw;
@@ -331,7 +331,7 @@ BOOST_AUTO_TEST_CASE( check_fails_for_several_transactions_with_duplicates_in_pe
     {
         ACTORS((alice))
 
-        fc::ecc::private_key committee_key = init_account_priv_key;
+        fc_pp::ecc::private_key committee_key = init_account_priv_key;
 
         const account_object& moneyman = create_account("moneyman", init_account_pub_key);
         const asset_object& core = asset_id_type()(db);
@@ -344,9 +344,9 @@ BOOST_AUTO_TEST_CASE( check_fails_for_several_transactions_with_duplicates_in_pe
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {duplicate,
                                                                            make_transfer_operation(alice.id, moneyman.get_id(), asset(102))});
-        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc_pp::exception);
     }
-    catch( const fc::exception& e )
+    catch( const fc_pp::exception& e )
     {
         edump((e.to_detail_string()));
         throw;
@@ -355,7 +355,7 @@ BOOST_AUTO_TEST_CASE( check_fails_for_several_transactions_with_duplicates_in_pe
 
 BOOST_AUTO_TEST_CASE( check_passes_for_duplicated_betting_market_or_group )
 {
-    generate_blocks( HARDFORK_1000_TIME + fc::seconds(300) );
+    generate_blocks( HARDFORK_1000_TIME + fc_pp::seconds(300) );
 
     try
     {
@@ -405,7 +405,7 @@ BOOST_AUTO_TEST_CASE( check_passes_for_duplicated_betting_market_or_group )
         auto trx = make_signed_transaction_with_proposed_operation(*this, { pcop1, pcop2 });
         BOOST_CHECK_NO_THROW( db.check_tansaction_for_duplicated_operations(trx) );
     }
-    catch( const fc::exception& e )
+    catch( const fc_pp::exception& e )
     {
         edump((e.to_detail_string()));
         throw;

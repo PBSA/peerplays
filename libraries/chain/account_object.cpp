@@ -25,7 +25,7 @@
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/hardfork.hpp>
-#include <fc/uint128.hpp>
+#include <fc_pp/uint128.hpp>
 
 namespace graphene { namespace chain {
 
@@ -36,7 +36,7 @@ share_type cut_fee(share_type a, uint16_t p)
    if( p == GRAPHENE_100_PERCENT )
       return a;
 
-   fc::uint128 r(a.value);
+   fc_pp::uint128 r(a.value);
    r *= p;
    r /= GRAPHENE_100_PERCENT;
    return r.to_uint64();

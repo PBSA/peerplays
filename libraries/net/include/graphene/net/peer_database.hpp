@@ -24,13 +24,13 @@
 #pragma once
 #include <boost/iterator/iterator_facade.hpp>
 
-#include <fc/network/ip.hpp>
-#include <fc/time.hpp>
-#include <fc/io/enum_type.hpp>
-#include <fc/reflect/reflect.hpp>
-#include <fc/reflect/variant.hpp>
-#include <fc/exception/exception.hpp>
-#include <fc/io/raw.hpp>
+#include <fc_pp/network/ip.hpp>
+#include <fc_pp/time.hpp>
+#include <fc_pp/io/enum_type.hpp>
+#include <fc_pp/reflect/reflect.hpp>
+#include <fc_pp/reflect/variant.hpp>
+#include <fc_pp/exception/exception.hpp>
+#include <fc_pp/io/raw.hpp>
 
 namespace graphene { namespace net {
 
@@ -45,20 +45,20 @@ namespace graphene { namespace net {
 
   struct potential_peer_record
   {
-    fc::ip::endpoint                  endpoint;
-    fc::time_point_sec                last_seen_time;
-    fc::enum_type<uint8_t,potential_peer_last_connection_disposition> last_connection_disposition;
-    fc::time_point_sec                last_connection_attempt_time;
+    fc_pp::ip::endpoint                  endpoint;
+    fc_pp::time_point_sec                last_seen_time;
+    fc_pp::enum_type<uint8_t,potential_peer_last_connection_disposition> last_connection_disposition;
+    fc_pp::time_point_sec                last_connection_attempt_time;
     uint32_t                          number_of_successful_connection_attempts;
     uint32_t                          number_of_failed_connection_attempts;
-    fc::optional<fc::exception>       last_error;
+    fc_pp::optional<fc_pp::exception>       last_error;
 
     potential_peer_record() :
       number_of_successful_connection_attempts(0),
     number_of_failed_connection_attempts(0){}
 
-    potential_peer_record(fc::ip::endpoint endpoint,
-                          fc::time_point_sec last_seen_time = fc::time_point_sec(),
+    potential_peer_record(fc_pp::ip::endpoint endpoint,
+                          fc_pp::time_point_sec last_seen_time = fc_pp::time_point_sec(),
                           potential_peer_last_connection_disposition last_connection_disposition = never_attempted_to_connect) :
       endpoint(endpoint),
       last_seen_time(last_seen_time),
@@ -98,15 +98,15 @@ namespace graphene { namespace net {
     peer_database();
     ~peer_database();
 
-    void open(const fc::path& databaseFilename);
+    void open(const fc_pp::path& databaseFilename);
     void close();
     void clear();
 
-    void erase(const fc::ip::endpoint& endpointToErase);
+    void erase(const fc_pp::ip::endpoint& endpointToErase);
 
     void update_entry(const potential_peer_record& updatedRecord);
-    potential_peer_record lookup_or_create_entry_for_endpoint(const fc::ip::endpoint& endpointToLookup);
-    fc::optional<potential_peer_record> lookup_entry_for_endpoint(const fc::ip::endpoint& endpointToLookup);
+    potential_peer_record lookup_or_create_entry_for_endpoint(const fc_pp::ip::endpoint& endpointToLookup);
+    fc_pp::optional<potential_peer_record> lookup_entry_for_endpoint(const fc_pp::ip::endpoint& endpointToLookup);
 
     typedef detail::peer_database_iterator iterator;
     iterator begin() const;

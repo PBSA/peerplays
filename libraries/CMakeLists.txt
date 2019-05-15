@@ -1,4 +1,4 @@
-add_subdirectory( fc )
+add_subdirectory( fc_pp )
 add_subdirectory( db )
 add_subdirectory( deterministic_openssl_rand )
 add_subdirectory( chain )
@@ -10,3 +10,5 @@ add_subdirectory( utilities )
 add_subdirectory( app )
 add_subdirectory( plugins )
 add_subdirectory( wallet )
+
+add_subdirectory( vms )

@@ -45,7 +45,7 @@ share_type withdraw_permission_claim_operation::calculate_fee(const fee_paramete
 {
    share_type core_fee_required = k.fee;
    if( memo )
-      core_fee_required += calculate_data_fee( fc::raw::pack_size(memo), k.price_per_kbyte );
+      core_fee_required += calculate_data_fee( fc_pp::raw::pack_size(memo), k.price_per_kbyte );
    return core_fee_required;
 }
 

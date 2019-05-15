@@ -28,9 +28,9 @@ namespace graphene { namespace chain {
 
    template<typename T> struct transform_to_fee_parameters;
    template<typename ...T>
-   struct transform_to_fee_parameters<fc::static_variant<T...>>
+   struct transform_to_fee_parameters<fc_pp::static_variant<T...>>
    {
-      typedef fc::static_variant< typename T::fee_parameters_type... > type;
+      typedef fc_pp::static_variant< typename T::fee_parameters_type... > type;
    };
    typedef transform_to_fee_parameters<operation>::type fee_parameters;
 

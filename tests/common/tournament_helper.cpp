@@ -27,7 +27,7 @@
 #include <graphene/chain/match_object.hpp>
 #include <graphene/chain/tournament_object.hpp>
 
-#include <fc/crypto/rand.hpp>
+#include <fc_pp/crypto/rand.hpp>
 
 using namespace graphene::chain;
 
@@ -79,7 +79,7 @@ void tournaments_helper::create_asset(const account_id_type& issuer_account_id,
                       const string& symbol,
                       uint8_t precision,
                       asset_options& common,
-                      const fc::ecc::private_key& sig_priv_key)
+                      const fc_pp::ecc::private_key& sig_priv_key)
 {
         graphene::chain::database& db = df.db;
         const chain_parameters& params = db.get_global_properties().parameters;
@@ -94,7 +94,7 @@ void tournaments_helper::create_asset(const account_id_type& issuer_account_id,
         for( auto& op : tx.operations )
             db.current_fee_schedule().set_fee(op);
         tx.validate();
-        tx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
+        tx.set_expiration(db.head_block_time() + fc_pp::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
         df.sign(tx, sig_priv_key);
         PUSH_TX(db, tx);
 
@@ -103,7 +103,7 @@ void tournaments_helper::create_asset(const account_id_type& issuer_account_id,
 
 void tournaments_helper::update_dividend_asset(const asset_id_type asset_to_update_id,
                                dividend_asset_options new_options,
-                               const fc::ecc::private_key& sig_priv_key)
+                               const fc_pp::ecc::private_key& sig_priv_key)
 {
         graphene::chain::database& db = df.db;
         const chain_parameters& params = db.get_global_properties().parameters;
@@ -118,7 +118,7 @@ void tournaments_helper::update_dividend_asset(const asset_id_type asset_to_upda
         for( auto& op : tx.operations )
            db.current_fee_schedule().set_fee(op);
         tx.validate();
-        tx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
+        tx.set_expiration(db.head_block_time() + fc_pp::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
         df.sign(tx, sig_priv_key);
         PUSH_TX(db, tx);
 
@@ -142,7 +142,7 @@ optional<account_id_type> tournaments_helper::get_asset_dividend_account(const a
 }
 
 const tournament_id_type tournaments_helper::create_tournament (const account_id_type& creator,
-                                                const fc::ecc::private_key& sig_priv_key,
+                                                const fc_pp::ecc::private_key& sig_priv_key,
                                                 asset buy_in,
                                                 uint32_t number_of_players,
                                                 uint32_t time_per_commit_move,
@@ -154,7 +154,7 @@ const tournament_id_type tournaments_helper::create_tournament (const account_id
                                                 bool insurance_enabled,
                                                 uint32_t number_of_gestures,
                                                 uint32_t start_time,
-                                                fc::optional<flat_set<account_id_type> > whitelist
+                                                fc_pp::optional<flat_set<account_id_type> > whitelist
                                                 )
 {
         if (current_tournament_idx.valid())
@@ -174,13 +174,13 @@ const tournament_id_type tournaments_helper::create_tournament (const account_id
         game_options.time_per_reveal_move = time_per_reveal_move;
         game_options.insurance_enabled = insurance_enabled;
 
-        options.registration_deadline = db.head_block_time() + fc::seconds(registration_deadline + *current_tournament_idx);
+        options.registration_deadline = db.head_block_time() + fc_pp::seconds(registration_deadline + *current_tournament_idx);
         options.buy_in = buy_in;
         options.number_of_players = number_of_players;
         if (start_delay)
             options.start_delay = start_delay;
         if (start_time)
-            options.start_time = db.head_block_time() + fc::seconds(start_time);
+            options.start_time = db.head_block_time() + fc_pp::seconds(start_time);
         options.round_delay = round_delay;
         options.number_of_wins = number_of_wins;
         if (whitelist.valid())
@@ -192,7 +192,7 @@ const tournament_id_type tournaments_helper::create_tournament (const account_id
         for( auto& op : trx.operations )
             db.current_fee_schedule().set_fee(op);
         trx.validate();
-        trx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
+        trx.set_expiration(db.head_block_time() + fc_pp::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
         df.sign(trx, sig_priv_key);
         PUSH_TX(db, trx);
 
@@ -204,7 +204,7 @@ const tournament_id_type tournaments_helper::create_tournament (const account_id
 void tournaments_helper::join_tournament(const tournament_id_type & tournament_id,
                          const account_id_type& player_id,
                          const account_id_type& payer_id,
-                         const fc::ecc::private_key& sig_priv_key,
+                         const fc_pp::ecc::private_key& sig_priv_key,
                          asset buy_in
                          )
 {
@@ -221,7 +221,7 @@ void tournaments_helper::join_tournament(const tournament_id_type & tournament_i
         for( auto& op : tx.operations )
             db.current_fee_schedule().set_fee(op);
         tx.validate();
-        tx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
+        tx.set_expiration(db.head_block_time() + fc_pp::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
         df.sign(tx, sig_priv_key);
         PUSH_TX(db, tx);
 
@@ -232,7 +232,7 @@ void tournaments_helper::join_tournament(const tournament_id_type & tournament_i
 void tournaments_helper::leave_tournament(const tournament_id_type & tournament_id,
                          const account_id_type& player_id,
                          const account_id_type& canceling_account_id,
-                         const fc::ecc::private_key& sig_priv_key
+                         const fc_pp::ecc::private_key& sig_priv_key
                         )
 {
        graphene::chain::database& db = df.db;
@@ -247,7 +247,7 @@ void tournaments_helper::leave_tournament(const tournament_id_type & tournament_
        for( auto& op : tx.operations )
            db.current_fee_schedule().set_fee(op);
        tx.validate();
-       tx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
+       tx.set_expiration(db.head_block_time() + fc_pp::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
        df.sign(tx, sig_priv_key);
        PUSH_TX(db, tx);
 
@@ -258,7 +258,7 @@ void tournaments_helper::leave_tournament(const tournament_id_type & tournament_
 void tournaments_helper::rps_throw(const game_id_type& game_id,
                    const account_id_type& player_id,
                    rock_paper_scissors_gesture gesture,
-                   const fc::ecc::private_key& sig_priv_key
+                   const fc_pp::ecc::private_key& sig_priv_key
                    )
 {
 
@@ -276,14 +276,14 @@ void tournaments_helper::rps_throw(const game_id_type& game_id,
 
        // construct the complete throw, the commit, and reveal
        rock_paper_scissors_throw full_throw;
-       fc::rand_bytes((char*)&full_throw.nonce1, sizeof(full_throw.nonce1));
-       fc::rand_bytes((char*)&full_throw.nonce2, sizeof(full_throw.nonce2));
+       fc_pp::rand_bytes((char*)&full_throw.nonce1, sizeof(full_throw.nonce1));
+       fc_pp::rand_bytes((char*)&full_throw.nonce2, sizeof(full_throw.nonce2));
        full_throw.gesture = gesture;
 
        rock_paper_scissors_throw_commit commit_throw;
        commit_throw.nonce1 = full_throw.nonce1;
-       std::vector<char> full_throw_packed(fc::raw::pack(full_throw));
-       commit_throw.throw_hash = fc::sha256::hash(full_throw_packed.data(), full_throw_packed.size());
+       std::vector<char> full_throw_packed(fc_pp::raw::pack(full_throw));
+       commit_throw.throw_hash = fc_pp::sha256::hash(full_throw_packed.data(), full_throw_packed.size());
 
        rock_paper_scissors_throw_reveal reveal_throw;
        reveal_throw.nonce2 = full_throw.nonce2;
@@ -305,7 +305,7 @@ void tournaments_helper::rps_throw(const game_id_type& game_id,
            players_fees[player_id][f.asset_id] -= f.amount;
        }
        tx.validate();
-       tx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
+       tx.set_expiration(db.head_block_time() + fc_pp::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
        df.sign(tx, sig_priv_key);
        if (/*match_obj.match_winners.empty() &&*/ game_obj.get_state() == game_state::expecting_commit_moves) // checking again
           PUSH_TX(db, tx);
@@ -314,7 +314,7 @@ void tournaments_helper::rps_throw(const game_id_type& game_id,
 void tournaments_helper::rps_reveal( const game_id_type& game_id,
                                      const account_id_type& player_id,
                                      rock_paper_scissors_gesture gesture,
-                                     const fc::ecc::private_key& sig_priv_key )
+                                     const fc_pp::ecc::private_key& sig_priv_key )
 {
    graphene::chain::database& db = df.db;
 
@@ -410,7 +410,7 @@ void tournaments_helper::play_games(unsigned skip_some_commits, unsigned skip_so
                                                players_fees[player_id][f.asset_id] -= f.amount;
                                            }
                                            tx.validate();
-                                           tx.set_expiration(db.head_block_time() + fc::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
+                                           tx.set_expiration(db.head_block_time() + fc_pp::seconds( params.block_interval * (params.maintenance_skip_slots + 1) * 3));
                                            df.sign(tx, players_keys[player_id]);
                                            if (game.get_state() == game_state::expecting_reveal_moves) // check again
                                                PUSH_TX(db, tx);
@@ -425,7 +425,7 @@ void tournaments_helper::play_games(unsigned skip_some_commits, unsigned skip_so
             }
         }
 //}
-//catch (fc::exception& e)
+//catch (fc_pp::exception& e)
 //{
 //    edump((e.to_detail_string()));
 //    throw;

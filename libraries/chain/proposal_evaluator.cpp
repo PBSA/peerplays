@@ -31,16 +31,16 @@
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/hardfork.hpp>
 
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 
 namespace graphene { namespace chain {
 
 struct proposal_operation_hardfork_visitor
 {
    typedef void result_type;
-   const fc::time_point_sec block_time;
+   const fc_pp::time_point_sec block_time;
 
-   proposal_operation_hardfork_visitor( const fc::time_point_sec bt ) : block_time(bt) {}
+   proposal_operation_hardfork_visitor( const fc_pp::time_point_sec bt ) : block_time(bt) {}
 
    template<typename T>
    void operator()(const T &v) const {}
@@ -154,7 +154,7 @@ void_result proposal_create_evaluator::do_evaluate(const proposal_create_operati
    FC_ASSERT( o.expiration_time > d.head_block_time(), "Proposal has already expired on creation." );
    FC_ASSERT( o.expiration_time <= d.head_block_time() + global_parameters.maximum_proposal_lifetime,
               "Proposal expiration time is too far in the future.");
-   FC_ASSERT( !o.review_period_seconds || fc::seconds(*o.review_period_seconds) < (o.expiration_time - d.head_block_time()),
+   FC_ASSERT( !o.review_period_seconds || fc_pp::seconds(*o.review_period_seconds) < (o.expiration_time - d.head_block_time()),
               "Proposal review period must be less than its overall lifetime." );
 
    {
@@ -292,7 +292,7 @@ void_result proposal_update_evaluator::do_apply(const proposal_update_operation&
       _executed_proposal = true;
       try {
          _processed_transaction = d.push_proposal(*_proposal);
-      } catch(fc::exception& e) {
+      } catch(fc_pp::exception& e) {
          wlog("Proposed transaction ${id} failed to apply once approved with exception:\n----\n${reason}\n----\nWill try again when it expires.",
               ("id", o.proposal)("reason", e.to_detail_string()));
          _proposal_failed = true;

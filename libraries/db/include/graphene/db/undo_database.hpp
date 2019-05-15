@@ -24,12 +24,12 @@
 #pragma once
 #include <graphene/db/object.hpp>
 #include <deque>
-#include <fc/exception/exception.hpp>
+#include <fc_pp/exception/exception.hpp>
 
 namespace graphene { namespace db {
 
    using std::unordered_map;
-   using fc::flat_set;
+   using fc_pp::flat_set;
    class object_database;
 
    struct undo_state
@@ -63,7 +63,7 @@ namespace graphene { namespace db {
                   try {
                      if( _apply_undo ) _db.undo();
                   }
-                  catch ( const fc::exception& e )
+                  catch ( const fc_pp::exception& e )
                   {
                      elog( "${e}", ("e",e.to_detail_string() ) );
                      throw; // maybe crash..

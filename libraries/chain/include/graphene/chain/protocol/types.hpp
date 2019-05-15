@@ -22,21 +22,21 @@
  * THE SOFTWARE.
  */
 #pragma once
-#include <fc/container/flat_fwd.hpp>
-#include <fc/io/varint.hpp>
-#include <fc/io/enum_type.hpp>
-#include <fc/crypto/sha224.hpp>
-#include <fc/crypto/elliptic.hpp>
-#include <fc/reflect/reflect.hpp>
-#include <fc/reflect/variant.hpp>
-#include <fc/optional.hpp>
-#include <fc/safe.hpp>
-#include <fc/container/flat.hpp>
-#include <fc/string.hpp>
-#include <fc/io/raw.hpp>
-#include <fc/uint128.hpp>
-#include <fc/static_variant.hpp>
-#include <fc/smart_ref_fwd.hpp>
+#include <fc_pp/container/flat_fwd.hpp>
+#include <fc_pp/io/varint.hpp>
+#include <fc_pp/io/enum_type.hpp>
+#include <fc_pp/crypto/sha224.hpp>
+#include <fc_pp/crypto/elliptic.hpp>
+#include <fc_pp/reflect/reflect.hpp>
+#include <fc_pp/reflect/variant.hpp>
+#include <fc_pp/optional.hpp>
+#include <fc_pp/safe.hpp>
+#include <fc_pp/container/flat.hpp>
+#include <fc_pp/string.hpp>
+#include <fc_pp/io/raw.hpp>
+#include <fc_pp/uint128.hpp>
+#include <fc_pp/static_variant.hpp>
+#include <fc_pp/smart_ref_fwd.hpp>
 
 #include <memory>
 #include <vector>
@@ -63,26 +63,26 @@ namespace graphene { namespace chain {
    using                               std::tie;
    using                               std::make_pair;
 
-   using                               fc::smart_ref;
-   using                               fc::variant_object;
-   using                               fc::variant;
-   using                               fc::enum_type;
-   using                               fc::optional;
-   using                               fc::unsigned_int;
-   using                               fc::signed_int;
-   using                               fc::time_point_sec;
-   using                               fc::time_point;
-   using                               fc::safe;
-   using                               fc::flat_map;
-   using                               fc::flat_set;
-   using                               fc::static_variant;
-   using                               fc::ecc::range_proof_type;
-   using                               fc::ecc::range_proof_info;
-   using                               fc::ecc::commitment_type;
+   using                               fc_pp::smart_ref;
+   using                               fc_pp::variant_object;
+   using                               fc_pp::variant;
+   using                               fc_pp::enum_type;
+   using                               fc_pp::optional;
+   using                               fc_pp::unsigned_int;
+   using                               fc_pp::signed_int;
+   using                               fc_pp::time_point_sec;
+   using                               fc_pp::time_point;
+   using                               fc_pp::safe;
+   using                               fc_pp::flat_map;
+   using                               fc_pp::flat_set;
+   using                               fc_pp::static_variant;
+   using                               fc_pp::ecc::range_proof_type;
+   using                               fc_pp::ecc::range_proof_info;
+   using                               fc_pp::ecc::commitment_type;
    struct void_t{};
 
-   typedef fc::ecc::private_key        private_key_type;
-   typedef fc::sha256 chain_id_type;
+   typedef fc_pp::ecc::private_key        private_key_type;
+   typedef fc_pp::sha256 chain_id_type;
 
    enum asset_issuer_permission_flags
    {
@@ -174,7 +174,7 @@ namespace graphene { namespace chain {
       impl_global_betting_statistics_object_type
    };
 
-   //typedef fc::unsigned_int            object_id_type;
+   //typedef fc_pp::unsigned_int            object_id_type;
    //typedef uint64_t                    object_id_type;
    class account_object;
    class committee_member_object;
@@ -274,14 +274,14 @@ namespace graphene { namespace chain {
    typedef object_id< implementation_ids, impl_betting_market_position_object_type, betting_market_position_object >    betting_market_position_id_type;
    typedef object_id< implementation_ids, impl_global_betting_statistics_object_type, global_betting_statistics_object > global_betting_statistics_id_type;
 
-   typedef fc::array<char, GRAPHENE_MAX_ASSET_SYMBOL_LENGTH>    symbol_type;
-   typedef fc::ripemd160                                        block_id_type;
-   typedef fc::ripemd160                                        checksum_type;
-   typedef fc::ripemd160                                        transaction_id_type;
-   typedef fc::sha256                                           digest_type;
-   typedef fc::ecc::compact_signature                           signature_type;
+   typedef fc_pp::array<char, GRAPHENE_MAX_ASSET_SYMBOL_LENGTH>    symbol_type;
+   typedef fc_pp::ripemd160                                        block_id_type;
+   typedef fc_pp::ripemd160                                        checksum_type;
+   typedef fc_pp::ripemd160                                        transaction_id_type;
+   typedef fc_pp::sha256                                           digest_type;
+   typedef fc_pp::ecc::compact_signature                           signature_type;
    typedef safe<int64_t>                                        share_type;
-   typedef fc::ripemd160                                        secret_hash_type;
+   typedef fc_pp::ripemd160                                        secret_hash_type;
    typedef uint16_t                                             weight_type;
 
    struct public_key_type
@@ -290,17 +290,17 @@ namespace graphene { namespace chain {
        {
           binary_key() {}
           uint32_t                 check = 0;
-          fc::ecc::public_key_data data;
+          fc_pp::ecc::public_key_data data;
        };
-       fc::ecc::public_key_data key_data;
+       fc_pp::ecc::public_key_data key_data;
        public_key_type();
-       public_key_type( const fc::ecc::public_key_data& data );
-       public_key_type( const fc::ecc::public_key& pubkey );
+       public_key_type( const fc_pp::ecc::public_key_data& data );
+       public_key_type( const fc_pp::ecc::public_key& pubkey );
        explicit public_key_type( const std::string& base58str );
-       operator fc::ecc::public_key_data() const;
-       operator fc::ecc::public_key() const;
+       operator fc_pp::ecc::public_key_data() const;
+       operator fc_pp::ecc::public_key() const;
        explicit operator std::string() const;
-       friend bool operator == ( const public_key_type& p1, const fc::ecc::public_key& p2);
+       friend bool operator == ( const public_key_type& p1, const fc_pp::ecc::public_key& p2);
        friend bool operator == ( const public_key_type& p1, const public_key_type& p2);
        friend bool operator != ( const public_key_type& p1, const public_key_type& p2);
        // TODO: This is temporary for testing
@@ -314,18 +314,18 @@ namespace graphene { namespace chain {
       {
          binary_key() {}
          uint32_t                   check = 0;
-         fc::ecc::extended_key_data data;
+         fc_pp::ecc::extended_key_data data;
       };
       
-      fc::ecc::extended_key_data key_data;
+      fc_pp::ecc::extended_key_data key_data;
        
       extended_public_key_type();
-      extended_public_key_type( const fc::ecc::extended_key_data& data );
-      extended_public_key_type( const fc::ecc::extended_public_key& extpubkey );
+      extended_public_key_type( const fc_pp::ecc::extended_key_data& data );
+      extended_public_key_type( const fc_pp::ecc::extended_public_key& extpubkey );
       explicit extended_public_key_type( const std::string& base58str );
-      operator fc::ecc::extended_public_key() const;
+      operator fc_pp::ecc::extended_public_key() const;
       explicit operator std::string() const;
-      friend bool operator == ( const extended_public_key_type& p1, const fc::ecc::extended_public_key& p2);
+      friend bool operator == ( const extended_public_key_type& p1, const fc_pp::ecc::extended_public_key& p2);
       friend bool operator == ( const extended_public_key_type& p1, const extended_public_key_type& p2);
       friend bool operator != ( const extended_public_key_type& p1, const extended_public_key_type& p2);
    };
@@ -336,18 +336,18 @@ namespace graphene { namespace chain {
       {
          binary_key() {}
          uint32_t                   check = 0;
-         fc::ecc::extended_key_data data;
+         fc_pp::ecc::extended_key_data data;
       };
       
-      fc::ecc::extended_key_data key_data;
+      fc_pp::ecc::extended_key_data key_data;
        
       extended_private_key_type();
-      extended_private_key_type( const fc::ecc::extended_key_data& data );
-      extended_private_key_type( const fc::ecc::extended_private_key& extprivkey );
+      extended_private_key_type( const fc_pp::ecc::extended_key_data& data );
+      extended_private_key_type( const fc_pp::ecc::extended_private_key& extprivkey );
       explicit extended_private_key_type( const std::string& base58str );
-      operator fc::ecc::extended_private_key() const;
+      operator fc_pp::ecc::extended_private_key() const;
       explicit operator std::string() const;
-      friend bool operator == ( const extended_private_key_type& p1, const fc::ecc::extended_private_key& p2);
+      friend bool operator == ( const extended_private_key_type& p1, const fc_pp::ecc::extended_private_key& p2);
       friend bool operator == ( const extended_private_key_type& p1, const extended_private_key_type& p2);
       friend bool operator != ( const extended_private_key_type& p1, const extended_private_key_type& p2);
    };
@@ -357,14 +357,14 @@ namespace graphene { namespace chain {
    typedef uint32_t bet_multiplier_type;
 } }  // graphene::chain
 
-namespace fc
+namespace fc_pp
 {
-    void to_variant( const graphene::chain::public_key_type& var,  fc::variant& vo );
-    void from_variant( const fc::variant& var,  graphene::chain::public_key_type& vo );
-    void to_variant( const graphene::chain::extended_public_key_type& var, fc::variant& vo );
-    void from_variant( const fc::variant& var, graphene::chain::extended_public_key_type& vo );
-    void to_variant( const graphene::chain::extended_private_key_type& var, fc::variant& vo );
-    void from_variant( const fc::variant& var, graphene::chain::extended_private_key_type& vo );
+    void to_variant( const graphene::chain::public_key_type& var,  fc_pp::variant& vo );
+    void from_variant( const fc_pp::variant& var,  graphene::chain::public_key_type& vo );
+    void to_variant( const graphene::chain::extended_public_key_type& var, fc_pp::variant& vo );
+    void from_variant( const fc_pp::variant& var, graphene::chain::extended_public_key_type& vo );
+    void to_variant( const graphene::chain::extended_private_key_type& var, fc_pp::variant& vo );
+    void from_variant( const fc_pp::variant& var, graphene::chain::extended_private_key_type& vo );
 }
 
 FC_REFLECT( graphene::chain::public_key_type, (key_data) )

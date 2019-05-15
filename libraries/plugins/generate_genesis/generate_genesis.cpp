@@ -29,8 +29,8 @@
 
 #include <graphene/utilities/key_conversion.hpp>
 
-#include <fc/smart_ref_impl.hpp>
-#include <fc/thread/thread.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
+#include <fc_pp/thread/thread.hpp>
 
 #include <graphene/chain/market_object.hpp>
 #include <graphene/chain/vesting_balance_object.hpp>
@@ -297,7 +297,7 @@ void generate_genesis_plugin::generate_snapshot()
     auto balance_iter = by_effective_balance_index.begin();
     for (; balance_iter != by_effective_balance_index.end(); ++balance_iter)
     {
-        fc::uint128 share_drop_amount = total_amount_to_distribute.value;
+        fc_pp::uint128 share_drop_amount = total_amount_to_distribute.value;
         share_drop_amount *= balance_iter->get_effective_balance().value;
         share_drop_amount /= total_bts_balance.value;
         if (!share_drop_amount.to_uint64())
@@ -313,7 +313,7 @@ void generate_genesis_plugin::generate_snapshot()
 
     do {
         --balance_iter;
-        fc::uint128 share_drop_amount = remaining_amount_to_distribute.value;
+        fc_pp::uint128 share_drop_amount = remaining_amount_to_distribute.value;
         share_drop_amount *= balance_iter->get_effective_balance().value;
         share_drop_amount /= bts_balance_remaining.value;
         graphene::chain::share_type amount_distributed =  share_drop_amount.to_uint64();
@@ -389,7 +389,7 @@ void generate_genesis_plugin::generate_snapshot()
         if (accounts_generated_this_round == 0)
             break;
     }
-    fc::json::save_to_file(new_genesis_state, _genesis_filename);
+    fc_pp::json::save_to_file(new_genesis_state, _genesis_filename);
     ilog("New genesis state written to file ${filename}", ("filename", _genesis_filename));
 } FC_LOG_AND_RETHROW() }
 

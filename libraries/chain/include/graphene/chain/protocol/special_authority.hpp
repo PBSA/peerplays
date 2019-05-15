@@ -24,7 +24,7 @@
 #pragma once
 
 #include <graphene/chain/protocol/types.hpp>
-#include <fc/reflect/reflect.hpp>
+#include <fc_pp/reflect/reflect.hpp>
 
 namespace graphene { namespace chain {
 

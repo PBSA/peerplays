@@ -32,7 +32,7 @@
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/asset_object.hpp>
 
-#include <fc/crypto/digest.hpp>
+#include <fc_pp/crypto/digest.hpp>
 
 #include "../common/database_fixture.hpp"
 
@@ -71,7 +71,7 @@ BOOST_AUTO_TEST_CASE( create_advanced_uia )
       BOOST_CHECK(test_asset_dynamic_data.current_supply == 0);
       BOOST_CHECK(test_asset_dynamic_data.accumulated_fees == 0);
       BOOST_CHECK(test_asset_dynamic_data.fee_pool == 0);
-   } catch(fc::exception& e) {
+   } catch(fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -123,14 +123,14 @@ BOOST_AUTO_TEST_CASE( override_transfer_test2 )
    trx.operations.push_back(otrans);
 
    BOOST_TEST_MESSAGE( "Require throwing without signature" );
-   GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, 0 ), fc::exception);
+   GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, 0 ), fc_pp::exception);
    BOOST_TEST_MESSAGE( "Require throwing with dan's signature" );
    sign( trx,  dan_private_key  );
-   GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, 0 ), fc::exception);
+   GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, 0 ), fc_pp::exception);
    BOOST_TEST_MESSAGE( "Fail because overide_authority flag is not set" );
    trx.signatures.clear();
    sign( trx,  sam_private_key  );
-   GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, 0 ), fc::exception );
+   GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, 0 ), fc_pp::exception );
 
    BOOST_REQUIRE_EQUAL( get_balance( dan, advanced ), 1000 );
    BOOST_REQUIRE_EQUAL( get_balance( eric, advanced ), 0 );
@@ -155,7 +155,7 @@ BOOST_AUTO_TEST_CASE( issue_whitelist_uia )
       //Fail because nathan is not whitelisted, but only before hardfork time
       if( db.head_block_time() <= HARDFORK_415_TIME )
       {
-         GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc::exception);
+         GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc_pp::exception);
          generate_blocks( HARDFORK_415_TIME );
          generate_block();
          set_expiration( db, trx );
@@ -180,7 +180,7 @@ BOOST_AUTO_TEST_CASE( issue_whitelist_uia )
 
       // Fail because there is a whitelist authority and I'm not whitelisted
       trx.operations.back() = op;
-      GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, ~0 ), fc::exception );
+      GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, ~0 ), fc_pp::exception );
 
       account_whitelist_operation wop;
       wop.authorizing_account = izzy_id;
@@ -189,7 +189,7 @@ BOOST_AUTO_TEST_CASE( issue_whitelist_uia )
 
       trx.operations.back() = wop;
       // Fail because whitelist function is restricted to members only
-      GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, ~0 ), fc::exception );
+      GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, ~0 ), fc_pp::exception );
       upgrade_to_lifetime_member( izzy_id );
       trx.operations.clear();
       trx.operations.push_back( wop );
@@ -197,7 +197,7 @@ BOOST_AUTO_TEST_CASE( issue_whitelist_uia )
 
       // Still fail after an irrelevant account was added
       trx.operations.back() = op;
-      GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, ~0 ), fc::exception );
+      GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx, ~0 ), fc_pp::exception );
 
       wop.account_to_list = nathan_id;
       trx.operations.back() = wop;
@@ -208,7 +208,7 @@ BOOST_AUTO_TEST_CASE( issue_whitelist_uia )
       PUSH_TX( db, trx, ~0 );
       BOOST_CHECK_EQUAL(get_balance(nathan_id, uia_id), 2000);
 
-   } catch(fc::exception& e) {
+   } catch(fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -280,7 +280,7 @@ BOOST_AUTO_TEST_CASE( transfer_whitelist_uia )
       else
       {
          // after the hardfork time, it fails because the fees are not in a whitelisted asset
-         GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc::exception );
+         GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc_pp::exception );
       }
 
       BOOST_TEST_MESSAGE( "Attempting to burn from nathan after blacklisting, should fail" );
@@ -289,12 +289,12 @@ BOOST_AUTO_TEST_CASE( transfer_whitelist_uia )
       burn.amount_to_reserve = advanced.amount(10);
       trx.operations.back() = burn;
       //Fail because nathan is blacklisted
-      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc::exception);
+      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc_pp::exception);
       BOOST_TEST_MESSAGE( "Attempting transfer from dan back to nathan, should fail because nathan is blacklisted" );
       std::swap(op.from, op.to);
       trx.operations.back() = op;
       //Fail because nathan is blacklisted
-      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc::exception);
+      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc_pp::exception);
 
       {
          BOOST_TEST_MESSAGE( "Changing the blacklist authority to dan" );
@@ -325,7 +325,7 @@ BOOST_AUTO_TEST_CASE( transfer_whitelist_uia )
       trx.operations.back() = op;
       //Fail because nathan is blacklisted
       BOOST_CHECK(!is_authorized_asset( db, nathan, advanced ));
-      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc::exception);
+      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc_pp::exception);
 
       //Remove nathan from committee's whitelist, add him to dan's. This should not authorize him to hold ADVANCED.
       wop.authorizing_account = izzy_id;
@@ -342,14 +342,14 @@ BOOST_AUTO_TEST_CASE( transfer_whitelist_uia )
       trx.operations.back() = op;
       //Fail because nathan is not whitelisted
       BOOST_CHECK(!is_authorized_asset( db, nathan, advanced ));
-      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc::exception);
+      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0 ), fc_pp::exception);
 
       burn.payer = dan.id;
       burn.amount_to_reserve = advanced.amount(10);
       trx.operations.back() = burn;
       PUSH_TX(db, trx, ~0);
       BOOST_CHECK_EQUAL(get_balance(dan, advanced), 40);
-   } catch(fc::exception& e) {
+   } catch(fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -419,7 +419,7 @@ BOOST_AUTO_TEST_CASE( transfer_restricted_test )
       xfer_op.amount = uia.amount(101);
 
    }
-   catch(fc::exception& e)
+   catch(fc_pp::exception& e)
    {
       edump((e.to_detail_string()));
       throw;
@@ -444,33 +444,33 @@ BOOST_AUTO_TEST_CASE( asset_name_test )
       BOOST_CHECK(  has_asset("ALPHA") );    BOOST_CHECK( !has_asset("ALPHA.ONE") );
 
       // Nobody can create another asset named ALPHA
-      GRAPHENE_REQUIRE_THROW( create_user_issued_asset( "ALPHA",   bob_id(db), 0 ), fc::exception );
+      GRAPHENE_REQUIRE_THROW( create_user_issued_asset( "ALPHA",   bob_id(db), 0 ), fc_pp::exception );
       BOOST_CHECK(  has_asset("ALPHA") );    BOOST_CHECK( !has_asset("ALPHA.ONE") );
-      GRAPHENE_REQUIRE_THROW( create_user_issued_asset( "ALPHA", alice_id(db), 0 ), fc::exception );
+      GRAPHENE_REQUIRE_THROW( create_user_issued_asset( "ALPHA", alice_id(db), 0 ), fc_pp::exception );
       BOOST_CHECK(  has_asset("ALPHA") );    BOOST_CHECK( !has_asset("ALPHA.ONE") );
 
       // Bob can't create ALPHA.ONE
       //generate_blocks( HARDFORK_385_TIME );
       // no  assertion if d.head_block_time() <= HARDFORK_385_TIME in asset_evaluator.cpp
-      //GRAPHENE_REQUIRE_THROW( create_user_issued_asset( "ALPHA.ONE", bob_id(db), 0 ), fc::exception );
+      //GRAPHENE_REQUIRE_THROW( create_user_issued_asset( "ALPHA.ONE", bob_id(db), 0 ), fc_pp::exception );
       BOOST_CHECK(  has_asset("ALPHA") );    BOOST_CHECK( !has_asset("ALPHA.ONE") );
       if( db.head_block_time() <= HARDFORK_409_TIME )
       {
          // Alice can't create ALPHA.ONE before hardfork
          // no  assertion if d.head_block_time() <= HARDFORK_385_TIME in asset_evaluator.cpp
-         //GRAPHENE_REQUIRE_THROW( create_user_issued_asset( "ALPHA.ONE", alice_id(db), 0 ), fc::exception );
+         //GRAPHENE_REQUIRE_THROW( create_user_issued_asset( "ALPHA.ONE", alice_id(db), 0 ), fc_pp::exception );
          BOOST_CHECK(  has_asset("ALPHA") );    BOOST_CHECK( !has_asset("ALPHA.ONE") );
          generate_blocks( HARDFORK_409_TIME );
          generate_block();
          // Bob can't create ALPHA.ONE after hardfork
-         GRAPHENE_REQUIRE_THROW( create_user_issued_asset( "ALPHA.ONE", bob_id(db), 0 ), fc::exception );
+         GRAPHENE_REQUIRE_THROW( create_user_issued_asset( "ALPHA.ONE", bob_id(db), 0 ), fc_pp::exception );
          BOOST_CHECK(  has_asset("ALPHA") );    BOOST_CHECK( !has_asset("ALPHA.ONE") );
       }
       // Alice can create it
       create_user_issued_asset( "ALPHA.ONE", alice_id(db), 0 );
       BOOST_CHECK(  has_asset("ALPHA") );    BOOST_CHECK( has_asset("ALPHA.ONE") );
    }
-   catch(fc::exception& e)
+   catch(fc_pp::exception& e)
    {
       edump((e.to_detail_string()));
       throw;

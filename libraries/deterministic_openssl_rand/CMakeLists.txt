@@ -7,10 +7,11 @@ set(sources deterministic_openssl_rand.cpp
 add_library( deterministic_openssl_rand 
              ${sources}
              ${HEADERS} )
-target_link_libraries( deterministic_openssl_rand fc )
+target_link_libraries( deterministic_openssl_rand fc_pp )
 target_include_directories( deterministic_openssl_rand
                             PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
                             "${CMAKE_CURRENT_SOURCE_DIR}/../blockchain/include"
+                            ${Boost_INCLUDE_DIR}
                           )
 
 if (USE_PCH)

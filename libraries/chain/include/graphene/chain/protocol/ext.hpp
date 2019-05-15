@@ -23,8 +23,8 @@
  */
 #pragma once
 
-#include <fc/io/varint.hpp>
-#include <fc/reflect/reflect.hpp>
+#include <fc_pp/io/varint.hpp>
+#include <fc_pp/reflect/reflect.hpp>
 
 namespace graphene { namespace chain {
 
@@ -61,8 +61,8 @@ struct graphene_extension_pack_read_visitor
    {
       if( (value.*member).valid() )
       {
-         fc::raw::pack( stream, unsigned_int( which ) );
-         fc::raw::pack( stream, *(value.*member) );
+         fc_pp::raw::pack( stream, unsigned_int( which ) );
+         fc_pp::raw::pack( stream, *(value.*member) );
       }
       ++which;
    }
@@ -76,10 +76,10 @@ template< typename Stream, class T >
 void operator<<( Stream& stream, const graphene::chain::extension<T>& value )
 {
    graphene_extension_pack_count_visitor<T> count_vtor( value.value );
-   fc::reflector<T>::visit( count_vtor );
-   fc::raw::pack( stream, unsigned_int( count_vtor.count ) );
+   fc_pp::reflector<T>::visit( count_vtor );
+   fc_pp::raw::pack( stream, unsigned_int( count_vtor.count ) );
    graphene_extension_pack_read_visitor<Stream,T> read_vtor( stream, value.value );
-   fc::reflector<T>::visit( read_vtor );
+   fc_pp::reflector<T>::visit( read_vtor );
 }
 
 
@@ -90,7 +90,7 @@ struct graphene_extension_unpack_visitor
    graphene_extension_unpack_visitor( Stream& s, T& v ) : stream(s), value(v)
    {
       unsigned_int c;
-      fc::raw::unpack( stream, c );
+      fc_pp::raw::unpack( stream, c );
       count_left = c.value;
       maybe_read_next_which();
    }
@@ -100,7 +100,7 @@ struct graphene_extension_unpack_visitor
       if( count_left > 0 )
       {
          unsigned_int w;
-         fc::raw::unpack( stream, w );
+         fc_pp::raw::unpack( stream, w );
          next_which = w.value;
       }
    }
@@ -111,7 +111,7 @@ struct graphene_extension_unpack_visitor
       if( (count_left > 0) && (which == next_which) )
       {
          typename Member::value_type temp;
-         fc::raw::unpack( stream, temp );
+         fc_pp::raw::unpack( stream, temp );
          (value.*member) = temp;
          --count_left;
          maybe_read_next_which();
@@ -134,13 +134,13 @@ void operator>>( Stream& s, graphene::chain::extension<T>& value )
 {
    value = graphene::chain::extension<T>();
    graphene_extension_unpack_visitor<Stream, T> vtor( s, value.value );
-   fc::reflector<T>::visit( vtor );
+   fc_pp::reflector<T>::visit( vtor );
    FC_ASSERT( vtor.count_left == 0 ); // unrecognized extension throws here
 }
 
 } } // graphene::chain
 
-namespace fc {
+namespace fc_pp {
 
 template< typename T >
 struct graphene_extension_from_variant_visitor
@@ -169,7 +169,7 @@ struct graphene_extension_from_variant_visitor
 };
 
 template< typename T >
-void from_variant( const fc::variant& var, graphene::chain::extension<T>& value )
+void from_variant( const fc_pp::variant& var, graphene::chain::extension<T>& value )
 {
    value = graphene::chain::extension<T>();
    if( var.is_null() )
@@ -181,7 +181,7 @@ void from_variant( const fc::variant& var, graphene::chain::extension<T>& value 
    }
 
    graphene_extension_from_variant_visitor<T> vtor( var.get_object(), value.value );
-   fc::reflector<T>::visit( vtor );
+   fc_pp::reflector<T>::visit( vtor );
    FC_ASSERT( vtor.count_left == 0 );    // unrecognized extension throws here
 }
 
@@ -202,11 +202,11 @@ struct graphene_extension_to_variant_visitor
 };
 
 template< typename T >
-void to_variant( const graphene::chain::extension<T>& value, fc::variant& var )
+void to_variant( const graphene::chain::extension<T>& value, fc_pp::variant& var )
 {
    graphene_extension_to_variant_visitor<T> vtor( value.value );
-   fc::reflector<T>::visit( vtor );
+   fc_pp::reflector<T>::visit( vtor );
    var = vtor.mvo;
 }
 
-} // fc
+} // fc_pp

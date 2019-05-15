@@ -25,7 +25,7 @@
 #include <graphene/chain/affiliate_payout.hpp>
 #include <graphene/chain/database.hpp>
 
-#include <fc/uint128.hpp>
+#include <fc_pp/uint128.hpp>
 
 namespace graphene { namespace chain {
 
@@ -53,7 +53,7 @@ namespace graphene { namespace chain {
       {
           const account_id_type affiliate = entry.first;
           const uint16_t share = entry.second;
-          fc::uint128_t payout = to_pay.value;
+          fc_pp::uint128_t payout = to_pay.value;
           if( share != remaining )
           {
              FC_ASSERT( share < remaining );

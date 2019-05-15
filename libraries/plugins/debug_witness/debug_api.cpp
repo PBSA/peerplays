@@ -1,8 +1,8 @@
 
-#include <fc/filesystem.hpp>
-#include <fc/optional.hpp>
-#include <fc/variant_object.hpp>
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/filesystem.hpp>
+#include <fc_pp/optional.hpp>
+#include <fc_pp/variant_object.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 
 #include <graphene/app/application.hpp>
 
@@ -26,7 +26,7 @@ class debug_api_impl
 
       void debug_push_blocks( const std::string& src_filename, uint32_t count );
       void debug_generate_blocks( const std::string& debug_key, uint32_t count );
-      void debug_update_object( const fc::variant_object& update );
+      void debug_update_object( const fc_pp::variant_object& update );
       //void debug_save_db( std::string db_path );
       void debug_stream_json_objects( const std::string& filename );
       void debug_stream_json_objects_flush();
@@ -45,8 +45,8 @@ void debug_api_impl::debug_push_blocks( const std::string& src_filename, uint32_
       return;
 
    std::shared_ptr< graphene::chain::database > db = app.chain_database();
-   fc::path src_path = fc::path( src_filename );
-   if( fc::is_directory( src_path ) )
+   fc_pp::path src_path = fc_pp::path( src_filename );
+   if( fc_pp::is_directory( src_path ) )
    {
       ilog( "Loading ${n} from block_database ${fn}", ("n", count)("fn", src_filename) );
       graphene::chain::block_database bdb;
@@ -54,7 +54,7 @@ void debug_api_impl::debug_push_blocks( const std::string& src_filename, uint32_
       uint32_t first_block = db->head_block_num()+1;
       for( uint32_t i=0; i<count; i++ )
       {
-         fc::optional< graphene::chain::signed_block > block = bdb.fetch_by_number( first_block+i );
+         fc_pp::optional< graphene::chain::signed_block > block = bdb.fetch_by_number( first_block+i );
          if( !block.valid() )
          {
             wlog( "Block database ${fn} only contained ${i} of ${n} requested blocks", ("i", i)("n", count)("fn", src_filename) );
@@ -64,7 +64,7 @@ void debug_api_impl::debug_push_blocks( const std::string& src_filename, uint32_
          {
             db->push_block( *block );
          }
-         catch( const fc::exception& e )
+         catch( const fc_pp::exception& e )
          {
             elog( "Got exception pushing block ${bn} : ${bid} (${i} of ${n})", ("bn", block->block_num())("bid", block->id())("i", i)("n", count) );
             elog( "Exception backtrace: ${bt}", ("bt", e.to_detail_string()) );
@@ -80,7 +80,7 @@ void debug_api_impl::debug_generate_blocks( const std::string& debug_key, uint32
    if( count == 0 )
       return;
 
-   fc::optional<fc::ecc::private_key> debug_private_key = graphene::utilities::wif_to_key( debug_key );
+   fc_pp::optional<fc_pp::ecc::private_key> debug_private_key = graphene::utilities::wif_to_key( debug_key );
    FC_ASSERT( debug_private_key.valid() );
    graphene::chain::public_key_type debug_public_key = debug_private_key->get_public_key();
 
@@ -88,12 +88,12 @@ void debug_api_impl::debug_generate_blocks( const std::string& debug_key, uint32
    for( uint32_t i=0; i<count; i++ )
    {
       graphene::chain::witness_id_type scheduled_witness = db->get_scheduled_witness( 1 );
-      fc::time_point_sec scheduled_time = db->get_slot_time( 1 );
+      fc_pp::time_point_sec scheduled_time = db->get_slot_time( 1 );
       graphene::chain::public_key_type scheduled_key = scheduled_witness( *db ).signing_key;
       if( scheduled_key != debug_public_key )
       {
          ilog( "Modified key for witness ${w}", ("w", scheduled_witness) );
-         fc::mutable_variant_object update;
+         fc_pp::mutable_variant_object update;
          update("_action", "update")("id", scheduled_witness)("signing_key", debug_public_key);
          db->debug_update( update );
       }
@@ -101,7 +101,7 @@ void debug_api_impl::debug_generate_blocks( const std::string& debug_key, uint32
    }
 }
 
-void debug_api_impl::debug_update_object( const fc::variant_object& update )
+void debug_api_impl::debug_update_object( const fc_pp::variant_object& update )
 {
    std::shared_ptr< graphene::chain::database > db = app.chain_database();
    db->debug_update( update );
@@ -139,7 +139,7 @@ void debug_api::debug_generate_blocks( std::string debug_key, uint32_t count )
    my->debug_generate_blocks( debug_key, count );
 }
 
-void debug_api::debug_update_object( fc::variant_object update )
+void debug_api::debug_update_object( fc_pp::variant_object update )
 {
    my->debug_update_object( update );
 }

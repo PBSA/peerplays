@@ -39,7 +39,7 @@
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
-#include <fc/uint128.hpp>
+#include <fc_pp/uint128.hpp>
 
 namespace graphene { namespace chain {
 
@@ -65,7 +65,7 @@ void database::update_global_dynamic_data( const signed_block& b )
           if(  witness_missed.id != b.witness ) {
              /*
              const auto& witness_account = witness_missed.witness_account(*this);
-             if( (fc::time_point::now() - b.timestamp) < fc::seconds(30) )
+             if( (fc_pp::time_point::now() - b.timestamp) < fc_pp::seconds(30) )
                 wlog( "Witness ${name} missed block ${n} around ${t}", ("name",witness_account.name)("n",b.block_num())("t",b.timestamp) );
                 */
 
@@ -81,11 +81,11 @@ void database::update_global_dynamic_data( const signed_block& b )
    // dynamic global properties updating
    modify( _dgp, [&]( dynamic_global_property_object& dgp ){
       secret_hash_type::encoder enc;       
-      fc::raw::pack( enc, dgp.random );       
-      fc::raw::pack( enc, b.previous_secret );        
+      fc_pp::raw::pack( enc, dgp.random );       
+      fc_pp::raw::pack( enc, b.previous_secret );        
       dgp.random = enc.result();
 
-      _random_number_generator = fc::hash_ctr_rng<secret_hash_type, 20>(dgp.random.data());
+      _random_number_generator = fc_pp::hash_ctr_rng<secret_hash_type, 20>(dgp.random.data());
 
       if( BOOST_UNLIKELY( b.block_num() == 1 ) )
          dgp.recently_missed_count = 0;
@@ -249,7 +249,7 @@ void database::clear_expired_proposals()
             //TODO: Do something with result so plugins can process it.
             continue;
          }
-      } catch( const fc::exception& e ) {
+      } catch( const fc_pp::exception& e ) {
          elog("Failed to apply proposed transaction on its expiration. Deleting it.\n${proposal}\n${error}",
               ("proposal", proposal)("error", e.to_detail_string()));
       }
@@ -451,7 +451,7 @@ void database::clear_expired_orders()
 
          auto& pays = order.balance;
          auto receives = (order.balance * mia.current_feed.settlement_price);
-         receives.amount = (fc::uint128_t(receives.amount.value) *
+         receives.amount = (fc_pp::uint128_t(receives.amount.value) *
                             (GRAPHENE_100_PERCENT - mia.options.force_settlement_offset_percent) / GRAPHENE_100_PERCENT).to_uint64();
          assert(receives <= order.balance * mia.current_feed.settlement_price);
 
@@ -581,7 +581,7 @@ void cancel_expired_tournaments(database& db)
           registration_deadline_index.begin()->options.registration_deadline <= db.head_block_time())
    {
       const tournament_object& tournament_obj = *registration_deadline_index.begin();
-      fc_ilog(fc::logger::get("tournament"),
+      fc_ilog(fc_pp::logger::get("tournament"),
               "Canceling tournament ${id} because its deadline expired",
               ("id", tournament_obj.id));
       // cancel this tournament
@@ -655,7 +655,7 @@ void database::update_tournaments()
    initiate_next_games(*this);
 }
 
-void process_settled_betting_markets(database& db, fc::time_point_sec current_block_time)
+void process_settled_betting_markets(database& db, fc_pp::time_point_sec current_block_time)
 {
    // after a betting market is graded, it goes through a delay period in which it
    // can be flagged for re-grading.  If it isn't flagged during this interval, 
@@ -664,7 +664,7 @@ void process_settled_betting_markets(database& db, fc::time_point_sec current_bl
 
    // this index will be sorted with all bmgs with no settling time set first, followed by 
    // ones with the settling time set by increasing time.  Start at the first bmg with a time set
-   auto betting_market_group_iter = betting_market_group_index.upper_bound(fc::optional<fc::time_point_sec>());
+   auto betting_market_group_iter = betting_market_group_index.upper_bound(fc_pp::optional<fc_pp::time_point_sec>());
    while (betting_market_group_iter != betting_market_group_index.end() && 
           *betting_market_group_iter->settling_time <= current_block_time)
    {
@@ -674,7 +674,7 @@ void process_settled_betting_markets(database& db, fc::time_point_sec current_bl
    }
 }
 
-void database::update_betting_markets(fc::time_point_sec current_block_time)
+void database::update_betting_markets(fc_pp::time_point_sec current_block_time)
 {
    process_settled_betting_markets(*this, current_block_time);
    remove_completed_events();

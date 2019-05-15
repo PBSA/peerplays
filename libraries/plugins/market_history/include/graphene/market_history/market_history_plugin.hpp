@@ -26,7 +26,7 @@
 #include <graphene/app/plugin.hpp>
 #include <graphene/chain/database.hpp>
 
-#include <fc/thread/future.hpp>
+#include <fc_pp/thread/future.hpp>
 
 namespace graphene { namespace market_history {
 using namespace chain;
@@ -47,14 +47,14 @@ using namespace chain;
 
 struct bucket_key
 {
-   bucket_key( asset_id_type a, asset_id_type b, uint32_t s, fc::time_point_sec o )
+   bucket_key( asset_id_type a, asset_id_type b, uint32_t s, fc_pp::time_point_sec o )
    :base(a),quote(b),seconds(s),open(o){}
    bucket_key(){}
 
    asset_id_type      base;
    asset_id_type      quote;
    uint32_t           seconds = 0;
-   fc::time_point_sec open;
+   fc_pp::time_point_sec open;
 
    friend bool operator < ( const bucket_key& a, const bucket_key& b )
    {
@@ -102,7 +102,7 @@ struct history_key {
 struct order_history_object : public abstract_object<order_history_object>
 {
   history_key          key; 
-  fc::time_point_sec   time;
+  fc_pp::time_point_sec   time;
   fill_order_operation op;
 };
 

@@ -35,7 +35,7 @@
 
 #include <graphene/db/simple_index.hpp>
 
-#include <fc/crypto/digest.hpp>
+#include <fc_pp/crypto/digest.hpp>
 #include "../common/database_fixture.hpp"
 
 using namespace graphene::chain;
@@ -46,7 +46,7 @@ BOOST_FIXTURE_TEST_SUITE( authority_tests, database_fixture )
 BOOST_AUTO_TEST_CASE( simple_single_signature )
 { try {
    try {
-      fc::ecc::private_key nathan_key = fc::ecc::private_key::generate();
+      fc_pp::ecc::private_key nathan_key = fc_pp::ecc::private_key::generate();
       const account_object& nathan = create_account("nathan", nathan_key.get_public_key());
       const asset_object& core = asset_id_type()(db);
       auto old_balance = fund(nathan);
@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE( simple_single_signature )
       PUSH_TX( db, trx, database::skip_transaction_dupe_check );
 
       BOOST_CHECK_EQUAL(get_balance(nathan, core), old_balance - 500);
-   } catch (fc::exception& e) {
+   } catch (fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -69,9 +69,9 @@ BOOST_AUTO_TEST_CASE( simple_single_signature )
 BOOST_AUTO_TEST_CASE( any_two_of_three )
 {
    try {
-      fc::ecc::private_key nathan_key1 = fc::ecc::private_key::regenerate(fc::digest("key1"));
-      fc::ecc::private_key nathan_key2 = fc::ecc::private_key::regenerate(fc::digest("key2"));
-      fc::ecc::private_key nathan_key3 = fc::ecc::private_key::regenerate(fc::digest("key3"));
+      fc_pp::ecc::private_key nathan_key1 = fc_pp::ecc::private_key::regenerate(fc_pp::digest("key1"));
+      fc_pp::ecc::private_key nathan_key2 = fc_pp::ecc::private_key::regenerate(fc_pp::digest("key2"));
+      fc_pp::ecc::private_key nathan_key3 = fc_pp::ecc::private_key::regenerate(fc_pp::digest("key3"));
       const account_object& nathan = create_account("nathan", nathan_key1.get_public_key() );
       const asset_object& core = asset_id_type()(db);
       auto old_balance = fund(nathan);
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE( any_two_of_three )
       op.amount = core.amount(500);
       trx.operations.push_back(op);
       sign(trx, nathan_key1);
-      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc::exception);
+      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc_pp::exception);
       sign(trx, nathan_key2);
       PUSH_TX( db, trx, database::skip_transaction_dupe_check );
       BOOST_CHECK_EQUAL(get_balance(nathan, core), old_balance - 500);
@@ -112,11 +112,11 @@ BOOST_AUTO_TEST_CASE( any_two_of_three )
       BOOST_CHECK_EQUAL(get_balance(nathan, core), old_balance - 1500);
 
       trx.signatures.clear();
-      //sign(trx, fc::ecc::private_key::generate());
+      //sign(trx, fc_pp::ecc::private_key::generate());
       sign(trx,nathan_key3);
-      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc::exception);
+      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc_pp::exception);
       BOOST_CHECK_EQUAL(get_balance(nathan, core), old_balance - 1500);
-   } catch (fc::exception& e) {
+   } catch (fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -125,8 +125,8 @@ BOOST_AUTO_TEST_CASE( any_two_of_three )
 BOOST_AUTO_TEST_CASE( recursive_accounts )
 {
    try {
-      fc::ecc::private_key parent1_key = fc::ecc::private_key::generate();
-      fc::ecc::private_key parent2_key = fc::ecc::private_key::generate();
+      fc_pp::ecc::private_key parent1_key = fc_pp::ecc::private_key::generate();
+      fc_pp::ecc::private_key parent2_key = fc_pp::ecc::private_key::generate();
       const auto& core = asset_id_type()(db);
 
       BOOST_TEST_MESSAGE( "Creating parent1 and parent2 accounts" );
@@ -151,16 +151,16 @@ BOOST_AUTO_TEST_CASE( recursive_accounts )
       op.from = child.id;
       op.amount = core.amount(500);
       trx.operations.push_back(op);
-      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc::exception);
+      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc_pp::exception);
 
       BOOST_TEST_MESSAGE( "Attempting to transfer with parent1 signature, should fail" );
       sign(trx,parent1_key);
-      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc::exception);
+      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc_pp::exception);
       trx.signatures.clear();
 
       BOOST_TEST_MESSAGE( "Attempting to transfer with parent2 signature, should fail" );
       sign(trx,parent2_key);
-      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc::exception);
+      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc_pp::exception);
 
       BOOST_TEST_MESSAGE( "Attempting to transfer with parent1 and parent2 signature, should succeed" );
       sign(trx,parent1_key);
@@ -170,7 +170,7 @@ BOOST_AUTO_TEST_CASE( recursive_accounts )
       trx.signatures.clear();
 
       BOOST_TEST_MESSAGE( "Adding a key for the child that can override parents" );
-      fc::ecc::private_key child_key = fc::ecc::private_key::generate();
+      fc_pp::ecc::private_key child_key = fc_pp::ecc::private_key::generate();
       {
          account_update_operation op;
          op.account = child.id;
@@ -191,14 +191,14 @@ BOOST_AUTO_TEST_CASE( recursive_accounts )
       trx.operations.push_back(op);
 
       BOOST_TEST_MESSAGE( "Attempting transfer with no signatures, should fail" );
-      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc::exception);
+      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc_pp::exception);
       BOOST_TEST_MESSAGE( "Attempting transfer just parent1, should fail" );
       sign(trx, parent1_key);
-      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc::exception);
+      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc_pp::exception);
       trx.signatures.clear();
       BOOST_TEST_MESSAGE( "Attempting transfer just parent2, should fail" );
       sign(trx, parent2_key);
-      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc::exception);
+      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc_pp::exception);
 
       BOOST_TEST_MESSAGE( "Attempting transfer both parents, should succeed" );
       sign(trx,  parent1_key);
@@ -215,7 +215,7 @@ BOOST_AUTO_TEST_CASE( recursive_accounts )
 
       BOOST_TEST_MESSAGE( "Creating grandparent account, parent1 now requires authority of grandparent" );
       auto grandparent = create_account("grandparent");
-      fc::ecc::private_key grandparent_key = fc::ecc::private_key::generate();
+      fc_pp::ecc::private_key grandparent_key = fc_pp::ecc::private_key::generate();
       {
          account_update_operation op;
          op.account = parent1.id;
@@ -235,7 +235,7 @@ BOOST_AUTO_TEST_CASE( recursive_accounts )
       trx.operations.push_back(op);
       sign(trx, parent1_key);
       sign(trx, parent2_key);
-      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc::exception);
+      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc_pp::exception);
       trx.signatures.clear();
       sign( trx,  parent2_key  );
       sign( trx,  grandparent_key  );
@@ -263,7 +263,7 @@ BOOST_AUTO_TEST_CASE( recursive_accounts )
       sign(trx, grandparent_key);
       sign(trx, init_account_priv_key);
       //Fails due to recursion depth.
-      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc::exception);
+      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc_pp::exception);
       BOOST_TEST_MESSAGE( "verify child key can override recursion checks" );
       trx.signatures.clear();
       sign(trx,  child_key);
@@ -287,8 +287,8 @@ BOOST_AUTO_TEST_CASE( recursive_accounts )
       trx.operations.push_back(op);
       sign(trx, parent2_key);
       //Fails due to recursion depth.
-      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc::exception);
-   } catch (fc::exception& e) {
+      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx, database::skip_transaction_dupe_check ), fc_pp::exception);
+   } catch (fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -300,10 +300,10 @@ BOOST_AUTO_TEST_CASE( proposed_single_account )
    try {
       INVOKE(any_two_of_three);
 
-      fc::ecc::private_key committee_key = init_account_priv_key;
-      fc::ecc::private_key nathan_key1 = fc::ecc::private_key::regenerate(fc::digest("key1"));
-      fc::ecc::private_key nathan_key2 = fc::ecc::private_key::regenerate(fc::digest("key2"));
-      fc::ecc::private_key nathan_key3 = fc::ecc::private_key::regenerate(fc::digest("key3"));
+      fc_pp::ecc::private_key committee_key = init_account_priv_key;
+      fc_pp::ecc::private_key nathan_key1 = fc_pp::ecc::private_key::regenerate(fc_pp::digest("key1"));
+      fc_pp::ecc::private_key nathan_key2 = fc_pp::ecc::private_key::regenerate(fc_pp::digest("key2"));
+      fc_pp::ecc::private_key nathan_key3 = fc_pp::ecc::private_key::regenerate(fc_pp::digest("key3"));
 
       const account_object& moneyman = create_account("moneyman", init_account_pub_key);
       const account_object& nathan = get_account("nathan");
@@ -322,7 +322,7 @@ BOOST_AUTO_TEST_CASE( proposed_single_account )
       proposal_create_operation op;
       op.fee_paying_account = moneyman.id;
       op.proposed_ops.emplace_back( transfer_op );
-      op.expiration_time =  db.head_block_time() + fc::days(1);
+      op.expiration_time =  db.head_block_time() + fc_pp::days(1);
                                      
       asset nathan_start_balance = db.get_balance(nathan.get_id(), core.get_id());
       {
@@ -364,13 +364,13 @@ BOOST_AUTO_TEST_CASE( proposed_single_account )
       trx.operations = {pup};
       sign( trx,   committee_key  );
       //committee may not add nathan's approval.
-      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx ), fc::exception);
+      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx ), fc_pp::exception);
       pup.active_approvals_to_add.clear();
       pup.active_approvals_to_add.insert(account_id_type());
       trx.operations = {pup};
       sign( trx,   committee_key  );
       //committee has no stake in the transaction.
-      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx ), fc::exception);
+      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx ), fc_pp::exception);
 
       trx.signatures.clear();
       pup.active_approvals_to_add.clear();
@@ -383,7 +383,7 @@ BOOST_AUTO_TEST_CASE( proposed_single_account )
       BOOST_CHECK_EQUAL(get_balance(nathan, core), nathan_start_balance.amount.value);
       PUSH_TX( db, trx );
       BOOST_CHECK_EQUAL(get_balance(nathan, core), nathan_start_balance.amount.value - 100);
-   } catch (fc::exception& e) {
+   } catch (fc_pp::exception& e) {
       edump((e.to_detail_string()));
       throw;
    }
@@ -392,8 +392,8 @@ BOOST_AUTO_TEST_CASE( proposed_single_account )
 /// Verify that committee authority cannot be invoked in a normal transaction
 BOOST_AUTO_TEST_CASE( committee_authority )
 { try {
-   fc::ecc::private_key nathan_key = fc::ecc::private_key::generate();
-   fc::ecc::private_key committee_key = init_account_priv_key;
+   fc_pp::ecc::private_key nathan_key = fc_pp::ecc::private_key::generate();
+   fc_pp::ecc::private_key committee_key = init_account_priv_key;
    const account_object nathan = create_account("nathan", nathan_key.get_public_key());
    const auto& global_params = db.get_global_properties().parameters;
 
@@ -402,7 +402,7 @@ BOOST_AUTO_TEST_CASE( committee_authority )
    // Signatures are for suckers.
    db.modify(db.get_global_properties(), [](global_property_object& p) {
       // Turn the review period WAY down, so it doesn't take long to produce blocks to that point in simulated time.
-      p.parameters.committee_proposal_review_period = fc::days(1).to_seconds();
+      p.parameters.committee_proposal_review_period = fc_pp::days(1).to_seconds();
    });
 
    BOOST_TEST_MESSAGE( "transfering 100000 CORE to nathan, signing with committee key should fail because this requires it to be part of a proposal" );
@@ -475,7 +475,7 @@ BOOST_AUTO_TEST_CASE( committee_authority )
    trx.operations.back() = uop;
    sign( trx,  committee_key );
    // Should throw because the transaction is now in review.
-   GRAPHENE_CHECK_THROW(PUSH_TX( db, trx ), fc::exception);
+   GRAPHENE_CHECK_THROW(PUSH_TX( db, trx ), fc_pp::exception);
 
    generate_blocks(prop.expiration_time);
    BOOST_CHECK_EQUAL(get_balance(nathan, asset_id_type()(db)), 100000);
@@ -484,8 +484,8 @@ BOOST_AUTO_TEST_CASE( committee_authority )
 BOOST_FIXTURE_TEST_CASE( fired_committee_members, database_fixture )
 { try {
    generate_block();
-   fc::ecc::private_key committee_key = init_account_priv_key;
-   fc::ecc::private_key committee_member_key = fc::ecc::private_key::generate();
+   fc_pp::ecc::private_key committee_key = init_account_priv_key;
+   fc_pp::ecc::private_key committee_member_key = fc_pp::ecc::private_key::generate();
 
    //Meet nathan. He has a little money.
    const account_object* nathan = &create_account("nathan");
@@ -497,13 +497,13 @@ BOOST_FIXTURE_TEST_CASE( fired_committee_members, database_fixture )
    /*
    db.modify(db.get_global_properties(), [](global_property_object& p) {
       // Turn the review period WAY down, so it doesn't take long to produce blocks to that point in simulated time.
-      p.parameters.committee_proposal_review_period = fc::days(1).to_seconds();
+      p.parameters.committee_proposal_review_period = fc_pp::days(1).to_seconds();
    });
    */
 
    for( int i = 0; i < 15; ++i )
    {
-      const auto& account = create_account("committee-member" + fc::to_string(i+1), committee_member_key.get_public_key());
+      const auto& account = create_account("committee-member" + fc_pp::to_string(i+1), committee_member_key.get_public_key());
       upgrade_to_lifetime_member(account);
       committee_members.insert(create_committee_member(account).vote_id);
    }
@@ -512,7 +512,7 @@ BOOST_FIXTURE_TEST_CASE( fired_committee_members, database_fixture )
    //A proposal is created to give nathan lots more money.
    proposal_create_operation pop = proposal_create_operation::committee_proposal(db.get_global_properties().parameters, db.head_block_time());
    pop.fee_paying_account = GRAPHENE_TEMP_ACCOUNT;
-   pop.expiration_time = db.head_block_time() + *pop.review_period_seconds + fc::days(1).to_seconds();
+   pop.expiration_time = db.head_block_time() + *pop.review_period_seconds + fc_pp::days(1).to_seconds();
    ilog( "Creating proposal to give nathan money that expires: ${e}", ("e", pop.expiration_time ) );
    ilog( "The proposal has a review period of: ${r} sec", ("r",*pop.review_period_seconds) );
 
@@ -543,10 +543,10 @@ BOOST_FIXTURE_TEST_CASE( fired_committee_members, database_fixture )
    BOOST_REQUIRE_EQUAL(get_balance(*nathan, asset_id_type()(db)), 5000);
    //Time passes... the proposal is now in its review period.
    //generate_blocks(*pid(db).review_period_time);
-   generate_blocks(db.head_block_time() + fc::days(2) );
+   generate_blocks(db.head_block_time() + fc_pp::days(2) );
    ilog( "head block time: ${t}", ("t",db.head_block_time()));
 
-   fc::time_point_sec maintenance_time = db.get_dynamic_global_properties().next_maintenance_time;
+   fc_pp::time_point_sec maintenance_time = db.get_dynamic_global_properties().next_maintenance_time;
    BOOST_CHECK_LT(maintenance_time.sec_since_epoch(), pid(db).expiration_time.sec_since_epoch());
    //Yay! The proposal to give nathan more money is authorized.
    BOOST_REQUIRE(pid(db).is_authorized_to_execute(db));
@@ -609,7 +609,7 @@ BOOST_FIXTURE_TEST_CASE( proposal_two_accounts, database_fixture )
       pop.proposed_ops.emplace_back(top);
 
       pop.fee_paying_account = nathan.get_id();
-      pop.expiration_time = db.head_block_time() + fc::days(1);
+      pop.expiration_time = db.head_block_time() + fc_pp::days(1);
       trx.operations.push_back(pop);
       sign( trx, nathan_key );
       PUSH_TX( db, trx );
@@ -638,7 +638,7 @@ BOOST_FIXTURE_TEST_CASE( proposal_two_accounts, database_fixture )
       uop.active_approvals_to_add = {dan.get_id()};
       trx.operations.push_back(uop);
       sign( trx, nathan_key );
-      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx ), fc::exception);
+      GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx ), fc_pp::exception);
       sign( trx, dan_key );
       PUSH_TX( db, trx );
 
@@ -671,7 +671,7 @@ BOOST_FIXTURE_TEST_CASE( proposal_delete, database_fixture )
       pop.proposed_ops.emplace_back(top);
 
       pop.fee_paying_account = nathan.get_id();
-      pop.expiration_time = db.head_block_time() + fc::days(1);
+      pop.expiration_time = db.head_block_time() + fc_pp::days(1);
       trx.operations.push_back(pop);
       sign( trx, nathan_key );
       PUSH_TX( db, trx );
@@ -747,7 +747,7 @@ BOOST_FIXTURE_TEST_CASE( proposal_owner_authority_delete, database_fixture )
       pop.proposed_ops.emplace_back(top);
 
       pop.fee_paying_account = nathan.get_id();
-      pop.expiration_time = db.head_block_time() + fc::days(1);
+      pop.expiration_time = db.head_block_time() + fc_pp::days(1);
       trx.operations.push_back(pop);
       sign( trx, nathan_key );
       PUSH_TX( db, trx );
@@ -824,7 +824,7 @@ BOOST_FIXTURE_TEST_CASE( proposal_owner_authority_complete, database_fixture )
       pop.proposed_ops.emplace_back(top);
 
       pop.fee_paying_account = nathan.get_id();
-      pop.expiration_time = db.head_block_time() + fc::days(1);
+      pop.expiration_time = db.head_block_time() + fc_pp::days(1);
       trx.operations.push_back(pop);
       sign( trx, nathan_key );
       PUSH_TX( db, trx );
@@ -853,7 +853,7 @@ BOOST_FIXTURE_TEST_CASE( proposal_owner_authority_complete, database_fixture )
 
       std::swap(uop.key_approvals_to_add, uop.key_approvals_to_remove);
       trx.operations.push_back(uop);
-      trx.expiration += fc::seconds(1);  // Survive trx dupe check
+      trx.expiration += fc_pp::seconds(1);  // Survive trx dupe check
       sign( trx, nathan_key );
       sign( trx, dan_key );
       PUSH_TX( db, trx );
@@ -863,7 +863,7 @@ BOOST_FIXTURE_TEST_CASE( proposal_owner_authority_complete, database_fixture )
 
       std::swap(uop.key_approvals_to_add, uop.key_approvals_to_remove);
       trx.operations.push_back(uop);
-      trx.expiration += fc::seconds(1);  // Survive trx dupe check
+      trx.expiration += fc_pp::seconds(1);  // Survive trx dupe check
       sign( trx, nathan_key );
       sign( trx, dan_key );
       PUSH_TX( db, trx );
@@ -874,7 +874,7 @@ BOOST_FIXTURE_TEST_CASE( proposal_owner_authority_complete, database_fixture )
       uop.key_approvals_to_add.clear();
       uop.owner_approvals_to_add.insert(nathan.get_id());
       trx.operations.push_back(uop);
-      trx.expiration += fc::seconds(1);  // Survive trx dupe check
+      trx.expiration += fc_pp::seconds(1);  // Survive trx dupe check
       sign( trx, nathan_key );
       PUSH_TX( db, trx );
       trx.clear();
@@ -890,7 +890,7 @@ BOOST_FIXTURE_TEST_CASE( max_authority_membership, database_fixture )
       generate_block();
 
       db.modify(db.get_global_properties(), [](global_property_object& p) {
-         p.parameters.committee_proposal_review_period = fc::hours(1).to_seconds();
+         p.parameters.committee_proposal_review_period = fc_pp::hours(1).to_seconds();
       });
 
       transaction tx;
@@ -1024,7 +1024,7 @@ BOOST_FIXTURE_TEST_CASE( bogus_signature, database_fixture )
       trx.operations.push_back( xfer_op );
       BOOST_TEST_MESSAGE( "Invalidating Alices Signature" );
       // Alice's signature is now invalid
-      GRAPHENE_REQUIRE_THROW( PUSH_TX( db,  trx, skip  ), fc::exception );
+      GRAPHENE_REQUIRE_THROW( PUSH_TX( db,  trx, skip  ), fc_pp::exception );
       // Re-sign, now OK (sig is replaced)
       BOOST_TEST_MESSAGE( "Resign with Alice's Signature" );
       trx.signatures.clear();
@@ -1077,7 +1077,7 @@ BOOST_FIXTURE_TEST_CASE( voting_account, database_fixture )
       trx.operations.push_back(op);
       sign( trx, vikram_private_key );
       // Fails because num_committee is larger than the cardinality of committee members being voted for
-      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx ), fc::exception);
+      GRAPHENE_CHECK_THROW(PUSH_TX( db, trx ), fc_pp::exception);
       op.new_options->num_committee = 3;
       trx.operations = {op};
       trx.signatures.clear();
@@ -1208,7 +1208,7 @@ BOOST_FIXTURE_TEST_CASE( get_required_signatures_test, database_fixture )
       // TODO:  Accounts with mix of keys and accounts in their authority
       // TODO:  Tx with multiple ops requiring different sigs
    }
-   catch(fc::exception& e)
+   catch(fc_pp::exception& e)
    {
       edump((e.to_detail_string()));
       throw;
@@ -1302,11 +1302,11 @@ BOOST_FIXTURE_TEST_CASE( nonminimal_sig_test, database_fixture )
       BOOST_CHECK( chk( tx, { alice_public_key, bob_public_key }, { alice_public_key, bob_public_key } ) );
       BOOST_CHECK( chk_min( tx, { alice_public_key, bob_public_key }, { alice_public_key } ) );
 
-      GRAPHENE_REQUIRE_THROW( tx.verify_authority( db.get_chain_id(), get_active, get_owner ), fc::exception );
+      GRAPHENE_REQUIRE_THROW( tx.verify_authority( db.get_chain_id(), get_active, get_owner ), fc_pp::exception );
       sign( tx, alice_private_key );
       tx.verify_authority( db.get_chain_id(), get_active, get_owner );
    }
-   catch(fc::exception& e)
+   catch(fc_pp::exception& e)
    {
       edump((e.to_detail_string()));
       throw;

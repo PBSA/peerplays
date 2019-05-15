@@ -27,10 +27,10 @@
 #include <iostream>
 #include <iterator>
 
-#include <fc/io/fstream.hpp>
-#include <fc/io/json.hpp>
-#include <fc/io/stdio.hpp>
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/io/fstream.hpp>
+#include <fc_pp/io/json.hpp>
+#include <fc_pp/io/stdio.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 
 #include <graphene/app/api.hpp>
 #include <graphene/chain/protocol/address.hpp>
@@ -106,11 +106,11 @@ int main( int argc, char** argv )
       genesis_state_type genesis;
       if( options.count("genesis-json") )
       {
-         fc::path genesis_json_filename = options["genesis-json"].as<boost::filesystem::path>();
+         fc_pp::path genesis_json_filename = options["genesis-json"].as<boost::filesystem::path>();
          std::cerr << "update_genesis:  Reading genesis from file " << genesis_json_filename.preferred_string() << "\n";
          std::string genesis_json;
          read_file_contents( genesis_json_filename, genesis_json );
-         genesis = fc::json::from_string( genesis_json ).as< genesis_state_type >();
+         genesis = fc_pp::json::from_string( genesis_json ).as< genesis_state_type >();
       }
       else
       {
@@ -123,18 +123,18 @@ int main( int argc, char** argv )
          std::string dev_key_prefix = options["dev-key-prefix"].as<std::string>();
          auto get_dev_key = [&]( std::string prefix, uint32_t i ) -> public_key_type
          {
-            return fc::ecc::private_key::regenerate( fc::sha256::hash( dev_key_prefix + prefix + std::to_string(i) ) ).get_public_key();
+            return fc_pp::ecc::private_key::regenerate( fc_pp::sha256::hash( dev_key_prefix + prefix + std::to_string(i) ) ).get_public_key();
          };
 
          if (options.count("replace-all-keys"))
          {
             unsigned dev_keys_used = 0;
-            std::map<std::string, fc::ecc::private_key> replacement_keys;
-            auto get_replacement_key = [&](const std::string& original_key) -> fc::ecc::private_key {
+            std::map<std::string, fc_pp::ecc::private_key> replacement_keys;
+            auto get_replacement_key = [&](const std::string& original_key) -> fc_pp::ecc::private_key {
                auto iter = replacement_keys.find(original_key);
                if (iter != replacement_keys.end())
                   return iter->second;
-               fc::ecc::private_key new_private_key = fc::ecc::private_key::regenerate(fc::sha256::hash(dev_key_prefix + std::to_string(dev_keys_used++)));
+               fc_pp::ecc::private_key new_private_key = fc_pp::ecc::private_key::regenerate(fc_pp::sha256::hash(dev_key_prefix + std::to_string(dev_keys_used++)));
                replacement_keys[original_key] = new_private_key;
                return new_private_key;
             };
@@ -192,7 +192,7 @@ int main( int argc, char** argv )
                   iter->first = address(get_replacement_key(address_string).get_public_key());
                }
             }
-            fc::path keys_csv_path = options["replace-all-keys"].as<boost::filesystem::path>();
+            fc_pp::path keys_csv_path = options["replace-all-keys"].as<boost::filesystem::path>();
             std::ofstream keys_csv(keys_csv_path.string());
             keys_csv << "wif_private_key,public_key,address\n";
             for (const auto& value : replacement_keys)
@@ -248,10 +248,10 @@ int main( int argc, char** argv )
          }
       }
 
-      fc::path output_filename = options["out"].as<boost::filesystem::path>();
-      fc::json::save_to_file( genesis, output_filename );
+      fc_pp::path output_filename = options["out"].as<boost::filesystem::path>();
+      fc_pp::json::save_to_file( genesis, output_filename );
    }
-   catch ( const fc::exception& e )
+   catch ( const fc_pp::exception& e )
    {
       std::cout << e.to_detail_string() << "\n";
       return 1;

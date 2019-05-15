@@ -66,12 +66,12 @@ namespace graphene { namespace chain {
    };
    struct affiliate_reward_distribution
    {
-      fc::flat_map<account_id_type,uint16_t> _dist;
+      fc_pp::flat_map<account_id_type,uint16_t> _dist;
       void validate()const;
    };
    struct affiliate_reward_distributions
    {
-      fc::flat_map<app_tag,affiliate_reward_distribution> _dists;
+      fc_pp::flat_map<app_tag,affiliate_reward_distribution> _dists;
       void validate()const;
    };
 

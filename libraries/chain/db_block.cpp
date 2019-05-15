@@ -39,9 +39,9 @@
 #include <graphene/chain/protocol/fee_schedule.hpp>
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/evaluator.hpp>
-#include <fc/crypto/digest.hpp>
+#include <fc_pp/crypto/digest.hpp>
 
-#include <fc/smart_ref_impl.hpp>
+#include <fc_pp/smart_ref_impl.hpp>
 
 namespace {
     
@@ -53,7 +53,7 @@ namespace {
       {
          for (auto& operation: proposal.proposed_ops)
          {
-            proposed_operations_digests.push_back(fc::digest(operation.op));
+            proposed_operations_digests.push_back(fc_pp::digest(operation.op));
          }
       }
        
@@ -63,10 +63,10 @@ namespace {
       void operator()(const T&) 
       {}
       
-      std::vector<fc::sha256> proposed_operations_digests;
+      std::vector<fc_pp::sha256> proposed_operations_digests;
    };
    
-   std::vector<fc::sha256> gather_proposed_operations_digests(const graphene::chain::transaction& trx)
+   std::vector<fc_pp::sha256> gather_proposed_operations_digests(const graphene::chain::transaction& trx)
    {
       proposed_operations_digest_accumulator digest_accumulator;
       
@@ -152,7 +152,7 @@ std::vector<block_id_type> database::get_block_ids_on_fork(block_id_type head_of
 void database::check_tansaction_for_duplicated_operations(const signed_transaction& trx)
 {
    const auto& proposal_index = get_index<proposal_object>();
-   std::set<fc::sha256> existed_operations_digests;
+   std::set<fc_pp::sha256> existed_operations_digests;
    
    proposal_index.inspect_all_objects( [&](const object& obj){
       const proposal_object& proposal = static_cast<const proposal_object&>(obj);
@@ -221,14 +221,14 @@ bool database::_push_block(const signed_block& new_block)
             for( auto ritr = branches.first.rbegin(); ritr != branches.first.rend(); ++ritr )
             {
                 ilog( "pushing blocks from fork ${n} ${id}", ("n",(*ritr)->data.block_num())("id",(*ritr)->data.id()) );
-                optional<fc::exception> except;
+                optional<fc_pp::exception> except;
                 try {
                    undo_database::session session = _undo_db.start_undo_session();
                    apply_block( (*ritr)->data, skip );
                    _block_id_to_block.store( (*ritr)->id, (*ritr)->data );
                    session.commit();
                 }
-                catch ( const fc::exception& e ) { except = e; }
+                catch ( const fc_pp::exception& e ) { except = e; }
                 if( except )
                 {
                    wlog( "exception thrown while switching forks ${e}", ("e",except->to_detail_string() ) );
@@ -266,7 +266,7 @@ bool database::_push_block(const signed_block& new_block)
       apply_block(new_block, skip);
       _block_id_to_block.store(new_block.id(), new_block);
       session.commit();
-   } catch ( const fc::exception& e ) {
+   } catch ( const fc_pp::exception& e ) {
       elog("Failed to push new block:\n${e}", ("e", e.to_detail_string()));
       _fork_db.remove(new_block.id());
       throw;
@@ -341,7 +341,7 @@ processed_transaction database::push_proposal(const proposal_object& proposal)
          eval_state.operation_results.emplace_back(apply_operation(eval_state, op));
       remove(proposal);
       session.merge();
-   } catch ( const fc::exception& e ) {
+   } catch ( const fc_pp::exception& e ) {
       if( head_block_time() <= HARDFORK_483_TIME )
       {
          for( size_t i=old_applied_ops_size,n=_applied_ops.size(); i<n; i++ )
@@ -363,9 +363,9 @@ processed_transaction database::push_proposal(const proposal_object& proposal)
 } FC_CAPTURE_AND_RETHROW() }
 
 signed_block database::generate_block(
-   fc::time_point_sec when,
+   fc_pp::time_point_sec when,
    witness_id_type witness_id,
-   const fc::ecc::private_key& block_signing_private_key,
+   const fc_pp::ecc::private_key& block_signing_private_key,
    uint32_t skip /* = 0 */
    )
 { try {
@@ -378,9 +378,9 @@ signed_block database::generate_block(
 } FC_CAPTURE_AND_RETHROW() }
 
 signed_block database::_generate_block(
-   fc::time_point_sec when,
+   fc_pp::time_point_sec when,
    witness_id_type witness_id,
-   const fc::ecc::private_key& block_signing_private_key
+   const fc_pp::ecc::private_key& block_signing_private_key
    )
 {
    try {
@@ -395,7 +395,7 @@ signed_block database::_generate_block(
    if( !(skip & skip_witness_signature) )
       FC_ASSERT( witness_obj.signing_key == block_signing_private_key.get_public_key() );
 
-   static const size_t max_block_header_size = fc::raw::pack_size( signed_block_header() ) + 4;
+   static const size_t max_block_header_size = fc_pp::raw::pack_size( signed_block_header() ) + 4;
    auto maximum_block_size = get_global_properties().parameters.maximum_block_size;
    size_t total_block_size = max_block_header_size;
 
@@ -419,7 +419,7 @@ signed_block database::_generate_block(
    // pop pending state (reset to head block state)
    for( const processed_transaction& tx : _pending_tx )
    {
-      size_t new_total_size = total_block_size + fc::raw::pack_size( tx );
+      size_t new_total_size = total_block_size + fc_pp::raw::pack_size( tx );
 
       // postpone transaction if it would make block too big
       if( new_total_size >= maximum_block_size )
@@ -437,10 +437,10 @@ signed_block database::_generate_block(
          // We have to recompute pack_size(ptx) because it may be different
          // than pack_size(tx) (i.e. if one or more results increased
          // their size)
-         total_block_size += fc::raw::pack_size( ptx );
+         total_block_size += fc_pp::raw::pack_size( ptx );
          pending_block.transactions.push_back( ptx );
       }
-      catch ( const fc::exception& e )
+      catch ( const fc_pp::exception& e )
       {
          // Do nothing, transaction will not be re-applied
          wlog( "Transaction was not processed while generating block due to ${e}", ("e", e) );
@@ -471,14 +471,14 @@ signed_block database::_generate_block(
    else       
    {      
        secret_hash_type::encoder last_enc;        
-       fc::raw::pack( last_enc, block_signing_private_key );      
-       fc::raw::pack( last_enc, witness_obj.previous_secret );        
+       fc_pp::raw::pack( last_enc, block_signing_private_key );      
+       fc_pp::raw::pack( last_enc, witness_obj.previous_secret );        
        pending_block.previous_secret = last_enc.result();        
    }      
       
    secret_hash_type::encoder next_enc;        
-   fc::raw::pack( next_enc, block_signing_private_key );      
-   fc::raw::pack( next_enc, pending_block.previous_secret );     
+   fc_pp::raw::pack( next_enc, block_signing_private_key );      
+   fc_pp::raw::pack( next_enc, pending_block.previous_secret );     
    pending_block.next_secret_hash = secret_hash_type::hash(next_enc.result());       
 
    if( !(skip & skip_witness_signature) )
@@ -487,7 +487,7 @@ signed_block database::_generate_block(
    // TODO:  Move this to _push_block() so session is restored.
    if( !(skip & skip_block_size_check) )
    {
-      FC_ASSERT( fc::raw::pack_size(pending_block) <= get_global_properties().parameters.maximum_block_size );
+      FC_ASSERT( fc_pp::raw::pack_size(pending_block) <= get_global_properties().parameters.maximum_block_size );
    }
 
    push_block( pending_block, skip );
@@ -686,7 +686,7 @@ processed_transaction database::_apply_transaction(const signed_transaction& trx
          FC_ASSERT( trx.ref_block_prefix == tapos_block_summary.block_id._hash[1] );
       }
 
-      fc::time_point_sec now = head_block_time();
+      fc_pp::time_point_sec now = head_block_time();
 
       FC_ASSERT( trx.expiration <= now + chain_parameters.maximum_time_until_expiration, "",
                  ("trx.expiration",trx.expiration)("now",now)("max_til_exp",chain_parameters.maximum_time_until_expiration));

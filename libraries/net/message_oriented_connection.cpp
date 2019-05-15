@@ -21,12 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <fc/thread/thread.hpp>
-#include <fc/thread/mutex.hpp>
-#include <fc/thread/scoped_lock.hpp>
-#include <fc/thread/future.hpp>
-#include <fc/log/logger.hpp>
-#include <fc/io/enum_type.hpp>
+#include <fc_pp/thread/thread.hpp>
+#include <fc_pp/thread/mutex.hpp>
+#include <fc_pp/thread/scoped_lock.hpp>
+#include <fc_pp/thread/future.hpp>
+#include <fc_pp/log/logger.hpp>
+#include <fc_pp/io/enum_type.hpp>
 
 #include <graphene/net/message_oriented_connection.hpp>
 #include <graphene/net/stcp_socket.hpp>
@@ -54,26 +54,26 @@ namespace graphene { namespace net {
       message_oriented_connection* _self;
       message_oriented_connection_delegate *_delegate;
       stcp_socket _sock;
-      fc::future<void> _read_loop_done;
+      fc_pp::future<void> _read_loop_done;
       uint64_t _bytes_received;
       uint64_t _bytes_sent;
 
-      fc::time_point _connected_time;
-      fc::time_point _last_message_received_time;
-      fc::time_point _last_message_sent_time;
+      fc_pp::time_point _connected_time;
+      fc_pp::time_point _last_message_received_time;
+      fc_pp::time_point _last_message_sent_time;
 
       bool _send_message_in_progress;
 #ifndef NDEBUG
-      fc::thread* _thread;
+      fc_pp::thread* _thread;
 #endif
 
       void read_loop();
       void start_read_loop();
     public:
-      fc::tcp_socket& get_socket();
+      fc_pp::tcp_socket& get_socket();
       void accept();
-      void connect_to(const fc::ip::endpoint& remote_endpoint);
-      void bind(const fc::ip::endpoint& local_endpoint);
+      void connect_to(const fc_pp::ip::endpoint& remote_endpoint);
+      void bind(const fc_pp::ip::endpoint& local_endpoint);
 
       message_oriented_connection_impl(message_oriented_connection* self,
                                        message_oriented_connection_delegate* delegate = nullptr);
@@ -86,10 +86,10 @@ namespace graphene { namespace net {
       uint64_t get_total_bytes_sent() const;
       uint64_t get_total_bytes_received() const;
 
-      fc::time_point get_last_message_sent_time() const;
-      fc::time_point get_last_message_received_time() const;
-      fc::time_point get_connection_time() const { return _connected_time; }
-      fc::sha512 get_shared_secret() const;
+      fc_pp::time_point get_last_message_sent_time() const;
+      fc_pp::time_point get_last_message_received_time() const;
+      fc_pp::time_point get_connection_time() const { return _connected_time; }
+      fc_pp::sha512 get_shared_secret() const;
     };
 
     message_oriented_connection_impl::message_oriented_connection_impl(message_oriented_connection* self,
@@ -100,7 +100,7 @@ namespace graphene { namespace net {
       _bytes_sent(0),
       _send_message_in_progress(false)
 #ifndef NDEBUG
-      ,_thread(&fc::thread::current())
+      ,_thread(&fc_pp::thread::current())
 #endif
     {
     }
@@ -110,7 +110,7 @@ namespace graphene { namespace net {
       destroy_connection();
     }
 
-    fc::tcp_socket& message_oriented_connection_impl::get_socket()
+    fc_pp::tcp_socket& message_oriented_connection_impl::get_socket()
     {
       VERIFY_CORRECT_THREAD();
       return _sock.get_socket();
@@ -121,18 +121,18 @@ namespace graphene { namespace net {
       VERIFY_CORRECT_THREAD();
       _sock.accept();
       assert(!_read_loop_done.valid()); // check to be sure we never launch two read loops
-      _read_loop_done = fc::async([=](){ read_loop(); }, "message read_loop");
+      _read_loop_done = fc_pp::async([=](){ read_loop(); }, "message read_loop");
     }
 
-    void message_oriented_connection_impl::connect_to(const fc::ip::endpoint& remote_endpoint)
+    void message_oriented_connection_impl::connect_to(const fc_pp::ip::endpoint& remote_endpoint)
     {
       VERIFY_CORRECT_THREAD();
       _sock.connect_to(remote_endpoint);
       assert(!_read_loop_done.valid()); // check to be sure we never launch two read loops
-      _read_loop_done = fc::async([=](){ read_loop(); }, "message read_loop");
+      _read_loop_done = fc_pp::async([=](){ read_loop(); }, "message read_loop");
     }
 
-    void message_oriented_connection_impl::bind(const fc::ip::endpoint& local_endpoint)
+    void message_oriented_connection_impl::bind(const fc_pp::ip::endpoint& local_endpoint)
     {
       VERIFY_CORRECT_THREAD();
       _sock.bind(local_endpoint);
@@ -145,9 +145,9 @@ namespace graphene { namespace net {
       const int LEFTOVER = BUFFER_SIZE - sizeof(message_header);
       static_assert(BUFFER_SIZE >= sizeof(message_header), "insufficient buffer");
 
-      _connected_time = fc::time_point::now();
+      _connected_time = fc_pp::time_point::now();
 
-      fc::oexception exception_to_rethrow;
+      fc_pp::oexception exception_to_rethrow;
       bool call_on_connection_closed = false;
 
       try
@@ -172,17 +172,17 @@ namespace graphene { namespace net {
           }
           m.data.resize(m.size); // truncate off the padding bytes
 
-          _last_message_received_time = fc::time_point::now();
+          _last_message_received_time = fc_pp::time_point::now();
 
           try
           {
             // message handling errors are warnings...
             _delegate->on_message(_self, m);
           }
-          /// Dedicated catches needed to distinguish from general fc::exception
-          catch ( const fc::canceled_exception& e ) { throw e; }
-          catch ( const fc::eof_exception& e ) { throw e; }
-          catch ( const fc::exception& e)
+          /// Dedicated catches needed to distinguish from general fc_pp::exception
+          catch ( const fc_pp::canceled_exception& e ) { throw e; }
+          catch ( const fc_pp::eof_exception& e ) { throw e; }
+          catch ( const fc_pp::exception& e)
           {
             /// Here loop should be continued so exception should be just caught locally.
             wlog( "message transmission failed ${er}", ("er", e.to_detail_string() ) );
@@ -190,33 +190,33 @@ namespace graphene { namespace net {
           }
         }
       }
-      catch ( const fc::canceled_exception& e )
+      catch ( const fc_pp::canceled_exception& e )
       {
         wlog( "caught a canceled_exception in read_loop.  this should mean we're in the process of deleting this object already, so there's no need to notify the delegate: ${e}", ("e", e.to_detail_string() ) );
         throw;
       }
-      catch ( const fc::eof_exception& e )
+      catch ( const fc_pp::eof_exception& e )
       {
         wlog( "disconnected ${e}", ("e", e.to_detail_string() ) );
         call_on_connection_closed = true;
       }
-      catch ( const fc::exception& e )
+      catch ( const fc_pp::exception& e )
       {
         elog( "disconnected ${er}", ("er", e.to_detail_string() ) );
         call_on_connection_closed = true;
-        exception_to_rethrow = fc::unhandled_exception(FC_LOG_MESSAGE(warn, "disconnected: ${e}", ("e", e.to_detail_string())));
+        exception_to_rethrow = fc_pp::unhandled_exception(FC_LOG_MESSAGE(warn, "disconnected: ${e}", ("e", e.to_detail_string())));
       }
       catch ( const std::exception& e )
       {
         elog( "disconnected ${er}", ("er", e.what() ) );
         call_on_connection_closed = true;
-        exception_to_rethrow = fc::unhandled_exception(FC_LOG_MESSAGE(warn, "disconnected: ${e}", ("e", e.what())));
+        exception_to_rethrow = fc_pp::unhandled_exception(FC_LOG_MESSAGE(warn, "disconnected: ${e}", ("e", e.what())));
       }
       catch ( ... )
       {
         elog( "unexpected exception" );
         call_on_connection_closed = true;
-        exception_to_rethrow = fc::unhandled_exception(FC_LOG_MESSAGE(warn, "disconnected: ${e}", ("e", fc::except_str())));
+        exception_to_rethrow = fc_pp::unhandled_exception(FC_LOG_MESSAGE(warn, "disconnected: ${e}", ("e", fc_pp::except_str())));
       }
 
       if (call_on_connection_closed)
@@ -231,12 +231,12 @@ namespace graphene { namespace net {
       VERIFY_CORRECT_THREAD();
 #if 0 // this gets too verbose
 #ifndef NDEBUG
-      fc::optional<fc::ip::endpoint> remote_endpoint;
+      fc_pp::optional<fc_pp::ip::endpoint> remote_endpoint;
       if (_sock.get_socket().is_open())
         remote_endpoint = _sock.get_socket().remote_endpoint();
       struct scope_logger {
-        const fc::optional<fc::ip::endpoint>& endpoint;
-        scope_logger(const fc::optional<fc::ip::endpoint>& endpoint) : endpoint(endpoint) { dlog("entering message_oriented_connection::send_message() for peer ${endpoint}", ("endpoint", endpoint)); }
+        const fc_pp::optional<fc_pp::ip::endpoint>& endpoint;
+        scope_logger(const fc_pp::optional<fc_pp::ip::endpoint>& endpoint) : endpoint(endpoint) { dlog("entering message_oriented_connection::send_message() for peer ${endpoint}", ("endpoint", endpoint)); }
         ~scope_logger() { dlog("leaving message_oriented_connection::send_message() for peer ${endpoint}", ("endpoint", endpoint)); }
       } send_message_scope_logger(remote_endpoint);
 #endif
@@ -271,7 +271,7 @@ namespace graphene { namespace net {
         _sock.write(padded_message.get(), size_with_padding);
         _sock.flush();
         _bytes_sent += size_with_padding;
-        _last_message_sent_time = fc::time_point::now();
+        _last_message_sent_time = fc_pp::time_point::now();
       } FC_RETHROW_EXCEPTIONS( warn, "unable to send message" );
     }
 
@@ -285,7 +285,7 @@ namespace graphene { namespace net {
     {
       VERIFY_CORRECT_THREAD();
 
-      fc::optional<fc::ip::endpoint> remote_endpoint;
+      fc_pp::optional<fc_pp::ip::endpoint> remote_endpoint;
       if (_sock.get_socket().is_open())
         remote_endpoint = _sock.get_socket().remote_endpoint();
       ilog( "in destroy_connection() for ${endpoint}", ("endpoint", remote_endpoint) );
@@ -299,7 +299,7 @@ namespace graphene { namespace net {
       {
         _read_loop_done.cancel_and_wait(__FUNCTION__);
       }
-      catch ( const fc::exception& e )
+      catch ( const fc_pp::exception& e )
       {
         wlog( "Exception thrown while canceling message_oriented_connection's read_loop, ignoring: ${e}", ("e",e) );
       }
@@ -321,19 +321,19 @@ namespace graphene { namespace net {
       return _bytes_received;
     }
 
-    fc::time_point message_oriented_connection_impl::get_last_message_sent_time() const
+    fc_pp::time_point message_oriented_connection_impl::get_last_message_sent_time() const
     {
       VERIFY_CORRECT_THREAD();
       return _last_message_sent_time;
     }
 
-    fc::time_point message_oriented_connection_impl::get_last_message_received_time() const
+    fc_pp::time_point message_oriented_connection_impl::get_last_message_received_time() const
     {
       VERIFY_CORRECT_THREAD();
       return _last_message_received_time;
     }
 
-    fc::sha512 message_oriented_connection_impl::get_shared_secret() const
+    fc_pp::sha512 message_oriented_connection_impl::get_shared_secret() const
     {
       VERIFY_CORRECT_THREAD();
       return _sock.get_shared_secret();
@@ -351,7 +351,7 @@ namespace graphene { namespace net {
   {
   }
 
-  fc::tcp_socket& message_oriented_connection::get_socket()
+  fc_pp::tcp_socket& message_oriented_connection::get_socket()
   {
     return my->get_socket();
   }
@@ -361,12 +361,12 @@ namespace graphene { namespace net {
     my->accept();
   }
 
-  void message_oriented_connection::connect_to(const fc::ip::endpoint& remote_endpoint)
+  void message_oriented_connection::connect_to(const fc_pp::ip::endpoint& remote_endpoint)
   {
     my->connect_to(remote_endpoint);
   }
 
-  void message_oriented_connection::bind(const fc::ip::endpoint& local_endpoint)
+  void message_oriented_connection::bind(const fc_pp::ip::endpoint& local_endpoint)
   {
     my->bind(local_endpoint);
   }
@@ -396,20 +396,20 @@ namespace graphene { namespace net {
     return my->get_total_bytes_received();
   }
 
-  fc::time_point message_oriented_connection::get_last_message_sent_time() const
+  fc_pp::time_point message_oriented_connection::get_last_message_sent_time() const
   {
     return my->get_last_message_sent_time();
   }
 
-  fc::time_point message_oriented_connection::get_last_message_received_time() const
+  fc_pp::time_point message_oriented_connection::get_last_message_received_time() const
   {
     return my->get_last_message_received_time();
   }
-  fc::time_point message_oriented_connection::get_connection_time() const
+  fc_pp::time_point message_oriented_connection::get_connection_time() const
   {
     return my->get_connection_time();
   }
-  fc::sha512 message_oriented_connection::get_shared_secret() const
+  fc_pp::sha512 message_oriented_connection::get_shared_secret() const
   {
     return my->get_shared_secret();
   }

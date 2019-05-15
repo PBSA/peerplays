@@ -72,10 +72,10 @@ witness_id_type database::get_scheduled_witness( uint32_t slot_num )const
    return wid;
 }
 
-fc::time_point_sec database::get_slot_time(uint32_t slot_num)const
+fc_pp::time_point_sec database::get_slot_time(uint32_t slot_num)const
 {
    if( slot_num == 0 )
-      return fc::time_point_sec();
+      return fc_pp::time_point_sec();
 
    auto interval = block_interval();
    const dynamic_global_property_object& dpo = get_dynamic_global_properties();
@@ -83,12 +83,12 @@ fc::time_point_sec database::get_slot_time(uint32_t slot_num)const
    if( head_block_num() == 0 )
    {
       // n.b. first block is at genesis_time plus one block interval
-      fc::time_point_sec genesis_time = dpo.time;
+      fc_pp::time_point_sec genesis_time = dpo.time;
       return genesis_time + slot_num * interval;
    }
 
    int64_t head_block_abs_slot = head_block_time().sec_since_epoch() / interval;
-   fc::time_point_sec head_slot_time(head_block_abs_slot * interval);
+   fc_pp::time_point_sec head_slot_time(head_block_abs_slot * interval);
 
    const global_property_object& gpo = get_global_properties();
 
@@ -102,9 +102,9 @@ fc::time_point_sec database::get_slot_time(uint32_t slot_num)const
    return head_slot_time + (slot_num * interval);
 }
 
-uint32_t database::get_slot_at_time(fc::time_point_sec when)const
+uint32_t database::get_slot_at_time(fc_pp::time_point_sec when)const
 {
-   fc::time_point_sec first_slot_time = get_slot_time( 1 );
+   fc_pp::time_point_sec first_slot_time = get_slot_time( 1 );
    //@ROL std::cout <<  "@get_slot_at_time " << when.to_iso_string() << " " << first_slot_time.to_iso_string() << "\n";
    if( when < first_slot_time )
       return 0;
@@ -163,7 +163,7 @@ vector<witness_id_type> database::get_near_witness_schedule()const
 
 void database::update_witness_schedule(const signed_block& next_block)
 {
-   auto start = fc::time_point::now();
+   auto start = fc_pp::time_point::now();
    const global_property_object& gpo = get_global_properties();
    const witness_schedule_object& wso = get(witness_schedule_id_type());
    uint32_t schedule_needs_filled = gpo.active_witnesses.size();
@@ -218,7 +218,7 @@ void database::update_witness_schedule(const signed_block& next_block)
            (_wso.recent_slots_filled << 1)
            + 1) << (schedule_slot - 1);
    });
-   auto end = fc::time_point::now();
+   auto end = fc_pp::time_point::now();
    static uint64_t total_time = 0;
    static uint64_t calls = 0;
    total_time += (end - start).count();

@@ -68,14 +68,14 @@ namespace graphene { namespace chain {
          {
             void on_entry(const game_complete& event, match_state_machine_& fsm)
             {
-               fc_ilog(fc::logger::get("tournament"),
+               fc_ilog(fc_pp::logger::get("tournament"),
                        "Game ${game_id} in match ${id} is complete",
                        ("game_id", event.game.id)("id", fsm.match_obj->id));
             }
             void on_entry(const initiate_match& event, match_state_machine_& fsm)
             {
                match_object& match = *fsm.match_obj;
-               fc_ilog(fc::logger::get("tournament"),
+               fc_ilog(fc_pp::logger::get("tournament"),
                        "Match ${id} is now in progress",
                        ("id", match.id));
                match.number_of_wins.resize(match.players.size());
@@ -91,7 +91,7 @@ namespace graphene { namespace chain {
 
                match_object& match = *fsm.match_obj;
                //wdump((match));
-               fc_ilog(fc::logger::get("tournament"),
+               fc_ilog(fc_pp::logger::get("tournament"),
                        "Match ${id} is complete",
                        ("id", match.id));
 
@@ -142,7 +142,7 @@ namespace graphene { namespace chain {
             void on_entry(const initiate_match& event, match_state_machine_& fsm)
             {
                match_object& match = *fsm.match_obj;
-               fc_ilog(fc::logger::get("tournament"),
+               fc_ilog(fc_pp::logger::get("tournament"),
                        "Match ${id} is complete, it was a buy",
                        ("id", match));
                match.number_of_wins.resize(match.players.size());
@@ -197,7 +197,7 @@ namespace graphene { namespace chain {
 
          void start_next_game(database& db)
          {
-            fc_ilog(fc::logger::get("tournament"),
+            fc_ilog(fc_pp::logger::get("tournament"),
                     "In start_next_game");
             const game_object& game =
                db.create<game_object>( [&]( game_object& game ) {
@@ -300,15 +300,15 @@ namespace graphene { namespace chain {
          {
             // this is an approximate test, the state name provided by typeinfo will be mangled, but should
             // at least contain the string we're looking for
-            const char* fc_reflected_value_name = fc::reflector<match_state>::to_string((match_state)i);
+            const char* fc_reflected_value_name = fc_pp::reflector<match_state>::to_string((match_state)i);
             if (!strcmp(fc_reflected_value_name, filled_state_names[i]))
-               fc_elog(fc::logger::get("match"),
-                       "Error, state string mismatch between fc and boost::msm for int value ${int_value}: boost::msm -> ${boost_string}, fc::reflect -> ${fc_string}",
+               fc_elog(fc_pp::logger::get("match"),
+                       "Error, state string mismatch between fc_pp and boost::msm for int value ${int_value}: boost::msm -> ${boost_string}, fc_pp::reflect -> ${fc_string}",
                        ("int_value", i)("boost_string", filled_state_names[i])("fc_string", fc_reflected_value_name));
          }
-         catch (const fc::bad_cast_exception&)
+         catch (const fc_pp::bad_cast_exception&)
          {
-            fc_elog(fc::logger::get("match"),
+            fc_elog(fc_pp::logger::get("match"),
                     "Error, no reflection for value ${int_value} in enum match_state",
                     ("int_value", i));
             ++error_count;
@@ -362,13 +362,13 @@ namespace graphene { namespace chain {
 
 } } // graphene::chain
 
-namespace fc { 
+namespace fc_pp { 
    // Manually reflect match_object to variant to properly reflect "state"
-   void to_variant(const graphene::chain::match_object& match_obj, fc::variant& v)
+   void to_variant(const graphene::chain::match_object& match_obj, fc_pp::variant& v)
    { try {
-      fc_elog(fc::logger::get("tournament"), "In match_obj to_variant");
+      fc_elog(fc_pp::logger::get("tournament"), "In match_obj to_variant");
       elog("In match_obj to_variant");
-      fc::mutable_variant_object o;
+      fc_pp::mutable_variant_object o;
       o("id", match_obj.id)
        ("tournament_id", match_obj.tournament_id)
        ("players", match_obj.players)
@@ -385,9 +385,9 @@ namespace fc {
    } FC_RETHROW_EXCEPTIONS(warn, "") }
 
    // Manually reflect match_object to variant to properly reflect "state"
-   void from_variant(const fc::variant& v, graphene::chain::match_object& match_obj)
+   void from_variant(const fc_pp::variant& v, graphene::chain::match_object& match_obj)
    { try {
-      fc_elog(fc::logger::get("tournament"), "In match_obj from_variant");
+      fc_elog(fc_pp::logger::get("tournament"), "In match_obj from_variant");
       match_obj.id = v["id"].as<graphene::chain::match_id_type>();
       match_obj.tournament_id = v["tournament_id"].as<graphene::chain::tournament_id_type>();
       match_obj.players = v["players"].as<std::vector<graphene::chain::account_id_type> >();
@@ -401,6 +401,6 @@ namespace fc {
       graphene::chain::match_state state = v["state"].as<graphene::chain::match_state>();
       const_cast<int*>(match_obj.my->state_machine.current_state())[0] = (int)state;
    } FC_RETHROW_EXCEPTIONS(warn, "") }
-} //end namespace fc
+} //end namespace fc_pp
 
 

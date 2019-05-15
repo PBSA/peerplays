@@ -45,16 +45,16 @@ public:
                       const string& symbol,
                       uint8_t precision,
                       asset_options& common,
-                      const fc::ecc::private_key& sig_priv_key);
+                      const fc_pp::ecc::private_key& sig_priv_key);
 
     void update_dividend_asset(const asset_id_type asset_to_update_id,
                                dividend_asset_options new_options,
-                               const fc::ecc::private_key& sig_priv_key);
+                               const fc_pp::ecc::private_key& sig_priv_key);
 
     optional<account_id_type> get_asset_dividend_account( const asset_id_type& asset_id = asset_id_type() )const;
 
     const tournament_id_type create_tournament( const account_id_type& creator,
-                                                const fc::ecc::private_key& sig_priv_key,
+                                                const fc_pp::ecc::private_key& sig_priv_key,
                                                 asset buy_in,
                                                 uint32_t number_of_players = 2,
                                                 uint32_t time_per_commit_move = 3,
@@ -66,33 +66,33 @@ public:
                                                 bool insurance_enabled = false,
                                                 uint32_t number_of_gestures = 3,
                                                 uint32_t start_time = 0,
-                                                fc::optional<flat_set<account_id_type> > whitelist = fc::optional<flat_set<account_id_type> >()
+                                                fc_pp::optional<flat_set<account_id_type> > whitelist = fc_pp::optional<flat_set<account_id_type> >()
                                                 );
 
     void join_tournament(const tournament_id_type & tournament_id,
                          const account_id_type& player_id,
                          const account_id_type& payer_id,
-                         const fc::ecc::private_key& sig_priv_key,
+                         const fc_pp::ecc::private_key& sig_priv_key,
                          asset buy_in
                          );
 
    void leave_tournament(const tournament_id_type & tournament_id,
                          const account_id_type& player_id,
                          const account_id_type& canceling_account_id,
-                         const fc::ecc::private_key& sig_priv_key
+                         const fc_pp::ecc::private_key& sig_priv_key
                         );
 
     // stolen from cli_wallet
     void rps_throw(const game_id_type& game_id,
                    const account_id_type& player_id,
                    rock_paper_scissors_gesture gesture,
-                   const fc::ecc::private_key& sig_priv_key
+                   const fc_pp::ecc::private_key& sig_priv_key
                    );
 
     void rps_reveal( const game_id_type& game_id,
                      const account_id_type& player_id,
                      rock_paper_scissors_gesture gesture,
-                     const fc::ecc::private_key& sig_priv_key );
+                     const fc_pp::ecc::private_key& sig_priv_key );
 
     // spaghetti programming
     // walking through all tournaments, matches and games and throwing random moves
@@ -103,7 +103,7 @@ public:
 private:
     database_fixture& df;
     // index of last created tournament
-    fc::optional<uint64_t> current_tournament_idx;
+    fc_pp::optional<uint64_t> current_tournament_idx;
     // index of last asset
     uint64_t current_asset_idx;
     // assets : core and maybe others
@@ -113,7 +113,7 @@ private:
     // all players registered in tournaments
     std::set<account_id_type> players;
     // players' private keys
-    std::map<account_id_type, fc::ecc::private_key> players_keys;
+    std::map<account_id_type, fc_pp::ecc::private_key> players_keys;
     // total charges for moves made by every player
     std::map<account_id_type, std::map<asset_id_type, share_type>> players_fees;
     // store of commits and reveals

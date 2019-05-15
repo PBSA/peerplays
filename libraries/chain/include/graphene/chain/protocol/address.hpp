@@ -26,13 +26,13 @@
 #include <graphene/chain/config.hpp>
 #include <graphene/chain/pts_address.hpp>
 
-#include <fc/array.hpp>
-#include <fc/crypto/ripemd160.hpp>
+#include <fc_pp/array.hpp>
+#include <fc_pp/crypto/ripemd160.hpp>
 
-namespace fc { namespace ecc {
+namespace fc_pp { namespace ecc {
     class public_key;
-    typedef fc::array<char,33>  public_key_data;
-} } // fc::ecc
+    typedef fc_pp::array<char,33>  public_key_data;
+} } // fc_pp::ecc
 
 namespace graphene { namespace chain {
 
@@ -53,8 +53,8 @@ namespace graphene { namespace chain {
       public:
        address(); ///< constructs empty / null address
        explicit address( const std::string& base58str );   ///< converts to binary, validates checksum
-       address( const fc::ecc::public_key& pub ); ///< converts to binary
-       explicit address( const fc::ecc::public_key_data& pub ); ///< converts to binary
+       address( const fc_pp::ecc::public_key& pub ); ///< converts to binary
+       explicit address( const fc_pp::ecc::public_key_data& pub ); ///< converts to binary
        address( const pts_address& pub ); ///< converts to binary
        address( const public_key_type& pubkey );
 
@@ -68,7 +68,7 @@ namespace graphene { namespace chain {
           const size_t* tmp2 = reinterpret_cast<const size_t*>(tmp);
           return *tmp2;
        }
-       fc::ripemd160 addr;
+       fc_pp::ripemd160 addr;
    };
    inline bool operator == ( const address& a, const address& b ) { return a.addr == b.addr; }
    inline bool operator != ( const address& a, const address& b ) { return a.addr != b.addr; }
@@ -76,10 +76,10 @@ namespace graphene { namespace chain {
 
 } } // namespace graphene::chain
 
-namespace fc
+namespace fc_pp
 {
-   void to_variant( const graphene::chain::address& var,  fc::variant& vo );
-   void from_variant( const fc::variant& var,  graphene::chain::address& vo );
+   void to_variant( const graphene::chain::address& var,  fc_pp::variant& vo );
+   void from_variant( const fc_pp::variant& var,  graphene::chain::address& vo );
 }
 
 namespace std
@@ -95,5 +95,5 @@ namespace std
    };
 }
 
-#include <fc/reflect/reflect.hpp>
+#include <fc_pp/reflect/reflect.hpp>
 FC_REFLECT( graphene::chain::address, (addr) )

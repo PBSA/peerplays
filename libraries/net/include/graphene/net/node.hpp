@@ -33,7 +33,7 @@
 
 namespace graphene { namespace net {
 
-  using fc::variant_object;
+  using fc_pp::variant_object;
   using graphene::chain::chain_id_type;
 
   namespace detail
@@ -49,8 +49,8 @@ namespace graphene { namespace net {
   // using a structure like this:
   struct message_propagation_data
   {
-    fc::time_point received_time;
-    fc::time_point validated_time;
+    fc_pp::time_point received_time;
+    fc_pp::time_point validated_time;
     node_id_t originating_peer;
   };
 
@@ -78,7 +78,7 @@ namespace graphene { namespace net {
           *          safe to broadcast on.
           */
          virtual bool handle_block( const graphene::net::block_message& blk_msg, bool sync_mode, 
-                                    std::vector<fc::uint160_t>& contained_transaction_message_ids ) = 0;
+                                    std::vector<fc_pp::uint160_t>& contained_transaction_message_ids ) = 0;
          
          /**
           *  @brief Called when a new transaction comes in from the network
@@ -156,13 +156,13 @@ namespace graphene { namespace net {
           * Returns the time a block was produced (if block_id = 0, returns genesis time).
           * If we don't know about the block, returns time_point_sec::min()
           */
-         virtual fc::time_point_sec get_block_time(const item_hash_t& block_id) = 0;
+         virtual fc_pp::time_point_sec get_block_time(const item_hash_t& block_id) = 0;
 
          virtual item_hash_t get_head_block_id() const = 0;
 
          virtual uint32_t estimate_last_known_fork_from_git_revision_timestamp(uint32_t unix_timestamp) const = 0;
 
-         virtual void error_encountered(const std::string& message, const fc::oexception& error) = 0;
+         virtual void error_encountered(const std::string& message, const fc_pp::oexception& error) = 0;
          virtual uint8_t get_current_block_interval_in_seconds() const = 0;
 
    };
@@ -174,10 +174,10 @@ namespace graphene { namespace net {
    struct peer_status
    {
       uint32_t         version;
-      fc::ip::endpoint host;
+      fc_pp::ip::endpoint host;
       /** info contains the fields required by bitcoin-rpc's getpeerinfo call, we will likely
           extend it with our own fields. */
-      fc::variant_object info;
+      fc_pp::variant_object info;
    };
 
    /**
@@ -199,7 +199,7 @@ namespace graphene { namespace net {
 
         void      set_node_delegate( node_delegate* del );
 
-        void      load_configuration( const fc::path& configuration_directory );
+        void      load_configuration( const fc_pp::path& configuration_directory );
 
         virtual void      listen_to_p2p_network();
         virtual void      connect_to_p2p_network();
@@ -209,18 +209,18 @@ namespace graphene { namespace net {
          *  to attempt to connect to.  This database is consulted any time
          *  the number connected peers falls below the target.
          */
-        void      add_node( const fc::ip::endpoint& ep );
+        void      add_node( const fc_pp::ip::endpoint& ep );
 
         /**
          *  Attempt to connect to the specified endpoint immediately.
          */
-        virtual void connect_to_endpoint( const fc::ip::endpoint& ep );
+        virtual void connect_to_endpoint( const fc_pp::ip::endpoint& ep );
 
         /**
          *  Specifies the network interface and port upon which incoming
          *  connections should be accepted.
          */
-        void      listen_on_endpoint( const fc::ip::endpoint& ep, bool wait_if_not_available );
+        void      listen_on_endpoint( const fc_pp::ip::endpoint& ep, bool wait_if_not_available );
 
         /**
          *  Call with true to enable listening for incoming connections
@@ -242,7 +242,7 @@ namespace graphene { namespace net {
          * as the value previously passed in to listen_on_endpoint, unless we
          * were unable to bind to that port.
          */
-        virtual fc::ip::endpoint get_actual_listening_endpoint() const;
+        virtual fc_pp::ip::endpoint get_actual_listening_endpoint() const;
 
         /**
          *  @return a list of peers that are currently connected.
@@ -270,8 +270,8 @@ namespace graphene { namespace net {
 
         bool      is_connected() const;
 
-        void set_advanced_node_parameters(const fc::variant_object& params);
-        fc::variant_object get_advanced_node_parameters();
+        void set_advanced_node_parameters(const fc_pp::variant_object& params);
+        fc_pp::variant_object get_advanced_node_parameters();
         message_propagation_data get_transaction_propagation_data(const graphene::chain::transaction_id_type& transaction_id);
         message_propagation_data get_block_propagation_data(const graphene::chain::block_id_type& block_id);
         node_id_t get_node_id() const;
@@ -285,13 +285,13 @@ namespace graphene { namespace net {
 
         void set_total_bandwidth_limit(uint32_t upload_bytes_per_second, uint32_t download_bytes_per_second);
 
-        fc::variant_object network_get_info() const;
-        fc::variant_object network_get_usage_stats() const;
+        fc_pp::variant_object network_get_info() const;
+        fc_pp::variant_object network_get_usage_stats() const;
 
         std::vector<potential_peer_record> get_potential_peers() const;
 
         void disable_peer_advertising();
-        fc::variant_object get_call_statistics() const;
+        fc_pp::variant_object get_call_statistics() const;
       private:
         std::unique_ptr<detail::node_impl, detail::node_impl_deleter> my;
    };
@@ -303,9 +303,9 @@ namespace graphene { namespace net {
       simulated_network(const std::string& user_agent) : node(user_agent) {}
       void      listen_to_p2p_network() override {}
       void      connect_to_p2p_network() override {}
-      void      connect_to_endpoint(const fc::ip::endpoint& ep) override {}
+      void      connect_to_endpoint(const fc_pp::ip::endpoint& ep) override {}
 
-      fc::ip::endpoint get_actual_listening_endpoint() const override { return fc::ip::endpoint(); }
+      fc_pp::ip::endpoint get_actual_listening_endpoint() const override { return fc_pp::ip::endpoint(); }
 
       void      sync_from(const item_id& current_head_block, const std::vector<uint32_t>& hard_fork_block_numbers) override {}
       void      broadcast(const message& item_to_broadcast) override;
