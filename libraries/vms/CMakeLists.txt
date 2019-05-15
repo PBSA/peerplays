@@ -1,7 +1,7 @@
 file( GLOB SOURCES "*.cpp" )
 file( GLOB HEADERS "*.hpp" )
 
-add_subdirectory( wavm )
+add_subdirectory(wavm)
 
 add_library( vms_base STATIC ${SOURCES} ${HEADERS} )
 

@@ -31,6 +31,9 @@
 #include <graphene/chain/genesis_state.hpp>
 #include <graphene/chain/evaluator.hpp>
 
+#include <graphene/chain/contract_object.hpp>
+#include <vm_executor.hpp>
+
 #include <graphene/db/object_database.hpp>
 #include <graphene/db/object.hpp>
 #include <graphene/db/simple_index.hpp>
@@ -285,6 +288,8 @@ namespace graphene { namespace chain {
 
 
          uint32_t last_non_undoable_block_num() const;
+
+         signed_block            get_current_block() const;
          //////////////////// db_init.cpp ////////////////////
 
          void initialize_evaluators();
@@ -433,6 +438,23 @@ namespace graphene { namespace chain {
           */
          processed_transaction validate_transaction( const signed_transaction& trx );
 
+         /// Overloaded method for contract object
+         asset get_balance(const contract_object& owner, const asset_object& asset_obj) const;
+         /// Overloaded method for contract id
+         asset get_balance(contract_id_type owner, asset_id_type asset_id) const;
+         /** Overloaded method for universal usage with account_id_type and contract_id_type
+          * @return asset() if it is not account_id_type or contract_id_type
+          */
+         asset get_balance(const object_id_type& owner, const asset_id_type& asset_id) const;
+         /// Overloaded method for contract id
+         void adjust_balance(contract_id_type contract, asset delta );
+         /// Overloaded method for universal usage with account_id_type and contract_id_type
+         void adjust_balance(object_id_type account, asset delta );
+
+         std::unique_ptr<vms::base::vm_executor>                         _executor;
+
+         bool                                                            _evaluating_from_block = false;
+
 
          /** when popping a block, the transactions that were removed get cached here so they
           * can be reapplied at the proper time */
@@ -517,6 +539,7 @@ namespace graphene { namespace chain {
           *  the fork tree relatively simple.
           */
          block_database   _block_id_to_block;
+         signed_block     _current_block;
 
          /**
           * Contains the set of ops that are in the process of being applied from

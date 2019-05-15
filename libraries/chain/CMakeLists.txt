@@ -59,6 +59,7 @@ add_library( graphene_chain
              protocol/confidential.cpp
              protocol/vote.cpp
              protocol/tournament.cpp
+             protocol/contract.cpp
 
              genesis_state.cpp
              get_config.cpp
@@ -110,6 +111,8 @@ add_library( graphene_chain
              betting_market_group_object.cpp
 
              affiliate_payout.cpp
+             contract_object.cpp
+             contract_evaluator.cpp
 
              ${HEADERS}
              ${PROTOCOL_HEADERS}
@@ -117,7 +120,7 @@ add_library( graphene_chain
            )
 
 add_dependencies( graphene_chain build_hardfork_hpp )
-target_link_libraries( graphene_chain fc_pp graphene_db )
+target_link_libraries( graphene_chain fc_pp graphene_db vms_base )
 target_include_directories( graphene_chain
                             PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_BINARY_DIR}/include" ${Boost_INCLUDE_DIR} )
 

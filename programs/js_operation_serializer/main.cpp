@@ -43,6 +43,7 @@
 #include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/match_object.hpp>
 #include <graphene/chain/game_object.hpp>
+#include <graphene/chain/contract_object.hpp>
 
 #include <fc_pp/smart_ref_impl.hpp>
 #include <iostream>

@@ -84,6 +84,9 @@ namespace graphene { namespace chain {
    typedef fc_pp::ecc::private_key        private_key_type;
    typedef fc_pp::sha256 chain_id_type;
 
+   enum class vm_types { NULL_TYPE, WAVM };
+   typedef std::vector<unsigned char>  bytes;
+
    enum asset_issuer_permission_flags
    {
       charge_market_fee    = 0x01, /**< an issuer-specified percentage of all market trades in this asset is paid to the issuer */
@@ -145,6 +148,12 @@ namespace graphene { namespace chain {
       betting_market_group_object_type,
       betting_market_object_type,
       bet_object_type,
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
+      contract_balance_object_type,             // 20
+      contract_object_type,
+      result_contract_object_type,
+      contracts_results_in_block_object_type,
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
       OBJECT_TYPE_COUNT ///< Sentry value which contains the number of different object types
    };
 
@@ -171,7 +180,11 @@ namespace graphene { namespace chain {
       impl_pending_dividend_payout_balance_for_holder_object_type,
       impl_distributed_dividend_balance_data_type,
       impl_betting_market_position_object_type,
-      impl_global_betting_statistics_object_type
+      impl_global_betting_statistics_object_type,
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
+      impl_contract_history_object_type,
+      impl_contract_statistics_object_type
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
    };
 
    //typedef fc_pp::unsigned_int            object_id_type;
@@ -202,6 +215,12 @@ namespace graphene { namespace chain {
    class betting_market_group_object;
    class betting_market_object;
    class bet_object;
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
+   class contract_balance_object;
+   class contract_object;
+   class result_contract_object;
+   class contracts_results_in_block_object;
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
 
    typedef object_id< protocol_ids, account_object_type,            account_object>               account_id_type;
    typedef object_id< protocol_ids, asset_object_type,              asset_object>                 asset_id_type;
@@ -228,6 +247,12 @@ namespace graphene { namespace chain {
    typedef object_id< protocol_ids, betting_market_group_object_type, betting_market_group_object> betting_market_group_id_type;
    typedef object_id< protocol_ids, betting_market_object_type,     betting_market_object>        betting_market_id_type;
    typedef object_id< protocol_ids, bet_object_type,                bet_object>                   bet_id_type;
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
+   typedef object_id< protocol_ids, contract_balance_object_type,   contract_balance_object>      contract_balance_id_type;
+   typedef object_id< protocol_ids, contract_object_type,           contract_object>              contract_id_type;
+   typedef object_id< protocol_ids, result_contract_object_type,    result_contract_object>       result_contract_id_type;
+   typedef object_id< protocol_ids, contracts_results_in_block_object_type,    contracts_results_in_block_object>  contracts_results_in_block_id_type;
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
 
    // implementation types
    class global_property_object;
@@ -249,6 +274,10 @@ namespace graphene { namespace chain {
    class pending_dividend_payout_balance_for_holder_object;
    class betting_market_position_object;
    class global_betting_statistics_object;
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
+   class contract_history_object;
+   class contract_statistics_object;
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
 
    typedef object_id< implementation_ids, impl_global_property_object_type,  global_property_object>                    global_property_id_type;
    typedef object_id< implementation_ids, impl_dynamic_global_property_object_type,  dynamic_global_property_object>    dynamic_global_property_id_type;
@@ -273,6 +302,10 @@ namespace graphene { namespace chain {
    typedef object_id< implementation_ids, impl_fba_accumulator_object_type, fba_accumulator_object >                    fba_accumulator_id_type;
    typedef object_id< implementation_ids, impl_betting_market_position_object_type, betting_market_position_object >    betting_market_position_id_type;
    typedef object_id< implementation_ids, impl_global_betting_statistics_object_type, global_betting_statistics_object > global_betting_statistics_id_type;
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
+   typedef object_id< implementation_ids, impl_contract_history_object_type, contract_history_object>                   contract_history_id_type;
+   typedef object_id< implementation_ids, impl_contract_statistics_object_type,contract_statistics_object>              contract_statistics_id_type;
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
 
    typedef fc_pp::array<char, GRAPHENE_MAX_ASSET_SYMBOL_LENGTH>    symbol_type;
    typedef fc_pp::ripemd160                                        block_id_type;
@@ -374,6 +407,8 @@ FC_REFLECT( graphene::chain::extended_public_key_type::binary_key, (check)(data)
 FC_REFLECT( graphene::chain::extended_private_key_type, (key_data) )
 FC_REFLECT( graphene::chain::extended_private_key_type::binary_key, (check)(data) )
 
+FC_REFLECT_ENUM( graphene::chain::vm_types, (NULL_TYPE)(WAVM) )
+
 FC_REFLECT_ENUM( graphene::chain::object_type,
                  (null_object_type)
                  (base_object_type)
@@ -402,6 +437,12 @@ FC_REFLECT_ENUM( graphene::chain::object_type,
                  (betting_market_group_object_type)
                  (betting_market_object_type)
                  (bet_object_type)
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
+                 (contract_balance_object_type)
+                 (contract_object_type)
+                 (result_contract_object_type)
+                 (contracts_results_in_block_object_type)
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
                  (OBJECT_TYPE_COUNT)
                )
 FC_REFLECT_ENUM( graphene::chain::impl_object_type,
@@ -427,6 +468,10 @@ FC_REFLECT_ENUM( graphene::chain::impl_object_type,
                  (impl_distributed_dividend_balance_data_type)
                  (impl_betting_market_position_object_type)
                  (impl_global_betting_statistics_object_type)
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
+                 (impl_contract_history_object_type)
+                 (impl_contract_statistics_object_type)
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
                )
 
 FC_REFLECT_TYPENAME( graphene::chain::share_type )
@@ -469,6 +514,7 @@ FC_REFLECT_TYPENAME( graphene::chain::fba_accumulator_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::betting_market_position_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::global_betting_statistics_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::tournament_details_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::contract_statistics_id_type ) // PeerPlays
 
 FC_REFLECT( graphene::chain::void_t, )
 

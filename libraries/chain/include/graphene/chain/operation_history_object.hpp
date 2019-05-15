@@ -127,6 +127,46 @@ typedef multi_index_container<
 
 typedef generic_index<account_transaction_history_object, account_transaction_history_multi_index_type> account_transaction_history_index;
 
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
+   class contract_history_object :  public abstract_object<contract_history_object>
+   {
+      public:
+         static const uint8_t space_id = implementation_ids;
+         static const uint8_t type_id  = impl_contract_history_object_type;
+         contract_id_type                     contract; /// the contract this operation applies to
+         operation_history_id_type            operation_id;
+         uint32_t                             sequence = 0; /// the operation position within the given contract
+         contract_history_id_type  next;
+   };
+
+   struct by_id;
+   struct by_seq;
+   struct by_op;
+   struct by_opid;
+   typedef multi_index_container<
+      contract_history_object,
+      indexed_by<
+         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
+         ordered_unique< tag<by_seq>,
+            composite_key< contract_history_object,
+               member< contract_history_object, contract_id_type, &contract_history_object::contract>,
+               member< contract_history_object, uint32_t, &contract_history_object::sequence>
+            >
+         >,
+         ordered_unique< tag<by_op>,
+            composite_key< contract_history_object,
+               member< contract_history_object, contract_id_type, &contract_history_object::contract>,
+               member< contract_history_object, operation_history_id_type, &contract_history_object::operation_id>
+            >
+         >,
+         ordered_non_unique< tag<by_opid>,
+            member< contract_history_object, operation_history_id_type, &contract_history_object::operation_id>
+         >
+      >
+   > contract_history_multi_index_type;
+
+   typedef generic_index<contract_history_object, contract_history_multi_index_type> contract_history_index;
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
    
 } } // graphene::chain
 
@@ -135,3 +175,6 @@ FC_REFLECT_DERIVED( graphene::chain::operation_history_object, (graphene::chain:
 
 FC_REFLECT_DERIVED( graphene::chain::account_transaction_history_object, (graphene::chain::object),
                     (account)(operation_id)(sequence)(next) )
+
+FC_REFLECT_DERIVED( graphene::chain::contract_history_object, (graphene::chain::object),
+                    (contract)(operation_id)(sequence)(next) )

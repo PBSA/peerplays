@@ -44,6 +44,7 @@
 #include <graphene/chain/protocol/event.hpp>
 #include <graphene/chain/protocol/betting_market.hpp>
 #include <graphene/chain/protocol/tournament.hpp>
+#include <graphene/chain/protocol/contract.hpp>
 
 namespace graphene { namespace chain {
 
@@ -129,7 +130,9 @@ namespace graphene { namespace chain {
             sport_delete_operation,
             event_group_delete_operation,
             affiliate_payout_operation, // VIRTUAL
-            affiliate_referral_payout_operation // VIRTUAL
+            affiliate_referral_payout_operation, // VIRTUAL
+            contract_transfer_operation,
+            contract_operation
          > operation;
 
    /// @} // operations group

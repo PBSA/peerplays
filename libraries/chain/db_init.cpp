@@ -56,6 +56,9 @@
 #include <graphene/chain/event_object.hpp>
 #include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/global_betting_statistics_object.hpp>
+#include <graphene/chain/contract_object.hpp>
+#include <graphene/chain/result_contract_object.hpp>
+#include <graphene/chain/contracts_results_in_block_object.hpp>
 
 #include <graphene/chain/account_evaluator.hpp>
 #include <graphene/chain/asset_evaluator.hpp>
@@ -76,6 +79,7 @@
 #include <graphene/chain/event_evaluator.hpp>
 #include <graphene/chain/betting_market_evaluator.hpp>
 #include <graphene/chain/tournament_evaluator.hpp>
+#include <graphene/chain/contract_evaluator.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
@@ -237,6 +241,7 @@ void database::initialize_evaluators()
    register_evaluator<tournament_join_evaluator>();
    register_evaluator<game_move_evaluator>();
    register_evaluator<tournament_leave_evaluator>();
+   register_evaluator<contract_evaluator>(); // PeerPlays
 }
 
 void database::initialize_indexes()
@@ -301,6 +306,14 @@ void database::initialize_indexes()
    //add_index< primary_index<distributed_dividend_balance_object_index > >();
    add_index< primary_index<pending_dividend_payout_balance_for_holder_object_index > >();
    add_index< primary_index<total_distributed_dividend_balance_object_index > >();
+////////////////////////////////////////////////////////////////////////////// // PeerPlays begin
+   add_index< primary_index<contract_balance_index> >();
+   add_index< primary_index<contract_index> >();
+   add_index< primary_index<result_contract_index> >();
+   add_index< primary_index<contracts_results_in_block_index> >();
+
+   add_index< primary_index<simple_index<contract_statistics_object >> >();
+////////////////////////////////////////////////////////////////////////////// // PeerPlays end
 }
 
 void database::init_genesis(const genesis_state_type& genesis_state)

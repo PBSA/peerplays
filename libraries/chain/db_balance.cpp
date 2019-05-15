@@ -25,6 +25,7 @@
 #include <graphene/chain/database.hpp>
 
 #include <graphene/chain/account_object.hpp>
+#include <graphene/chain/contract_object.hpp>
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/witness_object.hpp>
@@ -48,6 +49,65 @@ asset database::get_balance(const account_object& owner, const asset_object& ass
 string database::to_pretty_string( const asset& a )const
 {
    return a.asset_id(*this).amount_to_pretty_string(a.amount);
+}
+
+asset database::get_balance(contract_id_type owner, asset_id_type asset_id) const
+{
+   auto& index = get_index_type<contract_balance_index>().indices().get<by_contract_asset>();
+   auto itr = index.find(boost::make_tuple(owner, asset_id));
+   if( itr == index.end() )
+      return asset(0, asset_id);
+   return itr->get_balance();
+}
+
+asset database::get_balance(const contract_object& owner, const asset_object& asset_obj) const
+{
+   return get_balance(owner.get_id(), asset_obj.get_id());
+}
+
+asset database::get_balance(const object_id_type& owner, const asset_id_type& asset_id) const
+{
+   if(owner.is<account_id_type>())
+      return get_balance(owner.as<account_id_type>(), asset_id);
+   if(owner.is<contract_id_type>())
+      return get_balance(owner.as<contract_id_type>(), asset_id);
+
+   return asset();
+}
+
+void database::adjust_balance(contract_id_type contract, asset delta )
+{
+   if( delta.amount == 0 )
+      return;
+
+   auto& index = get_index_type<contract_balance_index>().indices().get<by_contract_asset>();
+   auto itr = index.find(boost::make_tuple(contract, delta.asset_id));
+   if(itr == index.end())
+   {
+      FC_ASSERT( delta.amount > 0, "Insufficient Balance: ${a}'s balance of ${b} is less than required ${r}", 
+                 ("a",contract(*this).id)
+                 ("b",to_pretty_string(asset(0,delta.asset_id)))
+                 ("r",to_pretty_string(-delta)));
+      create<contract_balance_object>([contract,&delta](contract_balance_object& b) {
+         b.owner = contract;
+         b.asset_type = delta.asset_id;
+         b.balance = delta.amount.value;
+      });
+   } else {
+      if( delta.amount < 0 )
+         FC_ASSERT( itr->get_balance() >= -delta, "Insufficient Balance: ${a}'s balance of ${b} is less than required ${r}", ("a",contract(*this).id)("b",to_pretty_string(itr->get_balance()))("r",to_pretty_string(-delta)));
+      modify(*itr, [delta](contract_balance_object& b) {
+         b.adjust_balance(delta);
+      });
+   }
+}
+
+void database::adjust_balance(object_id_type account, asset delta )
+{
+   if(account.is<account_id_type>())
+      adjust_balance(account.as<account_id_type>(), delta);
+   if(account.is<contract_id_type>())
+      adjust_balance(account.as<contract_id_type>(), delta);
 }
 
 void database::adjust_balance(account_id_type account, asset delta )
