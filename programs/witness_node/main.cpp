@@ -50,6 +50,10 @@
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
 
+#include <graphene/utilities/git_revision.hpp>
+#include <boost/version.hpp>
+#include <boost/algorithm/string/replace.hpp>
+
 #include <iostream>
 #include <fstream>
 
@@ -117,6 +121,8 @@ int main(int argc, char** argv) {
          std::cerr << "Version: " << witness_version << "\n";
          std::cerr << "Git Revision: " << graphene::utilities::git_revision_sha << "\n";
          std::cerr << "Built: " << __DATE__ " at " __TIME__ << "\n";
+         std::cout << "SSL: " << OPENSSL_VERSION_TEXT << "\n";
+         std::cout << "Boost: " << boost::replace_all_copy(std::string(BOOST_LIB_VERSION), "_", ".") << "\n";
          return 0;
       }
 
