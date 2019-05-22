@@ -31,7 +31,7 @@ namespace graphene { namespace chain {
       digest_type                   digest()const;
       block_id_type                 previous;
       uint32_t                      block_num()const { return num_from_id(previous) + 1; }
-      fc_pp::time_point_sec            timestamp;
+      fc_pp::time_point_sec         timestamp;
       witness_id_type               witness;
       secret_hash_type              next_secret_hash;
       secret_hash_type              previous_secret;
@@ -44,7 +44,7 @@ namespace graphene { namespace chain {
    struct signed_block_header : public block_header
    {
       block_id_type              id()const;
-      fc_pp::ecc::public_key        signee()const;
+      fc_pp::ecc::public_key     signee()const;
       void                       sign( const fc_pp::ecc::private_key& signer );
       bool                       validate_signee( const fc_pp::ecc::public_key& expected_signee )const;
 

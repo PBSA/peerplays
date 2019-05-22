@@ -7,7 +7,8 @@ namespace vms { namespace base {
 void vm_executor::init( const std::string& path )
 {
    vms::wavm::wavm_adapter adapter( db );
-   registered_vms[vm_types::WAVM] = std::unique_ptr<vm_interface>( new vms::wavm::wavm( adapter ) );
+   vms::wavm::pp_controller::config cfg;
+   registered_vms[vm_types::WAVM] = std::unique_ptr<vm_interface>( new vms::wavm::wavm( cfg, adapter ) );
 }
 
 std::pair<uint64_t, bytes> vm_executor::execute( const contract_operation& o)

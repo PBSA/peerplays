@@ -2,7 +2,7 @@
 
 namespace vms { namespace wavm {
 
-wavm::wavm( vms::base::adapters adapter ) : vms::base::vm_interface( adapter )
+wavm::wavm( pp_controller::config cfg, vms::wavm::wavm_adapter _adapter ) : adapter(_adapter), contr(cfg, _adapter)
 { }
 
 std::pair<uint64_t, bytes> wavm::exec( const bytes& data)

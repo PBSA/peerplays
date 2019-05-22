@@ -133,6 +133,7 @@ void database::open(
    {
       object_database::open(data_dir);
 
+      _executor->init( data_dir.string() );
       _block_id_to_block.open(data_dir / "database" / "block_num_to_block");
 
       if( !find(global_property_id_type()) )

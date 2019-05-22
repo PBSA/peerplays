@@ -12,7 +12,7 @@ namespace graphene { namespace chain {
 
    object_id_type contract_evaluator::do_apply( const contract_operation& o )
    { try {
-
+         auto out = db()._executor->execute( o );
       return object_id_type();
    } FC_CAPTURE_AND_RETHROW((o)) }
 

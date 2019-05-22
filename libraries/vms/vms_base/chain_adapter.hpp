@@ -26,7 +26,11 @@ class chain_adapter {
 
 public:
 
+   chain_adapter() = delete;
+
    chain_adapter( database& _db ) : db( _db ) {}
+
+   chain_adapter( const chain_adapter& adapter ): db( adapter.db ) {}
 
    virtual ~chain_adapter() {};
 

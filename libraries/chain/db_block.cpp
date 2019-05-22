@@ -415,6 +415,10 @@ signed_block database::_generate_block(
    _pending_tx_session.reset();
    _pending_tx_session = _undo_db.start_undo_session();
 
+   _current_block.timestamp = when;
+   _current_block.previous = head_block_id();
+   _current_block.witness = witness_id;
+
    uint64_t postponed_tx_count = 0;
    // pop pending state (reset to head block state)
    for( const processed_transaction& tx : _pending_tx )
@@ -588,6 +592,10 @@ void database::_apply_block( const signed_block& next_block )
 
    _current_block_num    = next_block_num;
    _current_trx_in_block = 0;
+
+   _current_block.timestamp = next_block.timestamp;
+   _current_block.previous = next_block.previous;
+   _current_block.witness = next_block.witness;
 
    for( const auto& trx : next_block.transactions )
    {
