@@ -22,11 +22,17 @@ public:
 
    bytes get_code( const uint64_t& id ) const override;
 
+   eosio::chain::account_name id_to_wavm_name( const uint64_t& id, const uint64_t& type );
+
+   std::pair<uint64_t, uint64_t> wavm_name_to_id( const eosio::chain::account_name acc_name );
+
 private:
 
    wavm_adapter& get_adapter() { return adapter.get<vms::wavm::wavm_adapter>(); }
 
    pp_controller contr;
+
+   const std::string charmap = "12345abcdefghijklmnopqrstuvwxyz";
 
 };
 
