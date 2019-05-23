@@ -22,7 +22,6 @@ sudo apt-get update
 sudo apt-get install -y autotools-dev build-essential  libbz2-dev libicu-dev python-dev
 wget -c 'http://sourceforge.net/projects/boost/files/boost/1.67.0/boost_1_67_0.tar.bz2/download'\
      -O boost_1_67_0.tar.bz2
-[ $( sha256sum boost_1_67_0.tar.bz2 | cut -d ' ' -f 1 ) == "2684c972994ee57fc5632e03bf044746f6eb45d4920c343937a465fd67a5adba" ] || ( echo 'Corrupt download' ; exit 1 )
 tar xjf boost_1_67_0.tar.bz2
 cd boost_1_67_0/
 ./bootstrap.sh "--prefix=$BOOST_ROOT"
@@ -54,7 +53,7 @@ For Ubuntu 14.04 LTS and up users, see
 [this](https://github.com/cryptonomex/graphene/wiki/build-ubuntu) and
 then proceed with:
 
-    git clone https://github.com/pbsa/peerplays.git
+    git clone https://github.com/peerplays-network/peerplays.git
     cd peerplays
     git submodule update --init --recursive
     cmake -DBOOST_ROOT="$BOOST_ROOT" -DCMAKE_BUILD_TYPE=Release .
