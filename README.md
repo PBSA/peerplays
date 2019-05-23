@@ -2,6 +2,46 @@ Intro for new developers and witnesses
 ------------------------
 
 This is a quick introduction to get new developers and witnesses up to speed on Peerplays blockchain. It is intended for witnesses plannig to join a live, already deployed blockchain.
+# Building on Ubuntu 18.04 LTS and Installation Instructions
+
+ The following dependencies were necessary for a clean install of Ubuntu 18.04 LTS:
+
+    sudo apt-get install gcc-5 g++-5 cmake make libbz2-dev libdb++-dev libdb-dev libssl-dev openssl libreadline-dev autoconf libtool git
+
+## Build Boost 1.67.0
+
+
+
+    mkdir $HOME/src
+    cd $HOME/src
+    export BOOST_ROOT=$HOME/src/boost_1_67_0
+    sudo apt-get update
+    sudo apt-get install -y autotools-dev build-essential  libbz2-dev libicu-dev python-dev
+    wget -c 'http://sourceforge.net/projects/boost/files/boost/1.67.0/boost_1_67_0.tar.bz2/download' -O boost_1_67_0.tar.bz2
+    [ $( sha256sum boost_1_67_0.tar.bz2 | cut -d ' ' -f 1 ) == "2684c972994ee57fc5632e03bf044746f6eb45d4920c343937a465fd67a5adba" ] || ( echo 'Corrupt download' ; exit 1 )
+    tar xjf boost_1_67_0.tar.bz2
+    cd boost_1_67_0/
+    ./bootstrap.sh "--prefix=$BOOST_ROOT"
+    ./b2 install
+
+
+
+## Building Peerplays
+
+
+     export BOOST_ROOT=/root/boost_1_67_0
+     export CC=gcc-5 ; export CXX=g++-5
+     cd $HOME/src
+     git clone https://github.com/peerplays-network/peerplays.git
+     mkdir $HOME/peerplays/build; cd $HOME/src/peerplays/build
+     git submodule update --init --recursive
+     cmake -DBOOST_ROOT="$BOOST_ROOT" -DCMAKE_BUILD_TYPE=Release ..
+     make -j$(nproc)
+
+     make install # this can install the executable files under /usr/local
+
+
+ Rest of the instructions on starting the chain remains same.
 
 Starting A Peerplays Node
 -----------------
