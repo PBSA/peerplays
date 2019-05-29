@@ -24,7 +24,9 @@
 #pragma once
 #include <graphene/chain/protocol/base.hpp>
 
-namespace graphene { namespace chain { 
+namespace graphene { namespace chain {
+
+   enum class vesting_balance_type { unspecified, gpos };
 
    struct linear_vesting_policy_initializer
    {
@@ -72,6 +74,7 @@ namespace graphene { namespace chain {
       account_id_type             owner; ///< Who is able to withdraw the balance
       asset                       amount;
       vesting_policy_initializer  policy;
+      vesting_balance_type        balance_type;
 
       account_id_type   fee_payer()const { return creator; }
       void              validate()const
@@ -112,9 +115,11 @@ namespace graphene { namespace chain {
 FC_REFLECT( graphene::chain::vesting_balance_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::vesting_balance_withdraw_operation::fee_parameters_type, (fee) )
 
-FC_REFLECT( graphene::chain::vesting_balance_create_operation, (fee)(creator)(owner)(amount)(policy) )
+FC_REFLECT( graphene::chain::vesting_balance_create_operation, (fee)(creator)(owner)(amount)(policy)(balance_type) )
 FC_REFLECT( graphene::chain::vesting_balance_withdraw_operation, (fee)(vesting_balance)(owner)(amount) )
 
 FC_REFLECT(graphene::chain::linear_vesting_policy_initializer, (begin_timestamp)(vesting_cliff_seconds)(vesting_duration_seconds) )
 FC_REFLECT(graphene::chain::cdd_vesting_policy_initializer, (start_claim)(vesting_seconds) )
 FC_REFLECT_TYPENAME( graphene::chain::vesting_policy_initializer )
+
+FC_REFLECT_ENUM( graphene::chain::vesting_balance_type, (unspecified)(gpos) )

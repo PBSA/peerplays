@@ -498,8 +498,11 @@ namespace graphene { namespace chain {
          void update_active_witnesses();
          void update_active_committee_members();
          void update_worker_votes();
+         public:
+            double calculate_vesting_factor(const account_object& stake_account);
 
-         template<class... Types>
+
+      template<class... Types>
          void perform_account_maintenance(std::tuple<Types...> helpers);
          ///@}
          ///@}
