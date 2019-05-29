@@ -135,11 +135,6 @@ struct proposal_operation_hardfork_visitor
        FC_ASSERT( block_time >= HARDFORK_1000_TIME, "event_update_status_operation not allowed yet!" );
    }
 
-   void operator()(const vesting_balance_create_operation &vbco) const {
-      if(block_time < HARDFORK_GPOS_TIME)
-      FC_ASSERT( vbco.balance_type == vesting_balance_type::unspecified, "balance_type in vesting create not allowed yet!" );
-   }
-
    // loop and self visit in proposals
    void operator()(const proposal_create_operation &v) const {
       for (const op_wrapper &op : v.proposed_ops)

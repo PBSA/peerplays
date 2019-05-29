@@ -161,8 +161,6 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       vector<tournament_object> get_tournaments_by_state(tournament_id_type stop, unsigned limit, tournament_id_type start, tournament_state state);
       vector<tournament_id_type> get_registered_tournaments(account_id_type account_filter, uint32_t limit) const;
 
-      // gpos
-      gpos_info get_gpos_info(const account_id_type account) const;
 
    //private:
       template<typename T>
@@ -2021,55 +2019,6 @@ vector<tournament_id_type> database_api_impl::get_registered_tournaments(account
    if (tournament_ids.size() >= limit)
       tournament_ids.resize(limit);
    return tournament_ids;
-}
-
-//////////////////////////////////////////////////////////////////////
-//                                                                  //
-// GPOS methods                                                     //
-//                                                                  //
-//////////////////////////////////////////////////////////////////////
-
-graphene::app::gpos_info database_api::get_gpos_info(const account_id_type account) const
-{
-   return my->get_gpos_info(account);
-
-}
-graphene::app::gpos_info database_api_impl::get_gpos_info(const account_id_type account) const
-{
-   gpos_info result;
-   result.vesting_factor = _db.calculate_vesting_factor(account(_db));
-
-   const auto& dividend_data = asset_id_type()(_db).dividend_data(_db);
-   const account_object& dividend_distribution_account = dividend_data.dividend_distribution_account(_db);
-   result.award = _db.get_balance(dividend_distribution_account, asset_id_type()(_db));
-
-   share_type total_amount;
-   auto balance_type = vesting_balance_type::gpos;
-#ifdef USE_VESTING_OBJECT_BY_ASSET_BALANCE_INDEX
-   // get only once a collection of accounts that hold nonzero vesting balances of the dividend asset
-   auto vesting_balances_begin =
-      vesting_index.indices().get<by_asset_balance>().lower_bound(boost::make_tuple(asset_id_type(), balance_type));
-   auto vesting_balances_end =
-      vesting_index.indices().get<by_asset_balance>().upper_bound(boost::make_tuple(asset_id_type(), balance_type, share_type()));
-
-   for (const vesting_balance_object& vesting_balance_obj : boost::make_iterator_range(vesting_balances_begin, vesting_balances_end))
-   {
-        total_amount += vesting_balance_obj.balance.amount;
-   }
-#else
-   const vesting_balance_index& vesting_index = _db.get_index_type<vesting_balance_index>();
-   const auto& vesting_balances = vesting_index.indices().get<by_id>();
-   for (const vesting_balance_object& vesting_balance_obj : vesting_balances)
-   {
-      if (vesting_balance_obj.balance.asset_id == asset_id_type() && vesting_balance_obj.balance_type == balance_type)
-      {
-         total_amount += vesting_balance_obj.balance.amount;
-      }
-   }
-#endif
-
-   result.total_amount = total_amount;
-   return result;
 }
 
 //////////////////////////////////////////////////////////////////////
