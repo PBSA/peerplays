@@ -1,3 +1,11 @@
+# Executes Python script to generate various files related to plugins
+include(FindPythonInterp)
+set (plugin_code_generator "libraries/utilities/plugin_code_generator.py")
+execute_process(
+                  COMMAND ${PYTHON_EXECUTABLE} ${plugin_code_generator}
+                  WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+               )
+
 list( APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/libraries/fc/GitVersionGen" )
 include( GetGitRevisionDescription )
 get_git_head_revision(GIT_REFSPEC GRAPHENE_GIT_REVISION_SHA)

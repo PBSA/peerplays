@@ -464,6 +464,8 @@ namespace detail {
             wild_access.allowed_apis.push_back( "crypto_api" );
             wild_access.allowed_apis.push_back( "bookie_api" );
             wild_access.allowed_apis.push_back( "affiliate_stats_api" );
+            #include <graphene/utilities/generated_application_cpp_allowed_apis_code.hpp>
+            
             _apiaccess.permission_map["*"] = wild_access;
          }
 
