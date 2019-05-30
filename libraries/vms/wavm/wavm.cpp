@@ -1,12 +1,25 @@
 #include <wavm.hpp>
+#include <graphene/chain/protocol/contract.hpp>
+#include <fc_pp/crypto/hex.hpp>
+
+using namespace graphene::chain;
 
 namespace vms { namespace wavm {
 
 wavm::wavm( pp_controller::config cfg, vms::wavm::wavm_adapter _adapter ) : adapter(_adapter), contr(cfg, _adapter)
 { }
 
-std::pair<uint64_t, bytes> wavm::exec( const bytes& data)
-{ }
+std::pair<uint64_t, bytes> wavm::exec( const bytes& data )
+{
+    wavm_op wavm_data = fc_pp::raw::unpack<wavm_op>( data );
+    bytes data_bytes( wavm_data.data.size()/2 );
+
+    fc_pp::from_hex( wavm_data.data, data_bytes.data(), data_bytes.size() );
+
+    eosio::chain::action exec_action( std::vector<eosio::chain::permission_level>(),     // Temp
+                                    eosio::chain::config::system_account_name, 
+                                    eosio::chain::action_name( wavm_data.action ), data_bytes );
+}
 
 std::vector< uint64_t > wavm::get_attracted_contracts( ) const
 { }

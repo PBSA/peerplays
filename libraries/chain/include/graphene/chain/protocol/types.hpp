@@ -85,7 +85,7 @@ namespace graphene { namespace chain {
    typedef fc_pp::sha256 chain_id_type;
 
    enum class vm_types { NULL_TYPE, WAVM };
-   typedef std::vector<unsigned char>  bytes;
+   using bytes = std::vector<char>;
 
    enum asset_issuer_permission_flags
    {
