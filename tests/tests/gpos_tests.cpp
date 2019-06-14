@@ -248,7 +248,7 @@ BOOST_AUTO_TEST_CASE( dividends )
       BOOST_CHECK_EQUAL(*dividend_data.options.payout_interval, 2592000); //  30 days
 
       // update the payout interval for speed purposes of the test
-      update_payout_interval(core.symbol, fc::time_point::now() + fc::minutes(1), 60 * 60 * 24); // 1 day
+      update_payout_interval(core.symbol, HARDFORK_GPOS_TIME - fc::days(7) + fc::minutes(1), 60 * 60 * 24); // 1 day
 
       generate_block();
 
@@ -546,7 +546,7 @@ BOOST_AUTO_TEST_CASE( worker_dividends_voting )
       BOOST_CHECK_EQUAL(*dividend_data.options.payout_interval, 2592000); //  30 days
 
       // update the payout interval to 1 day for speed purposes of the test
-      update_payout_interval(core.symbol, fc::time_point::now() + fc::minutes(1), 60 * 60 * 24); // 1 day
+      update_payout_interval(core.symbol, HARDFORK_GPOS_TIME + fc::minutes(1), 60 * 60 * 24); // 1 day
 
       generate_block();
 
@@ -671,7 +671,7 @@ BOOST_AUTO_TEST_CASE( account_multiple_vesting )
       const auto& dividend_data = dividend_holder_asset_object.dividend_data(db);
 
       // update the payout interval
-      update_payout_interval(core.symbol, fc::time_point::now() + fc::minutes(1), 60 * 60 * 24); // 1 day
+      update_payout_interval(core.symbol, HARDFORK_GPOS_TIME + fc::minutes(1), 60 * 60 * 24); // 1 day
 
       // get the dividend distribution account
       const account_object& dividend_distribution_account = dividend_data.dividend_distribution_account(db);
@@ -890,7 +890,7 @@ BOOST_AUTO_TEST_CASE( database_api )
       // update default gpos and dividend interval to 10 days
       auto now = db.head_block_time();
       update_gpos_global(5184000, 864000, now); // 10 days subperiods
-      update_payout_interval(core.symbol, fc::time_point::now() + fc::minutes(1), 60 * 60 * 24 * 10); // 10 days
+      update_payout_interval(core.symbol, HARDFORK_GPOS_TIME + fc::minutes(1), 60 * 60 * 24 * 10); // 10 days
 
       generate_block();
 
