@@ -10,7 +10,7 @@ For Ubuntu 14.04 LTS and up users, see
 [this](https://github.com/cryptonomex/graphene/wiki/build-ubuntu) and
 then proceed with:
 
-    git clone https://github.com/pbsa/peerplays.git
+    git clone https://github.com/peerplays-network/peerplays.git
     cd peerplays
     git submodule update --init --recursive
     cmake -DBOOST_ROOT="$BOOST_ROOT" -DCMAKE_BUILD_TYPE=Release .
