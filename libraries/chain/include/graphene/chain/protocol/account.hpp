@@ -52,6 +52,9 @@ namespace graphene { namespace chain {
       /// The number of active committee members this account votes the blockchain should appoint
       /// Must not exceed the actual number of committee members voted for in @ref votes
       uint16_t num_committee = 0;
+      /// The number of active son members this account votes the blockchain should appoint
+      /// Must not exceed the actual number of son members voted for in @ref votes
+      uint16_t num_son = 0;
       /// This is the list of vote IDs this account votes for. The weight of these votes is determined by this
       /// account's balance of core asset.
       flat_set<vote_id_type> votes;

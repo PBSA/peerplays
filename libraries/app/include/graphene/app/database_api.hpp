@@ -44,6 +44,8 @@
 #include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/global_betting_statistics_object.hpp>
 
+#include <graphene/chain/btc-sidechain/son.hpp>
+
 #include <graphene/chain/worker_object.hpp>
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/tournament_object.hpp>
@@ -546,6 +548,17 @@ class database_api
        */
       map<string, committee_member_id_type> lookup_committee_member_accounts(const string& lower_bound_name, uint32_t limit)const;
 
+      /////////////////
+      // SON members //
+      /////////////////
+
+      /**
+       * @brief Get the son_member owned by a given account
+       * @param account The ID of the account whose son_member should be retrieved
+       * @return The son_member object, or null if the account does not have a son_member
+       */
+      fc::optional<son_member_object> get_son_member_by_account(account_id_type account)const;
+
 
       /// WORKERS
 
@@ -756,6 +769,9 @@ FC_API(graphene::app::database_api,
    (get_committee_members)
    (get_committee_member_by_account)
    (lookup_committee_member_accounts)
+
+   // SON members
+   (get_son_member_by_account)
 
    // workers
    (get_workers_by_account)

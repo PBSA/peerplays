@@ -2024,6 +2024,40 @@ public:
       return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (voting_account)(committee_member)(approve)(broadcast) ) }
 
+   signed_transaction vote_for_son_member(string voting_account,
+                                        string son_member,
+                                        bool approve,
+                                        bool broadcast /* = false */)
+   { try {
+      account_object voting_account_object = get_account(voting_account);
+      account_id_type son_member_owner_account_id = get_account_id(son_member);
+      fc::optional<son_member_object> son_member_obj = _remote_db->get_son_member_by_account(son_member_owner_account_id);
+      if (!son_member_obj)
+         FC_THROW("Account ${son_member} is not registered as a son_member", ("son_member", son_member));
+      if (approve)
+      {
+         auto insert_result = voting_account_object.options.votes.insert(son_member_obj->vote_id);
+         if (!insert_result.second)
+            FC_THROW("Account ${account} was already voting for son_member ${son_member}", ("account", voting_account)("son_member", son_member));
+      }
+      else
+      {
+         unsigned votes_removed = voting_account_object.options.votes.erase(son_member_obj->vote_id);
+         if (!votes_removed)
+            FC_THROW("Account ${account} is already not voting for son_member ${son_member}", ("account", voting_account)("son_member", son_member));
+      }
+      account_update_operation account_update_op;
+      account_update_op.account = voting_account_object.id;
+      account_update_op.new_options = voting_account_object.options;
+
+      signed_transaction tx;
+      tx.operations.push_back( account_update_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (voting_account)(son_member)(approve)(broadcast) ) }
+
    signed_transaction vote_for_witness(string voting_account,
                                        string witness,
                                        bool approve,
@@ -4042,6 +4076,14 @@ signed_transaction wallet_api::vote_for_committee_member(string voting_account,
                                                  bool broadcast /* = false */)
 {
    return my->vote_for_committee_member(voting_account, witness, approve, broadcast);
+}
+
+signed_transaction wallet_api::vote_for_son_member(string voting_account,
+                                                   string son_member,
+                                                   bool approve,
+                                                   bool broadcast /* = false */)
+{
+   return my->vote_for_son_member(voting_account, son_member, approve, broadcast);
 }
 
 signed_transaction wallet_api::vote_for_witness(string voting_account,

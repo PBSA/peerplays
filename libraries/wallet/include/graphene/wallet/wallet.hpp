@@ -1378,6 +1378,28 @@ class wallet_api
                                            bool approve,
                                            bool broadcast = false);
 
+      /** Vote for a given son_member.
+       *
+       * An account can publish a list of all son_memberes they approve of.  This 
+       * command allows you to add or remove son_memberes from this list.
+       * Each account's vote is weighted according to the number of shares of the
+       * core asset owned by that account at the time the votes are tallied.
+       *
+       * @note you cannot vote against a son_member, you can only vote for the son_member
+       *       or not vote for the son_member.
+       *
+       * @param voting_account the name or id of the account who is voting with their shares
+       * @param son_member the name or id of the son_member' owner account
+       * @param approve true if you wish to vote in favor of that son_member, false to 
+       *                remove your vote in favor of that son_member
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed transaction changing your vote for the given son_member
+       */
+      signed_transaction vote_for_son_member(string voting_account,
+                                             string son_member,
+                                             bool approve,
+                                             bool broadcast = false);
+
       /** Vote for a given witness.
        *
        * An account can publish a list of all witnesses they approve of.  This 
@@ -1965,6 +1987,7 @@ FC_API( graphene::wallet::wallet_api,
         (get_vesting_balances)
         (withdraw_vesting)
         (vote_for_committee_member)
+        (vote_for_son_member)
         (vote_for_witness)
         (update_witness_votes)
         (set_voting_proxy)

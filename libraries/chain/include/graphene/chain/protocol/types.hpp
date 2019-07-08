@@ -145,6 +145,7 @@ namespace graphene { namespace chain {
       betting_market_group_object_type,
       betting_market_object_type,
       bet_object_type,
+      son_member_object_type,
       OBJECT_TYPE_COUNT ///< Sentry value which contains the number of different object types
    };
 
@@ -202,6 +203,7 @@ namespace graphene { namespace chain {
    class betting_market_group_object;
    class betting_market_object;
    class bet_object;
+   class son_member_object;
 
    typedef object_id< protocol_ids, account_object_type,            account_object>               account_id_type;
    typedef object_id< protocol_ids, asset_object_type,              asset_object>                 asset_id_type;
@@ -228,6 +230,7 @@ namespace graphene { namespace chain {
    typedef object_id< protocol_ids, betting_market_group_object_type, betting_market_group_object> betting_market_group_id_type;
    typedef object_id< protocol_ids, betting_market_object_type,     betting_market_object>        betting_market_id_type;
    typedef object_id< protocol_ids, bet_object_type,                bet_object>                   bet_id_type;
+   typedef object_id< protocol_ids, son_member_object_type,         son_member_object>            son_member_id_type;
 
    // implementation types
    class global_property_object;
@@ -402,6 +405,7 @@ FC_REFLECT_ENUM( graphene::chain::object_type,
                  (betting_market_group_object_type)
                  (betting_market_object_type)
                  (bet_object_type)
+                 (son_member_object_type)
                  (OBJECT_TYPE_COUNT)
                )
 FC_REFLECT_ENUM( graphene::chain::impl_object_type,
