@@ -2164,19 +2164,22 @@ public:
       return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (account_to_modify)(voting_account)(broadcast) ) }
 
-   signed_transaction set_desired_witness_and_committee_member_count(string account_to_modify,
+   signed_transaction set_desired_witness_committee_son_member_count(string account_to_modify,
                                                              uint16_t desired_number_of_witnesses,
                                                              uint16_t desired_number_of_committee_members,
+                                                             uint16_t desired_number_of_son_members,
                                                              bool broadcast /* = false */)
    { try {
       account_object account_object_to_modify = get_account(account_to_modify);
 
       if (account_object_to_modify.options.num_witness == desired_number_of_witnesses &&
-          account_object_to_modify.options.num_committee == desired_number_of_committee_members)
-         FC_THROW("Account ${account} is already voting for ${witnesses} witnesses and ${committee_members} committee_members",
-                  ("account", account_to_modify)("witnesses", desired_number_of_witnesses)("committee_members",desired_number_of_witnesses));
+          account_object_to_modify.options.num_committee == desired_number_of_committee_members &&
+          account_object_to_modify.options.num_son == desired_number_of_son_members)
+         FC_THROW("Account ${account} is already voting for ${witnesses} witnesses, ${committee_members} committee_members and ${son_members} son_members",
+                  ("account", account_to_modify)("witnesses", desired_number_of_witnesses)("committee_members",desired_number_of_witnesses)("son_members", desired_number_of_son_members));
       account_object_to_modify.options.num_witness = desired_number_of_witnesses;
       account_object_to_modify.options.num_committee = desired_number_of_committee_members;
+      account_object_to_modify.options.num_son = desired_number_of_son_members;
 
       account_update_operation account_update_op;
       account_update_op.account = account_object_to_modify.id;
@@ -4110,13 +4113,14 @@ signed_transaction wallet_api::set_voting_proxy(string account_to_modify,
    return my->set_voting_proxy(account_to_modify, voting_account, broadcast);
 }
 
-signed_transaction wallet_api::set_desired_witness_and_committee_member_count(string account_to_modify,
+signed_transaction wallet_api::set_desired_witness_committee_son_member_count(string account_to_modify,
                                                                       uint16_t desired_number_of_witnesses,
                                                                       uint16_t desired_number_of_committee_members,
+                                                                      uint16_t desired_number_of_son_members,
                                                                       bool broadcast /* = false */)
 {
-   return my->set_desired_witness_and_committee_member_count(account_to_modify, desired_number_of_witnesses,
-                                                     desired_number_of_committee_members, broadcast);
+   return my->set_desired_witness_committee_son_member_count(account_to_modify, desired_number_of_witnesses,
+                                                     desired_number_of_committee_members, desired_number_of_son_members, broadcast);
 }
 
 void wallet_api::set_wallet_filename(string wallet_filename)

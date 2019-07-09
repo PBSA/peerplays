@@ -37,6 +37,8 @@ struct immutable_chain_parameters
    uint16_t min_witness_count = GRAPHENE_DEFAULT_MIN_WITNESS_COUNT;
    uint32_t num_special_accounts = 0;
    uint32_t num_special_assets = 0;
+
+   uint16_t min_son_member_count = PEERPLAYS_DEFAULT_MIN_SON_MEMBER_COUNT;
 };
 
 } } // graphene::chain

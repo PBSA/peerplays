@@ -497,6 +497,9 @@ namespace graphene { namespace chain {
          void perform_chain_maintenance(const signed_block& next_block, const global_property_object& global_props);
          void update_active_witnesses();
          void update_active_committee_members();
+      public: // TODO: TEMP public method
+         void update_active_son_members();
+      private:
          void update_worker_votes();
          public:
             double calculate_vesting_factor(const account_object& stake_account);
@@ -537,6 +540,7 @@ namespace graphene { namespace chain {
          vector<uint64_t>                  _vote_tally_buffer;
          vector<uint64_t>                  _witness_count_histogram_buffer;
          vector<uint64_t>                  _committee_count_histogram_buffer;
+         vector<uint64_t>                  _son_count_histogram_buffer;
          uint64_t                          _total_voting_stake;
 
          flat_map<uint32_t,block_id_type>  _checkpoints;

@@ -1430,7 +1430,7 @@ class wallet_api
        * This command allows you to add or remove one or more witnesses from this list 
        * in one call.  When you are changing your vote on several witnesses, this
        * may be easier than multiple `vote_for_witness` and 
-       * `set_desired_witness_and_committee_member_count` calls.
+       * `set_desired_witness_committee_son_member_count` calls.
        *
        * @note you cannot vote against a witness, you can only vote for the witness
        *       or not vote for the witness.
@@ -1476,12 +1476,12 @@ class wallet_api
                                           optional<string> voting_account,
                                           bool broadcast = false);
       
-      /** Set your vote for the number of witnesses and committee_members in the system.
+      /** Set your vote for the number of witnesses, committee_members and son_members in the system.
        *
        * Each account can voice their opinion on how many committee_members and how many 
-       * witnesses there should be in the active committee_member/active witness list.  These
+       * witnesses and how many sons there should be in the active committee_member/active witness/active son_member list.  These
        * are independent of each other.  You must vote your approval of at least as many
-       * committee_members or witnesses as you claim there should be (you can't say that there should
+       * committee_members or witnesses or son_members as you claim there should be (you can't say that there should
        * be 20 committee_members but only vote for 10). 
        *
        * There are maximum values for each set in the blockchain parameters (currently 
@@ -1491,14 +1491,17 @@ class wallet_api
        * set, your preferences will be ignored.
        *
        * @param account_to_modify the name or id of the account to update
-       * @param number_of_committee_members the number 
+       * @param desired_number_of_witnesses number of witnesses
+       * @param desired_number_of_committee_members number of committee members
+       * @param desired_number_of_son_members number of son members
        *
        * @param broadcast true if you wish to broadcast the transaction
        * @return the signed transaction changing your vote proxy settings
        */
-      signed_transaction set_desired_witness_and_committee_member_count(string account_to_modify,
+      signed_transaction set_desired_witness_committee_son_member_count(string account_to_modify,
                                                                 uint16_t desired_number_of_witnesses,
                                                                 uint16_t desired_number_of_committee_members,
+                                                                uint16_t desired_number_of_son_members,
                                                                 bool broadcast = false);
 
       /** Signs a transaction.
@@ -1991,7 +1994,7 @@ FC_API( graphene::wallet::wallet_api,
         (vote_for_witness)
         (update_witness_votes)
         (set_voting_proxy)
-        (set_desired_witness_and_committee_member_count)
+        (set_desired_witness_committee_son_member_count)
         (get_account)
         (get_account_id)
         (get_block)

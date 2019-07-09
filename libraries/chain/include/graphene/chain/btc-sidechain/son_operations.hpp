@@ -13,6 +13,11 @@ namespace graphene { namespace chain {
 
         account_id_type fee_payer()const { return owner_account; }
         share_type      calculate_fee(const fee_parameters_type& k)const { return 0; }
+
+        void validate()const {
+            FC_ASSERT( fee.amount >= 0 );
+            FC_ASSERT( url.size() < GRAPHENE_MAX_URL_LENGTH );
+        }
     };
 
     struct son_member_delete_operation : public base_operation
@@ -24,6 +29,10 @@ namespace graphene { namespace chain {
 
         account_id_type fee_payer()const { return owner_account; }
         share_type      calculate_fee(const fee_parameters_type& k)const { return 0; }
+
+        void validate()const {
+            FC_ASSERT( fee.amount >= 0 );
+        }
     };
 
 } } // namespace graphene::chain

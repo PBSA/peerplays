@@ -21,6 +21,9 @@ namespace graphene { namespace chain {
          vote_id_type     vote_id;
          uint64_t         total_votes = 0;
          string           url;
+
+         son_member_id_type get_id()const { return id; }
+
    };
 
    struct by_account;
