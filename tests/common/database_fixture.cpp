@@ -46,6 +46,8 @@
 #include <graphene/chain/event_object.hpp>
 #include <graphene/chain/tournament_object.hpp>
 
+#include <graphene/chain/btc-sidechain/son.hpp>
+
 #include <graphene/utilities/tempdir.hpp>
 
 #include <fc/crypto/digest.hpp>
@@ -238,6 +240,9 @@ void database_fixture::verify_asset_supplies( const database& db )
       total_balances[betting_market_group.asset_id] += o.pay_if_canceled;
       total_balances[betting_market_group.asset_id] += o.fees_collected;
    }
+
+   const auto son_amount = db.get_index_type<son_member_index>().indices().get<by_account>().size();
+   total_balances[asset_id_type()] += db.get_global_properties().parameters.son_deposit_amount * son_amount;
 
    total_balances[asset_id_type()] += db.get_dynamic_global_properties().witness_budget;
 

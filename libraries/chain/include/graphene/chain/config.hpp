@@ -229,5 +229,7 @@
 #define GPOS_PERIOD                                         (60*60*24*30*6) // 6 months
 #define GPOS_SUBPERIOD                                      (60*60*24*30) // 1 month
 
-#define PEERPLAYS_DEFAULT_MAX_SON_MEMBER_COUNT              (1001) // should be odd
-#define PEERPLAYS_DEFAULT_MIN_SON_MEMBER_COUNT              (11)   // should be odd
+#define PEERPLAYS_DEFAULT_MAX_SON_MEMBER_COUNT              (1001)      // should be odd
+#define PEERPLAYS_DEFAULT_MIN_SON_MEMBER_COUNT              (11)        // should be odd
+#define PEERPLAYS_DEFAULT_SON_DEPOSIT_AMOUNT                1000        // default deposit amount to create SON member
+#define PEERPLAYS_DEFAULT_SON_DELETING_TIME                 fc::days(2) // default time to delete SON member

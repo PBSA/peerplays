@@ -147,6 +147,8 @@ namespace graphene { namespace chain {
          ///@throws fc::exception if the proposed transaction fails to apply.
          processed_transaction push_proposal( const proposal_object& proposal );
 
+         void delete_sons();
+
          signed_block generate_block(
             const fc::time_point_sec when,
             witness_id_type witness_id,

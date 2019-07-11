@@ -94,6 +94,8 @@ namespace graphene { namespace chain {
       uint16_t                maximum_tournament_number_of_wins   = TOURNAMENT_MAX_NUMBER_OF_WINS;
       
       uint16_t                maximum_son_count                   = PEERPLAYS_DEFAULT_MAX_SON_MEMBER_COUNT;
+      uint64_t                son_deposit_amount                  = PEERPLAYS_DEFAULT_SON_DEPOSIT_AMOUNT;
+      fc::microseconds        son_deleting_time                   = PEERPLAYS_DEFAULT_SON_DELETING_TIME;
 
       extension<parameter_extension> extensions;
 

@@ -43,6 +43,8 @@
 
 #include <fc/smart_ref_impl.hpp>
 
+#include <graphene/chain/btc-sidechain/son.hpp>
+
 namespace {
     
    struct proposed_operations_digest_accumulator
@@ -362,6 +364,26 @@ processed_transaction database::push_proposal(const proposal_object& proposal)
    return ptrx;
 } FC_CAPTURE_AND_RETHROW() }
 
+void database::delete_sons()
+{
+   const auto& son_index = get_index_type<son_member_index>().indices().get<by_deleted>();
+   std::vector<son_member_id_type> removed_sons;
+   for( auto iter: son_index ) {
+      if( !iter.time_of_deleting )
+         break;
+      if( head_block_time() - *iter.time_of_deleting >= get_global_properties().parameters.son_deleting_time ) {
+         adjust_balance( iter.son_member_account, asset( get_global_properties().parameters.son_deposit_amount, asset_id_type() ) );
+         removed_sons.push_back( iter.get_id() );
+      } else {
+         break;
+      }
+   }
+   const auto& son_index_by_id = get_index_type<son_member_index>().indices().get<by_id>();
+   for( auto iter: removed_sons ) {
+      remove( *son_index_by_id.find( iter ) );
+   }
+}
+
 signed_block database::generate_block(
    fc::time_point_sec when,
    witness_id_type witness_id,
@@ -600,6 +622,8 @@ void database::_apply_block( const signed_block& next_block )
       apply_transaction( trx, skip );
       ++_current_trx_in_block;
    }
+
+   delete_sons();
 
    if (global_props.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
        update_witness_schedule(next_block);

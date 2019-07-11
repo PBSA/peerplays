@@ -35,6 +35,7 @@ BOOST_FIXTURE_TEST_SUITE( son_operation_tests, database_fixture )
 const std::string test_url = "https://create_son_test";
 const auto skip_flags = database::skip_authority_check | database::skip_fork_db;
 const uint64_t max_asset = 1000000000000000;
+const uint64_t asset_amount = 30000000;
 
 inline account_update_operation get_acc_update_op( account_id_type acc, account_options acc_opt, flat_set<vote_id_type> votes, uint16_t sons_amount ){
     account_update_operation op;
@@ -48,6 +49,7 @@ inline account_update_operation get_acc_update_op( account_id_type acc, account_
 inline void create_active_sons( database_fixture& df, uint8_t sons_amount = 3 ) {
     signed_transaction trx1;
     for( uint8_t i = 1; i <= sons_amount; ++i ) {
+        df.transfer( account_id_type(), account_id_type(i), asset( asset_amount, asset_id_type() ) );
         son_member_create_operation op;
         op.url = test_url;
         op.owner_account = account_id_type(i);
@@ -132,8 +134,30 @@ inline void set_maintenance_params( database& db, uint64_t acc_amount, uint64_t 
     }
 }
 
+inline vote_id_type get_vote_id( database& db ){
+    vote_id_type vote_id;
+    db.modify(db.get_global_properties(), [&vote_id](global_property_object& p) {
+        vote_id = get_next_vote_id(p, vote_id_type::son);
+    });
+    return vote_id;
+}
+
+inline void create_sons_without_op( database_fixture& df, std::vector<account_id_type>& accs, uint64_t start = 0, uint64_t end = 0, uint64_t days_salt = 0){
+    for( uint64_t i = start; i < end; ++i ){
+        vote_id_type vote_id = get_vote_id( df.db );
+        df.db.create<son_member_object>( [&]( son_member_object& obj ){
+            df.db.adjust_balance( accs[i], -asset( df.db.get_global_properties().parameters.son_deposit_amount, asset_id_type() ) );
+            obj.son_member_account = accs[i];
+            obj.vote_id            = vote_id;
+            obj.url                = test_url;
+            obj.time_of_deleting   = df.db.head_block_time() + fc::days( days_salt == 0 ? i : days_salt );
+        });
+    }
+}
+
 /// Simple son creating
 BOOST_AUTO_TEST_CASE( create_son_test ){
+    transfer( account_id_type(), account_id_type(1), asset( asset_amount, asset_id_type() ) );
     test_create_son_member_evaluator test_eval( db );
     son_member_create_operation op;
     op.owner_account = account_id_type(1);
@@ -149,6 +173,93 @@ BOOST_AUTO_TEST_CASE( create_son_test ){
     BOOST_REQUIRE( obj != idx.end() );
     BOOST_CHECK( obj->url == test_url );
     BOOST_CHECK( id == obj->id );
+
+    BOOST_REQUIRE( get_balance( op.owner_account, asset_id_type() ) == ( asset_amount - db.get_global_properties().parameters.son_deposit_amount ) );
+}
+
+/// All `time_of_deleting` are different. `by_deleted` must sort them in ascending order by timestamp. 
+BOOST_AUTO_TEST_CASE( son_idx_comp_diff_values_test ){
+    const uint64_t son_amount = 11;
+    auto accs = create_accounts( *this, son_amount, asset_amount );
+    create_sons_without_op( *this, accs, 0, son_amount );
+
+    const auto& idx = db.get_index_type<son_member_index>().indices().get<by_deleted>();
+
+    auto first_iter = idx.begin();
+    auto second_iter = ++idx.begin();
+    while( second_iter != idx.end() ){
+        BOOST_CHECK( *first_iter->time_of_deleting < *second_iter->time_of_deleting );
+        ++first_iter;
+        ++second_iter;
+    }
+}
+
+/// Every second object have not valid `time_of_deleting`
+BOOST_AUTO_TEST_CASE( son_idx_comp_not_valid_values_test ){
+    const uint64_t son_amount = 10;
+    auto accs = create_accounts( *this, son_amount, asset_amount );
+    for( uint64_t i = 0; i < son_amount; ++i ){
+        vote_id_type vote_id = get_vote_id( db );
+        db.create<son_member_object>( [&]( son_member_object& obj ){
+            db.adjust_balance( accs[i], -asset( db.get_global_properties().parameters.son_deposit_amount, asset_id_type() ) );
+            obj.son_member_account = accs[i];
+            obj.vote_id            = vote_id;
+            obj.url                = test_url;
+            if( i % 2 == 0)
+                obj.time_of_deleting = db.head_block_time() + fc::days( i );
+        });
+    }
+
+    const auto& idx = db.get_index_type<son_member_index>().indices().get<by_deleted>();
+
+    uint64_t counter = 0;
+    for( auto iter: idx ){
+        if( iter.time_of_deleting )
+            ++counter;
+        else {
+            BOOST_REQUIRE( counter == son_amount / 2 );
+            break;
+        }
+    }
+}
+
+/// Some objects have valid `time_of_deleting` (2 different values) and some not valid
+BOOST_AUTO_TEST_CASE( son_idx_comp_not_valid_diff_values_test ){
+    const uint64_t son_amount = 11;
+    const uint64_t first_part = 4;
+    const uint64_t second_part = 4;
+    auto accs = create_accounts( *this, son_amount, asset_amount );
+
+    create_sons_without_op( *this, accs, 0, first_part, first_part );
+    create_sons_without_op( *this, accs, first_part, first_part + second_part, first_part + second_part );
+
+    for( uint64_t i = first_part + second_part; i < son_amount; ++i ){
+        vote_id_type vote_id = get_vote_id( db );
+        db.create<son_member_object>( [&]( son_member_object& obj ){
+            db.adjust_balance( accs[i], -asset( db.get_global_properties().parameters.son_deposit_amount, asset_id_type() ) );
+            obj.son_member_account = accs[i];
+            obj.vote_id            = vote_id;
+            obj.url                = test_url;
+        });
+    }
+
+    const auto& idx = db.get_index_type<son_member_index>().indices().get<by_deleted>();
+    uint64_t counter_one = 0;
+    uint64_t counter_two = 0;
+    for( auto iter: idx ){
+        if( iter.time_of_deleting )
+            if( iter.time_of_deleting == db.head_block_time() + fc::days( first_part ) )
+                ++counter_one;
+            else if( iter.time_of_deleting == db.head_block_time() + fc::days( first_part + second_part ) ) {
+                BOOST_REQUIRE( counter_one == first_part );
+                ++counter_two;
+            }
+        else {
+            break;
+        }
+    }
+    BOOST_CHECK( counter_one == first_part );
+    BOOST_REQUIRE( counter_two == second_part );
 }
 
 /// Simple son deleting
@@ -161,14 +272,99 @@ BOOST_AUTO_TEST_CASE( delete_son_test ){
     BOOST_REQUIRE_NO_THROW( test_eval.do_evaluate( delete_op ) );
     test_eval.do_apply( delete_op );
 
+    db.modify<dynamic_global_property_object> (db.get_dynamic_global_properties(), [this](dynamic_global_property_object& obj){
+        obj.time += fc::days(2);
+    });
+
+    db.delete_sons();
+
     const auto& idx = db.get_index_type<son_member_index>().indices().get<by_account>();
-    BOOST_CHECK( idx.empty() );
+    BOOST_REQUIRE( idx.empty() );
+
+    BOOST_REQUIRE( get_balance( delete_op.owner_account, asset_id_type() ) == asset_amount );
+}
+
+/// Delete not all SON members, some have not valid `time_of_deleting`(don't send son_member_delete_operation yet)
+BOOST_AUTO_TEST_CASE( delete_some_sons_test ){
+    const uint64_t acc_amount = 11;
+    const uint64_t first_delete = 5;
+    test_delete_son_member_evaluator test_eval( db );
+    const auto& idx = db.get_index_type<son_member_index>().indices().get<by_account>();
+    auto accs = create_accounts( *this, acc_amount, asset_amount );
+    auto sons = create_son_members( db, accs );
+
+    for( auto iter: std::vector<account_id_type>(accs.begin(), accs.begin() + first_delete) ){
+        son_member_delete_operation op;
+        op.owner_account = iter;
+        BOOST_REQUIRE_NO_THROW( test_eval.do_evaluate( op ) );
+        test_eval.do_apply( op );
+    }
+
+    BOOST_REQUIRE( idx.size() == acc_amount );
+
+    db.modify<dynamic_global_property_object> (db.get_dynamic_global_properties(), [this](dynamic_global_property_object& obj){
+        obj.time += fc::days(2);
+    });
+
+    db.delete_sons();
+
+    BOOST_REQUIRE( idx.size() == acc_amount - first_delete );
+    for( auto iter: std::vector<account_id_type>(accs.begin(), accs.begin() + first_delete) ){
+        BOOST_CHECK( idx.find(iter) == idx.end() );
+        BOOST_CHECK( get_balance( iter, asset_id_type() ) == asset_amount );
+    }
+    for( auto iter: std::vector<account_id_type>(accs.begin() + first_delete + 1, accs.end() ) ){
+        BOOST_CHECK( idx.find(iter) != idx.end() );
+    }
+}
+
+/// Delete not all SON members, for some, the deposit period has not passed
+BOOST_AUTO_TEST_CASE( all_send_delete_op_test ){
+    const uint64_t acc_amount = 11;
+    const uint64_t first_delete = 5;
+    test_delete_son_member_evaluator test_eval( db );
+    const auto& idx = db.get_index_type<son_member_index>().indices().get<by_account>();
+    auto accs = create_accounts( *this, acc_amount, asset_amount );
+    auto sons = create_son_members( db, accs );
+
+    for( auto iter: std::vector<account_id_type>(accs.begin(), accs.begin() + first_delete) ){
+        son_member_delete_operation op;
+        op.owner_account = iter;
+        BOOST_REQUIRE_NO_THROW( test_eval.do_evaluate( op ) );
+        test_eval.do_apply( op );
+    }
+
+    BOOST_REQUIRE( idx.size() == acc_amount );
+
+    db.modify<dynamic_global_property_object> (db.get_dynamic_global_properties(), [this](dynamic_global_property_object& obj){
+        obj.time += fc::days(2);
+    });
+
+    for( auto iter: std::vector<account_id_type>(accs.begin() + first_delete, accs.end() )){
+        son_member_delete_operation op;
+        op.owner_account = iter;
+        BOOST_REQUIRE_NO_THROW( test_eval.do_evaluate( op ) );
+        test_eval.do_apply( op );
+    }
+
+    for( auto iter: idx ){
+        idump(( iter.time_of_deleting ));
+    }
+
+    db.delete_sons();    
+
+    BOOST_REQUIRE( idx.size() == acc_amount - first_delete );
+    for( auto iter: std::vector<account_id_type>(accs.begin(), accs.begin() + first_delete) ){
+        BOOST_CHECK( idx.find(iter) == idx.end() );
+    }
+    for( auto iter: std::vector<account_id_type>(accs.begin() + first_delete + 1, accs.end() ) ){
+        BOOST_CHECK( idx.find(iter) != idx.end() );
+    }
 }
 
 /// Create active sons with new accounts
 BOOST_AUTO_TEST_CASE( update_active_sons_with_new_account_test ) {
     const uint64_t acc_amount = 11;
-    const uint64_t asset_amount = 30000000;
     auto accs = create_accounts( *this, acc_amount, asset_amount );
     auto sons = create_son_members( db, accs );
 
@@ -194,7 +390,6 @@ BOOST_AUTO_TEST_CASE( update_active_sons_with_new_account_test ) {
 /// Create active sons with new accounts and number of active less than number of all
 BOOST_AUTO_TEST_CASE( change_active_sons_count_less_test ) {
     const uint64_t acc_amount = 21;
-    const uint64_t asset_amount = 30000000;
     const uint64_t new_active_sons_count = 11;
     auto accs = create_accounts( *this, acc_amount, asset_amount );
     auto sons = create_son_members( db, accs );
@@ -222,7 +417,6 @@ BOOST_AUTO_TEST_CASE( change_active_sons_count_less_test ) {
 /// After that will change active
 BOOST_AUTO_TEST_CASE( change_active_sons_less_test ) {
     const uint8_t acc_amount = 15;
-    const uint32_t asset_amount = 30000000;
     const uint64_t new_active_sons_count = 11;
     auto accs = create_accounts( *this, acc_amount, asset_amount );
     auto sons = create_son_members( db, accs );
@@ -254,7 +448,6 @@ BOOST_AUTO_TEST_CASE( change_active_sons_less_test ) {
 /// Create active sons with new accounts and number of active greater than number of all
 BOOST_AUTO_TEST_CASE( change_active_sons_count_greater_test ) {
     const uint8_t acc_amount = 11;
-    const uint32_t asset_amount = 30000000;
     const uint64_t new_active_sons_count = 21;
     auto accs = create_accounts( *this, acc_amount, asset_amount );
     auto sons = create_son_members( db, accs );
@@ -286,6 +479,7 @@ BOOST_AUTO_TEST_CASE( change_active_sons ){
     test::set_expiration( db, database_fixture::trx );
     const auto account = create_account( "sonmem" );
     upgrade_to_lifetime_member( account );
+    transfer( account_id_type(), account.get_id(), asset( asset_amount, asset_id_type() ) );
 
     signed_transaction trx1;
     son_member_create_operation op;
@@ -311,12 +505,11 @@ BOOST_AUTO_TEST_CASE( change_active_sons ){
     }
 
     signed_transaction trx2;
-    transfer( account_id_type(), account.get_id(), asset( 10000000, asset_id_type() ) );
     trx2.operations.push_back( get_acc_update_op( account.get_id(), account_id_type(1)(db).options, votes, sons_amount ) );
     
     for( uint8_t i = 1; i <= sons_amount; ++i ){
         auto account_id = account_id_type(i);
-        transfer( account_id_type(), account_id, asset( 10000000, asset_id_type() ) );
+        // transfer( account_id_type(), account_id, asset( 10000000, asset_id_type() ) );
         trx2.operations.push_back( get_acc_update_op( account_id, account_id(db).options, votes, sons_amount ) );
     }
     

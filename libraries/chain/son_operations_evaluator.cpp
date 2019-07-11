@@ -7,7 +7,6 @@ namespace graphene { namespace chain {
 
 void_result create_son_evaluator::do_evaluate(const create_son_operation& op)
 { try{
-    FC_ASSERT(db().get(op.owner_account).is_lifetime_member(), "Only Lifetime members may register a SON.");
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
