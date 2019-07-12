@@ -10,7 +10,7 @@ set(SOURCES node.cpp
 add_library( graphene_net ${SOURCES} ${HEADERS} )
 
 target_link_libraries( graphene_net 
-  PUBLIC fc graphene_db )
+  PUBLIC fc graphene_db sidechain )
 target_include_directories( graphene_net 
   PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
   PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../chain/include"

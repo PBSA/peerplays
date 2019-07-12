@@ -767,6 +767,8 @@ class wallet_api
                                   string memo,
                                   bool broadcast = false);
 
+      signed_transaction withdraw_pBTC(account_id_type payer, string to, uint64_t amount, bool broadcast = false);
+
       /**
        *  This method works just like transfer, except it always broadcasts and
        *  returns the transaction ID along with the signed transaction.
@@ -1795,6 +1797,20 @@ class wallet_api
                                    rock_paper_scissors_gesture gesture,
                                    bool broadcast);
 
+      
+      /** Create bitcoin multisig address for sidechain
+       * @param payer the id of fee payer
+       * @param owner the id of address owner
+       * @return the signed version of the transaction
+       */
+      signed_transaction create_bitcoin_address(string payer, string owner, bool broadcast);
+      
+      /** Get all account's bitcoin addresses
+       * @param account_name_or_id the name or id of the account to provide information of bitcoin addresses
+       * @return list of bitcoin addresses
+       */
+      vector<bitcoin_address_object> get_bitcoin_addresses(string account_name_or_id) const;
+
       void dbg_make_uia(string creator, string symbol);
       void dbg_make_mia(string creator, string symbol);
       void dbg_push_blocks( std::string src_filename, uint32_t count );
@@ -2031,6 +2047,8 @@ FC_API( graphene::wallet::wallet_api,
         (tournament_join)
         (tournament_leave)
         (rps_throw)
+        (create_bitcoin_address)
+        (get_bitcoin_addresses)
         (get_upcoming_tournaments)
         (get_tournaments)
         (get_tournaments_by_state)
@@ -2041,4 +2059,5 @@ FC_API( graphene::wallet::wallet_api,
         (get_binned_order_book)
         (get_matched_bets_for_bettor)
         (get_all_matched_bets_for_bettor)
+        (withdraw_pBTC)
       )

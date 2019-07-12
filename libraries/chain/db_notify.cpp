@@ -269,6 +269,30 @@ struct get_impacted_account_visitor
       _impacted.insert( op.affiliate );
    }
    void operator()( const affiliate_referral_payout_operation& op ) { }
+   void operator()( const withdraw_pbtc_operation& op )
+   {
+      _impacted.insert( op.payer );
+   }
+   void operator()( const bitcoin_address_create_operation& op )
+   {
+      _impacted.insert( op.payer );
+   }
+   void operator()( const bitcoin_transaction_send_operation& op )
+   {
+      _impacted.insert( op.payer );
+   }
+   void operator()( const bitcoin_transaction_sign_operation& op )
+   {
+      _impacted.insert( op.payer );
+   }
+   void operator()( const bitcoin_issue_operation& op )
+   {
+      _impacted.insert( op.payer );
+   }
+   void operator()( const bitcoin_transaction_revert_operation& op )
+   {
+      _impacted.insert( op.payer );
+   }
 };
 
 void operation_get_impacted_accounts( const operation& op, flat_set<account_id_type>& result )

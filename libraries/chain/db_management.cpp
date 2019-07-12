@@ -36,15 +36,22 @@
 namespace graphene { namespace chain {
 
 database::database() :
-   _random_number_generator(fc::ripemd160().data())
+   i_w_info(*this), pw_vout_manager(*this), _random_number_generator(fc::ripemd160().data())
 {
    initialize_indexes();
    initialize_evaluators();
+   context_sign = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
+   context_verify = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
+   estimated_feerate = 0;
 }
 
 database::~database()
 {
    clear_pending();
+   secp256k1_context_destroy(context_sign);
+   context_sign = nullptr;
+   secp256k1_context_destroy(context_verify);
+   context_verify = nullptr;
 }
 
 void database::reindex(fc::path data_dir, const genesis_state_type& initial_allocation)
@@ -101,18 +108,21 @@ void database::reindex(fc::path data_dir, const genesis_state_type& initial_allo
                             skip_transaction_dupe_check |
                             skip_tapos_check |
                             skip_witness_schedule_check |
-                            skip_authority_check);
+                            skip_authority_check |
+                            skip_btc_tx_sending);
       else
          apply_block(*block, skip_witness_signature |
                              skip_transaction_signatures |
                              skip_transaction_dupe_check |
                              skip_tapos_check |
                              skip_witness_schedule_check |
-                             skip_authority_check);
+                             skip_authority_check |
+                             skip_btc_tx_sending);
    }
    if (!_slow_replays)
      _undo_db.enable();
    auto end = fc::time_point::now();
+   restore_bitcoin_transaction_status();
    ilog( "Done reindexing, elapsed time: ${t} sec", ("t",double((end-start).count())/1000000.0 ) );
 } FC_CAPTURE_AND_RETHROW( (data_dir) ) }
 

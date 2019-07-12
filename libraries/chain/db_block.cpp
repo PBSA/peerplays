@@ -182,6 +182,9 @@ void database::check_tansaction_for_duplicated_operations(const signed_transacti
 bool database::push_block(const signed_block& new_block, uint32_t skip)
 {
 //   idump((new_block.block_num())(new_block.id())(new_block.timestamp)(new_block.previous));
+
+   send_btc_tx_flag = true;
+
    bool result;
    detail::with_skip_flags( *this, skip, [&]()
    {
@@ -339,6 +342,7 @@ processed_transaction database::push_proposal(const proposal_object& proposal)
       auto session = _undo_db.start_undo_session(true);
       for( auto& op : proposal.proposed_transaction.operations )
          eval_state.operation_results.emplace_back(apply_operation(eval_state, op));
+      remove_sidechain_proposal_object(proposal);
       remove(proposal);
       session.merge();
    } catch ( const fc::exception& e ) {
@@ -399,6 +403,10 @@ signed_block database::_generate_block(
    auto maximum_block_size = get_global_properties().parameters.maximum_block_size;
    size_t total_block_size = max_block_header_size;
 
+   if( !is_sidechain_fork_needed() ) {
+      processing_sidechain_proposals( witness_obj, block_signing_private_key );
+   }
+
    signed_block pending_block;
 
    //
@@ -414,6 +422,27 @@ signed_block database::_generate_block(
    //
    _pending_tx_session.reset();
    _pending_tx_session = _undo_db.start_undo_session();
+
+   if( !is_sidechain_fork_needed() ) {
+      auto op = create_send_btc_tx_proposal( witness_obj );
+      if( op.valid() ) {
+         _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( block_signing_private_key, *op ) );
+      }
+
+      auto iss_op = create_bitcoin_issue_proposals( witness_obj );
+      if( iss_op.valid() ) {
+         _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( block_signing_private_key, *iss_op ) );
+      }
+
+      auto revert_op = create_bitcoin_revert_proposals( witness_obj );
+      if( revert_op.valid() ) {
+         _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( block_signing_private_key, *revert_op ) );
+      }
+   }
+
+   send_btc_tx_flag = false;
+
+   _current_witness_id = witness_obj.id;
 
    uint64_t postponed_tx_count = 0;
    // pop pending state (reset to head block state)
@@ -566,6 +595,8 @@ void database::apply_block( const signed_block& next_block, uint32_t skip )
          skip = ~0;// WE CAN SKIP ALMOST EVERYTHING
    }
 
+   _current_witness_id = next_block.witness;
+
    detail::with_skip_flags( *this, skip, [&]()
    {
       _apply_block( next_block );
@@ -578,6 +609,11 @@ void database::_apply_block( const signed_block& next_block )
    uint32_t next_block_num = next_block.block_num();
    uint32_t skip = get_node_properties().skip_flags;
    _applied_ops.clear();
+
+   if( head_block_time() > HARDFORK_SIDECHAIN_TIME && is_sidechain_fork_needed() )
+   {
+      perform_sidechain_fork();
+   }
 
    FC_ASSERT( (skip & skip_merkle_check) || next_block.transaction_merkle_root == next_block.calculate_merkle_root(), "", ("next_block.transaction_merkle_root",next_block.transaction_merkle_root)("calc",next_block.calculate_merkle_root())("next_block",next_block)("id",next_block.id()) );
 

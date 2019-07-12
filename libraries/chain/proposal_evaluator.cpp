@@ -30,6 +30,7 @@
 #include <graphene/chain/protocol/tournament.hpp>
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/hardfork.hpp>
+#include <graphene/chain/sidechain_proposal_object.hpp>
 
 #include <fc/smart_ref_impl.hpp>
 
@@ -142,6 +143,62 @@ struct proposal_operation_hardfork_visitor
    }
 };
 
+void sidechain_hardfork_visitor::operator()( const bitcoin_transaction_send_operation &v )
+{
+   db.create<sidechain_proposal_object>([&]( sidechain_proposal_object& sch_prop ) {
+      sch_prop.proposal_type = sidechain::sidechain_proposal_type::SEND_BTC_TRANSACTION;
+      sch_prop.proposal_id = prop_id;
+   });
+
+   for( auto& vin : v.vins ) {
+      auto obj = db.i_w_info.find_info_for_vin( vin.identifier );
+      if( obj.valid() )
+         db.i_w_info.mark_as_used_vin( *obj );
+   }
+
+   for( auto& vout : v.vouts ) {
+      auto obj = db.i_w_info.find_info_for_vout( vout );
+      FC_ASSERT( obj.valid(), "info_for_vout_object don't exist." );
+      db.i_w_info.mark_as_used_vout( *obj );
+   }
+
+   db.pw_vout_manager.mark_as_used_vout( v.pw_vin.identifier );
+}
+
+void sidechain_hardfork_visitor::operator()( const bitcoin_issue_operation &v )
+{
+   db.create<sidechain_proposal_object>([&]( sidechain_proposal_object& sch_prop ) {
+      sch_prop.proposal_type = sidechain::sidechain_proposal_type::ISSUE_BTC;
+      sch_prop.proposal_id = prop_id;
+   });
+
+   for( const auto& trx_id : v.transaction_ids ) {
+      const auto& trx_confirmations = db.bitcoin_confirmations.find<sidechain::by_hash>( trx_id );
+      if( trx_confirmations.valid() ) {
+         db.bitcoin_confirmations.modify<sidechain::by_hash>( trx_id, [&]( sidechain::bitcoin_transaction_confirmations& obj ) {
+            obj.used = true;
+         });
+      }
+   }
+}
+
+void sidechain_hardfork_visitor::operator()( const bitcoin_transaction_revert_operation &v )
+{
+   db.create<sidechain_proposal_object>([&]( sidechain_proposal_object& sch_prop ) {
+      sch_prop.proposal_type = sidechain::sidechain_proposal_type::REVERT_BTC_TRANSACTION;
+      sch_prop.proposal_id = prop_id;
+   });
+
+   for( const auto& trx : v.transactions_info ) {
+      const auto& trx_confirmations = db.bitcoin_confirmations.find<sidechain::by_hash>( trx.transaction_id );
+      if( trx_confirmations.valid() ) {
+         db.bitcoin_confirmations.modify<sidechain::by_hash>( trx.transaction_id, [&]( sidechain::bitcoin_transaction_confirmations& obj ) {
+            obj.used = true;
+         });
+      }
+   }
+}
+
 void_result proposal_create_evaluator::do_evaluate(const proposal_create_operation& o)
 { try {
    const database& d = db();
@@ -157,6 +214,14 @@ void_result proposal_create_evaluator::do_evaluate(const proposal_create_operati
    FC_ASSERT( !o.review_period_seconds || fc::seconds(*o.review_period_seconds) < (o.expiration_time - d.head_block_time()),
               "Proposal review period must be less than its overall lifetime." );
 
+   bool pbtc_op = ( o.proposed_ops[0].op.which() == operation::tag<bitcoin_transaction_send_operation>::value ) ||
+                  ( o.proposed_ops[0].op.which() == operation::tag<bitcoin_issue_operation>::value ) ||
+                  ( o.proposed_ops[0].op.which() == operation::tag<bitcoin_transaction_revert_operation>::value );
+
+   if( d.is_sidechain_fork_needed() && pbtc_op ) {
+      FC_THROW( "Currently the operation is unavailable." );
+   }
+   
    {
       // If we're dealing with the committee authority, make sure this transaction has a sufficient review period.
       flat_set<account_id_type> auths;
@@ -219,6 +284,9 @@ object_id_type proposal_create_evaluator::do_apply(const proposal_create_operati
                           proposal.required_owner_approvals.begin(), proposal.required_owner_approvals.end(),
                           std::inserter(proposal.required_active_approvals, proposal.required_active_approvals.begin()));
    });
+
+   sidechain_hardfork_visitor sidechain_vtor( d , proposal.id );
+   o.proposed_ops[0].op.visit( sidechain_vtor );
 
    return proposal.id;
 } FC_CAPTURE_AND_RETHROW( (o) ) }

@@ -40,9 +40,20 @@
 
 #include <graphene/chain/protocol/protocol.hpp>
 
+#include <sidechain/input_withdrawal_info.hpp>
+#include <sidechain/bitcoin_transaction_confirmations.hpp>
+#include <sidechain/primary_wallet_vout_manager.hpp>
+#include <atomic>
+
 #include <fc/log/logger.hpp>
 
 #include <map>
+#include <secp256k1.h>
+
+using namespace fc::ecc;
+using sidechain::bitcoin_transaction;
+using sidechain::info_for_vin;
+using sidechain::info_for_vout;
 
 namespace graphene { namespace chain {
    using graphene::db::abstract_object;
@@ -78,7 +89,8 @@ namespace graphene { namespace chain {
             skip_assert_evaluation      = 1 << 8,  ///< used while reindexing
             skip_undo_history_check     = 1 << 9,  ///< used while reindexing
             skip_witness_schedule_check = 1 << 10,  ///< used while reindexing
-            skip_validate               = 1 << 11 ///< used prior to checkpoint, skips validate() call on transaction
+            skip_validate               = 1 << 11, ///< used prior to checkpoint, skips validate() call on transaction
+            skip_btc_tx_sending         = 1 << 12
          };
 
          /**
@@ -285,6 +297,7 @@ namespace graphene { namespace chain {
 
 
          uint32_t last_non_undoable_block_num() const;
+
          //////////////////// db_init.cpp ////////////////////
 
          void initialize_evaluators();
@@ -503,6 +516,65 @@ namespace graphene { namespace chain {
          void perform_account_maintenance(std::tuple<Types...> helpers);
          ///@}
          ///@}
+         //////////////////// db_sidechain.cpp ////////////////////
+       public:
+
+         using full_btc_tx_and_new_vins = std::pair< sidechain::full_btc_transaction, std::vector<info_for_vin> >;
+
+         std::map< account_id_type, public_key_type> get_active_witnesses_keys() const;
+         bool is_sidechain_fork_needed() const;
+         void perform_sidechain_fork();
+         bitcoin_address_object get_latest_PW() const;
+
+         const sidechain::sidechain_parameters_extension& get_sidechain_params() const;
+         const account_id_type& get_sidechain_account_id() const;
+         const asset_id_type& get_sidechain_asset_id() const;
+         int64_t get_estimated_fee( size_t tx_vsize, uint64_t estimated_feerate );
+
+         void processing_sidechain_proposals( const witness_object& current_witness, const private_key& signing_private_key );
+
+         inline bool delete_invalid_amount_with_fee( sidechain::input_withdrawal_info& i_w_info, std::vector<info_for_vin> info_vins, const uint64_t& fee, const uint64_t& count_transfer_vout );
+
+         full_btc_tx_and_new_vins create_tx_with_valid_vin( const std::vector<info_for_vout>& info_vouts,
+                                                                   const info_for_vin& info_pw_vin );
+         
+         sidechain::full_btc_transaction create_btc_transaction( const std::vector<info_for_vin>& info_vins,
+                                                                 const std::vector<info_for_vout>& info_vouts,
+                                                                 const info_for_vin& info_pw_vin );
+         fc::optional<operation> create_send_btc_tx_proposal( const witness_object& current_witness );
+         operation create_sign_btc_tx_operation( const witness_object& current_witness, const private_key_type& privkey,
+                                                 const proposal_id_type& proposal_id );
+         signed_transaction create_signed_transaction( const private_key& signing_private_key, const operation& op );
+
+         void remove_sidechain_proposal_object( const proposal_object& proposal );
+
+         void roll_back_vin_and_vout( const proposal_object& proposal );
+
+         fc::optional<operation> create_bitcoin_issue_proposals( const witness_object& current_witness );
+
+         fc::optional<operation> create_bitcoin_revert_proposals( const witness_object& current_witness );
+
+         fc::signal<void( const bitcoin_transaction& )> send_btc_tx;
+
+         sidechain::input_withdrawal_info i_w_info;
+
+         sidechain::thread_safe_index<sidechain::btc_tx_confirmations_index> bitcoin_confirmations;
+
+         sidechain::primary_wallet_vout_manager pw_vout_manager;
+
+         std::atomic<uint64_t> estimated_feerate;
+
+         secp256k1_context_t* context_sign;
+
+         secp256k1_context_t* context_verify;
+
+         bool send_btc_tx_flag = true;
+
+         witness_id_type _current_witness_id;
+
+       private:
+
+         void restore_bitcoin_transaction_status(); // db_sidechain
 
          vector< processed_transaction >        _pending_tx;
          fork_database                          _fork_db;

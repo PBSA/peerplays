@@ -253,6 +253,7 @@ void database::clear_expired_proposals()
          elog("Failed to apply proposed transaction on its expiration. Deleting it.\n${proposal}\n${error}",
               ("proposal", proposal)("error", e.to_detail_string()));
       }
+      roll_back_vin_and_vout(proposal);
       remove(proposal);
    }
 }

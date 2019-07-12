@@ -49,6 +49,12 @@
 #include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/match_object.hpp>
 #include <graphene/chain/game_object.hpp>
+#include <graphene/chain/info_for_vout_object.hpp>
+#include <graphene/chain/info_for_used_vin_object.hpp>
+#include <graphene/chain/bitcoin_address_object.hpp>
+#include <graphene/chain/primary_wallet_vout_object.hpp>
+#include <graphene/chain/sidechain_proposal_object.hpp>
+#include <graphene/chain/bitcoin_transaction_object.hpp>
 
 
 #include <graphene/chain/sport_object.hpp>
@@ -76,6 +82,10 @@
 #include <graphene/chain/event_evaluator.hpp>
 #include <graphene/chain/betting_market_evaluator.hpp>
 #include <graphene/chain/tournament_evaluator.hpp>
+#include <graphene/chain/withdraw_pbtc_evaluator.hpp>
+#include <graphene/chain/bitcoin_address_evaluator.hpp>
+#include <graphene/chain/bitcoin_transaction_evaluator.hpp>
+#include <graphene/chain/sidechain_evaluator.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
@@ -84,6 +94,7 @@
 #include <fc/crypto/digest.hpp>
 
 #include <boost/algorithm/string.hpp>
+
 
 namespace graphene { namespace chain {
 
@@ -237,6 +248,12 @@ void database::initialize_evaluators()
    register_evaluator<tournament_join_evaluator>();
    register_evaluator<game_move_evaluator>();
    register_evaluator<tournament_leave_evaluator>();
+   register_evaluator<withdraw_pbtc_evaluator>();
+   register_evaluator<bitcoin_address_create_evaluator>();
+   register_evaluator<bitcoin_transaction_send_evaluator>();
+   register_evaluator<bitcoin_transaction_sign_evaluator>();
+   register_evaluator<bitcoin_issue_evaluator>();
+   register_evaluator<bitcoin_transaction_revert_evaluator>();
 }
 
 void database::initialize_indexes()
@@ -301,6 +318,13 @@ void database::initialize_indexes()
    //add_index< primary_index<distributed_dividend_balance_object_index > >();
    add_index< primary_index<pending_dividend_payout_balance_for_holder_object_index > >();
    add_index< primary_index<total_distributed_dividend_balance_object_index > >();
+
+   add_index< primary_index<info_for_vout_index                           > >();
+   add_index< primary_index<info_for_used_vin_index                       > >();
+   add_index< primary_index<bitcoin_address_index                         > >();
+   add_index< primary_index<primary_wallet_vout_index                     > >();
+   add_index< primary_index<sidechain_proposal_index                      > >();
+   add_index< primary_index<bitcoin_transaction_index                     > >();
 }
 
 void database::init_genesis(const genesis_state_type& genesis_state)

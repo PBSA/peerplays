@@ -273,9 +273,10 @@ public:
 private:
    void claim_registered_account(const account_object& account)
    {
+      std::vector<std::string> import_keys;
       auto it = _wallet.pending_account_registrations.find( account.name );
       FC_ASSERT( it != _wallet.pending_account_registrations.end() );
-      for (const std::string& wif_key : it->second)
+      for (const std::string& wif_key : it->second) {
          if( !import_key( account.name, wif_key ) )
          {
             // somebody else beat our pending registration, there is
@@ -288,8 +289,23 @@ private:
             //    possibility of migrating to a fork where the
             //    name is available, the user can always
             //    manually re-register)
+         } else {
+            import_keys.push_back( wif_key );
          }
+      }
       _wallet.pending_account_registrations.erase( it );
+
+      for( const auto& k : import_keys ) {
+         fc::optional<fc::ecc::private_key> optional_private_key = wif_to_key( k );
+         if (!optional_private_key)
+            FC_THROW("Invalid private key");
+         string shorthash = detail::address_to_shorthash(optional_private_key->get_public_key());
+         copy_wallet_file( "before-import-key-" + shorthash );
+
+         save_wallet_file();
+         copy_wallet_file( "after-import-key-" + shorthash );
+      }
+
    }
 
    // after a witness registration succeeds, this saves the private key in the wallet permanently
@@ -2392,6 +2408,23 @@ public:
       return sign_transaction(tx, broadcast);
    } FC_CAPTURE_AND_RETHROW( (from)(to)(amount)(asset_symbol)(memo)(broadcast) ) }
 
+   signed_transaction withdraw_pBTC(account_id_type payer, string to, uint64_t amount, bool broadcast)
+   { try {
+      FC_ASSERT( !is_locked() );
+
+      withdraw_pbtc_operation withdraw_pbtc_op;
+      withdraw_pbtc_op.payer = payer;
+      withdraw_pbtc_op.data = to;
+      withdraw_pbtc_op.amount = amount;
+
+      signed_transaction tx;
+      tx.operations.push_back(withdraw_pbtc_op);
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
+      tx.validate();
+
+      return sign_transaction(tx, broadcast);
+   } FC_CAPTURE_AND_RETHROW( (payer)(to)(amount)(broadcast) ) }
+
    signed_transaction issue_asset(string to_account, string amount, string symbol,
                                   string memo, bool broadcast = false)
    {
@@ -3870,6 +3903,12 @@ signed_transaction wallet_api::transfer(string from, string to, string amount,
 {
    return my->transfer(from, to, amount, asset_symbol, memo, broadcast);
 }
+
+signed_transaction wallet_api::withdraw_pBTC(account_id_type payer, string to, uint64_t amount, bool broadcast)
+{
+   return my->withdraw_pBTC(payer, to, amount, broadcast);
+}
+
 signed_transaction wallet_api::create_asset(string issuer,
                                             string symbol,
                                             uint8_t precision,
@@ -5755,6 +5794,28 @@ signed_transaction wallet_api::rps_throw(game_id_type game_id,
 
    return my->sign_transaction( tx, broadcast );
 }
+
+signed_transaction wallet_api::create_bitcoin_address( string payer, string owner, bool broadcast ) 
+{
+   FC_ASSERT( !is_locked() );
+
+   bitcoin_address_create_operation op;
+   op.payer = get_account_id(payer);
+   op.owner = get_account_id(owner);
+   
+   signed_transaction tx;
+   tx.operations = { op };
+   my->set_operation_fees( tx, my->_remote_db->get_global_properties().parameters.current_fees );
+   tx.validate();
+
+   return my->sign_transaction( tx, broadcast );
+}
+
+vector<bitcoin_address_object> wallet_api::get_bitcoin_addresses(string account_name_or_id) const 
+{
+   return my->_remote_db->get_bitcoin_addresses( get_account_id(account_name_or_id) );
+}
+
 
 // default ctor necessary for FC_REFLECT
 signed_block_with_info::signed_block_with_info()

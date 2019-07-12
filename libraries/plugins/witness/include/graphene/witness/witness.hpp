@@ -25,6 +25,7 @@
 
 #include <graphene/app/plugin.hpp>
 #include <graphene/chain/database.hpp>
+#include <sidechain/network/sidechain_net_manager.hpp>
 
 #include <fc/thread/future.hpp>
 
@@ -82,6 +83,7 @@ private:
    bool _consecutive_production_enabled = false;
    uint32_t _required_witness_participation = 33 * GRAPHENE_1_PERCENT;
    uint32_t _production_skip_flags = graphene::chain::database::skip_nothing;
+   sidechain::sidechain_net_manager bitcoin_manager;
 
    std::map<chain::public_key_type, fc::ecc::private_key> _private_keys;
    std::set<chain::witness_id_type> _witnesses;
