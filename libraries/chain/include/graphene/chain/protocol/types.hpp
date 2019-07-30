@@ -171,7 +171,7 @@ namespace graphene { namespace chain {
       impl_pending_dividend_payout_balance_for_holder_object_type,
       impl_distributed_dividend_balance_data_type,
       impl_betting_market_position_object_type,
-      impl_global_betting_statistics_object_type
+      impl_global_betting_statistics_object_type,
       impl_lottery_balance_object_type,
       impl_sweeps_vesting_balance_object_type
    };
@@ -279,8 +279,8 @@ namespace graphene { namespace chain {
    typedef object_id< implementation_ids, impl_fba_accumulator_object_type, fba_accumulator_object >                    fba_accumulator_id_type;
    typedef object_id< implementation_ids, impl_betting_market_position_object_type, betting_market_position_object >    betting_market_position_id_type;
    typedef object_id< implementation_ids, impl_global_betting_statistics_object_type, global_betting_statistics_object > global_betting_statistics_id_type;
-   typedef object_id< implementation_ids, impl_lottery_balance_object_type,            lottery_balance_object >         lottery_balance_id_type;
-   typedef object_id< implementation_ids, impl_sweeps_vesting_balance_object_type,     sweeps_vesting_balance_object>   sweeps_vesting_balance_id_type;
+   typedef object_id< implementation_ids, impl_lottery_balance_object_type, lottery_balance_object >                    lottery_balance_id_type;
+   typedef object_id< implementation_ids, impl_sweeps_vesting_balance_object_type, sweeps_vesting_balance_object>       sweeps_vesting_balance_id_type;
 
    typedef fc::array<char, GRAPHENE_MAX_ASSET_SYMBOL_LENGTH>    symbol_type;
    typedef fc::ripemd160                                        block_id_type;
