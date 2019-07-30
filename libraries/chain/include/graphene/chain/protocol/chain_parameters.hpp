@@ -23,6 +23,7 @@
  */
 #pragma once
 #include <graphene/chain/protocol/base.hpp>
+#include <graphene/chain/protocol/ext.hpp>
 #include <graphene/chain/protocol/types.hpp>
 #include <fc/smart_ref_fwd.hpp>
 
@@ -35,12 +36,23 @@ namespace fc {
 */
 
 namespace graphene { namespace chain {
+   struct bet_parameter_extension
+   {
+      optional< bet_multiplier_type > min_bet_multiplier;
+      optional< bet_multiplier_type > max_bet_multiplier;
+      optional< uint16_t >            betting_rake_fee_percentage;
+      optional< flat_map<bet_multiplier_type, bet_multiplier_type> > permitted_betting_odds_increments;
+      optional< uint16_t >            live_betting_delay_time;
+   };
+
    struct sweeps_parameters_extension {
       uint16_t                sweeps_distribution_percentage      = SWEEPS_DEFAULT_DISTRIBUTION_PERCENTAGE;
       asset_id_type           sweeps_distribution_asset           = SWEEPS_DEFAULT_DISTRIBUTION_ASSET;
       account_id_type         sweeps_vesting_accumulator_account  = SWEEPS_ACCUMULATOR_ACCOUNT;
    };
-   typedef static_variant<void_t,sweeps_parameters_extension>  parameter_extension; 
+
+   typedef static_variant<void_t,sweeps_parameters_extension,bet_parameter_extension>  parameter_extension; 
+
    struct chain_parameters
    {
       /** using a smart ref breaks the circular dependency created between operations and the fee schedule */
@@ -73,7 +85,6 @@ namespace graphene { namespace chain {
       uint16_t                accounts_per_fee_scale              = GRAPHENE_DEFAULT_ACCOUNTS_PER_FEE_SCALE; ///< number of accounts between fee scalings
       uint8_t                 account_fee_scale_bitshifts         = GRAPHENE_DEFAULT_ACCOUNT_FEE_SCALE_BITSHIFTS; ///< number of times to left bitshift account registration fee at each scaling
       uint8_t                 max_authority_depth                 = GRAPHENE_MAX_SIG_CHECK_DEPTH;
-      //uint8_t                 witness_schedule_algorithm          = GRAPHENE_WITNESS_SHUFFLED_ALGORITHM; ///< 0 shuffled, 1 scheduled
       uint8_t                 witness_schedule_algorithm          = GRAPHENE_WITNESS_SCHEDULED_ALGORITHM; ///< 0 shuffled, 1 scheduled
       /* rps tournament parameters constraints */
       uint32_t                min_round_delay                     = TOURNAMENT_MIN_ROUND_DELAY; ///< miniaml delay between games
@@ -94,9 +105,33 @@ namespace graphene { namespace chain {
 
       /** defined in fee_schedule.cpp */
       void validate()const;
+      inline bet_multiplier_type min_bet_multiplier()const {
+         return extensions.value.min_bet_multiplier.valid() ? *extensions.value.min_bet_multiplier : GRAPHENE_DEFAULT_MIN_BET_MULTIPLIER;
+      }
+      inline bet_multiplier_type max_bet_multiplier()const {
+         return extensions.value.max_bet_multiplier.valid() ? *extensions.value.max_bet_multiplier : GRAPHENE_DEFAULT_MAX_BET_MULTIPLIER;
+      }
+      inline uint16_t betting_rake_fee_percentage()const {
+         return extensions.value.betting_rake_fee_percentage.valid() ? *extensions.value.betting_rake_fee_percentage : GRAPHENE_DEFAULT_RAKE_FEE_PERCENTAGE;
+      }
+      inline const flat_map<bet_multiplier_type, bet_multiplier_type>& permitted_betting_odds_increments()const {
+         static const flat_map<bet_multiplier_type, bet_multiplier_type> _default = GRAPHENE_DEFAULT_PERMITTED_BETTING_ODDS_INCREMENTS;
+         return extensions.value.permitted_betting_odds_increments.valid() ? *extensions.value.permitted_betting_odds_increments : _default;
+      }
+      inline uint16_t live_betting_delay_time()const {
+         return extensions.value.live_betting_delay_time.valid() ? *extensions.value.live_betting_delay_time : GRAPHENE_DEFAULT_LIVE_BETTING_DELAY_TIME;
+      }
    };
 
 } }  // graphene::chain
+
+FC_REFLECT( graphene::chain::parameter_extension,
+   (min_bet_multiplier)
+   (max_bet_multiplier)
+   (betting_rake_fee_percentage)
+   (permitted_betting_odds_increments)
+   (live_betting_delay_time)
+)
 
 FC_REFLECT( graphene::chain::sweeps_parameters_extension, 
             (sweeps_distribution_percentage)

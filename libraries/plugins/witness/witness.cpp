@@ -25,7 +25,6 @@
 
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/witness_object.hpp>
-#include <graphene/time/time.hpp>
 
 #include <graphene/utilities/key_conversion.hpp>
 
@@ -53,7 +52,7 @@ void new_chain_banner( const graphene::chain::database& db )
       "*                              *\n"
       "********************************\n"
       "\n";
-   if( db.get_slot_at_time( graphene::time::now() ) > 200 )
+   if( db.get_slot_at_time( fc::time_point::now() ) > 200 )
    {
       std::cerr << "Your genesis seems to have an old timestamp\n"
          "Please consider using the --genesis-timestamp option to give your genesis a recent timestamp\n"
@@ -103,7 +102,8 @@ void witness_plugin::plugin_initialize(const boost::program_options::variables_m
       for (const std::string& key_id_to_wif_pair_string : key_id_to_wif_pair_strings)
       {
          auto key_id_to_wif_pair = graphene::app::dejsonify<std::pair<chain::public_key_type, std::string> >(key_id_to_wif_pair_string);
-         idump((key_id_to_wif_pair));
+         //idump((key_id_to_wif_pair));
+         ilog("Public Key: ${public}", ("public", key_id_to_wif_pair.first));
          fc::optional<fc::ecc::private_key> private_key = graphene::utilities::wif_to_key(key_id_to_wif_pair.second);
          if (!private_key)
          {
@@ -128,8 +128,6 @@ void witness_plugin::plugin_startup()
 { try {
    ilog("witness plugin:  plugin_startup() begin");
    chain::database& d = database();
-   //Start NTP time client
-   graphene::time::now();
 
    if( !_witnesses.empty() )
    {
@@ -149,7 +147,6 @@ void witness_plugin::plugin_startup()
 
 void witness_plugin::plugin_shutdown()
 {
-   graphene::time::shutdown_ntp_time();
    return;
 }
 
@@ -157,13 +154,12 @@ void witness_plugin::schedule_production_loop()
 {
    //Schedule for the next second's tick regardless of chain state
    // If we would wait less than 50ms, wait for the whole second.
-   fc::time_point ntp_now = graphene::time::now();
-   fc::time_point fc_now = fc::time_point::now();
-   int64_t time_to_next_second = 1000000 - (ntp_now.time_since_epoch().count() % 1000000);
+   fc::time_point now = fc::time_point::now();
+   int64_t time_to_next_second = 1000000 - (now.time_since_epoch().count() % 1000000);
    if( time_to_next_second < 50000 )      // we must sleep for at least 50ms
        time_to_next_second += 1000000;
 
-   fc::time_point next_wakeup( fc_now + fc::microseconds( time_to_next_second ) );
+   fc::time_point next_wakeup( now + fc::microseconds( time_to_next_second ) );
 
    //wdump( (now.time_since_epoch().count())(next_wakeup.time_since_epoch().count()) );
    _block_production_task = fc::schedule([this]{block_production_loop();},
@@ -187,27 +183,32 @@ block_production_condition::block_production_condition_enum witness_plugin::bloc
    {
       elog("Got exception while generating block:\n${e}", ("e", e.to_detail_string()));
       result = block_production_condition::exception_producing_block;
+      elog("Discarding all pending transactions in an attempt to prevent the same error from occurring the next time we try to produce a block");
+      database().clear_pending();
    }
 
    switch( result )
    {
       case block_production_condition::produced:
-         ilog("Generated block #${n} with timestamp ${t} at time ${c}", (capture));
+         ilog("Generated block #${n} with timestamp ${t} at time ${c}", 
+               ("n", capture["n"])("t", capture["t"])("c", capture["c"]));
          break;
       case block_production_condition::not_synced:
          ilog("Not producing block because production is disabled until we receive a recent block (see: --enable-stale-production)");
          break;
       case block_production_condition::not_my_turn:
-         ilog("Not producing block because it isn't my turn");
+         //ilog("Not producing block because it isn't my turn");
          break;
       case block_production_condition::not_time_yet:
-         dlog("Not producing block because slot has not yet arrived");
+         //dlog("Not producing block because slot has not yet arrived");
          break;
       case block_production_condition::no_private_key:
-         ilog("Not producing block because I don't have the private key for ${scheduled_key}", (capture) );
+         ilog("Not producing block because I don't have the private key for ${scheduled_key}", 
+               ("n", capture["n"])("t", capture["t"])("c", capture["c"]));
          break;
       case block_production_condition::low_participation:
-         elog("Not producing block because node appears to be on a minority fork with only ${pct}% witness participation", (capture) );
+         elog("Not producing block because node appears to be on a minority fork with only ${pct}% witness participation", 
+               ("n", capture["n"])("t", capture["t"])("c", capture["c"]));
          break;
       case block_production_condition::lag:
          elog("Not producing block because node didn't wake up within 500ms of the slot time.");
@@ -227,7 +228,7 @@ block_production_condition::block_production_condition_enum witness_plugin::bloc
 block_production_condition::block_production_condition_enum witness_plugin::maybe_produce_block( fc::mutable_variant_object& capture )
 {
    chain::database& db = database();
-   fc::time_point now_fine = graphene::time::now();
+   fc::time_point now_fine = fc::time_point::now();
    fc::time_point_sec now = now_fine + fc::microseconds( 500000 );
 
    // If the next block production opportunity is in the present or future, we're synced.
@@ -297,7 +298,7 @@ block_production_condition::block_production_condition_enum witness_plugin::mayb
    }
 
    //if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
-   ilog("Witness ${id} production slot has arrived; generating a block now...", ("id", scheduled_witness));
+   //ilog("Witness ${id} production slot has arrived; generating a block now...", ("id", scheduled_witness));
 
    auto block = db.generate_block(
       scheduled_time,

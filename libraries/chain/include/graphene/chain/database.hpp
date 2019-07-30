@@ -136,6 +136,8 @@ namespace graphene { namespace chain {
          void                              add_checkpoints( const flat_map<uint32_t,block_id_type>& checkpts );
          const flat_map<uint32_t,block_id_type> get_checkpoints()const { return _checkpoints; }
          bool before_last_checkpoint()const;
+       
+         void check_tansaction_for_duplicated_operations(const signed_transaction& trx);
 
          bool push_block( const signed_block& b, uint32_t skip = skip_nothing );
          processed_transaction push_transaction( const signed_transaction& trx, uint32_t skip = skip_nothing );
@@ -171,7 +173,17 @@ namespace graphene { namespace chain {
           */
          uint32_t  push_applied_operation( const operation& op );
          void      set_applied_operation_result( uint32_t op_id, const operation_result& r );
+
+         // most plugins should use the const version of get_applied_operations
          const vector<optional< operation_history_object > >& get_applied_operations()const;
+
+         // the account_history plugin uses the non-const version.  When it decides to track an 
+         // operation and assigns an operation_id to it, it will store that id into the operation
+         // history object so other plugins that evaluate later can reference it.
+         vector<optional< operation_history_object > >& get_applied_operations();
+
+         // the bookie plugin depends on change notifications that are skipped during normal replays
+         void force_slow_replays();
 
          string to_pretty_string( const asset& a )const;
 
@@ -195,12 +207,18 @@ namespace graphene { namespace chain {
           *  Emitted After a block has been applied and committed.  The callback
           *  should not yield and should execute quickly.
           */
-         fc::signal<void(const vector<object_id_type>&)> changed_objects;
+         fc::signal<void(const vector<object_id_type>&, const flat_set<account_id_type>&)> new_objects;
+
+         /**
+          *  Emitted After a block has been applied and committed.  The callback
+          *  should not yield and should execute quickly.
+          */
+         fc::signal<void(const vector<object_id_type>&, const flat_set<account_id_type>&)> changed_objects;
 
          /** this signal is emitted any time an object is removed and contains a
           * pointer to the last value of every object that was removed.
           */
-         fc::signal<void(const vector<const object*>&)>  removed_objects;
+         fc::signal<void(const vector<object_id_type>&, const vector<const object*>&, const flat_set<account_id_type>&)>  removed_objects;
 
          //////////////////// db_witness_schedule.cpp ////////////////////
 
@@ -386,6 +404,29 @@ namespace graphene { namespace chain {
                    asset max_settlement);
          ///@}
 
+         //////////////////// db_bet.cpp ////////////////////
+
+         /// @{ @group Betting Market Helpers
+         void cancel_bet(const bet_object& bet, bool create_virtual_op = true);
+         void cancel_all_unmatched_bets_on_betting_market(const betting_market_object& betting_market);
+         void cancel_all_unmatched_bets_on_betting_market_group(const betting_market_group_object& betting_market_group);
+         void validate_betting_market_group_resolutions(const betting_market_group_object& betting_market_group,
+                                                        const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions);
+         void resolve_betting_market_group(const betting_market_group_object& betting_market_group,
+                                           const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions);
+         void settle_betting_market_group(const betting_market_group_object& betting_market_group);
+         void remove_completed_events();
+         /**
+          * @brief Process a new bet
+          * @param new_bet_object The new bet to process
+          * @return true if order was completely filled; false otherwise
+          *
+          * This function takes a new bet and attempts to match it with existing
+          * bets already on the books.
+          */
+         bool place_bet(const bet_object& new_bet_object);
+         ///@}
+
          /**
           * @return true if the order was completely filled and thus freed.
           */
@@ -452,12 +493,14 @@ namespace graphene { namespace chain {
          void update_signing_witness(const witness_object& signing_witness, const signed_block& new_block);
          void update_last_irreversible_block();
          void clear_expired_transactions();
+         void place_delayed_bets();
          void clear_expired_proposals();
          void clear_expired_orders();
          void update_expired_feeds();
          void update_maintenance_flag( bool new_maintenance_flag );
          void update_withdraw_permissions();
          void update_tournaments();
+         void update_betting_markets(fc::time_point_sec current_block_time);
          bool check_for_blackswan( const asset_object& mia, bool enable_black_swan = true );
 
          ///Steps performed only at maintenance intervals
@@ -514,6 +557,7 @@ namespace graphene { namespace chain {
 
          node_property_object              _node_property_object;
          fc::hash_ctr_rng<secret_hash_type, 20> _random_number_generator;
+         bool                              _slow_replays = false;
    };
 
    namespace detail

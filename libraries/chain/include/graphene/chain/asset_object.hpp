@@ -249,7 +249,8 @@ namespace graphene { namespace chain {
          >
       >
    > asset_bitasset_data_object_multi_index_type;
-   typedef flat_index<asset_bitasset_data_object> asset_bitasset_data_index;
+   //typedef flat_index<asset_bitasset_data_object> asset_bitasset_data_index;
+   typedef generic_index<asset_bitasset_data_object, asset_bitasset_data_object_multi_index_type> asset_bitasset_data_index;
 
    // used to sort active_lotteries index
    struct lottery_asset_comparer
@@ -266,6 +267,7 @@ namespace graphene { namespace chain {
 
    struct by_symbol;
    struct by_type;
+   struct by_issuer;
    struct active_lotteries;
    struct by_lottery;
    struct by_lottery_owner;
@@ -274,6 +276,7 @@ namespace graphene { namespace chain {
       indexed_by<
          ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
          ordered_unique< tag<by_symbol>, member<asset_object, string, &asset_object::symbol> >,
+         ordered_non_unique< tag<by_issuer>, member<asset_object, account_id_type, &asset_object::issuer > >,
          ordered_non_unique< tag<active_lotteries>,
             identity< asset_object >,
             lottery_asset_comparer

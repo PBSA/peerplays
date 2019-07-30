@@ -29,6 +29,7 @@
 using namespace graphene::app;
 using namespace graphene::chain;
 using namespace graphene::utilities;
+using namespace graphene::bookie;
 using namespace std;
 
 namespace fc
@@ -260,6 +261,26 @@ namespace detail {
 class wallet_api_impl;
 }
 
+/***
+ * A utility class for performing various state-less actions that are related to wallets
+ */
+class utility {
+   public:
+      /**
+       * Derive any number of *possible* owner keys from a given brain key.
+       *
+       * NOTE: These keys may or may not match with the owner keys of any account.
+       * This function is merely intended to assist with account or key recovery.
+       *
+       * @see suggest_brain_key()
+       *
+       * @param brain_key    Brain key
+       * @param number_of_desired_keys  Number of desired keys
+       * @return A list of keys that are deterministically derived from the brainkey
+       */
+      static vector<brain_key_info> derive_owner_keys_from_brain_key(string brain_key, int number_of_desired_keys = 1);
+};
+
 struct operation_detail {
    string                   memo;
    string                   description;
@@ -342,16 +363,25 @@ class wallet_api
        *
        * This returns a list of operation history objects, which describe activity on the account.
        *
-       * @note this API doesn't give a way to retrieve more than the most recent 100 transactions,
-       *       you can interface directly with the blockchain to get more history
        * @param name the name or id of the account
-       * @param limit the number of entries to return (starting from the most recent) (max 100)
+       * @param limit the number of entries to return (starting from the most recent)
        * @returns a list of \c operation_history_objects
        */
       vector<operation_detail>  get_account_history(string name, int limit)const;
 
+      /** Returns the relative operations on the named account from start number.
+       *
+       * @param name the name or id of the account
+       * @param stop Sequence number of earliest operation.
+       * @param limit the number of entries to return
+       * @param start  the sequence number where to start looping back throw the history
+       * @returns a list of \c operation_history_objects
+       */
+      vector<operation_detail>  get_relative_account_history(string name, uint32_t stop, int limit, uint32_t start)const;
 
-      vector<bucket_object>             get_market_history(string symbol, string symbol2, uint32_t bucket)const;
+      vector<account_balance_object> list_core_accounts()const;
+
+      vector<bucket_object>             get_market_history(string symbol, string symbol2, uint32_t bucket, fc::time_point_sec start, fc::time_point_sec end)const;
       vector<limit_order_object>        get_limit_orders(string a, string b, uint32_t limit)const;
       vector<call_order_object>         get_call_orders(string a, uint32_t limit)const;
       vector<force_settlement_object>   get_settle_orders(string a, uint32_t limit)const;
@@ -590,6 +620,29 @@ class wallet_api
        */
       brain_key_info suggest_brain_key()const;
 
+     /**
+      * Derive any number of *possible* owner keys from a given brain key.
+      *
+      * NOTE: These keys may or may not match with the owner keys of any account.
+      * This function is merely intended to assist with account or key recovery.
+      *
+      * @see suggest_brain_key()
+      *
+      * @param brain_key    Brain key
+      * @param numberOfDesiredKeys  Number of desired keys
+      * @return A list of keys that are deterministically derived from the brainkey
+      */
+     vector<brain_key_info> derive_owner_keys_from_brain_key(string brain_key, int number_of_desired_keys = 1) const;
+
+     /**
+      * Determine whether a textual representation of a public key
+      * (in Base-58 format) is *currently* linked
+      * to any *registered* (i.e. non-stealth) account on the blockchain
+      * @param public_key Public key
+      * @return Whether a public key is known
+      */
+     bool is_public_key_registered(string public_key) const;
+
       /**
        *  @param role - active | owner | memo
        */
@@ -600,9 +653,7 @@ class wallet_api
        * TODO: I don't see a broadcast_transaction() function, do we need one?
        *
        * @param tx the transaction to serialize
-       * @returns the binary form of the transaction.  It will not be hex encoded, 
-       *          this returns a raw string that may have null characters embedded 
-       *          in it
+       * @returns the be hex encoded form of the serialized transaction
        */
       string serialize_transaction(signed_transaction tx) const;
 
@@ -1537,6 +1588,174 @@ class wallet_api
          
       order_book get_order_book( const string& base, const string& quote, unsigned limit = 50);
 
+      asset get_total_matched_bet_amount_for_betting_market_group(betting_market_group_id_type group_id);
+      std::vector<event_object> get_events_containing_sub_string(const std::string& sub_string, const std::string& language);
+
+      /** Get an order book for a betting market, with orders aggregated into bins with similar
+       * odds
+       *
+       * @param betting_market_id the betting market
+       * @param precision the number of digits of precision for binning
+       */
+      binned_order_book get_binned_order_book(graphene::chain::betting_market_id_type betting_market_id, int32_t precision);
+
+      std::vector<matched_bet_object> get_matched_bets_for_bettor(account_id_type bettor_id) const;
+
+      std::vector<matched_bet_object> get_all_matched_bets_for_bettor(account_id_type bettor_id, bet_id_type start = bet_id_type(), unsigned limit = 1000) const;
+
+      vector<sport_object> list_sports() const;
+      vector<event_group_object> list_event_groups(sport_id_type sport_id) const;
+      vector<betting_market_group_object> list_betting_market_groups(event_id_type event_id) const;
+      vector<betting_market_object> list_betting_markets(betting_market_group_id_type betting_market_group_id) const;
+      global_betting_statistics_object get_global_betting_statistics() const;
+      vector<event_object> list_events_in_group(event_group_id_type event_group_id) const;
+      vector<bet_object> get_unmatched_bets_for_bettor(betting_market_id_type betting_market_id, account_id_type account_id) const;
+      vector<bet_object> get_all_unmatched_bets_for_bettor(account_id_type account_id) const;
+
+      signed_transaction propose_create_sport(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              internationalized_string_type name,
+              bool broadcast = false);
+
+      signed_transaction propose_update_sport(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              sport_id_type sport_id,
+              fc::optional<internationalized_string_type> name,
+              bool broadcast = false);
+    
+      signed_transaction propose_delete_sport(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              sport_id_type sport_id,
+              bool broadcast = false);
+
+      signed_transaction propose_create_event_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              internationalized_string_type name,
+              sport_id_type sport_id,
+              bool broadcast = false);
+
+      signed_transaction propose_update_event_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              event_group_id_type event_group,
+              fc::optional<object_id_type> sport_id,
+              fc::optional<internationalized_string_type> name,
+              bool broadcast = false);
+
+      signed_transaction propose_delete_event_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              event_group_id_type event_group,
+              bool broadcast = false);
+    
+      signed_transaction propose_create_event(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              internationalized_string_type name,
+              internationalized_string_type season,
+              fc::optional<time_point_sec> start_time,
+              event_group_id_type event_group_id,
+              bool broadcast = false);
+
+      signed_transaction propose_update_event(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              event_id_type event_id,
+              fc::optional<object_id_type> event_group_id,
+              fc::optional<internationalized_string_type> name,
+              fc::optional<internationalized_string_type> season,
+              fc::optional<event_status> status,
+              fc::optional<time_point_sec> start_time,
+              bool broadcast = false);
+
+      signed_transaction propose_create_betting_market_rules(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              internationalized_string_type name,
+              internationalized_string_type description,
+              bool broadcast = false);
+
+      signed_transaction propose_update_betting_market_rules(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              betting_market_rules_id_type rules_id,
+              fc::optional<internationalized_string_type> name,
+              fc::optional<internationalized_string_type> description,
+              bool broadcast = false);
+
+      signed_transaction propose_create_betting_market_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              internationalized_string_type description,
+              event_id_type event_id,
+              betting_market_rules_id_type rules_id,
+              asset_id_type asset_id,
+              bool broadcast = false);
+
+      signed_transaction propose_update_betting_market_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              betting_market_group_id_type betting_market_group_id,
+              fc::optional<internationalized_string_type> description,
+              fc::optional<object_id_type> rules_id,
+              fc::optional<betting_market_group_status> status,
+              bool broadcast = false);
+
+      signed_transaction propose_create_betting_market(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              betting_market_group_id_type group_id,
+              internationalized_string_type description,
+              internationalized_string_type payout_condition,
+              bool broadcast = false);
+
+      signed_transaction propose_update_betting_market(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              betting_market_id_type market_id,
+              fc::optional<object_id_type> group_id,
+              fc::optional<internationalized_string_type> description,
+              fc::optional<internationalized_string_type> payout_condition,
+              bool broadcast = false);
+
+      /** Place a bet  
+       * @param bettor the account placing the bet
+       * @param betting_market_id the market on which to bet
+       * @param back_or_lay back or lay
+       * @param amount the amount to bet
+       * @param asset_symbol the asset to bet with (must be the same as required by the betting market group)
+       * @param backer_multiplier the odds (use 2.0 for a 1:1 bet)
+       * @param broadcast true to broadcast the transaction
+       */
+      signed_transaction place_bet(string bettor,
+                                   betting_market_id_type betting_market_id,
+                                   bet_type back_or_lay,
+                                   string amount,
+                                   string asset_symbol,
+                                   double backer_multiplier,
+                                   bool broadcast = false);
+
+      signed_transaction cancel_bet(string betting_account,
+                                                bet_id_type bet_id,
+                                                bool broadcast = false);
+
+      signed_transaction propose_resolve_betting_market_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              betting_market_group_id_type betting_market_group_id,
+              const std::map<betting_market_id_type, betting_market_resolution_type>& resolutions,
+              bool broadcast = false);
+
+      signed_transaction propose_cancel_betting_market_group(
+              const string& proposing_account,
+              fc::time_point_sec expiration_time,
+              betting_market_group_id_type betting_market_group_id,
+              bool broadcast = false);
+
       /** Creates a new tournament
        * @param creator the accout that is paying the fee to create the tournament
        * @param options the options detailing the specifics of the tournament
@@ -1711,6 +1930,7 @@ FC_API( graphene::wallet::wallet_api,
         (import_account_keys)
         (import_balance)
         (suggest_brain_key)
+        (derive_owner_keys_from_brain_key)
         (get_private_key_from_password)
         (register_account)
         (upgrade_account)
@@ -1762,6 +1982,9 @@ FC_API( graphene::wallet::wallet_api,
         (get_block)
         (get_account_count)
         (get_account_history)
+        (get_relative_account_history)
+        (is_public_key_registered)
+        (list_core_accounts)
         (get_market_history)
         (get_global_properties)
         (get_dynamic_global_properties)
@@ -1801,6 +2024,31 @@ FC_API( graphene::wallet::wallet_api,
         (blind_transfer)
         (blind_history)
         (receive_blind_transfer)
+        (list_sports)
+        (list_event_groups)
+        (list_betting_market_groups)
+        (list_betting_markets)
+        (list_events_in_group)
+        (get_unmatched_bets_for_bettor)
+        (get_all_unmatched_bets_for_bettor)
+        (get_global_betting_statistics)
+        (propose_create_sport)
+        (propose_create_event_group)
+        (propose_create_event)
+        (propose_create_betting_market_group)
+        (propose_create_betting_market)
+        (propose_create_betting_market_rules)
+        (propose_update_betting_market_rules)
+        (propose_update_sport)
+        (propose_update_event_group)
+        (propose_update_event)
+        (propose_update_betting_market_group)
+        (propose_update_betting_market)
+        (propose_delete_sport)
+        (propose_delete_event_group)
+        (place_bet)
+        (cancel_bet)
+        (propose_resolve_betting_market_group)
         (tournament_create)
         (tournament_join)
         (tournament_leave)
@@ -1810,6 +2058,10 @@ FC_API( graphene::wallet::wallet_api,
         (get_tournaments_by_state)
         (get_tournament)
         (get_order_book)
-       
+        (get_total_matched_bet_amount_for_betting_market_group)
+        (get_events_containing_sub_string)
+        (get_binned_order_book)
+        (get_matched_bets_for_bettor)
+        (get_all_matched_bets_for_bettor)
         (buy_ticket)
       )

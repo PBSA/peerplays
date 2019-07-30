@@ -842,7 +842,7 @@ BOOST_FIXTURE_TEST_CASE( change_block_interval, database_fixture )
       sign( trx, get_account("init7" ).active.get_keys().front(),init_account_priv_key);
       */
       db.push_transaction(trx);
-//      BOOST_CHECK(proposal_id_type()(db).is_authorized_to_execute(db));
+      BOOST_CHECK(proposal_id_type()(db).is_authorized_to_execute(db));
    }
    BOOST_TEST_MESSAGE( "Verifying that the interval didn't change immediately" );
 
@@ -863,12 +863,12 @@ BOOST_FIXTURE_TEST_CASE( change_block_interval, database_fixture )
    generate_block();   // get the maintenance skip slots out of the way
 
    BOOST_TEST_MESSAGE( "Verify that the new block interval is 1 second" );
-//   BOOST_CHECK_EQUAL(db.get_global_properties().parameters.block_interval, 1);
+   BOOST_CHECK_EQUAL(db.get_global_properties().parameters.block_interval, 1);
    past_time = db.head_block_time().sec_since_epoch();
    generate_block();
-//   BOOST_CHECK_EQUAL(db.head_block_time().sec_since_epoch() - past_time, 1);
+   BOOST_CHECK_EQUAL(db.head_block_time().sec_since_epoch() - past_time, 1);
    generate_block();
-//   BOOST_CHECK_EQUAL(db.head_block_time().sec_since_epoch() - past_time, 2);
+   BOOST_CHECK_EQUAL(db.head_block_time().sec_since_epoch() - past_time, 2);
 } FC_LOG_AND_RETHROW() }
 
 BOOST_FIXTURE_TEST_CASE( pop_block_twice, database_fixture )
@@ -946,14 +946,15 @@ BOOST_FIXTURE_TEST_CASE( witness_scheduler_missed_blocks, database_fixture )
 
    std::for_each(near_schedule.begin(), near_schedule.end(), [&](witness_id_type id) {
       generate_block(0);
+      //witness_id_type wid = db.get_dynamic_global_properties().current_witness;
       BOOST_CHECK(db.get_dynamic_global_properties().current_witness == id);
+   });
 
    if (db.get_global_properties().parameters.witness_schedule_algorithm != witness_schedule_algorithm)
        db.modify(db.get_global_properties(), [&witness_schedule_algorithm](global_property_object& p) {
           p.parameters.witness_schedule_algorithm = witness_schedule_algorithm;
        });
 
-   });
 } FC_LOG_AND_RETHROW() }
 
 BOOST_FIXTURE_TEST_CASE( rsf_missed_blocks, database_fixture )
@@ -1084,155 +1085,156 @@ BOOST_FIXTURE_TEST_CASE( rsf_missed_blocks, database_fixture )
    FC_LOG_AND_RETHROW()
 }
 
-//   failing
-//BOOST_FIXTURE_TEST_CASE( transaction_invalidated_in_cache, database_fixture )
-//{
-//   try
-//   {
-//      ACTORS( (alice)(bob) );
-//
-//      auto generate_block = [&]( database& d, uint32_t skip ) -> signed_block
-//      {
-//         return d.generate_block(d.get_slot_time(1), d.get_scheduled_witness(1), init_account_priv_key, skip);
-//      };
-//
-//      // tx's created by ACTORS() have bogus authority, so we need to
-//      // skip_authority_check in the block where they're included
-//      signed_block b1 = generate_block(db, database::skip_authority_check);
-//
-//      fc::temp_directory data_dir2( graphene::utilities::temp_directory_path() );
-//
-//      database db2;
-//      db2.open(data_dir2.path(), make_genesis);
-//      BOOST_CHECK( db.get_chain_id() == db2.get_chain_id() );
-//
-//      while( db2.head_block_num() < db.head_block_num() )
-//      {
-//         optional< signed_block > b = db.fetch_block_by_number( db2.head_block_num()+1 );
-//         db2.push_block(*b, database::skip_witness_signature);
-//      }
-//      BOOST_CHECK( db2.get( alice_id ).name == "alice" );
-//      BOOST_CHECK( db2.get( bob_id ).name == "bob" );
-//
-//      db2.push_block(generate_block(db, database::skip_nothing));
-//      transfer( account_id_type(), alice_id, asset( 1000 ) );
-//      transfer( account_id_type(),   bob_id, asset( 1000 ) );
-//      // need to skip authority check here as well for same reason as above
-//      db2.push_block(generate_block(db, database::skip_authority_check), database::skip_authority_check);
-//
-//      BOOST_CHECK_EQUAL(db.get_balance(alice_id, asset_id_type()).amount.value, 1000);
-//      BOOST_CHECK_EQUAL(db.get_balance(  bob_id, asset_id_type()).amount.value, 1000);
-//      BOOST_CHECK_EQUAL(db2.get_balance(alice_id, asset_id_type()).amount.value, 1000);
-//      BOOST_CHECK_EQUAL(db2.get_balance(  bob_id, asset_id_type()).amount.value, 1000);
-//
-//      auto generate_and_send = [&]( int n )
-//      {
-//         for( int i=0; i<n; i++ )
-//         {
-//            signed_block b = generate_block(db2, database::skip_nothing);
-//            PUSH_BLOCK( db, b );
-//         }
-//      };
-//
-//      auto generate_xfer_tx = [&]( account_id_type from, account_id_type to, share_type amount, int blocks_to_expire ) -> signed_transaction
-//      {
-//         signed_transaction tx;
-//         transfer_operation xfer_op;
-//         xfer_op.from = from;
-//         xfer_op.to = to;
-//         xfer_op.amount = asset( amount, asset_id_type() );
-//         xfer_op.fee = asset( 0, asset_id_type() );
-//         tx.operations.push_back( xfer_op );
-//         tx.set_expiration( db.head_block_time() + blocks_to_expire * db.get_global_properties().parameters.block_interval );
-//         if( from == alice_id )
-//            sign( tx, alice_private_key );
-//         else
-//            sign( tx, bob_private_key );
-//         return tx;
-//      };
-//
-//      signed_transaction tx = generate_xfer_tx( alice_id, bob_id, 1000, 2 );
-//      tx.set_expiration( db.head_block_time() + 2 * db.get_global_properties().parameters.block_interval );
-//      tx.signatures.clear();
-//      sign( tx, alice_private_key );
-//      // put the tx in db tx cache
-//      PUSH_TX( db, tx );
-//
-//      BOOST_CHECK_EQUAL(db.get_balance(alice_id, asset_id_type()).amount.value,    0);
-//      BOOST_CHECK_EQUAL(db.get_balance(  bob_id, asset_id_type()).amount.value, 2000);
-//
-//      // generate some blocks with db2, make tx expire in db's cache
-//      generate_and_send(3);
-//
-//      BOOST_CHECK_EQUAL(db.get_balance(alice_id, asset_id_type()).amount.value, 1000);
-//      BOOST_CHECK_EQUAL(db.get_balance(  bob_id, asset_id_type()).amount.value, 1000);
-//
-//      // generate a block with db and ensure we don't somehow apply it
-//      PUSH_BLOCK(db2, generate_block(db, database::skip_nothing));
-//      BOOST_CHECK_EQUAL(db.get_balance(alice_id, asset_id_type()).amount.value, 1000);
-//      BOOST_CHECK_EQUAL(db.get_balance(  bob_id, asset_id_type()).amount.value, 1000);
-//
-//      // now the tricky part...
-//      // (A) Bob sends 1000 to Alice
-//      // (B) Alice sends 2000 to Bob
-//      // (C) Alice sends 500 to Bob
-//      //
-//      // We push AB, then receive a block containing C.
-//      // we need to apply the block, then invalidate B in the cache.
-//      // AB results in Alice having 0, Bob having 2000.
-//      // C results in Alice having 500, Bob having 1500.
-//      //
-//      // This needs to occur while switching to a fork.
-//      //
-//
-//      signed_transaction tx_a = generate_xfer_tx( bob_id, alice_id, 1000, 2 );
-//      signed_transaction tx_b = generate_xfer_tx( alice_id, bob_id, 2000, 10 );
-//      signed_transaction tx_c = generate_xfer_tx( alice_id, bob_id,  500, 10 );
-//
-//      generate_block( db, database::skip_nothing );
-//
-//      PUSH_TX( db, tx_a );
-//      BOOST_CHECK_EQUAL(db.get_balance(alice_id, asset_id_type()).amount.value, 2000);
-//      BOOST_CHECK_EQUAL(db.get_balance(  bob_id, asset_id_type()).amount.value,    0);
-//
-//      PUSH_TX( db, tx_b );
-//      PUSH_TX( db2, tx_c );
-//
-//      BOOST_CHECK_EQUAL(db.get_balance(alice_id, asset_id_type()).amount.value, 0);
-//      BOOST_CHECK_EQUAL(db.get_balance(  bob_id, asset_id_type()).amount.value, 2000);
-//
-//      BOOST_CHECK_EQUAL(db2.get_balance(alice_id, asset_id_type()).amount.value, 500);
-//      BOOST_CHECK_EQUAL(db2.get_balance(  bob_id, asset_id_type()).amount.value, 1500);
-//
-//      // generate enough blocks on db2 to cause db to switch forks
-//      generate_and_send(2);
-//
-//      // db should invalidate B, but still be applying A, so the states don't agree
-//
-//      BOOST_CHECK_EQUAL(db.get_balance(alice_id, asset_id_type()).amount.value, 1500);
-//      BOOST_CHECK_EQUAL(db.get_balance(  bob_id, asset_id_type()).amount.value, 500);
-//
-//      BOOST_CHECK_EQUAL(db2.get_balance(alice_id, asset_id_type()).amount.value, 500);
-//      BOOST_CHECK_EQUAL(db2.get_balance(  bob_id, asset_id_type()).amount.value, 1500);
-//
-//      // This will cause A to expire in db
-//      generate_and_send(1);
-//
-//      BOOST_CHECK_EQUAL(db.get_balance(alice_id, asset_id_type()).amount.value, 500);
-//      BOOST_CHECK_EQUAL(db.get_balance(  bob_id, asset_id_type()).amount.value, 1500);
-//
-//      BOOST_CHECK_EQUAL(db2.get_balance(alice_id, asset_id_type()).amount.value, 500);
-//      BOOST_CHECK_EQUAL(db2.get_balance(  bob_id, asset_id_type()).amount.value, 1500);
-//
-//      // Make sure we can generate and accept a plain old empty block on top of all this!
-//      generate_and_send(1);
-//   }
-//   catch (fc::exception& e)
-//   {
-//      edump((e.to_detail_string()));
-//      throw;
-//   }
-//}
+// the test written in 2015 should be revised, currently it is not possible to push block to db2
+// without skip_witness_signature | skip_witness_schedule_check | skip_authority_check
+BOOST_FIXTURE_TEST_CASE( transaction_invalidated_in_cache, database_fixture )
+{
+   try
+   {
+      ACTORS( (alice)(bob) );
+
+      auto generate_block = [&]( database& d, uint32_t skip ) -> signed_block
+      {
+         return d.generate_block(d.get_slot_time(1), d.get_scheduled_witness(1), init_account_priv_key, skip);
+      };
+
+      // tx's created by ACTORS() have bogus authority, so we need to
+      // skip_authority_check in the block where they're included
+      signed_block b1 = generate_block(db, database::skip_authority_check);
+
+      fc::temp_directory data_dir2( graphene::utilities::temp_directory_path() );
+
+      database db2;
+      db2.open(data_dir2.path(), make_genesis);
+      BOOST_CHECK( db.get_chain_id() == db2.get_chain_id() );
+
+      while( db2.head_block_num() < db.head_block_num() )
+      {
+         optional< signed_block > b = db.fetch_block_by_number( db2.head_block_num()+1 );
+         db2.push_block(*b, database::skip_witness_signature);
+      }
+      BOOST_CHECK( db2.get( alice_id ).name == "alice" );
+      BOOST_CHECK( db2.get( bob_id ).name == "bob" );
+
+      db2.push_block(generate_block(db, database::skip_nothing));
+      transfer( account_id_type(), alice_id, asset( 1000 ) );
+      transfer( account_id_type(),   bob_id, asset( 1000 ) );
+      // need to skip authority check here as well for same reason as above
+      db2.push_block(generate_block(db, database::skip_authority_check), database::skip_authority_check);
+
+      BOOST_CHECK_EQUAL(db.get_balance(alice_id, asset_id_type()).amount.value, 1000);
+      BOOST_CHECK_EQUAL(db.get_balance(  bob_id, asset_id_type()).amount.value, 1000);
+      BOOST_CHECK_EQUAL(db2.get_balance(alice_id, asset_id_type()).amount.value, 1000);
+      BOOST_CHECK_EQUAL(db2.get_balance(  bob_id, asset_id_type()).amount.value, 1000);
+
+      auto generate_and_send = [&]( int n )
+      {
+         for( int i=0; i<n; i++ )
+         {
+            signed_block b = generate_block(db2, database::skip_nothing);
+            PUSH_BLOCK( db, b );
+         }
+      };
+
+      auto generate_xfer_tx = [&]( account_id_type from, account_id_type to, share_type amount, int blocks_to_expire ) -> signed_transaction
+      {
+         signed_transaction tx;
+         transfer_operation xfer_op;
+         xfer_op.from = from;
+         xfer_op.to = to;
+         xfer_op.amount = asset( amount, asset_id_type() );
+         xfer_op.fee = asset( 0, asset_id_type() );
+         tx.operations.push_back( xfer_op );
+         tx.set_expiration( db.head_block_time() + blocks_to_expire * db.get_global_properties().parameters.block_interval );
+         if( from == alice_id )
+            sign( tx, alice_private_key );
+         else
+            sign( tx, bob_private_key );
+         return tx;
+      };
+
+      signed_transaction tx = generate_xfer_tx( alice_id, bob_id, 1000, 2 );
+      tx.set_expiration( db.head_block_time() + 2 * db.get_global_properties().parameters.block_interval );
+      tx.signatures.clear();
+      sign( tx, alice_private_key );
+      // put the tx in db tx cache
+      PUSH_TX( db, tx );
+
+      BOOST_CHECK_EQUAL(db.get_balance(alice_id, asset_id_type()).amount.value,    0);
+      BOOST_CHECK_EQUAL(db.get_balance(  bob_id, asset_id_type()).amount.value, 2000);
+
+      // generate some blocks with db2, make tx expire in db's cache
+      generate_and_send(3);
+
+      BOOST_CHECK_EQUAL(db.get_balance(alice_id, asset_id_type()).amount.value, 1000);
+      BOOST_CHECK_EQUAL(db.get_balance(  bob_id, asset_id_type()).amount.value, 1000);
+
+      // generate a block with db and ensure we don't somehow apply it
+      PUSH_BLOCK(db2, generate_block(db, database::skip_nothing));
+      BOOST_CHECK_EQUAL(db.get_balance(alice_id, asset_id_type()).amount.value, 1000);
+      BOOST_CHECK_EQUAL(db.get_balance(  bob_id, asset_id_type()).amount.value, 1000);
+
+      // now the tricky part...
+      // (A) Bob sends 1000 to Alice
+      // (B) Alice sends 2000 to Bob
+      // (C) Alice sends 500 to Bob
+      //
+      // We push AB, then receive a block containing C.
+      // we need to apply the block, then invalidate B in the cache.
+      // AB results in Alice having 0, Bob having 2000.
+      // C results in Alice having 500, Bob having 1500.
+      //
+      // This needs to occur while switching to a fork.
+      //
+
+      signed_transaction tx_a = generate_xfer_tx( bob_id, alice_id, 1000, 2 );
+      signed_transaction tx_b = generate_xfer_tx( alice_id, bob_id, 2000, 10 );
+      signed_transaction tx_c = generate_xfer_tx( alice_id, bob_id,  500, 10 );
+
+      generate_block( db, database::skip_nothing );
+
+      PUSH_TX( db, tx_a );
+      BOOST_CHECK_EQUAL(db.get_balance(alice_id, asset_id_type()).amount.value, 2000);
+      BOOST_CHECK_EQUAL(db.get_balance(  bob_id, asset_id_type()).amount.value,    0);
+
+      PUSH_TX( db, tx_b );
+      PUSH_TX( db2, tx_c );
+
+      BOOST_CHECK_EQUAL(db.get_balance(alice_id, asset_id_type()).amount.value, 0);
+      BOOST_CHECK_EQUAL(db.get_balance(  bob_id, asset_id_type()).amount.value, 2000);
+
+      BOOST_CHECK_EQUAL(db2.get_balance(alice_id, asset_id_type()).amount.value, 500);
+      BOOST_CHECK_EQUAL(db2.get_balance(  bob_id, asset_id_type()).amount.value, 1500);
+
+      // generate enough blocks on db2 to cause db to switch forks
+      generate_and_send(2);
+
+      // db should invalidate B, but still be applying A, so the states don't agree
+
+      BOOST_CHECK_EQUAL(db.get_balance(alice_id, asset_id_type()).amount.value, 1500);
+      BOOST_CHECK_EQUAL(db.get_balance(  bob_id, asset_id_type()).amount.value, 500);
+
+      BOOST_CHECK_EQUAL(db2.get_balance(alice_id, asset_id_type()).amount.value, 500);
+      BOOST_CHECK_EQUAL(db2.get_balance(  bob_id, asset_id_type()).amount.value, 1500);
+
+      // This will cause A to expire in db
+      generate_and_send(1);
+
+      BOOST_CHECK_EQUAL(db.get_balance(alice_id, asset_id_type()).amount.value, 500);
+      BOOST_CHECK_EQUAL(db.get_balance(  bob_id, asset_id_type()).amount.value, 1500);
+
+      BOOST_CHECK_EQUAL(db2.get_balance(alice_id, asset_id_type()).amount.value, 500);
+      BOOST_CHECK_EQUAL(db2.get_balance(  bob_id, asset_id_type()).amount.value, 1500);
+
+      // Make sure we can generate and accept a plain old empty block on top of all this!
+      generate_and_send(1);
+   }
+   catch (fc::exception& e)
+   {
+      edump((e.to_detail_string()));
+      throw;
+   }
+}
 
 BOOST_AUTO_TEST_CASE( genesis_reserve_ids )
 {

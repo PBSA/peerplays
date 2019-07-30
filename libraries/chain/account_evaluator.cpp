@@ -68,6 +68,7 @@ void verify_account_votes( const database& db, const account_options& options )
               "Voted for more witnesses than currently allowed (${c})", ("c", chain_params.maximum_witness_count) );
    FC_ASSERT( options.num_committee <= chain_params.maximum_committee_count,
               "Voted for more committee members than currently allowed (${c})", ("c", chain_params.maximum_committee_count) );
+   FC_ASSERT( db.find_object(options.voting_account), "Invalid proxy account specified." );
 
    uint32_t max_vote_id = gpo.next_available_vote_id;
    bool has_worker_votes = false;
@@ -107,8 +108,9 @@ void_result account_create_evaluator::do_evaluate( const account_create_operatio
       FC_ASSERT( !op.extensions.value.active_special_authority.valid() );
       FC_ASSERT( !op.extensions.value.buyback_options.valid() );
    }
+   if( d.head_block_time() < HARDFORK_999_TIME )
+      FC_ASSERT( !op.extensions.value.affiliate_distributions.valid(), "Affiliate reward distributions not allowed yet" );
 
-   FC_ASSERT( d.find_object(op.options.voting_account), "Invalid proxy account specified." );
    FC_ASSERT( fee_paying_account->is_lifetime_member(), "Only Lifetime members may register an account." );
    FC_ASSERT( op.referrer(d).is_member(d.head_block_time()), "The referrer must be either a lifetime or annual subscriber." );
 
@@ -186,6 +188,7 @@ object_id_type account_create_evaluator::do_apply( const account_create_operatio
             obj.allowed_assets = o.extensions.value.buyback_options->markets;
             obj.allowed_assets->emplace( o.extensions.value.buyback_options->asset_to_buy );
          }
+         obj.affiliate_distributions = o.extensions.value.affiliate_distributions;
    });
 
    if( has_small_percent )

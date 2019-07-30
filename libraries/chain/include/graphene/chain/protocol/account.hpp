@@ -60,6 +60,21 @@ namespace graphene { namespace chain {
       void validate()const;
    };
 
+   enum app_tag {
+       bookie = 0,
+       rps = 1
+   };
+   struct affiliate_reward_distribution
+   {
+      fc::flat_map<account_id_type,uint16_t> _dist;
+      void validate()const;
+   };
+   struct affiliate_reward_distributions
+   {
+      fc::flat_map<app_tag,affiliate_reward_distribution> _dists;
+      void validate()const;
+   };
+
    /**
     *  @ingroup operations
     */
@@ -71,6 +86,7 @@ namespace graphene { namespace chain {
          optional< special_authority > owner_special_authority;
          optional< special_authority > active_special_authority;
          optional< buyback_account_options > buyback_options;
+         optional< affiliate_reward_distributions > affiliate_distributions;
       };
 
       struct fee_parameters_type
@@ -264,9 +280,13 @@ namespace graphene { namespace chain {
 } } // graphene::chain
 
 FC_REFLECT(graphene::chain::account_options, (memo_key)(voting_account)(num_witness)(num_committee)(votes)(extensions))
-FC_REFLECT_TYPENAME( graphene::chain::account_whitelist_operation::account_listing)
+// FC_REFLECT_TYPENAME( graphene::chain::account_whitelist_operation::account_listing)
 FC_REFLECT_ENUM( graphene::chain::account_whitelist_operation::account_listing,
                 (no_listing)(white_listed)(black_listed)(white_and_black_listed))
+
+FC_REFLECT_ENUM( graphene::chain::app_tag, (bookie)(rps) )
+FC_REFLECT( graphene::chain::affiliate_reward_distribution, (_dist) );
+FC_REFLECT( graphene::chain::affiliate_reward_distributions, (_dists) );
 
 FC_REFLECT(graphene::chain::account_create_operation::ext, (null_ext)(owner_special_authority)(active_special_authority)(buyback_options) )
 FC_REFLECT( graphene::chain::account_create_operation,

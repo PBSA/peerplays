@@ -319,7 +319,7 @@ namespace graphene { namespace chain {
       asset_dividend_distribution_operation() {}
       asset_dividend_distribution_operation(const asset_id_type& dividend_asset_id,
                                             const account_id_type& account_id,
-                                            const flat_set<asset>& amounts) :
+                                            const vector<asset>& amounts) :
          dividend_asset_id(dividend_asset_id),
          account_id(account_id),
          amounts(amounts)
@@ -351,7 +351,7 @@ namespace graphene { namespace chain {
       account_id_type account_id;
 
       /// The amounts received
-      flat_set<asset> amounts;
+      vector<asset> amounts;
 
       extensions_type extensions;
 

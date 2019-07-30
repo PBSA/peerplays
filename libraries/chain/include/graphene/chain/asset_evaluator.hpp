@@ -35,8 +35,7 @@ namespace graphene { namespace chain {
 
          void_result do_evaluate( const asset_create_operation& o );
          object_id_type do_apply( const asset_create_operation& o );
-         
-         // copied from bitshares. (https://github.com/bitshares/bitshares-core/issues/429)
+
          /** override the default behavior defined by generic_evalautor which is to
           * post the fee to fee_paying_account_stats.pending_fees
           */
