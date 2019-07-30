@@ -125,7 +125,7 @@ namespace graphene { namespace chain {
 
 } }  // graphene::chain
 
-FC_REFLECT( graphene::chain::parameter_extension,
+FC_REFLECT( graphene::chain::bet_parameter_extension,
    (min_bet_multiplier)
    (max_bet_multiplier)
    (betting_rake_fee_percentage)
