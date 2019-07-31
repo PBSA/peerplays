@@ -119,10 +119,10 @@ namespace graphene { namespace chain {
       inline uint16_t sweeps_distribution_percentage()const {
          return extensions.value.sweeps_distribution_percentage.valid() ? *extensions.value.sweeps_distribution_percentage : SWEEPS_DEFAULT_DISTRIBUTION_PERCENTAGE;
       }
-      inline uint16_t sweeps_distribution_asset()const {
+      inline asset_id_type sweeps_distribution_asset()const {
          return extensions.value.sweeps_distribution_asset.valid() ? *extensions.value.sweeps_distribution_asset : SWEEPS_DEFAULT_DISTRIBUTION_ASSET;
       }
-      inline uint16_t sweeps_vesting_accumulator_account()const {
+      inline account_id_type sweeps_vesting_accumulator_account()const {
          return extensions.value.sweeps_vesting_accumulator_account.valid() ? *extensions.value.sweeps_vesting_accumulator_account : SWEEPS_ACCUMULATOR_ACCOUNT;
       }
    };
