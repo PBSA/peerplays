@@ -36,22 +36,17 @@ namespace fc {
 */
 
 namespace graphene { namespace chain {
-   struct bet_parameter_extension
+   struct parameter_extension
    {
       optional< bet_multiplier_type > min_bet_multiplier;
       optional< bet_multiplier_type > max_bet_multiplier;
       optional< uint16_t >            betting_rake_fee_percentage;
       optional< flat_map<bet_multiplier_type, bet_multiplier_type> > permitted_betting_odds_increments;
       optional< uint16_t >            live_betting_delay_time;
+      optional< uint16_t >            sweeps_distribution_percentage;
+      optional< asset_id_type >       sweeps_distribution_asset;
+      optional< account_id_type >     sweeps_vesting_accumulator_account;
    };
-
-   struct sweeps_parameters_extension {
-      uint16_t                sweeps_distribution_percentage      = SWEEPS_DEFAULT_DISTRIBUTION_PERCENTAGE;
-      asset_id_type           sweeps_distribution_asset           = SWEEPS_DEFAULT_DISTRIBUTION_ASSET;
-      account_id_type         sweeps_vesting_accumulator_account  = SWEEPS_ACCUMULATOR_ACCOUNT;
-   };
-
-   typedef static_variant<void_t,sweeps_parameters_extension,bet_parameter_extension>  parameter_extension; 
 
    struct chain_parameters
    {
@@ -101,7 +96,7 @@ namespace graphene { namespace chain {
       uint32_t                maximum_tournament_start_delay      = TOURNAMENT_MAX_START_DELAY;
       uint16_t                maximum_tournament_number_of_wins   = TOURNAMENT_MAX_NUMBER_OF_WINS;
       
-      parameter_extension         extensions = sweeps_parameters_extension();
+      extension<parameter_extension> extensions;
 
       /** defined in fee_schedule.cpp */
       void validate()const;
@@ -121,21 +116,29 @@ namespace graphene { namespace chain {
       inline uint16_t live_betting_delay_time()const {
          return extensions.value.live_betting_delay_time.valid() ? *extensions.value.live_betting_delay_time : GRAPHENE_DEFAULT_LIVE_BETTING_DELAY_TIME;
       }
+      inline uint16_t sweeps_distribution_percentage()const {
+         return extensions.value.sweeps_distribution_percentage.valid() ? *extensions.value.sweeps_distribution_percentage : SWEEPS_DEFAULT_DISTRIBUTION_PERCENTAGE;
+      }
+      inline uint16_t sweeps_distribution_asset()const {
+         return extensions.value.sweeps_distribution_asset.valid() ? *extensions.value.sweeps_distribution_asset : SWEEPS_DEFAULT_DISTRIBUTION_ASSET;
+      }
+      inline uint16_t sweeps_vesting_accumulator_account()const {
+         return extensions.value.sweeps_vesting_accumulator_account.valid() ? *extensions.value.sweeps_vesting_accumulator_account : SWEEPS_ACCUMULATOR_ACCOUNT;
+      }
    };
 
 } }  // graphene::chain
 
-FC_REFLECT( graphene::chain::bet_parameter_extension,
+FC_REFLECT( graphene::chain::parameter_extension,
    (min_bet_multiplier)
    (max_bet_multiplier)
    (betting_rake_fee_percentage)
    (permitted_betting_odds_increments)
    (live_betting_delay_time)
+   (sweeps_distribution_percentage)
+   (sweeps_distribution_asset)
+   (sweeps_vesting_accumulator_account)
 )
-
-FC_REFLECT( graphene::chain::sweeps_parameters_extension, 
-            (sweeps_distribution_percentage)
-            (sweeps_distribution_asset) )
 
 FC_REFLECT( graphene::chain::chain_parameters,
             (current_fees)
