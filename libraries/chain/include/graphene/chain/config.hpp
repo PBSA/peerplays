@@ -228,6 +228,6 @@
 #define TOURNAMENT_MAX_START_DELAY                          (60*60*24*7) // 1 week
 
 #define SWEEPS_DEFAULT_DISTRIBUTION_PERCENTAGE              (2*GRAPHENE_1_PERCENT)
-#define SWEEPS_DEFAULT_DISTRIBUTION_ASSET                   asset_id_type(0)
+#define SWEEPS_DEFAULT_DISTRIBUTION_ASSET                   (graphene::chain::asset_id_type(0))
 #define SWEEPS_VESTING_BALANCE_MULTIPLIER                   100000000
-#define SWEEPS_ACCUMULATOR_ACCOUNT                          account_id_type(0)
+#define SWEEPS_ACCUMULATOR_ACCOUNT                          (graphene::chain::account_id_type(0))
