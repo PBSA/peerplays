@@ -4,5 +4,5 @@
     ignore = dirty
 [submodule "libraries/fc"]
 	path = libraries/fc
-	url = https://github.com/PBSA/exeblock-exechain-fc
+	url = https://github.com/peerplays-network/peerplays-fc
     ignore = dirty
