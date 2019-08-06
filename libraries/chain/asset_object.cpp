@@ -245,7 +245,7 @@ void asset_object::distribute_sweeps_holders_part( database& db )
    auto& asset_bal_idx = db.get_index_type< account_balance_index >().indices().get< by_asset_balance >();
    
    auto sweeps_params = db.get_global_properties().parameters;
-   uint64_t distribution_asset_supply = sweeps_params.sweeps_distribution_asset( db ).dynamic_data( db ).current_supply.value;
+   uint64_t distribution_asset_supply = sweeps_params.sweeps_distribution_asset()( db ).dynamic_data( db ).current_supply.value;
    const auto range = asset_bal_idx.equal_range( boost::make_tuple( sweeps_params.sweeps_distribution_asset() ) );
    
    uint64_t holders_sum = 0;
