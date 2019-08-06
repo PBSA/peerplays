@@ -4,5 +4,5 @@
     ignore = dirty
 [submodule "libraries/fc"]
 	path = libraries/fc
-	url = https://github.com/peerplays-network/peerplays-fc
+	url = https://github.com/PBSA/peerplays-fc/tree/feature/ubuntu18.04-upgrade
     ignore = dirty
