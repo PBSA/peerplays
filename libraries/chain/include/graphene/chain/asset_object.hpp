@@ -400,7 +400,7 @@ namespace graphene { namespace chain {
    class lottery_balance_object : public abstract_object<lottery_balance_object>
    {
       public:
-         static const uint8_t space_id = protocol_ids;
+         static const uint8_t space_id = implementation_ids;
          static const uint8_t type_id  = impl_lottery_balance_object_type;
       
          asset_id_type  lottery_id;
@@ -416,7 +416,7 @@ namespace graphene { namespace chain {
    /**
     * @ingroup object_index
     */
-   using lottery_balance_index_type = multi_index_container<
+   typedef multi_index_container<
       lottery_balance_object,
       indexed_by<
          ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
@@ -424,18 +424,18 @@ namespace graphene { namespace chain {
             member<lottery_balance_object, asset_id_type, &lottery_balance_object::lottery_id>
          >
       >
-   >;
+   > lottery_balance_index_type;
    
    /**
     * @ingroup object_index
     */
-   using lottery_balance_index = generic_index<lottery_balance_object, lottery_balance_index_type>;
+   typedef generic_index<lottery_balance_object, lottery_balance_index_type> lottery_balance_index;
    
    
    class sweeps_vesting_balance_object : public abstract_object<sweeps_vesting_balance_object>
    {
       public:
-         static const uint8_t space_id = protocol_ids;
+         static const uint8_t space_id = implementation_ids;
          static const uint8_t type_id  = impl_sweeps_vesting_balance_object_type;
 
 
@@ -452,7 +452,7 @@ namespace graphene { namespace chain {
    /**
     * @ingroup object_index
     */
-   using sweeps_vesting_balance_index_type = multi_index_container<
+   typedef multi_index_container<
       sweeps_vesting_balance_object,
       indexed_by<
          ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
@@ -460,12 +460,12 @@ namespace graphene { namespace chain {
             member<sweeps_vesting_balance_object, account_id_type, &sweeps_vesting_balance_object::owner>
          >
       >
-   >;
+   > sweeps_vesting_balance_index_type;
 
    /**
     * @ingroup object_index
     */
-   using sweeps_vesting_balance_index = generic_index<sweeps_vesting_balance_object, sweeps_vesting_balance_index_type>;
+   typedef generic_index<sweeps_vesting_balance_object, sweeps_vesting_balance_index_type> sweeps_vesting_balance_index;
 
 } } // graphene::chain
 

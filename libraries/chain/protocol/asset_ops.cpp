@@ -78,18 +78,13 @@ share_type asset_issue_operation::calculate_fee(const fee_parameters_type& k)con
 share_type asset_create_operation::calculate_fee(const asset_create_operation::fee_parameters_type& param)const
 {
    auto core_fee_required = param.long_symbol; 
-   
-   if( extensions.which() == asset_extension::tag<lottery_asset_options>::value ) {
-      core_fee_required = param.lottery_asset;
-   } else {
-      switch(symbol.size()) {
-         case 3: core_fee_required = param.symbol3;
-            break;
-         case 4: core_fee_required = param.symbol4;
-            break;
-         default:
-            break;
-      }
+   switch(symbol.size()) {
+      case 3: core_fee_required = param.symbol3;
+         break;
+      case 4: core_fee_required = param.symbol4;
+         break;
+      default:
+         break;
    }
    // common_options contains several lists and a string. Charge fees for its size
    core_fee_required += calculate_data_fee( fc::raw::pack_size(*this), param.price_per_kbyte );
@@ -98,6 +93,35 @@ share_type asset_create_operation::calculate_fee(const asset_create_operation::f
 }
 
 void  asset_create_operation::validate()const
+{
+   FC_ASSERT( fee.amount >= 0 );
+   FC_ASSERT( is_valid_symbol(symbol) );
+   common_options.validate();
+   if( common_options.issuer_permissions & (disable_force_settle|global_settle) )
+      FC_ASSERT( bitasset_opts.valid() );
+   if( is_prediction_market )
+   {
+      FC_ASSERT( bitasset_opts.valid(), "Cannot have a User-Issued Asset implement a prediction market." );
+      FC_ASSERT( common_options.issuer_permissions & global_settle );
+   }
+   if( bitasset_opts ) bitasset_opts->validate();
+
+   asset dummy = asset(1) * common_options.core_exchange_rate;
+   FC_ASSERT(dummy.asset_id == asset_id_type(1));
+   FC_ASSERT(precision <= 12);
+}
+
+share_type lottery_asset_create_operation::calculate_fee(const lottery_asset_create_operation::fee_parameters_type& param)const
+{
+   auto core_fee_required = param.lottery_asset; 
+   
+   // common_options contains several lists and a string. Charge fees for its size
+   core_fee_required += calculate_data_fee( fc::raw::pack_size(*this), param.price_per_kbyte );
+
+   return core_fee_required;
+}
+
+void  lottery_asset_create_operation::validate()const
 {
    FC_ASSERT( fee.amount >= 0 );
    FC_ASSERT( is_valid_symbol(symbol) );

@@ -131,6 +131,7 @@ namespace graphene { namespace chain {
             event_group_delete_operation,
             affiliate_payout_operation, // VIRTUAL
             affiliate_referral_payout_operation, // VIRTUAL
+            lottery_asset_create_operation,
             ticket_purchase_operation,
             lottery_reward_operation,
             lottery_end_operation,

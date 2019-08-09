@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE( create_lottery_asset_test )
    try {
       generate_block();
       asset_id_type test_asset_id = db.get_index<asset_object>().get_next_id();
-      asset_create_operation creator;
+      lottery_asset_create_operation creator;
       creator.issuer = account_id_type();
       creator.fee = asset();
       char symbol[5] = "LOT";

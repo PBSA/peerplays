@@ -135,6 +135,7 @@ public:
    std::string operator()(const account_create_operation& op)const;
    std::string operator()(const account_update_operation& op)const;
    std::string operator()(const asset_create_operation& op)const;
+   std::string operator()(const lottery_asset_create_operation& op)const;
    std::string operator()(const asset_dividend_distribution_operation& op)const;
    std::string operator()(const tournament_payout_operation& op)const;
    std::string operator()(const bet_place_operation& op)const;
@@ -1454,7 +1455,7 @@ public:
       account_object issuer_account = get_account( issuer );
       FC_ASSERT(!find_asset(symbol).valid(), "Asset with that symbol already exists!");
 
-      asset_create_operation create_op;
+      lottery_asset_create_operation create_op;
       create_op.issuer = issuer_account.id;
       create_op.symbol = symbol;
       create_op.precision = 0;
@@ -3344,7 +3345,18 @@ std::string operation_printer::operator()(const asset_create_operation& op) cons
    if( op.bitasset_opts.valid() )
       out << "BitAsset ";
    else
-      out << "User-Issue Asset ";
+      out << "User-Issued Asset ";
+   out << "'" << op.symbol << "' with issuer " << wallet.get_account(op.issuer).name;
+   return fee(op.fee);
+}
+
+std::string operation_printer::operator()(const lottery_asset_create_operation& op) const
+{
+   out << "Create ";
+   if( op.bitasset_opts.valid() )
+      out << "BitAsset ";
+   else
+      out << "User-Issued Asset ";
    out << "'" << op.symbol << "' with issuer " << wallet.get_account(op.issuer).name;
    return fee(op.fee);
 }

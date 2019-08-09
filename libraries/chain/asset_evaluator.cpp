@@ -120,12 +120,6 @@ void_result asset_create_evaluator::do_evaluate( const asset_create_operation& o
       FC_ASSERT( op.precision == op.bitasset_opts->short_backing_asset(d).precision );
    }
    
-   if( op.extensions.which() == asset_extension::tag<lottery_asset_options>::value ) {
-      FC_ASSERT( op.common_options.max_supply >= 5 );
-      auto lottery_options = op.extensions.get<lottery_asset_options>();
-      lottery_options.validate();
-      FC_ASSERT( lottery_options.end_date > d.head_block_time() || lottery_options.end_date == time_point_sec() );
-   }
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -170,9 +164,159 @@ object_id_type asset_create_evaluator::do_apply( const asset_create_operation& o
          a.symbol = op.symbol;
          a.precision = op.precision;
          a.options = op.common_options;
+
+         if( a.options.core_exchange_rate.base.asset_id.instance.value == 0 )
+            a.options.core_exchange_rate.quote.asset_id = next_asset_id;
+         else
+            a.options.core_exchange_rate.base.asset_id = next_asset_id;
+
+         a.dynamic_asset_data_id = dyn_asset.id;
+         
+         if( op.bitasset_opts.valid() )
+            a.bitasset_data_id = bit_asset_id;
+      });
+   assert( new_asset.id == next_asset_id );
+
+   return new_asset.id;
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+void_result lottery_asset_create_evaluator::do_evaluate( const lottery_asset_create_operation& op )
+{ try {
+
+   database& d = db();
+
+   const auto& chain_parameters = d.get_global_properties().parameters;
+   FC_ASSERT( op.common_options.whitelist_authorities.size() <= chain_parameters.maximum_asset_whitelist_authorities );
+   FC_ASSERT( op.common_options.blacklist_authorities.size() <= chain_parameters.maximum_asset_whitelist_authorities );
+
+   // Check that all authorities do exist
+   for( auto id : op.common_options.whitelist_authorities )
+      d.get_object(id);
+   for( auto id : op.common_options.blacklist_authorities )
+      d.get_object(id);
+
+   auto& asset_indx = d.get_index_type<asset_index>().indices().get<by_symbol>();
+   auto asset_symbol_itr = asset_indx.find( op.symbol );
+   FC_ASSERT( asset_symbol_itr == asset_indx.end() );
+
+   if( d.head_block_time() > HARDFORK_385_TIME )
+   {
+
+   if( d.head_block_time() <= HARDFORK_409_TIME )
+   {
+      auto dotpos = op.symbol.find( '.' );
+      if( dotpos != std::string::npos )
+      {
+         auto prefix = op.symbol.substr( 0, dotpos );
+         auto asset_symbol_itr = asset_indx.find( op.symbol );
+         FC_ASSERT( asset_symbol_itr != asset_indx.end(), "Asset ${s} may only be created by issuer of ${p}, but ${p} has not been registered",
+                    ("s",op.symbol)("p",prefix) );
+         FC_ASSERT( asset_symbol_itr->issuer == op.issuer, "Asset ${s} may only be created by issuer of ${p}, ${i}",
+                    ("s",op.symbol)("p",prefix)("i", op.issuer(d).name) );
+      }
+   }
+   else
+   {
+      auto dotpos = op.symbol.rfind( '.' );
+      if( dotpos != std::string::npos )
+      
+      {
+         auto prefix = op.symbol.substr( 0, dotpos );
+         auto asset_symbol_itr = asset_indx.find( prefix );
+         FC_ASSERT( asset_symbol_itr != asset_indx.end(), "Asset ${s} may only be created by issuer of ${p}, but ${p} has not been registered",
+                    ("s",op.symbol)("p",prefix) );
+         FC_ASSERT( asset_symbol_itr->issuer == op.issuer, "Asset ${s} may only be created by issuer of ${p}, ${i}",
+                    ("s",op.symbol)("p",prefix)("i", op.issuer(d).name) );
+      }
+   }
+
+   }
+   else
+   {
+      auto dotpos = op.symbol.find( '.' );
+      if( dotpos != std::string::npos )
+          wlog( "Asset ${s} has a name which requires hardfork 385", ("s",op.symbol) );
+   }
+
+   // core_fee_paid -= core_fee_paid.value/2;
+
+   if( op.bitasset_opts )
+   {
+      const asset_object& backing = op.bitasset_opts->short_backing_asset(d);
+      if( backing.is_market_issued() )
+      {
+         const asset_bitasset_data_object& backing_bitasset_data = backing.bitasset_data(d);
+         const asset_object& backing_backing = backing_bitasset_data.options.short_backing_asset(d);
+         FC_ASSERT( !backing_backing.is_market_issued(),
+                    "May not create a bitasset backed by a bitasset backed by a bitasset." );
+         FC_ASSERT( op.issuer != GRAPHENE_COMMITTEE_ACCOUNT || backing_backing.get_id() == asset_id_type(),
+                    "May not create a blockchain-controlled market asset which is not backed by CORE.");
+      } else
+         FC_ASSERT( op.issuer != GRAPHENE_COMMITTEE_ACCOUNT || backing.get_id() == asset_id_type(),
+                    "May not create a blockchain-controlled market asset which is not backed by CORE.");
+      FC_ASSERT( op.bitasset_opts->feed_lifetime_sec > chain_parameters.block_interval &&
+                 op.bitasset_opts->force_settlement_delay_sec > chain_parameters.block_interval );
+   }
+   if( op.is_prediction_market )
+   {
+      FC_ASSERT( op.bitasset_opts );
+      FC_ASSERT( op.precision == op.bitasset_opts->short_backing_asset(d).precision );
+   }
+   
+   if( op.extensions.which() == asset_extension::tag<lottery_asset_options>::value ) {
+      FC_ASSERT( op.common_options.max_supply >= 5 );
+      auto lottery_options = op.extensions;
+      lottery_options.validate();
+      FC_ASSERT( lottery_options.end_date > d.head_block_time() || lottery_options.end_date == time_point_sec() );
+   }
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+// copied from bitshares. (https://github.com/bitshares/bitshares-core/issues/429)
+void lottery_asset_create_evaluator::pay_fee()
+{
+   fee_is_odd = core_fee_paid.value & 1;
+   core_fee_paid -= core_fee_paid.value/2;
+   generic_evaluator::pay_fee();
+}
+
+object_id_type lottery_asset_create_evaluator::do_apply( const lottery_asset_create_operation& op )
+{ try {
+   // includes changes from bitshares. (https://github.com/bitshares/bitshares-core/issues/429)
+   bool hf_429 = fee_is_odd && db().head_block_time() > HARDFORK_CORE_429_TIME;
+
+   const asset_dynamic_data_object& dyn_asset =
+      db().create<asset_dynamic_data_object>( [&]( asset_dynamic_data_object& a ) {
+         a.current_supply = 0;
+         a.fee_pool = core_fee_paid - (hf_429 ? 1 : 0);
+      });
+      if( fee_is_odd && !hf_429 )
+      {
+         const auto& core_dd = db().get<asset_object>( asset_id_type() ).dynamic_data( db() );
+         db().modify( core_dd, [=]( asset_dynamic_data_object& dd ) {
+            dd.current_supply++;
+         });
+      }
+
+   asset_bitasset_data_id_type bit_asset_id;
+   if( op.bitasset_opts.valid() )
+      bit_asset_id = db().create<asset_bitasset_data_object>( [&]( asset_bitasset_data_object& a ) {
+            a.options = *op.bitasset_opts;
+            a.is_prediction_market = op.is_prediction_market;
+         }).id;
+
+   auto next_asset_id = db().get_index_type<asset_index>().get_next_id();
+
+   const asset_object& new_asset =
+     db().create<asset_object>( [&]( asset_object& a ) {
+         a.issuer = op.issuer;
+         a.symbol = op.symbol;
+         a.precision = op.precision;
+         a.options = op.common_options;
          if( op.extensions.which() == asset_extension::tag<lottery_asset_options>::value ) {
             a.precision = 0;
-            a.lottery_options = op.extensions.get<lottery_asset_options>();            //a.lottery_options->balance = asset( 0, a.lottery_options->ticket_price.asset_id );
+            a.lottery_options = op.extensions;
+            //a.lottery_options->balance = asset( 0, a.lottery_options->ticket_price.asset_id );
             a.lottery_options->owner = a.id;
             db().create<lottery_balance_object>([&](lottery_balance_object& lbo) {
                lbo.lottery_id = a.id;

@@ -238,6 +238,7 @@ void database::initialize_evaluators()
    register_evaluator<tournament_join_evaluator>();
    register_evaluator<game_move_evaluator>();
    register_evaluator<tournament_leave_evaluator>();
+   register_evaluator<lottery_asset_create_evaluator>();
    register_evaluator<ticket_purchase_evaluator>();
    register_evaluator<lottery_reward_evaluator>();
    register_evaluator<lottery_end_evaluator>();
