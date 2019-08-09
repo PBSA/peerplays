@@ -1,3 +1,3 @@
 #ifndef HARDFORK_SWEEPS_TIME
-#define HARDFORK_SWEEPS_TIME (fc::time_point_sec( 1565272800 ))
+#define HARDFORK_SWEEPS_TIME (fc::time_point_sec( 1565391600 ))
 #endif
