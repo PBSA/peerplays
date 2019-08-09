@@ -262,13 +262,12 @@ void_result lottery_asset_create_evaluator::do_evaluate( const lottery_asset_cre
       FC_ASSERT( op.bitasset_opts );
       FC_ASSERT( op.precision == op.bitasset_opts->short_backing_asset(d).precision );
    }
-   
-   if( op.extensions.which() == asset_extension::tag<lottery_asset_options>::value ) {
-      FC_ASSERT( op.common_options.max_supply >= 5 );
-      auto lottery_options = op.extensions;
-      lottery_options.validate();
-      FC_ASSERT( lottery_options.end_date > d.head_block_time() || lottery_options.end_date == time_point_sec() );
-   }
+
+   FC_ASSERT( op.common_options.max_supply >= 5 );
+   auto lottery_options = op.extensions;
+   lottery_options.validate();
+   FC_ASSERT( lottery_options.end_date > d.head_block_time() || lottery_options.end_date == time_point_sec() );
+
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -313,15 +312,13 @@ object_id_type lottery_asset_create_evaluator::do_apply( const lottery_asset_cre
          a.symbol = op.symbol;
          a.precision = op.precision;
          a.options = op.common_options;
-         if( op.extensions.which() == asset_extension::tag<lottery_asset_options>::value ) {
-            a.precision = 0;
-            a.lottery_options = op.extensions;
-            //a.lottery_options->balance = asset( 0, a.lottery_options->ticket_price.asset_id );
-            a.lottery_options->owner = a.id;
-            db().create<lottery_balance_object>([&](lottery_balance_object& lbo) {
-               lbo.lottery_id = a.id;
-            });
-         }
+         a.precision = 0;
+         a.lottery_options = op.extensions;
+         //a.lottery_options->balance = asset( 0, a.lottery_options->ticket_price.asset_id );
+         a.lottery_options->owner = a.id;
+         db().create<lottery_balance_object>([&](lottery_balance_object& lbo) {
+            lbo.lottery_id = a.id;
+         });
          if( a.options.core_exchange_rate.base.asset_id.instance.value == 0 )
             a.options.core_exchange_rate.quote.asset_id = next_asset_id;
          else

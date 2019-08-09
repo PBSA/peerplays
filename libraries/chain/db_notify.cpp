@@ -269,6 +269,7 @@ struct get_impacted_account_visitor
       _impacted.insert( op.affiliate );
    }
    void operator()( const affiliate_referral_payout_operation& op ) { }
+   void operator()( const lottery_asset_create_operation& op ) {}
    void operator()( const ticket_purchase_operation& op )
    {
       _impacted.insert( op.buyer );
