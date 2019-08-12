@@ -226,3 +226,8 @@
 #define TOURNAMENT_MAX_WHITELIST_LENGTH                     1000
 #define TOURNAMENT_MAX_START_TIME_IN_FUTURE                 (60*60*24*7*4) // 1 month
 #define TOURNAMENT_MAX_START_DELAY                          (60*60*24*7) // 1 week
+
+#define SWEEPS_DEFAULT_DISTRIBUTION_PERCENTAGE              (2*GRAPHENE_1_PERCENT)
+#define SWEEPS_DEFAULT_DISTRIBUTION_ASSET                   (graphene::chain::asset_id_type(0))
+#define SWEEPS_VESTING_BALANCE_MULTIPLIER                   100000000
+#define SWEEPS_ACCUMULATOR_ACCOUNT                          (graphene::chain::account_id_type(0))

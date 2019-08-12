@@ -49,6 +49,7 @@ add_library( graphene_chain
              protocol/proposal.cpp
              protocol/withdraw_permission.cpp
              protocol/asset_ops.cpp
+             protocol/lottery_ops.cpp
              protocol/memo.cpp
              protocol/worker.cpp
              protocol/custom.cpp
@@ -72,6 +73,7 @@ add_library( graphene_chain
              witness_evaluator.cpp
              committee_member_evaluator.cpp
              asset_evaluator.cpp
+             lottery_evaluator.cpp
              transfer_evaluator.cpp
              proposal_evaluator.cpp
              market_evaluator.cpp

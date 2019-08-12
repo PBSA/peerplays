@@ -117,7 +117,14 @@ void account_history_plugin_impl::update_account_histories( const signed_block& 
          impacted.insert( op.result.get<object_id_type>() );
       else
          graphene::app::operation_get_impacted_accounts( op.op, impacted );
-
+      if( op.op.which() == operation::tag< lottery_end_operation >::value ) 
+      {
+         auto lop = op.op.get< lottery_end_operation >();
+         auto asset_object = lop.lottery( db );
+         impacted.insert( asset_object.issuer );
+         for( auto benefactor : asset_object.lottery_options->benefactors )
+            impacted.insert( benefactor.id );
+      }
       for( auto& a : other )
          for( auto& item : a.account_auths )
             impacted.insert( item.first );
