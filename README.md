@@ -36,12 +36,12 @@ export BOOST_ROOT=/root/boost_1_67_0
 export CC=gcc-5 ; export CXX=g++-5
 cd $HOME/src
 git clone https://github.com/peerplays-network/peerplays.git
-mkdir $HOME/peerplays/build; cd $HOME/src/peerplays/build
+mkdir $HOME/src/peerplays/build; cd $HOME/src/peerplays/build
 git submodule update --init --recursive
 cmake -DBOOST_ROOT="$BOOST_ROOT" -DCMAKE_BUILD_TYPE=Release ..
 make -j$(nproc)
 
-ake install # this can install the executable files under /usr/local
+make install # this can install the executable files under /usr/local
 ```
 
  Rest of the instructions on starting the chain remains same.
