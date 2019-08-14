@@ -32,13 +32,12 @@ cd boost_1_67_0/
 ## Building Peerplays
 
 ```
-export BOOST_ROOT=/root/boost_1_67_0
-export CC=gcc-5 ; export CXX=g++-5
 cd $HOME/src
+export BOOST_ROOT=$HOME/src/boost_1_67_0
 git clone https://github.com/peerplays-network/peerplays.git
-mkdir $HOME/src/peerplays/build; cd $HOME/src/peerplays/build
+cd peerplays
 git submodule update --init --recursive
-cmake -DBOOST_ROOT="$BOOST_ROOT" -DCMAKE_BUILD_TYPE=Release ..
+cmake -DBOOST_ROOT="$BOOST_ROOT" -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
 
 make install # this can install the executable files under /usr/local
