@@ -228,6 +228,7 @@ map< account_id_type, vector< uint16_t > > asset_object::distribute_winners_part
       auto winner_num = winner_numbers[c];
       lottery_reward_operation reward_op;
       reward_op.lottery = get_id();
+      reward_op.is_benefactor_reward = false;
       reward_op.winner = holders[winner_num];
       reward_op.win_percentage = tickets[c];
       reward_op.amount = asset( jackpot * tickets[c] * ( 1. - sweeps_distribution_percentage / (double)GRAPHENE_100_PERCENT ) / GRAPHENE_100_PERCENT , db.get_balance(id).asset_id );
