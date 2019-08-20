@@ -18,6 +18,7 @@ RUN \
       libreadline-dev \
       libssl-dev \
       libtool \
+      pkg-config \
       ntp \
       wget \
     && \
@@ -29,7 +30,7 @@ RUN \
 ADD . /peerplays-core
 WORKDIR /peerplays-core
 
-# Compile
+# Compile Boost
 RUN \
     git submodule update --init --recursive && \
     BOOST_ROOT=$HOME/boost_1_67_0 && \
@@ -38,7 +39,11 @@ RUN \
     cd boost_1_67_0/ && \
     ./bootstrap.sh "--prefix=$BOOST_ROOT" && \
     ./b2 install && \
-    cd .. && \
+    cd ..
+
+# Compile Boost
+RUN \
+    BOOST_ROOT=$HOME/boost_1_67_0 && \
     mkdir build && \
     mkdir build/release && \
     cd build/release && \
