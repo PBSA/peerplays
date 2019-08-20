@@ -43,3 +43,4 @@ object_database/*
 *.pyo
 .vscode
 .DS_Store
+.idea
