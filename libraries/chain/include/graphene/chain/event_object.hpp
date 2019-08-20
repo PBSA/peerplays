@@ -27,6 +27,7 @@
 #include <graphene/db/object.hpp>
 #include <graphene/db/generic_index.hpp>
 #include <graphene/chain/protocol/event.hpp>
+#include <sstream>
 
 #include <boost/multi_index/composite_key.hpp>
 

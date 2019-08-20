@@ -3,7 +3,6 @@
     url = https://github.com/bitshares/bitshares-core.wiki.git
     ignore = dirty
 [submodule "libraries/fc"]
-    path = libraries/fc
-    url = https://github.com/PBSA/peerplays-fc.git
-    branch = feature/ubuntu18.04-upgrade
-    ignore = dirty
+	path = libraries/fc
+	url = https://github.com/PBSA/peerplays-fc.git
+  ignore = dirty

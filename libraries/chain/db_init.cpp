@@ -59,6 +59,7 @@
 
 #include <graphene/chain/account_evaluator.hpp>
 #include <graphene/chain/asset_evaluator.hpp>
+#include <graphene/chain/lottery_evaluator.hpp>
 #include <graphene/chain/assert_evaluator.hpp>
 #include <graphene/chain/balance_evaluator.hpp>
 #include <graphene/chain/committee_member_evaluator.hpp>
@@ -237,6 +238,11 @@ void database::initialize_evaluators()
    register_evaluator<tournament_join_evaluator>();
    register_evaluator<game_move_evaluator>();
    register_evaluator<tournament_leave_evaluator>();
+   register_evaluator<lottery_asset_create_evaluator>();
+   register_evaluator<ticket_purchase_evaluator>();
+   register_evaluator<lottery_reward_evaluator>();
+   register_evaluator<lottery_end_evaluator>();
+   register_evaluator<sweeps_vesting_claim_evaluator>();
 }
 
 void database::initialize_indexes()
@@ -301,6 +307,10 @@ void database::initialize_indexes()
    //add_index< primary_index<distributed_dividend_balance_object_index > >();
    add_index< primary_index<pending_dividend_payout_balance_for_holder_object_index > >();
    add_index< primary_index<total_distributed_dividend_balance_object_index > >();
+   
+   add_index< primary_index<lottery_balance_index                         > >();
+   add_index< primary_index<sweeps_vesting_balance_index                  > >();
+
 }
 
 void database::init_genesis(const genesis_state_type& genesis_state)
@@ -852,7 +862,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    std::for_each(genesis_state.initial_witness_candidates.begin(), genesis_state.initial_witness_candidates.end(),
                  [&](const genesis_state_type::initial_witness_type& witness) {
       witness_create_operation op;
-      op.initial_secret = secret_hash_type::hash(secret_hash_type());
+      op.initial_secret = secret_hash_type();
       op.witness_account = get_account_id(witness.owner_name);
       op.block_signing_key = witness.block_signing_key;
       apply_operation(genesis_eval_state, op);

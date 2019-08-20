@@ -792,8 +792,8 @@ void schedule_pending_dividend_balances(database& db,
    auto current_distribution_account_balance_iter = current_distribution_account_balance_range.first;
    auto previous_distribution_account_balance_iter = previous_distribution_account_balance_range.first;
    dlog("Current balances in distribution account: ${current}, Previous balances: ${previous}",
-        ("current", std::distance(current_distribution_account_balance_range.first, current_distribution_account_balance_range.second))
-        ("previous", std::distance(previous_distribution_account_balance_range.first, previous_distribution_account_balance_range.second)));
+        ("current", (int64_t)std::distance(current_distribution_account_balance_range.first, current_distribution_account_balance_range.second))
+        ("previous", (int64_t)std::distance(previous_distribution_account_balance_range.first, previous_distribution_account_balance_range.second)));
 
    // when we pay out the dividends to the holders, we need to know the total balance of the dividend asset in all
    // accounts other than the distribution account (it would be silly to distribute dividends back to 
