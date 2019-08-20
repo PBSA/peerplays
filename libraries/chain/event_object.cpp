@@ -553,30 +553,30 @@ namespace graphene { namespace chain {
 
 namespace fc { 
    // Manually reflect event_object to variant to properly reflect "state"
-   void to_variant(const graphene::chain::event_object& event_obj, fc::variant& v)
+   void to_variant(const graphene::chain::event_object& event_obj, fc::variant& v, uint32_t max_depth)
    {
       fc::mutable_variant_object o;
-      o("id", event_obj.id)
-       ("name", event_obj.name)
-       ("season", event_obj.season)
-       ("start_time", event_obj.start_time)
-       ("event_group_id", event_obj.event_group_id)
-       ("scores", event_obj.scores)
-       ("status", event_obj.get_status());
+      o("id", fc::variant(event_obj.id, max_depth))
+       ("name", fc::variant(event_obj.name, max_depth))
+       ("season", fc::variant(event_obj.season, max_depth))
+       ("start_time", fc::variant(event_obj.start_time, max_depth))
+       ("event_group_id", fc::variant(event_obj.event_group_id, max_depth))
+       ("scores", fc::variant(event_obj.scores, max_depth))
+       ("status", fc::variant(event_obj.get_status(), max_depth));
 
       v = o;
    }
 
    // Manually reflect event_object to variant to properly reflect "state"
-   void from_variant(const fc::variant& v, graphene::chain::event_object& event_obj)
+   void from_variant(const fc::variant& v, graphene::chain::event_object& event_obj, uint32_t max_depth)
    {
-      event_obj.id = v["id"].as<graphene::chain::event_id_type>();
-      event_obj.name = v["name"].as<graphene::chain::internationalized_string_type>();
-      event_obj.season = v["season"].as<graphene::chain::internationalized_string_type>();
-      event_obj.start_time = v["start_time"].as<optional<time_point_sec> >();
-      event_obj.event_group_id = v["event_group_id"].as<graphene::chain::event_group_id_type>();
-      event_obj.scores = v["scores"].as<std::vector<std::string>>();
-      graphene::chain::event_status status = v["status"].as<graphene::chain::event_status>();
+      event_obj.id = v["id"].as<graphene::chain::event_id_type>( max_depth );
+      event_obj.name = v["name"].as<graphene::chain::internationalized_string_type>( max_depth );
+      event_obj.season = v["season"].as<graphene::chain::internationalized_string_type>( max_depth );
+      event_obj.start_time = v["start_time"].as<optional<time_point_sec> >( max_depth );
+      event_obj.event_group_id = v["event_group_id"].as<graphene::chain::event_group_id_type>( max_depth );
+      event_obj.scores = v["scores"].as<std::vector<std::string>>( max_depth );
+      graphene::chain::event_status status = v["status"].as<graphene::chain::event_status>( max_depth );
       const_cast<int*>(event_obj.my->state_machine.current_state())[0] = (int)status;
    }
 } //end namespace fc

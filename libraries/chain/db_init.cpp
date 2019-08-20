@@ -739,7 +739,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
                vbo.owner = get_account_id(account.name);
                vbo.balance = asset(vesting_balance.amount, get_asset_id(vesting_balance.asset_symbol));
                if (vesting_balance.policy_type == "linear") {
-                  auto initial_linear_vesting_policy = vesting_balance.policy.as<genesis_state_type::initial_bts_account_type::initial_linear_vesting_policy>();
+                  auto initial_linear_vesting_policy = vesting_balance.policy.as<genesis_state_type::initial_bts_account_type::initial_linear_vesting_policy>( 20 );
                   linear_vesting_policy new_vesting_policy;
                   new_vesting_policy.begin_timestamp = initial_linear_vesting_policy.begin_timestamp;
                   new_vesting_policy.vesting_cliff_seconds = initial_linear_vesting_policy.vesting_cliff_seconds;
@@ -747,7 +747,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
                   new_vesting_policy.begin_balance = initial_linear_vesting_policy.begin_balance;
                   vbo.policy = new_vesting_policy;
                } else if (vesting_balance.policy_type == "cdd") {
-                  auto initial_cdd_vesting_policy = vesting_balance.policy.as<genesis_state_type::initial_bts_account_type::initial_cdd_vesting_policy>();
+                  auto initial_cdd_vesting_policy = vesting_balance.policy.as<genesis_state_type::initial_bts_account_type::initial_cdd_vesting_policy>( 20 );
                   cdd_vesting_policy new_vesting_policy;
                   new_vesting_policy.vesting_seconds = initial_cdd_vesting_policy.vesting_seconds;
                   new_vesting_policy.coin_seconds_earned = initial_cdd_vesting_policy.coin_seconds_earned;

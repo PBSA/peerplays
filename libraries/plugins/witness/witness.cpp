@@ -93,7 +93,7 @@ void witness_plugin::plugin_initialize(const boost::program_options::variables_m
    _options = &options;
    LOAD_VALUE_SET(options, "witness-id", _witnesses, chain::witness_id_type)
    if (options.count("witness-ids"))
-      boost::insert(_witnesses, fc::json::from_string(options.at("witness-ids").as<string>()).as<vector<chain::witness_id_type>>());
+      boost::insert(_witnesses, fc::json::from_string(options.at("witness-ids").as<string>()).as<vector<chain::witness_id_type>>( 5 ));
 
    if( options.count("private-key") )
    {

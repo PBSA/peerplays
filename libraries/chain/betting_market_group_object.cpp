@@ -543,35 +543,35 @@ void betting_market_group_object::dispatch_new_status(database& db, betting_mark
 
 namespace fc { 
    // Manually reflect betting_market_group_object to variant to properly reflect "state"
-   void to_variant(const graphene::chain::betting_market_group_object& betting_market_group_obj, fc::variant& v)
+   void to_variant(const graphene::chain::betting_market_group_object& betting_market_group_obj, fc::variant& v, uint32_t max_depth)
    {
       fc::mutable_variant_object o;
-      o("id", betting_market_group_obj.id)
-       ("description", betting_market_group_obj.description)
-       ("event_id", betting_market_group_obj.event_id)
-       ("rules_id", betting_market_group_obj.rules_id)
-       ("asset_id", betting_market_group_obj.asset_id)
-       ("total_matched_bets_amount", betting_market_group_obj.total_matched_bets_amount)
-       ("never_in_play", betting_market_group_obj.never_in_play)
-       ("delay_before_settling", betting_market_group_obj.delay_before_settling)
-       ("settling_time", betting_market_group_obj.settling_time)
-       ("status", betting_market_group_obj.get_status());
+      o("id", fc::variant(betting_market_group_obj.id, max_depth))
+       ("description", fc::variant(betting_market_group_obj.description, max_depth))
+       ("event_id", fc::variant(betting_market_group_obj.event_id, max_depth))
+       ("rules_id", fc::variant(betting_market_group_obj.rules_id, max_depth))
+       ("asset_id", fc::variant(betting_market_group_obj.asset_id, max_depth))
+       ("total_matched_bets_amount", fc::variant(betting_market_group_obj.total_matched_bets_amount, max_depth))
+       ("never_in_play", fc::variant(betting_market_group_obj.never_in_play, max_depth))
+       ("delay_before_settling", fc::variant(betting_market_group_obj.delay_before_settling, max_depth))
+       ("settling_time", fc::variant(betting_market_group_obj.settling_time, max_depth))
+       ("status", fc::variant(betting_market_group_obj.get_status(), max_depth));
 
       v = o;
    }
 
    // Manually reflect betting_market_group_object to variant to properly reflect "state"
-   void from_variant(const fc::variant& v, graphene::chain::betting_market_group_object& betting_market_group_obj)
+   void from_variant(const fc::variant& v, graphene::chain::betting_market_group_object& betting_market_group_obj, uint32_t max_depth)
    {
-      betting_market_group_obj.id = v["id"].as<graphene::chain::betting_market_group_id_type>();
-      betting_market_group_obj.description = v["description"].as<graphene::chain::internationalized_string_type>();
-      betting_market_group_obj.event_id = v["event_id"].as<graphene::chain::event_id_type>();
-      betting_market_group_obj.asset_id = v["asset_id"].as<graphene::chain::asset_id_type>();
-      betting_market_group_obj.total_matched_bets_amount = v["total_matched_bets_amount"].as<graphene::chain::share_type>();
-      betting_market_group_obj.never_in_play = v["never_in_play"].as<bool>();
-      betting_market_group_obj.delay_before_settling = v["delay_before_settling"].as<uint32_t>();
-      betting_market_group_obj.settling_time = v["settling_time"].as<fc::optional<fc::time_point_sec>>();
-      graphene::chain::betting_market_group_status status = v["status"].as<graphene::chain::betting_market_group_status>();
+      betting_market_group_obj.id = v["id"].as<graphene::chain::betting_market_group_id_type>( max_depth );
+      betting_market_group_obj.description = v["description"].as<graphene::chain::internationalized_string_type>( max_depth );
+      betting_market_group_obj.event_id = v["event_id"].as<graphene::chain::event_id_type>( max_depth );
+      betting_market_group_obj.asset_id = v["asset_id"].as<graphene::chain::asset_id_type>( max_depth );
+      betting_market_group_obj.total_matched_bets_amount = v["total_matched_bets_amount"].as<graphene::chain::share_type>( max_depth );
+      betting_market_group_obj.never_in_play = v["never_in_play"].as<bool>( max_depth );
+      betting_market_group_obj.delay_before_settling = v["delay_before_settling"].as<uint32_t>( max_depth );
+      betting_market_group_obj.settling_time = v["settling_time"].as<fc::optional<fc::time_point_sec>>( max_depth );
+      graphene::chain::betting_market_group_status status = v["status"].as<graphene::chain::betting_market_group_status>( max_depth );
       const_cast<int*>(betting_market_group_obj.my->state_machine.current_state())[0] = (int)status;
    }
 } //end namespace fc

@@ -218,7 +218,7 @@ namespace graphene { namespace app {
 
             if (_on_pending_transaction)
             {
-                _on_pending_transaction(fc::variant(transaction));
+                _on_pending_transaction(fc::variant(transaction, GRAPHENE_MAX_NESTED_OBJECTS));
             }
         });
 

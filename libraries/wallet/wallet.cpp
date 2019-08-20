@@ -378,8 +378,8 @@ private:
          {
             try
             {
-               object_id_type id = changed_object_variant["id"].as<tournament_id_type>();
-               tournament_object current_tournament_obj = changed_object_variant.as<tournament_object>();
+               object_id_type id = changed_object_variant["id"].as<tournament_id_type>( GRAPHENE_MAX_NESTED_OBJECTS );
+               tournament_object current_tournament_obj = changed_object_variant.as<tournament_object>( GRAPHENE_MAX_NESTED_OBJECTS );
                auto tournament_cache_iter = tournament_cache.find(id);
                if (tournament_cache_iter != tournament_cache.end())
                {
@@ -411,8 +411,8 @@ private:
             }
             try
             {
-               object_id_type id = changed_object_variant["id"].as<match_id_type>();
-               match_object current_match_obj = changed_object_variant.as<match_object>();
+               object_id_type id = changed_object_variant["id"].as<match_id_type>( GRAPHENE_MAX_NESTED_OBJECTS );
+               match_object current_match_obj = changed_object_variant.as<match_object>( GRAPHENE_MAX_NESTED_OBJECTS );
                auto match_cache_iter = match_cache.find(id);
                if (match_cache_iter != match_cache.end())
                {
@@ -436,8 +436,8 @@ private:
             }
             try
             {
-               object_id_type id = changed_object_variant["id"].as<game_id_type>();
-               game_object current_game_obj = changed_object_variant.as<game_object>();
+               object_id_type id = changed_object_variant["id"].as<game_id_type>( GRAPHENE_MAX_NESTED_OBJECTS );
+               game_object current_game_obj = changed_object_variant.as<game_object>( GRAPHENE_MAX_NESTED_OBJECTS );
                auto game_cache_iter = game_cache.find(id);
                if (game_cache_iter != game_cache.end())
                {
@@ -460,10 +460,10 @@ private:
             }
             try
             {
-               object_id_type id = changed_object_variant["id"].as<account_id_type>();
+               object_id_type id = changed_object_variant["id"].as<account_id_type>( GRAPHENE_MAX_NESTED_OBJECTS );
                if (_wallet.my_accounts.find(id) != _wallet.my_accounts.end())
                {
-                  account_object account = changed_object_variant.as<account_object>();
+                  account_object account = changed_object_variant.as<account_object>( GRAPHENE_MAX_NESTED_OBJECTS );
                   _wallet.update_account(account);
                }
                continue;
@@ -2516,29 +2516,6 @@ public:
          return ss.str();
       };
 
-      m["get_account_history_by_operations"] = [this](variant result, const fc::variants& a) {
-          auto r = result.as<account_history_operation_detail>( GRAPHENE_MAX_NESTED_OBJECTS );
-          std::stringstream ss;
-          ss << "total_count : ";
-          ss << r.total_count;
-          ss << " \n";
-          ss << "result_count : ";
-          ss << r.result_count;
-          ss << " \n";
-          for (operation_detail_ex& d : r.details) {
-              operation_history_object& i = d.op;
-              auto b = _remote_db->get_block_header(i.block_num);
-              FC_ASSERT(b);
-              ss << b->timestamp.to_iso_string() << " ";
-              i.op.visit(operation_printer(ss, *this, i.result));
-              ss << " transaction_id : ";
-              ss << d.transaction_id.str();
-              ss << " \n";
-          }
-
-          return ss.str();
-      };
-
       m["list_account_balances"] = [this](variant result, const fc::variants& a)
       {
          auto r = result.as<vector<asset>>( GRAPHENE_MAX_NESTED_OBJECTS );
@@ -2558,7 +2535,7 @@ public:
       {
          std::stringstream ss;
 
-         auto balances = result.as<vector<account_balance_object>>();
+         auto balances = result.as<vector<account_balance_object>>( GRAPHENE_MAX_NESTED_OBJECTS );
          for (const account_balance_object& balance: balances)
          {
              const account_object& account = get_account(balance.owner);
@@ -2634,14 +2611,14 @@ public:
       };
       m["get_upcoming_tournaments"] = m["get_tournaments"] = m["get_tournaments_by_state"] = [this](variant result, const fc::variants& a)
       {
-         const vector<tournament_object> tournaments = result.as<vector<tournament_object> >();
+         const vector<tournament_object> tournaments = result.as<vector<tournament_object> >( GRAPHENE_MAX_NESTED_OBJECTS );
          std::stringstream ss;
          ss << "ID       GAME                  BUY IN    PLAYERS\n";
          ss << "====================================================================================\n";
          for( const tournament_object& tournament_obj : tournaments )
          {
             asset_object buy_in_asset = get_asset(tournament_obj.options.buy_in.asset_id);
-            ss << fc::variant(tournament_obj.id).as<std::string>() << "  " 
+            ss << fc::variant(tournament_obj.id, 1).as<std::string>( 1 ) << "  "
                << buy_in_asset.amount_to_pretty_string(tournament_obj.options.buy_in.amount) << "  "
                << tournament_obj.options.number_of_players << " players\n";
             switch (tournament_obj.get_state())
@@ -2684,8 +2661,8 @@ public:
       {
          std::stringstream ss;
 
-         tournament_object tournament = result.as<tournament_object>();
-         tournament_details_object tournament_details = _remote_db->get_objects({result["tournament_details_id"].as<object_id_type>()})[0].as<tournament_details_object>();
+         tournament_object tournament = result.as<tournament_object>( GRAPHENE_MAX_NESTED_OBJECTS );
+         tournament_details_object tournament_details = _remote_db->get_objects({result["tournament_details_id"].as<object_id_type>( 5 )})[0].as<tournament_details_object>( 5 );
          tournament_state state = tournament.get_state();
          if (state == tournament_state::accepting_registrations)
          {
@@ -2994,7 +2971,7 @@ public:
       const chain_parameters& current_params = get_global_properties().parameters;
       asset_update_dividend_operation changed_op;
       fc::reflector<asset_update_dividend_operation>::visit(
-         fc::from_variant_visitor<asset_update_dividend_operation>( changed_values, changed_op )
+         fc::from_variant_visitor<asset_update_dividend_operation>( changed_values, changed_op, GRAPHENE_MAX_NESTED_OBJECTS )
          );
 
       optional<asset_object> asset_to_update = find_asset(changed_op.asset_to_update);
@@ -5817,7 +5794,7 @@ vector<tournament_object> wallet_api::get_tournaments_by_state(tournament_id_typ
 
 tournament_object wallet_api::get_tournament(tournament_id_type id)
 {
-   return my->_remote_db->get_objects({id})[0].as<tournament_object>();
+   return my->_remote_db->get_objects({id})[0].as<tournament_object>( GRAPHENE_MAX_NESTED_OBJECTS );
 }
 
 signed_transaction wallet_api::rps_throw(game_id_type game_id,
