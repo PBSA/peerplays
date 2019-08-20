@@ -25,7 +25,7 @@
 #define DEFAULT_LOGGER "betting"
 #include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/database.hpp>
-#include <boost/math/common_factor_rt.hpp>
+#include <boost/integer/common_factor_rt.hpp>
 
 #include <boost/msm/back/state_machine.hpp>
 #include <boost/msm/front/state_machine_def.hpp>
@@ -101,7 +101,7 @@ share_type bet_object::get_exact_matching_amount() const
 
 /* static */ std::pair<share_type, share_type> bet_object::get_ratio(bet_multiplier_type backer_multiplier)
 {
-   share_type gcd = boost::math::gcd<bet_multiplier_type>(GRAPHENE_BETTING_ODDS_PRECISION, backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION);
+   share_type gcd = boost::integer::gcd(GRAPHENE_BETTING_ODDS_PRECISION, static_cast<int32_t>(backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION));
    return std::make_pair(GRAPHENE_BETTING_ODDS_PRECISION / gcd, (backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION) / gcd);
 }
 
@@ -112,13 +112,13 @@ std::pair<share_type, share_type> bet_object::get_ratio() const
 
 share_type bet_object::get_minimum_matchable_amount() const
 {
-   share_type gcd = boost::math::gcd<bet_multiplier_type>(GRAPHENE_BETTING_ODDS_PRECISION, backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION);
+   share_type gcd = boost::integer::gcd(GRAPHENE_BETTING_ODDS_PRECISION, static_cast<int32_t>(backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION));
    return (back_or_lay == bet_type::back ? GRAPHENE_BETTING_ODDS_PRECISION : backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION) / gcd;
 }
 
 share_type bet_object::get_minimum_matching_amount() const
 {
-   share_type gcd = boost::math::gcd<bet_multiplier_type>(GRAPHENE_BETTING_ODDS_PRECISION, backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION);
+   share_type gcd = boost::integer::gcd(GRAPHENE_BETTING_ODDS_PRECISION, static_cast<int32_t>(backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION));
    return (back_or_lay == bet_type::lay ? GRAPHENE_BETTING_ODDS_PRECISION : backer_multiplier - GRAPHENE_BETTING_ODDS_PRECISION) / gcd;
 }
 

@@ -5,4 +5,5 @@
 [submodule "libraries/fc"]
     path = libraries/fc
     url = https://github.com/PBSA/peerplays-fc.git
+    branch = feature/ubuntu18.04-upgrade
     ignore = dirty
