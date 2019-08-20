@@ -114,12 +114,6 @@ struct market_trade
    double                     value;
 };
 
-struct gpos_info {
-   double vesting_factor;
-   asset award;
-   share_type total_amount;
-};
-
 /**
  * @brief The database_api class implements the RPC API for the chain database.
  *
@@ -348,7 +342,29 @@ class database_api
        * This function has semantics identical to @ref get_objects
        */
       vector<optional<asset_object>> lookup_asset_symbols(const vector<string>& symbols_or_ids)const;
-
+   
+      ////////////////////
+      // Lottery Assets //
+      ////////////////////
+      /**
+       * @brief Get a list of lottery assets
+       * @return The lottery assets between start and stop ids
+       */
+      vector<asset_object> get_lotteries( asset_id_type stop  = asset_id_type(),
+                                          unsigned limit = 100,
+                                          asset_id_type start = asset_id_type() )const;
+      vector<asset_object> get_account_lotteries( account_id_type issuer, 
+                                                  asset_id_type stop,
+                                                  unsigned limit,
+                                                  asset_id_type start )const;
+      sweeps_vesting_balance_object get_sweeps_vesting_balance_object( account_id_type account )const;
+      asset get_sweeps_vesting_balance_available_for_claim( account_id_type account )const;
+      /**
+       * @brief Get balance of lottery assets
+       */
+      asset get_lottery_balance( asset_id_type lottery_id ) const;
+   
+   
       /////////////////////
       // Peerplays       //
       /////////////////////
@@ -651,17 +667,7 @@ class database_api
        */
       vector<tournament_id_type> get_registered_tournaments(account_id_type account_filter, uint32_t limit) const;
 
-      //////////
-      // GPOS //
-      //////////
-      /**
-       * @return account and network GPOS information
-       */
-      gpos_info get_gpos_info(const account_id_type account) const;
-
-
-
-private:
+   private:
       std::shared_ptr< database_api_impl > my;
 };
 
@@ -672,8 +678,6 @@ FC_REFLECT( graphene::app::order_book, (base)(quote)(bids)(asks) );
 FC_REFLECT( graphene::app::market_ticker, (base)(quote)(latest)(lowest_ask)(highest_bid)(percent_change)(base_volume)(quote_volume) );
 FC_REFLECT( graphene::app::market_volume, (base)(quote)(base_volume)(quote_volume) );
 FC_REFLECT( graphene::app::market_trade, (date)(price)(amount)(value) );
-FC_REFLECT( graphene::app::gpos_info, (vesting_factor)(award)(total_amount) );
-
 
 FC_API(graphene::app::database_api,
    // Objects
@@ -734,6 +738,13 @@ FC_API(graphene::app::database_api,
    (get_unmatched_bets_for_bettor)
    (get_all_unmatched_bets_for_bettor)
 
+   // Sweeps
+   (get_lotteries)
+   (get_account_lotteries)
+   (get_lottery_balance)
+   (get_sweeps_vesting_balance_object)
+   (get_sweeps_vesting_balance_available_for_claim)
+   
    // Markets / feeds
    (get_order_book)
    (get_limit_orders)
@@ -783,7 +794,4 @@ FC_API(graphene::app::database_api,
    (get_tournaments_by_state)
    (get_tournaments )
    (get_registered_tournaments)
-
-   // gpos
-   (get_gpos_info)
 )

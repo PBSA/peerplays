@@ -26,6 +26,7 @@
 
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/asset_object.hpp>
+#include <graphene/chain/balance_object.hpp>
 #include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/witness_object.hpp>
 
@@ -43,6 +44,15 @@ asset database::get_balance(account_id_type owner, asset_id_type asset_id) const
 asset database::get_balance(const account_object& owner, const asset_object& asset_obj) const
 {
    return get_balance(owner.get_id(), asset_obj.get_id());
+}
+
+asset database::get_balance(asset_id_type lottery_id)const
+{
+   auto& index = get_index_type<lottery_balance_index>().indices().get<by_owner>();
+   auto itr = index.find( lottery_id );
+   if( itr == index.end() )
+      return asset(0, asset_id_type( ));
+   return itr->get_balance();
 }
 
 string database::to_pretty_string( const asset& a )const
@@ -77,6 +87,64 @@ void database::adjust_balance(account_id_type account, asset delta )
    }
 
 } FC_CAPTURE_AND_RETHROW( (account)(delta) ) }
+
+
+void database::adjust_balance(asset_id_type lottery_id, asset delta)
+{
+   if( delta.amount == 0 )
+      return;
+
+   auto& index = get_index_type<lottery_balance_index>().indices().get<by_owner>();
+   auto itr = index.find(lottery_id);
+   if(itr == index.end())
+   {
+      FC_ASSERT( delta.amount > 0, "Insufficient Balance: ${a}'s balance  is less than required ${r}",
+                 ("a",lottery_id)
+                 ("b","test")
+                 ("r",to_pretty_string(-delta)));
+      create<lottery_balance_object>([lottery_id,&delta](lottery_balance_object& b) {
+         b.lottery_id = lottery_id;
+         b.balance = asset(delta.amount, delta.asset_id);
+      });
+   } else {
+      if( delta.amount < 0 )
+         FC_ASSERT( itr->get_balance() >= -delta, "Insufficient Balance: ${a}'s balance of ${b} is less than required ${r}", ("a",lottery_id)("b",to_pretty_string(itr->get_balance()))("r",to_pretty_string(-delta)));
+      modify(*itr, [delta](lottery_balance_object& b) {
+         b.adjust_balance(delta);
+      });
+   }
+}
+
+
+void database::adjust_sweeps_vesting_balance(account_id_type account, int64_t delta)
+{
+   if( delta == 0 )
+      return;
+   
+   asset_id_type asset_id = get_global_properties().parameters.sweeps_distribution_asset();
+   
+   auto& index = get_index_type<sweeps_vesting_balance_index>().indices().get<by_owner>();
+   auto itr = index.find(account);
+   if(itr == index.end())
+   {
+      FC_ASSERT( delta > 0, "Insufficient Balance: ${a}'s balance of ${b} is less than required ${r}",
+                 ("a",account)
+                 ("b","test")
+                 ("r",-delta));
+      create<sweeps_vesting_balance_object>([account,&delta,&asset_id](sweeps_vesting_balance_object& b) {
+         b.owner = account;
+         b.asset_id = asset_id;
+         b.balance = delta;
+      });
+   } else {
+      if( delta < 0 )
+         FC_ASSERT( itr->get_balance() >= -delta, "Insufficient Balance: ${a}'s balance of ${b} is less than required ${r}", ("a",account)("b",itr->get_balance())("r",-delta));
+      modify(*itr, [&delta,&asset_id,this](sweeps_vesting_balance_object& b) {
+         b.adjust_balance( asset( delta, asset_id ) );
+         b.last_claim_date = head_block_time();
+      });
+   }
+}
 
 optional< vesting_balance_id_type > database::deposit_lazy_vesting(
    const optional< vesting_balance_id_type >& ovbid,

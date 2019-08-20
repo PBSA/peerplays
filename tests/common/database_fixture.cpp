@@ -177,6 +177,7 @@ void database_fixture::verify_asset_supplies( const database& db )
    const auto& balance_index = db.get_index_type<account_balance_index>().indices();
    const auto& settle_index = db.get_index_type<force_settlement_index>().indices();
    const auto& tournaments_index = db.get_index_type<tournament_index>().indices();
+   const auto& asst_index = db.get_index_type<asset_index>().indices();
 
    map<asset_id_type,share_type> total_balances;
    map<asset_id_type,share_type> total_debts;
@@ -187,6 +188,11 @@ void database_fixture::verify_asset_supplies( const database& db )
       if (t.get_state() != tournament_state::concluded && t.get_state() != tournament_state::registration_period_expired)
         total_balances[t.options.buy_in.asset_id] += t.prize_pool;
 
+   for( const asset_object& ai : asst_index)
+      if (ai.is_lottery()) {
+         asset balance = db.get_balance( ai.get_id() );
+         total_balances[ balance.asset_id ] += balance.amount;
+      }
    for( const account_balance_object& b : balance_index )
       total_balances[b.asset_type] += b.balance;
    for( const force_settlement_object& s : settle_index )
@@ -239,6 +245,12 @@ void database_fixture::verify_asset_supplies( const database& db )
       total_balances[betting_market_group.asset_id] += o.fees_collected;
    }
 
+   
+   uint64_t sweeps_vestings = 0;
+   for( const sweeps_vesting_balance_object& svbo: db.get_index_type< sweeps_vesting_balance_index >().indices() )
+      sweeps_vestings += svbo.balance;
+   
+   total_balances[db.get_global_properties().parameters.sweeps_distribution_asset()] += sweeps_vestings / SWEEPS_VESTING_BALANCE_MULTIPLIER;
    total_balances[asset_id_type()] += db.get_dynamic_global_properties().witness_budget;
 
    for( const auto& item : total_debts )
@@ -485,7 +497,7 @@ const asset_object& database_fixture::create_bitasset(
    if( issuer == GRAPHENE_WITNESS_ACCOUNT )
       flags |= witness_fed_asset;
    creator.common_options.issuer_permissions = flags;
-   creator.common_options.flags = flags & ~global_settle;
+   creator.common_options.flags = flags & ~global_settle & ~witness_fed_asset;
    creator.common_options.core_exchange_rate = price({asset(1,asset_id_type(1)),asset(1)});
    creator.bitasset_opts = bitasset_options();
    trx.operations.push_back(std::move(creator));
@@ -699,6 +711,7 @@ const witness_object& database_fixture::create_witness( const account_object& ow
    witness_create_operation op;
    op.witness_account = owner.id;
    op.block_signing_key = signing_private_key.get_public_key();
+   
    secret_hash_type::encoder enc;
    fc::raw::pack(enc, signing_private_key);
    fc::raw::pack(enc, secret_hash_type());
