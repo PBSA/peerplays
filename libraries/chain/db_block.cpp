@@ -588,6 +588,8 @@ void database::_apply_block( const signed_block& next_block )
 
    _current_block_num    = next_block_num;
    _current_trx_in_block = 0;
+   _current_op_in_trx    = 0;
+   _current_virtual_op   = 0;
 
    for( const auto& trx : next_block.transactions )
    {
@@ -597,8 +599,16 @@ void database::_apply_block( const signed_block& next_block )
        * for transactions when validating broadcast transactions or
        * when building a block.
        */
+
       apply_transaction( trx, skip );
+      // For real operations which are explicitly included in a transaction, virtual_op is 0.
+      // For VOPs derived directly from a real op,
+      //     use the real op's (block_num,trx_in_block,op_in_trx), virtual_op starts from 1.
+      // For VOPs created after processed all transactions,
+      //     trx_in_block = the_block.trsanctions.size(), virtual_op starts from 0.      
       ++_current_trx_in_block;
+      _current_op_in_trx  = 0;
+      _current_virtual_op = 0;   
    }
 
    if (global_props.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
@@ -707,8 +717,10 @@ processed_transaction database::_apply_transaction(const signed_transaction& trx
    //Finally process the operations
    processed_transaction ptrx(trx);
    _current_op_in_trx = 0;
+   _current_virtual_op = 0;
    for( const auto& op : ptrx.operations )
    {
+      _current_virtual_op = 0;
       eval_state.operation_results.emplace_back(apply_operation(eval_state, op));
       ++_current_op_in_trx;
    }
