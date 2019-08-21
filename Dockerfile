@@ -1,7 +1,7 @@
 FROM ubuntu:18.04
 MAINTAINER PeerPlays Blockchain Standards Association
 
-ENV LANG=en_US.UTF-8
+ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US.UTF-8
 ENV LC_ALL en_US.UTF-8
 
@@ -9,23 +9,30 @@ RUN \
     apt-get update -y && \
       DEBIAN_FRONTEND=noninteractive apt-get install -y \
       autoconf \
+      bash \
       build-essential \
       ca-certificates \
       cmake \
       doxygen \
       git \
+      graphviz \
       libbz2-dev \
       libcurl4-openssl-dev \
       libncurses-dev \
       libreadline-dev \
       libssl-dev \
       libtool \
+      locales \
       pkg-config \
       ntp \
       wget \
     && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+RUN \
+    sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
+    locale-gen
 
 ADD . /peerplays-core
 WORKDIR /peerplays-core
