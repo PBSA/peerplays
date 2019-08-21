@@ -226,7 +226,7 @@ namespace graphene { namespace chain {
    struct lottery_asset_create_operation : public base_operation
    {
       struct fee_parameters_type { 
-         uint64_t lottery_asset  = 5000   * GRAPHENE_BLOCKCHAIN_PRECISION;
+         uint64_t lottery_asset  = 20   * GRAPHENE_BLOCKCHAIN_PRECISION;
          uint32_t price_per_kbyte = 10; /// only required for large lottery names.
       };
 
