@@ -340,7 +340,7 @@ object_id_type bet_place_evaluator::do_apply(const bet_place_operation& op)
               ("balance", d.get_balance(*fee_paying_account, *_asset))("amount_to_bet", op.amount_to_bet.amount)  );
 
    // pay for it
-   d.adjust_balance(fee_paying_account->id, -op.amount_to_bet);
+   d.adjust_balance(fee_paying_account->id.as<account_id_type>(), -op.amount_to_bet);
 
    return new_bet_id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }

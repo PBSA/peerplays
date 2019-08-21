@@ -348,7 +348,17 @@ class wallet_api
        * @returns the list of asset objects, ordered by symbol
        */
       vector<asset_object>              list_assets(const string& lowerbound, uint32_t limit)const;
-      
+   
+   
+      vector<asset_object>              get_lotteries( asset_id_type stop = asset_id_type(),
+                                                       unsigned limit = 100,
+                                                       asset_id_type start = asset_id_type() )const;
+      vector<asset_object>              get_account_lotteries( account_id_type issuer,
+                                                               asset_id_type stop = asset_id_type(),
+                                                               unsigned limit = 100,
+                                                               asset_id_type start = asset_id_type() )const;
+
+      asset get_lottery_balance( asset_id_type lottery_id ) const;
       /** Returns the most recent operations on the named account.
        *
        * This returns a list of operation history objects, which describe activity on the account.
@@ -1008,6 +1018,14 @@ class wallet_api
                                       asset_options common,
                                       fc::optional<bitasset_options> bitasset_opts,
                                       bool broadcast = false);
+
+      signed_transaction create_lottery(  string issuer,
+                                          string symbol,
+                                          asset_options common,
+                                          lottery_asset_options lottery_opts,
+                                          bool broadcast = false);
+   
+      signed_transaction buy_ticket( asset_id_type lottery, account_id_type buyer, uint64_t tickets_to_buy );
 
       /** Issue new shares of an asset.
        *
@@ -1795,20 +1813,6 @@ class wallet_api
                                    rock_paper_scissors_gesture gesture,
                                    bool broadcast);
 
-      /** Create a vesting balance including gpos vesting balance after HARDFORK_GPOS_TIME
-       * @param owner vesting balance owner and creator
-       * @param amount amount to vest
-       * @param asset_symbol the symbol of the asset to vest
-       * @param is_gpos True if the balance is of gpos type
-       * @param broadcast true if you wish to broadcast the transaction
-       * @return the signed version of the transaction
-       */
-      signed_transaction create_vesting_balance(string owner,
-                                                string amount,
-                                                string asset_symbol,
-                                                bool is_gpos,
-                                                bool broadcast);
-
       void dbg_make_uia(string creator, string symbol);
       void dbg_make_mia(string creator, string symbol);
       void dbg_push_blocks( std::string src_filename, uint32_t count );
@@ -1940,6 +1944,7 @@ FC_API( graphene::wallet::wallet_api,
         (transfer2)
         (get_transaction_id)
         (create_asset)
+        (create_lottery)
         (update_asset)
         (update_bitasset)
         (update_dividend_asset)
@@ -1948,6 +1953,9 @@ FC_API( graphene::wallet::wallet_api,
         (issue_asset)
         (get_asset)
         (get_bitasset_data)
+        (get_lotteries)
+        (get_account_lotteries)
+        (get_lottery_balance)
         (fund_asset_fee_pool)
         (reserve_asset)
         (global_settle_asset)
@@ -2045,7 +2053,6 @@ FC_API( graphene::wallet::wallet_api,
         (tournament_join)
         (tournament_leave)
         (rps_throw)
-        (create_vesting_balance)
         (get_upcoming_tournaments)
         (get_tournaments)
         (get_tournaments_by_state)
@@ -2056,4 +2063,5 @@ FC_API( graphene::wallet::wallet_api,
         (get_binned_order_book)
         (get_matched_bets_for_bettor)
         (get_all_matched_bets_for_bettor)
+        (buy_ticket)
       )
