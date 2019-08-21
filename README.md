@@ -59,7 +59,7 @@ sudo usermod -a -G docker $USER
 
 
 # Build docker image (from the project root, must be a docker group member)
-docker build -t peerplays
+docker build -t peerplays .
 
 
 # Start docker image
