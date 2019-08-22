@@ -24,7 +24,6 @@ RUN \
       libtool \
       locales \
       pkg-config \
-      ntp \
       wget \
     && \
     apt-get clean && \
@@ -33,9 +32,6 @@ RUN \
 RUN \
     sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
     locale-gen
-
-ADD . /peerplays-core
-WORKDIR /peerplays-core
 
 # Compile Boost
 RUN \
@@ -46,6 +42,9 @@ RUN \
     ./bootstrap.sh "--prefix=$BOOST_ROOT" && \
     ./b2 install && \
     cd ..
+
+ADD . /peerplays-core
+WORKDIR /peerplays-core
 
 # Compile Peerplays
 RUN \
