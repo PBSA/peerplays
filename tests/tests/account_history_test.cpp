@@ -35,7 +35,6 @@
 #include <fc/smart_ref_impl.hpp>
 #include <fc/crypto/digest.hpp>
 
-
 using namespace graphene::app;
 using namespace graphene::chain;
 using namespace graphene::chain::test;
@@ -50,7 +49,6 @@ BOOST_AUTO_TEST_CASE(get_account_history) {
       create_bitasset("USD", account_id_type());
       auto dan_acc = create_account("dan");
       auto bob_acc = create_account("bob");
-
 
       generate_block();
       fc::usleep(fc::milliseconds(2000));
@@ -71,7 +69,6 @@ BOOST_AUTO_TEST_CASE(get_account_history) {
       BOOST_CHECK(histories[0].id.instance() != 0);
       BOOST_CHECK_EQUAL(histories[0].op.which(), account_create_op_id);
 
-
       // Limit 2 returns 2 result
       histories = hist_api.get_account_history(account_id_type(), operation_history_id_type(), 2, operation_history_id_type());
       BOOST_CHECK_EQUAL(histories.size(), 2u);
@@ -81,8 +78,6 @@ BOOST_AUTO_TEST_CASE(get_account_history) {
       histories = hist_api.get_account_history(bob_acc.get_id(), operation_history_id_type(), 100, operation_history_id_type());
       BOOST_CHECK_EQUAL(histories.size(), 1u);
       BOOST_CHECK_EQUAL(histories[0].op.which(), account_create_op_id);
-
-
    } catch (fc::exception &e) {
       edump((e.to_detail_string()));
       throw;
@@ -109,4 +104,3 @@ BOOST_AUTO_TEST_CASE(zero_id_object) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
