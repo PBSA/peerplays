@@ -23,6 +23,7 @@ RUN \
       libssl-dev \
       libtool \
       locales \
+      ntp \
       pkg-config \
       wget \
     && \
