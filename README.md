@@ -2,6 +2,77 @@ Intro for new developers and witnesses
 ------------------------
 
 This is a quick introduction to get new developers and witnesses up to speed on Peerplays blockchain. It is intended for witnesses plannig to join a live, already deployed blockchain.
+# Building on Ubuntu 18.04 LTS and Installation Instructions
+
+ The following dependencies were necessary for a clean install of Ubuntu 18.04 LTS:
+
+ ```
+ sudo apt-get install gcc-5 g++-5 cmake make libbz2-dev\
+     libdb++-dev libdb-dev libssl-dev openssl libreadline-dev\
+      autoconf libtool git
+```
+## Build Boost 1.67.0
+
+
+```
+mkdir $HOME/src
+cd $HOME/src
+export BOOST_ROOT=$HOME/src/boost_1_67_0
+sudo apt-get update
+sudo apt-get install -y autotools-dev build-essential  libbz2-dev libicu-dev python-dev
+wget -c 'http://sourceforge.net/projects/boost/files/boost/1.67.0/boost_1_67_0.tar.bz2/download'\
+     -O boost_1_67_0.tar.bz2
+tar xjf boost_1_67_0.tar.bz2
+cd boost_1_67_0/
+./bootstrap.sh "--prefix=$BOOST_ROOT"
+./b2 install
+```
+
+
+## Building Peerplays
+
+```
+cd $HOME/src
+export BOOST_ROOT=$HOME/src/boost_1_67_0
+git clone https://github.com/peerplays-network/peerplays.git
+cd peerplays
+git submodule update --init --recursive
+cmake -DBOOST_ROOT="$BOOST_ROOT" -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
+
+make install # this can install the executable files under /usr/local
+```
+
+docker build -t peerplays .
+
+## Docker image
+
+```
+# Install docker
+sudo apt install docker.io
+
+
+# Add current user to docker group
+sudo usermod -a -G docker $USER
+# You need to restart your shell session, to apply group membership
+# Type 'groups' to verify that you are a member of a docker group
+
+
+# Build docker image (from the project root, must be a docker group member)
+docker build -t peerplays .
+
+
+# Start docker image
+docker start peerplays
+
+# Exposed ports
+# # rpc service:
+# EXPOSE 8090
+# # p2p service:
+# EXPOSE 1776
+```
+
+ Rest of the instructions on starting the chain remains same.
 
 Starting A Peerplays Node
 -----------------

@@ -40,8 +40,9 @@
 namespace graphene { namespace chain {
    class account_object;
    class database;
+   class transaction_evaluation_state;
    using namespace graphene::db;
-
+   
    /**
     *  @brief tracks the asset information that changes frequently
     *  @ingroup object
@@ -62,6 +63,7 @@ namespace graphene { namespace chain {
 
          /// The number of shares currently in existence
          share_type current_supply;
+         optional<share_type> sweeps_tickets_sold;
          share_type confidential_supply; ///< total asset held in confidential balances
          share_type accumulated_fees; ///< fees accumulate to be paid out over time
          share_type fee_pool;         ///< in core asset
@@ -87,6 +89,8 @@ namespace graphene { namespace chain {
 
          /// @return true if this is a market-issued asset; false otherwise.
          bool is_market_issued()const { return bitasset_data_id.valid(); }
+         /// @return true if this is lottery asset; false otherwise.
+         bool is_lottery()const { return lottery_options.valid(); }
          /// @return true if users may request force-settlement of this market-issued asset; false otherwise
          bool can_force_settle()const { return !(options.flags & disable_force_settle); }
          /// @return true if the issuer of this market-issued asset may globally settle the asset; false otherwise
@@ -114,7 +118,9 @@ namespace graphene { namespace chain {
          /// Convert an asset to a textual representation with symbol, i.e. "123.45 USD"
          string amount_to_pretty_string(const asset &amount)const
          { FC_ASSERT(amount.asset_id == id); return amount_to_pretty_string(amount.amount); }
-
+         
+         uint32_t get_issuer_num()const
+         { return issuer.instance.value; } 
          /// Ticker symbol for this asset, i.e. "USD"
          string symbol;
          /// Maximum number of digits after the decimal point (must be <= 12)
@@ -124,7 +130,15 @@ namespace graphene { namespace chain {
 
          asset_options options;
 
-
+         // Extra data associated with lottery options. This field is non-null if is_lottery() returns true
+         optional<lottery_asset_options> lottery_options;
+         time_point_sec get_lottery_expiration() const;
+         vector<account_id_type> get_holders( database& db ) const;
+         void distribute_benefactors_part( database& db );
+         map< account_id_type, vector< uint16_t > > distribute_winners_part( database& db );
+         void distribute_sweeps_holders_part( database& db );
+         void end_lottery( database& db );
+         
          /// Current supply, fee pool, and collected fees are stored in a separate object as they change frequently.
          asset_dynamic_data_id_type  dynamic_asset_data_id;
          /// Extra data associated with BitAssets. This field is non-null if and only if is_market_issued() returns true
@@ -136,7 +150,7 @@ namespace graphene { namespace chain {
          optional<asset_dividend_data_id_type> dividend_data_id;
 
          asset_id_type get_id()const { return id; }
-
+      
          void validate()const
          {
             // UIAs may not be prediction markets, have force settlement, or global settlements
@@ -238,15 +252,59 @@ namespace graphene { namespace chain {
    //typedef flat_index<asset_bitasset_data_object> asset_bitasset_data_index;
    typedef generic_index<asset_bitasset_data_object, asset_bitasset_data_object_multi_index_type> asset_bitasset_data_index;
 
+   // used to sort active_lotteries index
+   struct lottery_asset_comparer
+   {
+      bool operator()(const asset_object& lhs, const asset_object& rhs) const
+      {
+         if ( !lhs.is_lottery() ) return false;
+         if ( !lhs.lottery_options->is_active && !rhs.is_lottery()) return true; // not active lotteries first, just assets then
+         if ( !lhs.lottery_options->is_active ) return false;
+         if ( lhs.lottery_options->is_active && ( !rhs.is_lottery() || !rhs.lottery_options->is_active ) ) return true;
+         return lhs.get_lottery_expiration() > rhs.get_lottery_expiration();
+      }
+   };
+
    struct by_symbol;
    struct by_type;
    struct by_issuer;
+   struct active_lotteries;
+   struct by_lottery;
+   struct by_lottery_owner;
    typedef multi_index_container<
       asset_object,
       indexed_by<
          ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
          ordered_unique< tag<by_symbol>, member<asset_object, string, &asset_object::symbol> >,
          ordered_non_unique< tag<by_issuer>, member<asset_object, account_id_type, &asset_object::issuer > >,
+         ordered_non_unique< tag<active_lotteries>,
+            identity< asset_object >,
+            lottery_asset_comparer
+         >,
+         ordered_unique< tag<by_lottery>,
+            composite_key<
+               asset_object,
+               const_mem_fun<asset_object, bool, &asset_object::is_lottery>,
+               member<object, object_id_type, &object::id>
+            >,
+            composite_key_compare<
+               std::greater< bool >,
+               std::greater< object_id_type >
+            >
+         >,
+         ordered_unique< tag<by_lottery_owner>,
+            composite_key<
+               asset_object,
+               const_mem_fun<asset_object, bool, &asset_object::is_lottery>,
+               const_mem_fun<asset_object, uint32_t, &asset_object::get_issuer_num>,
+               member<object, object_id_type, &object::id>
+            >,
+            composite_key_compare<
+               std::greater< bool >,
+               std::greater< uint32_t >,
+               std::greater< object_id_type >
+            >
+         >,
          ordered_unique< tag<by_type>,
             composite_key< asset_object,
                 const_mem_fun<asset_object, bool, &asset_object::is_market_issued>,
@@ -256,6 +314,7 @@ namespace graphene { namespace chain {
       >
    > asset_object_multi_index_type;
    typedef generic_index<asset_object, asset_object_multi_index_type> asset_index;
+
 
    /**
     *  @brief contains properties that only apply to dividend-paying assets
@@ -333,12 +392,85 @@ namespace graphene { namespace chain {
    > total_distributed_dividend_balance_object_multi_index_type;
    typedef generic_index<total_distributed_dividend_balance_object, total_distributed_dividend_balance_object_multi_index_type> total_distributed_dividend_balance_object_index;
    
+   
+      
+   /**
+    * @ingroup object
+    */
+   class lottery_balance_object : public abstract_object<lottery_balance_object>
+   {
+      public:
+         static const uint8_t space_id = implementation_ids;
+         static const uint8_t type_id  = impl_lottery_balance_object_type;
+      
+         asset_id_type  lottery_id;
+         asset          balance;
+      
+         asset get_balance()const { return balance; }
+         void  adjust_balance(const asset& delta);
+   };
+   
+   
+   struct by_owner;
+   
+   /**
+    * @ingroup object_index
+    */
+   typedef multi_index_container<
+      lottery_balance_object,
+      indexed_by<
+         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
+         ordered_non_unique< tag<by_owner>,
+            member<lottery_balance_object, asset_id_type, &lottery_balance_object::lottery_id>
+         >
+      >
+   > lottery_balance_index_type;
+   
+   /**
+    * @ingroup object_index
+    */
+   typedef generic_index<lottery_balance_object, lottery_balance_index_type> lottery_balance_index;
+   
+   
+   class sweeps_vesting_balance_object : public abstract_object<sweeps_vesting_balance_object>
+   {
+      public:
+         static const uint8_t space_id = implementation_ids;
+         static const uint8_t type_id  = impl_sweeps_vesting_balance_object_type;
 
+
+         account_id_type   owner;
+         uint64_t          balance;
+         asset_id_type     asset_id;
+         time_point_sec    last_claim_date;
+         
+         uint64_t get_balance()const { return balance; }
+         void  adjust_balance(const asset& delta);
+         asset available_for_claim() const { return asset( balance / SWEEPS_VESTING_BALANCE_MULTIPLIER , asset_id ); }
+   };
+
+   /**
+    * @ingroup object_index
+    */
+   typedef multi_index_container<
+      sweeps_vesting_balance_object,
+      indexed_by<
+         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
+         ordered_non_unique< tag<by_owner>,
+            member<sweeps_vesting_balance_object, account_id_type, &sweeps_vesting_balance_object::owner>
+         >
+      >
+   > sweeps_vesting_balance_index_type;
+
+   /**
+    * @ingroup object_index
+    */
+   typedef generic_index<sweeps_vesting_balance_object, sweeps_vesting_balance_index_type> sweeps_vesting_balance_index;
 
 } } // graphene::chain
 
 FC_REFLECT_DERIVED( graphene::chain::asset_dynamic_data_object, (graphene::db::object),
-                    (current_supply)(confidential_supply)(accumulated_fees)(fee_pool) )
+                    (current_supply)(sweeps_tickets_sold)(confidential_supply)(accumulated_fees)(fee_pool) )
 
 FC_REFLECT_DERIVED( graphene::chain::asset_bitasset_data_object, (graphene::db::object),
                     (feeds)
@@ -371,8 +503,15 @@ FC_REFLECT_DERIVED( graphene::chain::asset_object, (graphene::db::object),
                     (precision)
                     (issuer)
                     (options)
+                    (lottery_options)
                     (dynamic_asset_data_id)
                     (bitasset_data_id)
                     (buyback_account)
                     (dividend_data_id)
                   )
+
+FC_REFLECT_DERIVED( graphene::chain::lottery_balance_object, (graphene::db::object),
+                    (lottery_id)(balance) )
+
+FC_REFLECT_DERIVED( graphene::chain::sweeps_vesting_balance_object, (graphene::db::object),
+                    (owner)(balance)(asset_id)(last_claim_date) )

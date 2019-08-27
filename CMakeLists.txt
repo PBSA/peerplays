@@ -60,7 +60,7 @@ IF( WIN32 )
   set(BOOST_ALL_DYN_LINK OFF) # force dynamic linking for all libraries
 ENDIF(WIN32)
 
-FIND_PACKAGE(Boost 1.57 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
+FIND_PACKAGE(Boost 1.67 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
 # For Boost 1.53 on windows, coroutine was not in BOOST_LIBRARYDIR and do not need it to build,  but if boost versin >= 1.54, find coroutine otherwise will cause link errors
 IF(NOT "${Boost_VERSION}" MATCHES "1.53(.*)")
    SET(BOOST_LIBRARIES_TEMP ${Boost_LIBRARIES})
@@ -119,7 +119,11 @@ else( WIN32 ) # Apple AND Linux
         message( STATUS "Configuring BitShares on Linux" )
         set( CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++11 -Wall" )
         set( rt_library rt )
-        set( pthread_library pthread)
+        #set( pthread_library pthread)
+        set(CMAKE_LINKER_FLAGS "-pthread" CACHE STRING "Linker Flags" FORCE)
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_LINKER_FLAGS}" CACHE STRING "" FORCE)
+        set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS}" CACHE STRING "" FORCE)
+        set(CMAKE_EXE_LINKER_FLAGS    "${CMAKE_LINKER_FLAGS}" CACHE STRING "" FORCE)
         if ( NOT DEFINED crypto_library )
           # I'm not sure why this is here, I guess someone has openssl and can't detect it with find_package()?
           # if you have a normal install, you can define crypto_library to the empty string to avoid a build error

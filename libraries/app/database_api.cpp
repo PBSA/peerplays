@@ -113,6 +113,18 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       vector<bet_object> get_unmatched_bets_for_bettor(betting_market_id_type, account_id_type) const;
       vector<bet_object> get_all_unmatched_bets_for_bettor(account_id_type) const;
 
+      // Lottery Assets
+      vector<asset_object> get_lotteries( asset_id_type stop  = asset_id_type(),
+                                          unsigned limit = 100,
+                                          asset_id_type start = asset_id_type() )const;
+      vector<asset_object> get_account_lotteries( account_id_type issuer, 
+                                                  asset_id_type stop,
+                                                  unsigned limit,
+                                                  asset_id_type start )const;
+      asset get_lottery_balance( asset_id_type lottery_id )const;
+      sweeps_vesting_balance_object get_sweeps_vesting_balance_object( account_id_type account )const;
+      asset get_sweeps_vesting_balance_available_for_claim( account_id_type account )const;
+   
       // Markets / feeds
       vector<limit_order_object>         get_limit_orders(asset_id_type a, asset_id_type b, uint32_t limit)const;
       vector<call_order_object>          get_call_orders(asset_id_type a, uint32_t limit)const;
@@ -172,7 +184,6 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
 
          if( !is_subscribed_to_item(i) )
          {
-            idump((i));
             _subscribe_filter.insert( vec.data(), vec.size() );//(vecconst char*)&i, sizeof(i) );
          }
       }
@@ -628,7 +639,6 @@ std::map<string,full_account> database_api::get_full_accounts( const vector<stri
 
 std::map<std::string, full_account> database_api_impl::get_full_accounts( const vector<std::string>& names_or_ids, bool subscribe)
 {
-   idump((names_or_ids));
    std::map<std::string, full_account> results;
 
    for (const std::string& account_name_or_id : names_or_ids)
@@ -1010,6 +1020,103 @@ vector<optional<asset_object>> database_api_impl::lookup_asset_symbols(const vec
       return itr == assets_by_symbol.end()? optional<asset_object>() : *itr;
    });
    return result;
+}
+
+////////////////////
+// Lottery Assets //
+////////////////////
+
+
+vector<asset_object> database_api::get_lotteries(  asset_id_type stop,
+                                                   unsigned limit,
+                                                   asset_id_type start )const
+{
+   return my->get_lotteries( stop, limit, start );
+}
+vector<asset_object> database_api_impl::get_lotteries( asset_id_type stop,
+                                                       unsigned limit,
+                                                       asset_id_type start )const
+{
+   vector<asset_object> result;
+   if( limit > 100 ) limit = 100;
+   const auto& assets = _db.get_index_type<asset_index>().indices().get<by_lottery>();
+
+   const auto range = assets.equal_range( boost::make_tuple( true ) );
+   for( const auto& a : boost::make_iterator_range( range.first, range.second ) )
+   {
+      if( start == asset_id_type() || (a.get_id().instance.value <= start.instance.value) )
+         result.push_back( a );
+      if( a.get_id().instance.value < stop.instance.value || result.size() >= limit )
+         break;
+   }
+
+   return result;
+}
+vector<asset_object> database_api::get_account_lotteries( account_id_type issuer, 
+                                                               asset_id_type stop,
+                                                               unsigned limit,
+                                                               asset_id_type start )const
+{
+   return my->get_account_lotteries( issuer, stop, limit, start );
+}
+
+vector<asset_object> database_api_impl::get_account_lotteries( account_id_type issuer, 
+                                                               asset_id_type stop,
+                                                               unsigned limit,
+                                                               asset_id_type start )const
+{
+   vector<asset_object> result;
+   if( limit > 100 ) limit = 100;
+   const auto& assets = _db.get_index_type<asset_index>().indices().get<by_lottery_owner>();
+
+   const auto range = assets.equal_range( boost::make_tuple( true, issuer.instance.value ) );
+   for( const auto& a : boost::make_iterator_range( range.first, range.second ) )
+   {
+      if( start == asset_id_type() || (a.get_id().instance.value <= start.instance.value) )
+         result.push_back( a );
+      if( a.get_id().instance.value < stop.instance.value || result.size() >= limit )
+         break;
+   }
+
+   return result;
+}
+
+asset database_api::get_lottery_balance( asset_id_type lottery_id )const
+{
+   return my->get_lottery_balance( lottery_id );
+}
+
+asset database_api_impl::get_lottery_balance( asset_id_type lottery_id )const
+{
+   auto lottery_asset = lottery_id( _db );
+   FC_ASSERT( lottery_asset.is_lottery() );
+   return _db.get_balance( lottery_id );
+}
+
+sweeps_vesting_balance_object database_api::get_sweeps_vesting_balance_object( account_id_type account )const
+{
+   return my->get_sweeps_vesting_balance_object( account );
+}
+
+sweeps_vesting_balance_object database_api_impl::get_sweeps_vesting_balance_object( account_id_type account )const
+{
+   const auto& vesting_idx = _db.get_index_type<sweeps_vesting_balance_index>().indices().get<by_owner>();
+   auto account_balance = vesting_idx.find(account);
+   FC_ASSERT( account_balance != vesting_idx.end(), "NO SWEEPS VESTING BALANCE" );
+   return *account_balance;
+}
+
+asset database_api::get_sweeps_vesting_balance_available_for_claim( account_id_type account )const
+{
+   return my->get_sweeps_vesting_balance_available_for_claim( account );
+}
+
+asset database_api_impl::get_sweeps_vesting_balance_available_for_claim( account_id_type account )const
+{
+   const auto& vesting_idx = _db.get_index_type<sweeps_vesting_balance_index>().indices().get<by_owner>();
+   auto account_balance = vesting_idx.find(account);
+   FC_ASSERT( account_balance != vesting_idx.end(), "NO SWEEPS VESTING BALANCE" );
+   return account_balance->available_for_claim();
 }
 
 //////////////////////////////////////////////////////////////////////
