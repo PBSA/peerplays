@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
+ * Copyright (c) 2017 Peerplays, Inc., and contributors.
  *
  * The MIT License
  *
@@ -21,11 +21,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#pragma once
-#include <fc/crypto/sha512.hpp>
+#include <graphene/chain/protocol/lottery_ops.hpp>
 
-namespace graphene { namespace utilities {
+namespace graphene { namespace chain {
 
-void set_random_seed_for_testing(const fc::sha512& new_seed);
+void ticket_purchase_operation::validate() const 
+{
+   FC_ASSERT( fee.amount >= 0 );
+   FC_ASSERT( tickets_to_buy > 0 );
+}
 
-} } // end namespace graphene::utilities
+share_type ticket_purchase_operation::calculate_fee( const fee_parameters_type& k )const
+{
+   return k.fee;
+}
+
+} } // namespace graphene::chain

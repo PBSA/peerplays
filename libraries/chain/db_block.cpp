@@ -464,22 +464,21 @@ signed_block database::_generate_block(
    pending_block.timestamp = when;
    pending_block.transaction_merkle_root = pending_block.calculate_merkle_root();
    pending_block.witness = witness_id;
-
-   // Genesis witnesses start with a default initial secret        
-   if( witness_obj.next_secret_hash == secret_hash_type::hash( secret_hash_type() ) )     
-       pending_block.previous_secret = secret_hash_type();       
-   else       
-   {      
-       secret_hash_type::encoder last_enc;        
-       fc::raw::pack( last_enc, block_signing_private_key );      
-       fc::raw::pack( last_enc, witness_obj.previous_secret );        
-       pending_block.previous_secret = last_enc.result();        
-   }      
+   
+   // Genesis witnesses start with a default initial secret
+   if( witness_obj.next_secret_hash == secret_hash_type::hash( secret_hash_type() ) ) {
+         pending_block.previous_secret = secret_hash_type();
+   } else {
+         secret_hash_type::encoder last_enc;
+         fc::raw::pack( last_enc, block_signing_private_key );
+         fc::raw::pack( last_enc, witness_obj.previous_secret );
+         pending_block.previous_secret = last_enc.result();
+   }
       
-   secret_hash_type::encoder next_enc;        
-   fc::raw::pack( next_enc, block_signing_private_key );      
-   fc::raw::pack( next_enc, pending_block.previous_secret );     
-   pending_block.next_secret_hash = secret_hash_type::hash(next_enc.result());       
+   secret_hash_type::encoder next_enc;
+   fc::raw::pack( next_enc, block_signing_private_key );
+   fc::raw::pack( next_enc, pending_block.previous_secret );
+   pending_block.next_secret_hash = secret_hash_type::hash(next_enc.result());
 
    if( !(skip & skip_witness_signature) )
       pending_block.sign( block_signing_private_key );
@@ -588,6 +587,8 @@ void database::_apply_block( const signed_block& next_block )
 
    _current_block_num    = next_block_num;
    _current_trx_in_block = 0;
+   _current_op_in_trx    = 0;
+   _current_virtual_op   = 0;
 
    for( const auto& trx : next_block.transactions )
    {
@@ -597,8 +598,16 @@ void database::_apply_block( const signed_block& next_block )
        * for transactions when validating broadcast transactions or
        * when building a block.
        */
+
       apply_transaction( trx, skip );
+      // For real operations which are explicitly included in a transaction, virtual_op is 0.
+      // For VOPs derived directly from a real op,
+      //     use the real op's (block_num,trx_in_block,op_in_trx), virtual_op starts from 1.
+      // For VOPs created after processed all transactions,
+      //     trx_in_block = the_block.trsanctions.size(), virtual_op starts from 0.      
       ++_current_trx_in_block;
+      _current_op_in_trx  = 0;
+      _current_virtual_op = 0;   
    }
 
    if (global_props.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
@@ -610,7 +619,9 @@ void database::_apply_block( const signed_block& next_block )
    // Are we at the maintenance interval?
    if( maint_needed )
       perform_chain_maintenance(next_block, global_props);
-
+   
+   check_ending_lotteries();
+   
    create_block_summary(next_block);
    place_delayed_bets(); // must happen after update_global_dynamic_data() updates the time
    clear_expired_transactions();
@@ -707,8 +718,10 @@ processed_transaction database::_apply_transaction(const signed_transaction& trx
    //Finally process the operations
    processed_transaction ptrx(trx);
    _current_op_in_trx = 0;
+   _current_virtual_op = 0;
    for( const auto& op : ptrx.operations )
    {
+      _current_virtual_op = 0;
       eval_state.operation_results.emplace_back(apply_operation(eval_state, op));
       ++_current_op_in_trx;
    }
@@ -742,8 +755,9 @@ const witness_object& database::validate_block_header( uint32_t skip, const sign
    FC_ASSERT( head_block_time() < next_block.timestamp, "", ("head_block_time",head_block_time())("next",next_block.timestamp)("blocknum",next_block.block_num()) );
    const witness_object& witness = next_block.witness(*this);
 //DLN: TODO: Temporarily commented out to test shuffle vs RNG scheduling algorithm for witnesses, this was causing shuffle agorithm to fail during create_witness test. This should be re-enabled for RNG, and maybe for shuffle too, don't really know for sure.
-//   FC_ASSERT( secret_hash_type::hash( next_block.previous_secret ) == witness.next_secret_hash, "",        
-//              ("previous_secret", next_block.previous_secret)("next_secret_hash", witness.next_secret_hash)("null_secret_hash", secret_hash_type::hash( secret_hash_type())));
+   if( next_block.timestamp > HARDFORK_SWEEPS_TIME )
+      FC_ASSERT( secret_hash_type::hash( next_block.previous_secret ) == witness.next_secret_hash, "",
+               ( "previous_secret", next_block.previous_secret )( "next_secret_hash", witness.next_secret_hash ) );
 
    if( !(skip&skip_witness_signature) ) 
       FC_ASSERT( next_block.validate_signee( witness.signing_key ) );

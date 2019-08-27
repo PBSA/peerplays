@@ -37,6 +37,9 @@ namespace graphene { namespace chain {
       optional< uint16_t >            betting_rake_fee_percentage;
       optional< flat_map<bet_multiplier_type, bet_multiplier_type> > permitted_betting_odds_increments;
       optional< uint16_t >            live_betting_delay_time;
+      optional< uint16_t >            sweeps_distribution_percentage;
+      optional< asset_id_type >       sweeps_distribution_asset;
+      optional< account_id_type >     sweeps_vesting_accumulator_account;
    };
 
    struct chain_parameters
@@ -86,6 +89,7 @@ namespace graphene { namespace chain {
       uint32_t                maximum_tournament_start_time_in_future = TOURNAMENT_MAX_START_TIME_IN_FUTURE;
       uint32_t                maximum_tournament_start_delay      = TOURNAMENT_MAX_START_DELAY;
       uint16_t                maximum_tournament_number_of_wins   = TOURNAMENT_MAX_NUMBER_OF_WINS;
+      
       extension<parameter_extension> extensions;
 
       /** defined in fee_schedule.cpp */
@@ -106,6 +110,15 @@ namespace graphene { namespace chain {
       inline uint16_t live_betting_delay_time()const {
          return extensions.value.live_betting_delay_time.valid() ? *extensions.value.live_betting_delay_time : GRAPHENE_DEFAULT_LIVE_BETTING_DELAY_TIME;
       }
+      inline uint16_t sweeps_distribution_percentage()const {
+         return extensions.value.sweeps_distribution_percentage.valid() ? *extensions.value.sweeps_distribution_percentage : SWEEPS_DEFAULT_DISTRIBUTION_PERCENTAGE;
+      }
+      inline asset_id_type sweeps_distribution_asset()const {
+         return extensions.value.sweeps_distribution_asset.valid() ? *extensions.value.sweeps_distribution_asset : SWEEPS_DEFAULT_DISTRIBUTION_ASSET;
+      }
+      inline account_id_type sweeps_vesting_accumulator_account()const {
+         return extensions.value.sweeps_vesting_accumulator_account.valid() ? *extensions.value.sweeps_vesting_accumulator_account : SWEEPS_ACCUMULATOR_ACCOUNT;
+      }
    };
 
 } }  // graphene::chain
@@ -116,6 +129,9 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (betting_rake_fee_percentage)
    (permitted_betting_odds_increments)
    (live_betting_delay_time)
+   (sweeps_distribution_percentage)
+   (sweeps_distribution_asset)
+   (sweeps_vesting_accumulator_account)
 )
 
 FC_REFLECT( graphene::chain::chain_parameters,

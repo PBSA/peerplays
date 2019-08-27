@@ -144,6 +144,10 @@ namespace graphene { namespace chain {
          vesting_policy policy;
 
          vesting_balance_object() {}
+         
+         asset_id_type get_asset_id() const { return balance.asset_id; }
+
+         share_type get_asset_amount() const { return balance.amount; }
 
          ///@brief Deposit amount into vesting balance, requiring it to vest before withdrawal
          void deposit(const fc::time_point_sec& now, const asset& amount);
@@ -184,8 +188,8 @@ namespace graphene { namespace chain {
         ordered_non_unique< tag<by_asset_balance>,
            composite_key<
               vesting_balance_object,
-              member_offset<vesting_balance_object, asset_id_type, (size_t) (offset_s(vesting_balance_object,balance) + offset_s(asset,asset_id))>,
-              member_offset<vesting_balance_object, share_type, (size_t) (offset_s(vesting_balance_object,balance) + offset_s(asset,amount))>
+              member_offset<vesting_balance_object, asset_id_type, (size_t) (offsetof(vesting_balance_object,balance) + offsetof(asset,asset_id))>,
+              member_offset<vesting_balance_object, share_type, (size_t) (offsetof(vesting_balance_object,balance) + offsetof(asset,amount))>
               //member<vesting_balance_object, account_id_type, &vesting_balance_object::owner>
               //member_offset<vesting_balance_object, account_id_type, (size_t) (offset_s(vesting_balance_object,owner))>
            >,

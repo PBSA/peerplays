@@ -27,6 +27,7 @@
 #include <graphene/db/object.hpp>
 #include <graphene/db/generic_index.hpp>
 #include <graphene/chain/protocol/betting_market.hpp>
+#include <sstream>
 
 #include <boost/multi_index/composite_key.hpp>
 
@@ -247,8 +248,12 @@ typedef multi_index_container<
    betting_market_group_object,
    indexed_by<
       ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
-      ordered_non_unique< tag<by_event_id>, member<betting_market_group_object, event_id_type, &betting_market_group_object::event_id> >,
-      ordered_non_unique< tag<by_settling_time>, member<betting_market_group_object, fc::optional<fc::time_point_sec>, &betting_market_group_object::settling_time> >
+      ordered_unique< tag<by_event_id>, composite_key<betting_market_group_object,
+                                                      member<betting_market_group_object, event_id_type, &betting_market_group_object::event_id>,
+                                                      member<object, object_id_type, &object::id> > >,
+      ordered_unique< tag<by_settling_time>, composite_key<betting_market_group_object,
+                                                           member<betting_market_group_object, fc::optional<fc::time_point_sec>, &betting_market_group_object::settling_time>,
+                                                           member<object, object_id_type, &object::id> > >
    > > betting_market_group_object_multi_index_type;
 typedef generic_index<betting_market_group_object, betting_market_group_object_multi_index_type> betting_market_group_object_index;
 
@@ -256,7 +261,9 @@ typedef multi_index_container<
    betting_market_object,
    indexed_by<
       ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
-      ordered_non_unique< tag<by_betting_market_group_id>, member<betting_market_object, betting_market_group_id_type, &betting_market_object::group_id> >
+      ordered_unique< tag<by_betting_market_group_id>, composite_key<betting_market_object,
+                                                                     member<betting_market_object, betting_market_group_id_type, &betting_market_object::group_id>,
+                                                                     member<object, object_id_type, &object::id> > >
    > > betting_market_object_multi_index_type;
 
 typedef generic_index<betting_market_object, betting_market_object_multi_index_type> betting_market_object_index;
@@ -593,7 +600,9 @@ typedef multi_index_container<
    indexed_by<
       ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
       ordered_unique< tag<by_odds>, identity<bet_object>, compare_bet_by_odds >,
-      ordered_non_unique< tag<by_betting_market_id>, member<bet_object, betting_market_id_type, &bet_object::betting_market_id> >,
+      ordered_unique< tag<by_betting_market_id>, composite_key<bet_object,
+                                                                   member<bet_object, betting_market_id_type, &bet_object::betting_market_id>,
+                                                                   member<object, object_id_type, &object::id> > >,
       ordered_unique< tag<by_bettor_and_odds>, identity<bet_object>, compare_bet_by_bettor_then_odds > > > bet_object_multi_index_type;
 typedef generic_index<bet_object, bet_object_multi_index_type> bet_object_index;
 

@@ -348,7 +348,17 @@ class wallet_api
        * @returns the list of asset objects, ordered by symbol
        */
       vector<asset_object>              list_assets(const string& lowerbound, uint32_t limit)const;
-      
+   
+   
+      vector<asset_object>              get_lotteries( asset_id_type stop = asset_id_type(),
+                                                       unsigned limit = 100,
+                                                       asset_id_type start = asset_id_type() )const;
+      vector<asset_object>              get_account_lotteries( account_id_type issuer,
+                                                               asset_id_type stop = asset_id_type(),
+                                                               unsigned limit = 100,
+                                                               asset_id_type start = asset_id_type() )const;
+
+      asset get_lottery_balance( asset_id_type lottery_id ) const;
       /** Returns the most recent operations on the named account.
        *
        * This returns a list of operation history objects, which describe activity on the account.
@@ -1008,6 +1018,14 @@ class wallet_api
                                       asset_options common,
                                       fc::optional<bitasset_options> bitasset_opts,
                                       bool broadcast = false);
+
+      signed_transaction create_lottery(  string issuer,
+                                          string symbol,
+                                          asset_options common,
+                                          lottery_asset_options lottery_opts,
+                                          bool broadcast = false);
+   
+      signed_transaction buy_ticket( asset_id_type lottery, account_id_type buyer, uint64_t tickets_to_buy );
 
       /** Issue new shares of an asset.
        *
@@ -1926,6 +1944,7 @@ FC_API( graphene::wallet::wallet_api,
         (transfer2)
         (get_transaction_id)
         (create_asset)
+        (create_lottery)
         (update_asset)
         (update_bitasset)
         (update_dividend_asset)
@@ -1934,6 +1953,9 @@ FC_API( graphene::wallet::wallet_api,
         (issue_asset)
         (get_asset)
         (get_bitasset_data)
+        (get_lotteries)
+        (get_account_lotteries)
+        (get_lottery_balance)
         (fund_asset_fee_pool)
         (reserve_asset)
         (global_settle_asset)
@@ -2041,4 +2063,5 @@ FC_API( graphene::wallet::wallet_api,
         (get_binned_order_book)
         (get_matched_bets_for_bettor)
         (get_all_matched_bets_for_bettor)
+        (buy_ticket)
       )
