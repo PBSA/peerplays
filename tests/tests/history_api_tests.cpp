@@ -1,8 +1,6 @@
 /*
- * Copyright (c) 2019 PBSA, and contributors.
- */
-/*
  * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
+ * Copyright (c) 2019 PBSA, and contributors.
  *
  * The MIT License
  *
