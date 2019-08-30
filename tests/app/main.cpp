@@ -35,6 +35,8 @@
 
 #include <boost/filesystem/path.hpp>
 
+#include "../common/genesis_file_util.hpp"
+
 #define BOOST_TEST_MODULE Test Application
 #include <boost/test/included/unit_test.hpp>
 
@@ -68,6 +70,10 @@ BOOST_AUTO_TEST_CASE( two_node_network )
       cfg2.emplace("p2p-endpoint", boost::program_options::variable_value(string("127.0.0.1:4040"), false));
       cfg2.emplace("seed-node", boost::program_options::variable_value(vector<string>{"127.0.0.1:3939"}, false));
       app2.initialize(app2_dir.path(), cfg2);
+
+      cfg.emplace("genesis-json", boost::program_options::variable_value(create_genesis_file(app_dir), false));
+      cfg2.emplace("genesis-json", boost::program_options::variable_value(create_genesis_file(app2_dir), false));
+
 
       BOOST_TEST_MESSAGE( "Starting app1 and waiting 500 ms" );
       app1.startup();                                      
