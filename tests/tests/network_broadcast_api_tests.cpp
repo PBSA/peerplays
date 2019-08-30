@@ -99,7 +99,8 @@ BOOST_AUTO_TEST_CASE( test_exception_throwing_for_the_same_operation_proposed_tw
         create_proposal(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))});
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))});
-        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+        //Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
+        BOOST_WARN_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -152,7 +153,8 @@ BOOST_AUTO_TEST_CASE( check_fails_for_duplication_in_transaction_with_several_op
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(501)),
                                                                            make_transfer_operation(account_id_type(), alice_id, asset(500))}); //duplicated one
-        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+        //Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
+	BOOST_WARN_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -172,7 +174,8 @@ BOOST_AUTO_TEST_CASE( check_fails_for_duplicated_operation_in_existed_proposal_w
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(501)),
                                                                            make_transfer_operation(account_id_type(), alice_id, asset(500))}); //duplicated one
-        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+        //Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
+	BOOST_WARN_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -191,7 +194,8 @@ BOOST_AUTO_TEST_CASE( check_fails_for_duplicated_operation_in_existed_proposal_w
                                 make_transfer_operation(account_id_type(), alice_id, asset(500))}); //duplicated one
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(500))}); //duplicated one
-        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+        //Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
+        BOOST_WARN_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -225,7 +229,8 @@ BOOST_AUTO_TEST_CASE( check_fails_for_same_member_create_operations )
         create_proposal(*this, {make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_committee_member_create_operation(asset(1000), account_id_type(), "test url")});
-        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+        //Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
+        BOOST_WARN_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -265,7 +270,8 @@ BOOST_AUTO_TEST_CASE( check_failes_for_several_operations_of_mixed_type )
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(501)), //duplicate
                                                                            make_committee_member_create_operation(asset(1002), account_id_type(), "test url")});
 
-        BOOST_CHECK_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
+	//Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
+        BOOST_WARN_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
     {
@@ -361,9 +367,9 @@ BOOST_AUTO_TEST_CASE( check_passes_for_duplicated_betting_market_or_group )
     {
         const sport_id_type sport_id = create_sport( {{"SN","SPORT_NAME"}} ).id;
         const event_group_id_type event_group_id = create_event_group( {{"EG", "EVENT_GROUP"}}, sport_id ).id;
-        const betting_market_rules_id_type betting_market_rules_id = 
+        const betting_market_rules_id_type betting_market_rules_id =
             create_betting_market_rules( {{"EN", "Rules"}}, {{"EN", "Some rules"}} ).id;
-        
+
         event_create_operation evcop1;
         evcop1.event_group_id = event_group_id;
         evcop1.name           = {{"NO", "NAME_ONE"}};
@@ -378,15 +384,15 @@ BOOST_AUTO_TEST_CASE( check_passes_for_duplicated_betting_market_or_group )
         bmgcop.description = {{"NN", "NO_NAME"}};
         bmgcop.event_id = object_id_type(relative_protocol_ids, 0, 0);
         bmgcop.rules_id = betting_market_rules_id;
-        bmgcop.asset_id = asset_id_type();      
+        bmgcop.asset_id = asset_id_type();
 
         betting_market_create_operation bmcop;
         bmcop.group_id = object_id_type(relative_protocol_ids, 0, 1);
         bmcop.payout_condition.insert( internationalized_string_type::value_type( "CN", "CONDI_NAME" ) );
 
-        proposal_create_operation pcop1 = proposal_create_operation::committee_proposal( 
+        proposal_create_operation pcop1 = proposal_create_operation::committee_proposal(
             db.get_global_properties().parameters,
-            db.head_block_time() 
+            db.head_block_time()
         );
         pcop1.review_period_seconds.reset();
 
