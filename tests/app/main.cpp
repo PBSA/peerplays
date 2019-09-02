@@ -74,13 +74,12 @@ BOOST_AUTO_TEST_CASE( two_node_network )
       cfg.emplace("genesis-json", boost::program_options::variable_value(create_genesis_file(app_dir), false));
       cfg2.emplace("genesis-json", boost::program_options::variable_value(create_genesis_file(app2_dir), false));
 
-
-      BOOST_TEST_MESSAGE( "Starting app1 and waiting 500 ms" );
+      BOOST_TEST_MESSAGE( "Starting app1 and waiting 1500 ms" );
       app1.startup();                                      
-      fc::usleep(fc::milliseconds(500));
-      BOOST_TEST_MESSAGE( "Starting app2 and waiting 500 ms" );
+      fc::usleep(fc::milliseconds(1500));
+      BOOST_TEST_MESSAGE( "Starting app2 and waiting 1500 ms" );
       app2.startup();
-      fc::usleep(fc::milliseconds(500));
+      fc::usleep(fc::milliseconds(1500));
 
       BOOST_REQUIRE_EQUAL(app1.p2p_node()->get_connection_count(), 1);
       BOOST_CHECK_EQUAL(std::string(app1.p2p_node()->get_connected_peers().front().host.get_address()), "127.0.0.1");
