@@ -12,6 +12,8 @@ hardfork.hpp
 build_xc
 data
 
+build
+
 libraries/utilities/git_revision.cpp
 
 libraries/wallet/Doxyfile
