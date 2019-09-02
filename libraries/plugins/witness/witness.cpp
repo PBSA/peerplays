@@ -204,7 +204,7 @@ block_production_condition::block_production_condition_enum witness_plugin::bloc
          break;
       case block_production_condition::no_private_key:
          ilog("Not producing block because I don't have the private key for ${scheduled_key}", 
-               ("n", capture["n"])("t", capture["t"])("c", capture["c"]));
+               ("scheduled_key", capture["scheduled_key"]));
          break;
       case block_production_condition::low_participation:
          elog("Not producing block because node appears to be on a minority fork with only ${pct}% witness participation", 
