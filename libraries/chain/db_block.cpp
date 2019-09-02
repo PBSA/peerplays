@@ -612,7 +612,8 @@ void database::_apply_block( const signed_block& next_block )
 
    if (global_props.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
        update_witness_schedule(next_block);
-   update_global_dynamic_data(next_block);
+   const uint32_t missed = update_witness_missed_blocks( next_block );
+   update_global_dynamic_data( next_block, missed );
    update_signing_witness(signing_witness, next_block);
    update_last_irreversible_block();
 
