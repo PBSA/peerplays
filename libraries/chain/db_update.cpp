@@ -69,7 +69,7 @@ void database::update_global_dynamic_data( const signed_block& b, const uint32_t
       else if( dgp.recently_missed_count > 0 )
          dgp.recently_missed_count--;
 
-      dgp.head_block_number = b.block_num();
+      dgp.head_block_number = block_num;
       dgp.head_block_id = b.id();
       dgp.time = b.timestamp;
       dgp.current_witness = b.witness;
