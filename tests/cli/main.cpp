@@ -377,7 +377,7 @@ BOOST_FIXTURE_TEST_CASE( create_new_account, cli_fixture )
       con.wallet_api_ptr->save_wallet_file(con.wallet_filename);
 
       // attempt to give jmjatlanta some CORE
-      BOOST_TEST_MESSAGE("Transferring bitshares from Nathan to jmjatlanta");
+      BOOST_TEST_MESSAGE("Transferring CORE from Nathan to jmjatlanta");
       signed_transaction transfer_tx = con.wallet_api_ptr->transfer(
             "nathan", "jmjatlanta", "10000", "1.3.0", "Here are some CORE token for your new account", true
       );
