@@ -47,6 +47,50 @@ database::~database()
    clear_pending();
 }
 
+// Right now, we leave undo_db enabled when replaying when the bookie plugin is
+// enabled.  It depends on new/changed/removed object notifications, and those are
+// only fired when the undo_db is enabled.
+// So we use this helper object to disable undo_db only if it is not forbidden
+// with _slow_replays flag.
+class auto_undo_enabler
+{
+    const bool _slow_replays;
+    undo_database& _undo_db;
+    bool _disabled;
+public:
+    auto_undo_enabler(bool slow_replays, undo_database& undo_db) :
+        _slow_replays(slow_replays),
+        _undo_db(undo_db),
+        _disabled(false)
+    {
+    }
+
+    ~auto_undo_enabler()
+    {
+        try{
+            enable();
+        } FC_CAPTURE_AND_LOG(("undo_db enabling crash"))
+    }
+
+    void enable()
+    {
+        if(!_disabled)
+            return;
+        _undo_db.enable();
+        _disabled = false;
+    }
+
+    void disable()
+    {
+        if(_disabled)
+            return;
+        if(_slow_replays)
+            return;
+        _undo_db.disable();
+        _disabled = true;
+    }
+};
+
 void database::reindex( fc::path data_dir )
 { try {
    auto last_block = _block_id_to_block.last();
@@ -64,6 +108,7 @@ void database::reindex( fc::path data_dir )
    uint32_t undo_point = last_block_num < 50 ? 0 : last_block_num - 50;
 
    ilog( "Replaying blocks, starting at ${next}...", ("next",head_block_num() + 1) );
+   auto_undo_enabler undo(_slow_replays, _undo_db);
    if( head_block_num() >= undo_point )
    {
       if( head_block_num() > 0 )
@@ -71,11 +116,7 @@ void database::reindex( fc::path data_dir )
    }
    else
    {
-       // Right now, we leave undo_db enabled when replaying when the bookie plugin is
-       // enabled.  It depends on new/changed/removed object notifications, and those are
-       // only fired when the undo_db is enabled
-        if (!_slow_replays)
-            _undo_db.disable();
+       undo.disable();
    }
    for( uint32_t i = head_block_num() + 1; i <= last_block_num; ++i )
    {
@@ -117,8 +158,7 @@ void database::reindex( fc::path data_dir )
       }
       else
       {
-          if (!_slow_replays)
-             _undo_db.enable();
+         undo.enable();
          push_block(*block, skip_witness_signature |
                             skip_transaction_signatures |
                             skip_transaction_dupe_check |
@@ -127,8 +167,7 @@ void database::reindex( fc::path data_dir )
                             skip_authority_check);
       }
    }
-   if (!_slow_replays)
-     _undo_db.enable();
+   undo.enable();
    auto end = fc::time_point::now();
    ilog( "Done reindexing, elapsed time: ${t} sec", ("t",double((end-start).count())/1000000.0 ) );
 } FC_CAPTURE_AND_RETHROW( (data_dir) ) }
