@@ -438,3 +438,42 @@ BOOST_FIXTURE_TEST_CASE( cli_vote_for_2_witnesses, cli_fixture )
       throw;
    }
 }
+
+///////////////////////
+// Check account history pagination (see peerplay-core/issue/1176)
+///////////////////////
+BOOST_FIXTURE_TEST_CASE( account_history_pagination, cli_fixture )
+{
+   try
+   {
+      INVOKE(create_new_account);
+
+      // attempt to give jmjatlanta some peerplay
+      BOOST_TEST_MESSAGE("Transferring peerplay from Nathan to jmjatlanta");
+      for(int i = 1; i <= 199; i++)
+      {
+         signed_transaction transfer_tx = con.wallet_api_ptr->transfer("nathan", "jmjatlanta", std::to_string(i),
+                                                "1.3.0", "Here are some CORE token for your new account", true);
+      }
+
+      BOOST_CHECK(generate_block(app1));
+
+      // now get account history and make sure everything is there (and no duplicates)
+      std::vector<graphene::wallet::operation_detail> history = con.wallet_api_ptr->get_account_history("jmjatlanta", 300);
+      BOOST_CHECK_EQUAL(201u, history.size() );
+
+      std::set<object_id_type> operation_ids;
+
+      for(auto& op : history)
+      {
+         if( operation_ids.find(op.op.id) != operation_ids.end() )
+         {
+            BOOST_FAIL("Duplicate found");
+         }
+         operation_ids.insert(op.op.id);
+      }
+   } catch( fc::exception& e ) {
+      edump((e.to_detail_string()));
+      throw;
+   }
+}
