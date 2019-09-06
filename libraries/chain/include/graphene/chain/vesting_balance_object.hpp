@@ -33,9 +33,6 @@
 #include <algorithm>
 #include <boost/multi_index/composite_key.hpp>
 
-#define offset_d(i,f)    (long(&(i)->f) - long(i))
-#define offset_s(t,f)    offset_d((t*)1000, f)
-
 namespace graphene { namespace chain {
    using namespace graphene::db;
 
@@ -191,7 +188,7 @@ namespace graphene { namespace chain {
               member_offset<vesting_balance_object, asset_id_type, (size_t) (offsetof(vesting_balance_object,balance) + offsetof(asset,asset_id))>,
               member_offset<vesting_balance_object, share_type, (size_t) (offsetof(vesting_balance_object,balance) + offsetof(asset,amount))>
               //member<vesting_balance_object, account_id_type, &vesting_balance_object::owner>
-              //member_offset<vesting_balance_object, account_id_type, (size_t) (offset_s(vesting_balance_object,owner))>
+              //member_offset<vesting_balance_object, account_id_type, (size_t) (offsetof(vesting_balance_object,owner))>
            >,
            composite_key_compare<
               std::less< asset_id_type >,
