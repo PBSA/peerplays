@@ -600,10 +600,15 @@ namespace graphene { namespace app {
 
              if(node->operation_id(db).op.which() == operation_id)
                result.push_back( node->operation_id(db) );
-             }
+          }
           if( node->next == account_transaction_history_id_type() )
              node = nullptr;
           else node = &node->next(db);
+       }
+       if( stop.instance.value == 0 && result.size() < limit ) {
+          auto head = db.find(account_transaction_history_id_type());
+          if (head != nullptr && head->account == account && head->operation_id(db).op.which() == operation_id)
+            result.push_back(head->operation_id(db));
        }
        return result;
     }
