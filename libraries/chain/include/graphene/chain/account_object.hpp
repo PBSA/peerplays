@@ -344,7 +344,30 @@ namespace graphene { namespace chain {
    };
 
 
-   struct by_account_asset;
+   /**
+    *  @brief This secondary index will allow fast access to the balance objects
+    *         that belonging to an account.
+    */
+   class balances_by_account_index : public secondary_index
+   {
+      public:
+         virtual void object_inserted( const object& obj ) override;
+         virtual void object_removed( const object& obj ) override;
+         virtual void about_to_modify( const object& before ) override;
+         virtual void object_modified( const object& after  ) override;
+
+         const map< asset_id_type, const account_balance_object* >& get_account_balances( const account_id_type& acct )const;
+         const account_balance_object* get_account_balance( const account_id_type& acct, const asset_id_type& asset )const;
+
+      private:
+         static const uint8_t  bits;
+         static const uint64_t mask;
+
+         /** Maps each account to its balance objects */
+         vector< vector< map< asset_id_type, const account_balance_object* > > > balances;
+         std::stack< object_id_type > ids_being_modified;
+   };
+   
    struct by_asset_balance;
    /**
     * @ingroup object_index
@@ -353,13 +376,6 @@ namespace graphene { namespace chain {
       account_balance_object,
       indexed_by<
          ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
-         ordered_unique< tag<by_account_asset>,
-            composite_key<
-               account_balance_object,
-               member<account_balance_object, account_id_type, &account_balance_object::owner>,
-               member<account_balance_object, asset_id_type, &account_balance_object::asset_type>
-            >
-         >,
          ordered_unique< tag<by_asset_balance>,
             composite_key<
                account_balance_object,
@@ -398,6 +414,26 @@ namespace graphene { namespace chain {
     * @ingroup object_index
     */
    typedef generic_index<account_object, account_multi_index_type> account_index;
+
+   struct by_owner;
+   struct by_maintenance_seq;
+
+   /**
+    * @ingroup object_index
+    */
+   typedef multi_index_container<
+      account_statistics_object,
+      indexed_by<
+         ordered_unique< tag<by_id>, member< object, object_id_type, &object::id > >,
+         ordered_unique< tag<by_owner>,
+                         member< account_statistics_object, account_id_type, &account_statistics_object::owner > >
+      >
+   > account_stats_multi_index_type;
+
+   /**
+    * @ingroup object_index
+    */
+   typedef generic_index<account_statistics_object, account_stats_multi_index_type> account_stats_index;
 
    struct by_dividend_payout_account{}; // use when calculating pending payouts
    struct by_dividend_account_payout{}; // use when doing actual payouts
