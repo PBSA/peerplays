@@ -1,36 +1,28 @@
 stages:
-  - pull
   - build
   - test
 
-before_script:
-  - cd /var/www/Projects/595.peerplays/blockchain
-
-pulljob:
-  stage: pull
-  script:
-    - git pull origin master
-  only:
-    - master
-  tags: 
-    - pp-dev
-
-buildjob:
+build:
   stage: build
   script:
+    - git submodule update --init --recursive
     - cmake .
-    - make 
-  only:
-    - master
-  tags: 
-    - pp-dev
-
-testjob:
+    - make -j$(nproc)
+  artifacts:
+    untracked: true
+    paths:
+      - libraries/
+      - programs/
+      - tests/
+  tags:
+    - builder
+    
+test:
   stage: test
+  dependencies: 
+    - build
   script:
+    - ./tests/betting_test
     - ./tests/chain_test
-    - ./tests/tournament_test
-  only:
-    - master
-  tags: 
-    - pp-dev
+  tags:
+    - builder
