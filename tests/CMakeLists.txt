@@ -33,6 +33,10 @@ file(GLOB BETTING_TESTS "betting/*.cpp")
 add_executable( betting_test ${BETTING_TESTS} ${COMMON_SOURCES} )
 target_link_libraries( betting_test graphene_chain graphene_app graphene_account_history graphene_bookie graphene_egenesis_none fc graphene_wallet ${PLATFORM_SPECIFIC_LIBS} )
 
+file(GLOB PEERPLAYS_SIDECHAIN_TESTS "peerplays_sidechain/*.cpp")
+add_executable( peerplays_sidechain_test ${PEERPLAYS_SIDECHAIN_TESTS} ${COMMON_SOURCES} )
+target_link_libraries( peerplays_sidechain_test graphene_chain graphene_app graphene_account_history graphene_bookie graphene_egenesis_none fc graphene_wallet ${PLATFORM_SPECIFIC_LIBS} )
+
 file(GLOB TOURNAMENT_TESTS "tournament/*.cpp")
 add_executable( tournament_test ${TOURNAMENT_TESTS} ${COMMON_SOURCES} )
 target_link_libraries( tournament_test graphene_chain graphene_app graphene_account_history graphene_egenesis_none fc ${PLATFORM_SPECIFIC_LIBS} )

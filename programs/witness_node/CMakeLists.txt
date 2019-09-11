@@ -11,7 +11,7 @@ endif()
 
 # We have to link against graphene_debug_witness because deficiency in our API infrastructure doesn't allow plugins to be fully abstracted #246
 target_link_libraries( witness_node
-                       PRIVATE graphene_app graphene_account_history graphene_affiliate_stats graphene_market_history graphene_witness graphene_chain graphene_debug_witness graphene_bookie graphene_egenesis_full fc ${CMAKE_DL_LIBS} ${PLATFORM_SPECIFIC_LIBS} )
+                       PRIVATE graphene_app graphene_account_history graphene_affiliate_stats graphene_market_history graphene_witness graphene_chain graphene_debug_witness graphene_bookie graphene_egenesis_full fc peerplays_sidechain ${CMAKE_DL_LIBS} ${PLATFORM_SPECIFIC_LIBS} )
 # also add dependencies to graphene_generate_genesis graphene_generate_uia_sharedrop_genesis if you want those plugins
 
 install( TARGETS
