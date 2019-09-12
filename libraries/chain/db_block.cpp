@@ -729,9 +729,9 @@ processed_transaction database::_apply_transaction(const signed_transaction& trx
    ptrx.operation_results = std::move(eval_state.operation_results);
 
    //Make sure the temp account has no non-zero balances
-   const auto& index = get_index_type< primary_index< account_balance_index > >().get_secondary_index< balances_by_account_index >();
-   auto range = index.equal_range( boost::make_tuple( GRAPHENE_TEMP_ACCOUNT ) );
-   std::for_each(range.first, range.second, [](const account_balance_object& b) { FC_ASSERT(b.balance == 0); });
+   const auto& balances = get_index_type< primary_index< account_balance_index > >().get_secondary_index< balances_by_account_index >().get_account_balances( GRAPHENE_TEMP_ACCOUNT );
+   for( const auto b : balances )
+      FC_ASSERT(b.second->balance == 0);
 
    return ptrx;
 } FC_CAPTURE_AND_RETHROW( (trx) ) }
