@@ -497,6 +497,11 @@ class wallet_api
        * @ingroup Transaction Builder API
        */
       signed_transaction sign_builder_transaction(transaction_handle_type transaction_handle, bool broadcast = true);
+      /** Broadcast signed transaction
+       * @param tx signed transaction
+       * @returns the transaction ID along with the signed transaction.
+       */
+      pair<transaction_id_type,signed_transaction> broadcast_transaction(signed_transaction tx);
       /**
        * @ingroup Transaction Builder API
        */
@@ -595,6 +600,12 @@ class wallet_api
        * @returns true if the specified wallet is loaded
        */
       bool    load_wallet_file(string wallet_filename = "");
+
+      /** Quitting from Peerplays wallet.
+       * 
+       * The current wallet will be closed.
+       */
+      void    quit();
 
       /** Saves the current wallet to the given filename.
        * 
@@ -1513,6 +1524,37 @@ class wallet_api
        */
       signed_transaction sign_transaction(signed_transaction tx, bool broadcast = false);
 
+      /** Get transaction signers.
+       *
+       * Returns information about who signed the transaction, specifically,
+       * the corresponding public keys of the private keys used to sign the transaction.
+       * @param tx the signed transaction
+       * @return the set of public_keys
+       */
+      flat_set<public_key_type> get_transaction_signers(const signed_transaction &tx) const;
+
+      /** Get key references.
+       *
+       * Returns accounts related to given public keys.
+       * @param keys public keys to search for related accounts
+       * @return the set of related accounts
+       */
+      vector<vector<account_id_type>> get_key_references(const vector<public_key_type> &keys) const;
+
+      /** Signs a transaction.
+       *
+       * Given a fully-formed transaction with or without signatures, signs
+       * the transaction with the owned keys and optionally broadcasts the
+       * transaction.
+       *
+       * @param tx the unsigned transaction
+       * @param broadcast true if you wish to broadcast the transaction
+       *
+       * @return the signed transaction
+       */
+      signed_transaction add_transaction_signature( signed_transaction tx,
+                                                    bool broadcast = false );
+
       /** Returns an uninitialized object representing a given blockchain operation.
        *
        * This returns a default-initialized object of the given type; it can be used 
@@ -1920,6 +1962,7 @@ FC_API( graphene::wallet::wallet_api,
         (set_fees_on_builder_transaction)
         (preview_builder_transaction)
         (sign_builder_transaction)
+        (broadcast_transaction)
         (propose_builder_transaction)
         (propose_builder_transaction2)
         (remove_builder_transaction)
@@ -2005,6 +2048,9 @@ FC_API( graphene::wallet::wallet_api,
         (save_wallet_file)
         (serialize_transaction)
         (sign_transaction)
+        (get_transaction_signers)
+        (get_key_references)
+        (add_transaction_signature)
         (get_prototype_operation)
         (propose_parameter_change)
         (propose_fee_change)

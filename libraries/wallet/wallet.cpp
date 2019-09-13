@@ -274,6 +274,7 @@ public:
 private:
    void claim_registered_account(const account_object& account)
    {
+      bool import_keys = false;
       auto it = _wallet.pending_account_registrations.find( account.name );
       FC_ASSERT( it != _wallet.pending_account_registrations.end() );
       for (const std::string& wif_key : it->second)
@@ -289,8 +290,13 @@ private:
             //    possibility of migrating to a fork where the
             //    name is available, the user can always
             //    manually re-register)
+         } else {
+            import_keys = true;
          }
       _wallet.pending_account_registrations.erase( it );
+
+      if (import_keys)
+         save_wallet_file();
    }
 
    // after a witness registration succeeds, this saves the private key in the wallet permanently
@@ -599,6 +605,13 @@ public:
       fc::async([this, object]{subscribed_object_changed(object);}, "Object changed");
    }
 
+   void quit()
+   {
+      ilog( "Quitting Cli Wallet ..." );
+
+      throw fc::canceled_exception();
+   }
+   
    bool copy_wallet_file( string destination_filename )
    {
       fc::path src_path = get_wallet_filename();
@@ -1147,6 +1160,20 @@ public:
 
       return _builder_transactions[transaction_handle] = sign_transaction(_builder_transactions[transaction_handle], broadcast);
    }
+
+   pair<transaction_id_type,signed_transaction> broadcast_transaction(signed_transaction tx)
+   {
+       try {
+           _remote_net_broadcast->broadcast_transaction(tx);
+       }
+       catch (const fc::exception& e) {
+           elog("Caught exception while broadcasting tx ${id}:  ${e}",
+                ("id", tx.id().str())("e", e.to_detail_string()));
+           throw;
+       }
+       return std::make_pair(tx.id(),tx);
+   }
+
    signed_transaction propose_builder_transaction(
       transaction_handle_type handle,
       time_point_sec expiration = time_point::now() + fc::minutes(1),
@@ -2244,6 +2271,84 @@ public:
          {
             elog("Caught exception while broadcasting tx ${id}:  ${e}", ("id", tx.id().str())("e", e.to_detail_string()));
             throw;
+         }
+      }
+
+      return tx;
+   }
+
+   flat_set<public_key_type> get_transaction_signers(const signed_transaction &tx) const
+   {
+      return tx.get_signature_keys(_chain_id);
+   }
+
+   vector<vector<account_id_type>> get_key_references(const vector<public_key_type> &keys) const
+   {
+       return _remote_db->get_key_references(keys);
+   }
+
+   /**
+    * Get the required public keys to sign the transaction which had been
+    * owned by us
+    *
+    * NOTE, if `erase_existing_sigs` set to true, the original trasaction's
+    * signatures will be erased
+    *
+    * @param tx           The transaction to be signed
+    * @param erase_existing_sigs
+    *        The transaction could have been partially signed already,
+    *        if set to false, the corresponding public key of existing
+    *        signatures won't be returned.
+    *        If set to true, the existing signatures will be erased and
+    *        all required keys returned.
+   */
+   set<public_key_type> get_owned_required_keys( signed_transaction &tx,
+                                                    bool erase_existing_sigs = true)
+   {
+      set<public_key_type> pks = _remote_db->get_potential_signatures( tx );
+      flat_set<public_key_type> owned_keys;
+      owned_keys.reserve( pks.size() );
+      std::copy_if( pks.begin(), pks.end(),
+                    std::inserter( owned_keys, owned_keys.end() ),
+                    [this]( const public_key_type &pk ) {
+                       return _keys.find( pk ) != _keys.end();
+                    } );
+
+      if ( erase_existing_sigs )
+         tx.signatures.clear();
+
+      return _remote_db->get_required_signatures( tx, owned_keys );
+   }
+
+   signed_transaction add_transaction_signature( signed_transaction tx,
+                                                 bool broadcast )
+   {
+      set<public_key_type> approving_key_set = get_owned_required_keys(tx, false);
+
+      if ( ( ( tx.ref_block_num == 0 && tx.ref_block_prefix == 0 ) ||
+             tx.expiration == fc::time_point_sec() ) &&
+           tx.signatures.empty() )
+      {
+         auto dyn_props = get_dynamic_global_properties();
+         auto parameters = get_global_properties().parameters;
+         fc::time_point_sec now = dyn_props.time;
+         tx.set_reference_block( dyn_props.head_block_id );
+         tx.set_expiration( now + parameters.maximum_time_until_expiration );
+      }
+      for ( const public_key_type &key : approving_key_set )
+         tx.sign( get_private_key( key ), _chain_id );
+
+      if ( broadcast )
+      {
+         try
+         {
+            _remote_net_broadcast->broadcast_transaction( tx );
+         }
+         catch ( const fc::exception &e )
+         {
+            elog( "Caught exception while broadcasting tx ${id}:  ${e}",
+                  ( "id", tx.id().str() )( "e", e.to_detail_string() ) );
+            FC_THROW( "Caught exception while broadcasting tx" );
          }
       }
 
@@ -3645,6 +3750,11 @@ signed_transaction wallet_api::sign_builder_transaction(transaction_handle_type 
    return my->sign_builder_transaction(transaction_handle, broadcast);
 }
 
+pair<transaction_id_type,signed_transaction> wallet_api::broadcast_transaction(signed_transaction tx)
+{
+    return my->broadcast_transaction(tx);
+}
+
 signed_transaction wallet_api::propose_builder_transaction(
    transaction_handle_type handle,
    time_point_sec expiration,
@@ -4117,6 +4227,22 @@ signed_transaction wallet_api::sign_transaction(signed_transaction tx, bool broa
    return my->sign_transaction( tx, broadcast);
 } FC_CAPTURE_AND_RETHROW( (tx) ) }
 
+signed_transaction wallet_api::add_transaction_signature( signed_transaction tx,
+                                                          bool broadcast )
+{
+   return my->add_transaction_signature( tx, broadcast );
+}
+
+flat_set<public_key_type> wallet_api::get_transaction_signers(const signed_transaction &tx) const
+{ try {
+   return my->get_transaction_signers(tx);
+} FC_CAPTURE_AND_RETHROW( (tx) ) }
+
+vector<vector<account_id_type>> wallet_api::get_key_references(const vector<public_key_type> &keys) const
+{ try {
+   return my->get_key_references(keys);
+} FC_CAPTURE_AND_RETHROW( (keys) ) }
+
 operation wallet_api::get_prototype_operation(string operation_name)
 {
    return my->get_prototype_operation( operation_name );
@@ -4302,6 +4428,11 @@ string wallet_api::gethelp(const string& method)const
 bool wallet_api::load_wallet_file( string wallet_filename )
 {
    return my->load_wallet_file( wallet_filename );
+}
+
+void wallet_api::quit()
+{
+   my->quit();
 }
 
 void wallet_api::save_wallet_file( string wallet_filename )
