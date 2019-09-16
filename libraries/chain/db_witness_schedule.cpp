@@ -226,6 +226,22 @@ void database::update_witness_schedule(const signed_block& next_block)
       idump( ( double(total_time/1000000.0)/calls) );
 }
 
+uint32_t database::update_witness_missed_blocks( const signed_block& b )
+{
+   uint32_t missed_blocks = get_slot_at_time( b.timestamp );
+   FC_ASSERT( missed_blocks != 0, "Trying to push double-produced block onto current block?!" );
+   missed_blocks--;
+   const auto& witnesses = witness_schedule_id_type()(*this).current_shuffled_witnesses;
+   if( missed_blocks < witnesses.size() )
+      for( uint32_t i = 0; i < missed_blocks; ++i ) {
+         const auto& witness_missed = get_scheduled_witness( i+1 )(*this);
+         modify( witness_missed, []( witness_object& w ) {
+            w.total_missed++;
+         });
+      }
+   return missed_blocks;
+}
+
 uint32_t database::witness_participation_rate()const
 {
     const global_property_object& gpo = get_global_properties();
