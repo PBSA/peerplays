@@ -175,7 +175,9 @@ void database::reindex( fc::path data_dir )
 void database::wipe(const fc::path& data_dir, bool include_blocks)
 {
    ilog("Wiping database", ("include_blocks", include_blocks));
-   close();
+   if (_opened) {
+     close();
+   }
    object_database::wipe(data_dir);
    if( include_blocks )
       fc::remove_all( data_dir / "database" );
@@ -221,12 +223,16 @@ void database::open(
                     ("last_block->id", last_block)("head_block_id",head_block_num()) );
          reindex( data_dir );
       }
+      _opened = true;
    }
    FC_CAPTURE_LOG_AND_RETHROW( (data_dir) )
 }
 
 void database::close(bool rewind)
 {
+   if (!_opened)
+      return;
+      
    // TODO:  Save pending tx's on close()
    clear_pending();
 
@@ -263,6 +269,8 @@ void database::close(bool rewind)
       _block_id_to_block.close();
 
    _fork_db.reset();
+
+   _opened = false;
 }
 
 void database::force_slow_replays()
