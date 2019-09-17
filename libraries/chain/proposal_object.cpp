@@ -48,7 +48,6 @@ bool proposal_object::is_authorized_to_execute(database& db) const
    return true;
 }
 
-
 void required_approval_index::object_inserted( const object& obj )
 {
     assert( dynamic_cast<const proposal_object*>(&obj) );
