@@ -1087,10 +1087,10 @@ void process_dividend_assets(database& db)
                     ("holder_asset", dividend_holder_asset_obj.symbol));
 #ifndef NDEBUG
                // dump balances before the payouts for debugging
-               const auto& balance_idx = db.get_index_type< primary_index< account_balance_index > >().get_secondary_index< balances_by_account_index >();
-               auto holder_account_balance_range = balance_idx.equal_range(boost::make_tuple(dividend_data.dividend_distribution_account));
-               for (const account_balance_object& holder_balance_object : boost::make_iterator_range(holder_account_balance_range.first, holder_account_balance_range.second))
-                  ilog("  Current balance: ${asset}", ("asset", asset(holder_balance_object.balance, holder_balance_object.asset_type)));
+               const auto& balance_index = db.get_index_type< primary_index< account_balance_index > >();
+               const auto& balances = balance_index.get_secondary_index< balances_by_account_index >().get_account_balances( dividend_data.dividend_distribution_account );
+               for( const auto balance : balances )
+                  ilog("  Current balance: ${asset}", ("asset", asset(balance.second->balance, balance.second->asset_type)));
 #endif
 
                // when we do the payouts, we first increase the balances in all of the receiving accounts
