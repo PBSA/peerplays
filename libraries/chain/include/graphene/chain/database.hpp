@@ -561,6 +561,15 @@ namespace graphene { namespace chain {
          node_property_object              _node_property_object;
          fc::hash_ctr_rng<secret_hash_type, 20> _random_number_generator;
          bool                              _slow_replays = false;
+
+         /**
+          * Whether database is successfully opened or not.
+          *
+          * The database is considered open when there's no exception
+          * or assertion fail during database::open() method, and
+          * database::close() has not been called, or failed during execution.
+          */
+         bool                              _opened = false;
    };
 
    namespace detail
