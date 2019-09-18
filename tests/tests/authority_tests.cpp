@@ -521,9 +521,10 @@ BOOST_AUTO_TEST_CASE( committee_authority )
    // Should throw because the transaction is now in review.
    GRAPHENE_CHECK_THROW(PUSH_TX( db, trx ), fc::exception);
 
-   // generate_blocks(prop.expiration_time);
-   // fails 
-   // BOOST_CHECK_EQUAL(get_balance(nathan, asset_id_type()(db)), 100000);
+   generate_blocks(prop.expiration_time);
+   BOOST_CHECK_EQUAL(get_balance(nathan, asset_id_type()(db)), 100000);
+   // proposal deleted
+   BOOST_CHECK_THROW( db.get<proposal_object>(prop.id), fc::exception );
 } FC_LOG_AND_RETHROW() }
 
 BOOST_FIXTURE_TEST_CASE( fired_committee_members, database_fixture )
