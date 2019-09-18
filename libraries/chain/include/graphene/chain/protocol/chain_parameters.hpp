@@ -43,6 +43,7 @@ namespace graphene { namespace chain {
       optional < uint32_t >           gpos_period;
       optional < uint32_t >           gpos_subperiod;
       optional < uint32_t >           gpos_period_start;
+      optional < uint16_t >           son_count;
    };
 
    struct chain_parameters
@@ -121,6 +122,9 @@ namespace graphene { namespace chain {
       inline uint32_t gpos_period_start()const {
          return extensions.value.gpos_period_start.valid() ? *extensions.value.gpos_period_start : HARDFORK_GPOS_TIME.sec_since_epoch(); /// current period start date
       }
+      inline uint16_t son_count()const {
+         return extensions.value.son_count.valid() ? *extensions.value.son_count : MIN_SON_MEMBER_COUNT;
+      }
    };
 
 } }  // graphene::chain
@@ -134,6 +138,7 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (gpos_period)
    (gpos_subperiod)
    (gpos_period_start)
+   (son_count)
 )
 
 FC_REFLECT( graphene::chain::chain_parameters,
