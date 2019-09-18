@@ -442,7 +442,7 @@ BOOST_FIXTURE_TEST_CASE( cli_vote_for_2_witnesses, cli_fixture )
 }
 
 ///////////////////////
-// Check account history pagination (see peerplay-core/issue/1176)
+// Check account history pagination
 ///////////////////////
 BOOST_FIXTURE_TEST_CASE( account_history_pagination, cli_fixture )
 {
