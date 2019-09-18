@@ -47,33 +47,86 @@ database::~database()
    clear_pending();
 }
 
-void database::reindex(fc::path data_dir, const genesis_state_type& initial_allocation)
-{ try {
-   ilog( "reindexing blockchain" );
-   wipe(data_dir, false);
-   open(data_dir, [&initial_allocation]{return initial_allocation;});
+// Right now, we leave undo_db enabled when replaying when the bookie plugin is
+// enabled.  It depends on new/changed/removed object notifications, and those are
+// only fired when the undo_db is enabled.
+// So we use this helper object to disable undo_db only if it is not forbidden
+// with _slow_replays flag.
+class auto_undo_enabler
+{
+    const bool _slow_replays;
+    undo_database& _undo_db;
+    bool _disabled;
+public:
+    auto_undo_enabler(bool slow_replays, undo_database& undo_db) :
+        _slow_replays(slow_replays),
+        _undo_db(undo_db),
+        _disabled(false)
+    {
+    }
 
-   auto start = fc::time_point::now();
+    ~auto_undo_enabler()
+    {
+        try{
+            enable();
+        } FC_CAPTURE_AND_LOG(("undo_db enabling crash"))
+    }
+
+    void enable()
+    {
+        if(!_disabled)
+            return;
+        _undo_db.enable();
+        _disabled = false;
+    }
+
+    void disable()
+    {
+        if(_disabled)
+            return;
+        if(_slow_replays)
+            return;
+        _undo_db.disable();
+        _disabled = true;
+    }
+};
+
+void database::reindex( fc::path data_dir )
+{ try {
    auto last_block = _block_id_to_block.last();
    if( !last_block ) {
       elog( "!no last block" );
       edump((last_block));
       return;
    }
+   if( last_block->block_num() <= head_block_num()) return;
 
+   ilog( "reindexing blockchain" );
+   auto start = fc::time_point::now();
    const auto last_block_num = last_block->block_num();
+   uint32_t flush_point = last_block_num < 10000 ? 0 : last_block_num - 10000;
+   uint32_t undo_point = last_block_num < 50 ? 0 : last_block_num - 50;
 
-   ilog( "Replaying blocks..." );
-   // Right now, we leave undo_db enabled when replaying when the bookie plugin is 
-   // enabled.  It depends on new/changed/removed object notifications, and those are 
-   // only fired when the undo_db is enabled
-   if (!_slow_replays)
-      _undo_db.disable();
-   for( uint32_t i = 1; i <= last_block_num; ++i )
+   ilog( "Replaying blocks, starting at ${next}...", ("next",head_block_num() + 1) );
+   auto_undo_enabler undo(_slow_replays, _undo_db);
+   if( head_block_num() >= undo_point )
    {
-      if( i == 1 || 
-          i % 10000 == 0 ) 
-         std::cerr << "   " << double(i*100)/last_block_num << "%   "<< i << " of " <<last_block_num<<"   \n";
+      if( head_block_num() > 0 )
+         _fork_db.start_block( *fetch_block_by_number( head_block_num() ) );
+   }
+   else
+   {
+       undo.disable();
+   }
+   for( uint32_t i = head_block_num() + 1; i <= last_block_num; ++i )
+   {
+      if( i % 10000 == 0 ) std::cerr << "   " << double(i*100)/last_block_num << "%   "<<i << " of " <<last_block_num<<"   \n";
+      if( i == flush_point )
+      {
+         ilog( "Writing database to disk at block ${i}", ("i",i) );
+         flush();
+         ilog( "Done" );
+      }
       fc::optional< signed_block > block = _block_id_to_block.fetch_by_number(i);
       if( !block.valid() )
       {
@@ -94,24 +147,27 @@ void database::reindex(fc::path data_dir, const genesis_state_type& initial_allo
          wlog( "Dropped ${n} blocks from after the gap", ("n", dropped_count) );
          break;
       }
-      if (_slow_replays)
-         push_block(*block, skip_fork_db |
-                            skip_witness_signature |
-                            skip_transaction_signatures |
-                            skip_transaction_dupe_check |
-                            skip_tapos_check |
-                            skip_witness_schedule_check |
-                            skip_authority_check);
-      else
+      if( i < undo_point && !_slow_replays)
+      {
          apply_block(*block, skip_witness_signature |
                              skip_transaction_signatures |
                              skip_transaction_dupe_check |
                              skip_tapos_check |
                              skip_witness_schedule_check |
                              skip_authority_check);
+      }
+      else
+      {
+         undo.enable();
+         push_block(*block, skip_witness_signature |
+                            skip_transaction_signatures |
+                            skip_transaction_dupe_check |
+                            skip_tapos_check |
+                            skip_witness_schedule_check |
+                            skip_authority_check);
+      }
    }
-   if (!_slow_replays)
-     _undo_db.enable();
+   undo.enable();
    auto end = fc::time_point::now();
    ilog( "Done reindexing, elapsed time: ${t} sec", ("t",double((end-start).count())/1000000.0 ) );
 } FC_CAPTURE_AND_RETHROW( (data_dir) ) }
@@ -129,10 +185,29 @@ void database::wipe(const fc::path& data_dir, bool include_blocks)
 
 void database::open(
    const fc::path& data_dir,
-   std::function<genesis_state_type()> genesis_loader)
+   std::function<genesis_state_type()> genesis_loader,
+   const std::string& db_version)
 {
    try
    {
+      bool wipe_object_db = false;
+      if( !fc::exists( data_dir / "db_version" ) )
+         wipe_object_db = true;
+      else
+      {
+         std::string version_string;
+         fc::read_file_contents( data_dir / "db_version", version_string );
+         wipe_object_db = ( version_string != db_version );
+      }
+      if( wipe_object_db ) {
+          ilog("Wiping object_database due to missing or wrong version");
+          object_database::wipe( data_dir );
+          std::ofstream version_file( (data_dir / "db_version").generic_string().c_str(),
+                                      std::ios::out | std::ios::binary | std::ios::trunc );
+          version_file.write( db_version.c_str(), db_version.size() );
+          version_file.close();
+      }
+
       object_database::open(data_dir);
 
       _block_id_to_block.open(data_dir / "database" / "block_num_to_block");
@@ -140,15 +215,13 @@ void database::open(
       if( !find(global_property_id_type()) )
          init_genesis(genesis_loader());
 
-      fc::optional<signed_block> last_block = _block_id_to_block.last();
+      fc::optional<block_id_type> last_block = _block_id_to_block.last_id();
       if( last_block.valid() )
       {
-         _fork_db.start_block( *last_block );
-         if( last_block->id() != head_block_id() )
-         {
-              FC_ASSERT( head_block_num() == 0, "last block ID does not match current chain state",
-                         ("last_block->id", last_block->id())("head_block_num",head_block_num()) );
-         }
+         FC_ASSERT( *last_block >= head_block_id(),
+                    "last block ID does not match current chain state",
+                    ("last_block->id", last_block)("head_block_id",head_block_num()) );
+         reindex( data_dir );
       }
       _opened = true;
    }
@@ -173,17 +246,9 @@ void database::close(bool rewind)
 
          while( head_block_num() > cutoff )
          {
-         //   elog("pop");
             block_id_type popped_block_id = head_block_id();
             pop_block();
             _fork_db.remove(popped_block_id); // doesn't throw on missing
-            try
-            {
-               _block_id_to_block.remove(popped_block_id);
-            }
-            catch (const fc::key_not_found_exception&)
-            {
-            }
          }
       }
       catch ( const fc::exception& e )
