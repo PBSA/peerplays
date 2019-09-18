@@ -43,43 +43,13 @@
 
 namespace graphene { namespace chain {
 
-void database::update_global_dynamic_data( const signed_block& b )
+void database::update_global_dynamic_data( const signed_block& b, const uint32_t missed_blocks )
 {
    const dynamic_global_property_object& _dgp = dynamic_global_property_id_type(0)(*this);
    const global_property_object& gpo = get_global_properties();
 
-   uint32_t missed_blocks = get_slot_at_time( b.timestamp );
-
-//#define DIRTY_TRICK // problem with missed_blocks can occur when "maintenance_interval" set to few minutes
-#ifdef DIRTY_TRICK
-   if (missed_blocks != 0) {
-#else
-   assert( missed_blocks != 0 );
-#endif
-// bad if-condition, this code needs to execute for both shuffled and rng algorithms
-//     if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SHUFFLED_ALGORITHM)
-//     {
-       missed_blocks--;
-       for( uint32_t i = 0; i < missed_blocks; ++i ) {
-          const auto& witness_missed = get_scheduled_witness( i+1 )(*this);
-          if(  witness_missed.id != b.witness ) {
-             /*
-             const auto& witness_account = witness_missed.witness_account(*this);
-             if( (fc::time_point::now() - b.timestamp) < fc::seconds(30) )
-                wlog( "Witness ${name} missed block ${n} around ${t}", ("name",witness_account.name)("n",b.block_num())("t",b.timestamp) );
-                */
-
-             modify( witness_missed, [&]( witness_object& w ) {
-               w.total_missed++;
-             });
-          }
-       }
-//   }
-#ifdef DIRTY_TRICK
-   }
-#endif
    // dynamic global properties updating
-   modify( _dgp, [&]( dynamic_global_property_object& dgp ){
+   modify( _dgp, [&b,this,missed_blocks]( dynamic_global_property_object& dgp ){
       secret_hash_type::encoder enc;       
       fc::raw::pack( enc, dgp.random );       
       fc::raw::pack( enc, b.previous_secret );        
@@ -87,9 +57,10 @@ void database::update_global_dynamic_data( const signed_block& b )
 
       _random_number_generator = fc::hash_ctr_rng<secret_hash_type, 20>(dgp.random.data());
 
-      if( BOOST_UNLIKELY( b.block_num() == 1 ) )
+      const uint32_t block_num = b.block_num();
+      if( BOOST_UNLIKELY( block_num == 1 ) )
          dgp.recently_missed_count = 0;
-      else if( _checkpoints.size() && _checkpoints.rbegin()->first >= b.block_num() )
+      else if( _checkpoints.size() && _checkpoints.rbegin()->first >= block_num )
          dgp.recently_missed_count = 0;
       else if( missed_blocks )
          dgp.recently_missed_count += GRAPHENE_RECENTLY_MISSED_COUNT_INCREMENT*missed_blocks;
@@ -98,7 +69,7 @@ void database::update_global_dynamic_data( const signed_block& b )
       else if( dgp.recently_missed_count > 0 )
          dgp.recently_missed_count--;
 
-      dgp.head_block_number = b.block_num();
+      dgp.head_block_number = block_num;
       dgp.head_block_id = b.id();
       dgp.time = b.timestamp;
       dgp.current_witness = b.witness;
