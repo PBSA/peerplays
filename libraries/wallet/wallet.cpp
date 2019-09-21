@@ -3444,30 +3444,54 @@ asset wallet_api::get_lottery_balance( asset_id_type lottery_id )const
    return my->_remote_db->get_lottery_balance( lottery_id );
 }
 
-vector<operation_detail> wallet_api::get_account_history(string name, int limit)const
+vector<operation_detail> wallet_api::get_account_history(string name, int limit) const
 {
    vector<operation_detail> result;
    auto account_id = get_account(name).get_id();
 
-   while( limit > 0 )
+   while (limit > 0)
    {
+      bool skip_first_row = false;
       operation_history_id_type start;
-      if( result.size() )
+      if (result.size())
       {
          start = result.back().op.id;
-         start = start + 1;
+         if (start == operation_history_id_type()) // no more data
+            break;
+         start = start + (-1);
+         if (start == operation_history_id_type()) // will return most recent history if directly call remote API with this
+         {
+            start = start + 1;
+            skip_first_row = true;
+         }
       }
 
+      int page_limit = skip_first_row ? std::min(100, limit + 1) : std::min(100, limit);
 
-      vector<operation_history_object> current = my->_remote_hist->get_account_history(account_id, operation_history_id_type(), std::min(100,limit), start);
-      for( auto& o : current ) {
+      vector<operation_history_object> current = my->_remote_hist->get_account_history(account_id, operation_history_id_type(),
+                                                                                       page_limit, start);
+      bool first_row = true;
+      for (auto &o : current)
+      {
+         if (first_row)
+         {
+            first_row = false;
+            if (skip_first_row)
+            {
+               continue;
+            }
+         }
          std::stringstream ss;
          auto memo = o.op.visit(detail::operation_printer(ss, *my, o.result));
-         result.push_back( operation_detail{ memo, ss.str(), o } );
+         result.push_back(operation_detail{memo, ss.str(), o});
       }
-      if( (int)current.size() < std::min(100,limit) )
+
+      if (int(current.size()) < page_limit)
          break;
+
       limit -= current.size();
+      if (skip_first_row)
+         ++limit;
    }
 
    return result;

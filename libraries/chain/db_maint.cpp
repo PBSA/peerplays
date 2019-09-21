@@ -621,7 +621,7 @@ void distribute_fba_balances( database& db )
 void create_buyback_orders( database& db )
 {
    const auto& bbo_idx = db.get_index_type< buyback_index >().indices().get<by_id>();
-   const auto& bal_idx = db.get_index_type< account_balance_index >().indices().get< by_account_asset >();
+   const auto& bal_idx = db.get_index_type< primary_index< account_balance_index > >().get_secondary_index< balances_by_account_index >();
 
    for( const buyback_object& bbo : bbo_idx )
    {
@@ -629,7 +629,6 @@ void create_buyback_orders( database& db )
       assert( asset_to_buy.buyback_account.valid() );
 
       const account_object& buyback_account = (*(asset_to_buy.buyback_account))(db);
-      asset_id_type next_asset = asset_id_type();
 
       if( !buyback_account.allowed_assets.valid() )
       {
@@ -637,16 +636,11 @@ void create_buyback_orders( database& db )
          continue;
       }
 
-      while( true )
+      for( const auto& entry : bal_idx.get_account_balances( buyback_account.id ) )
       {
-         auto it = bal_idx.lower_bound( boost::make_tuple( buyback_account.id, next_asset ) );
-         if( it == bal_idx.end() )
-            break;
-         if( it->owner != buyback_account.id )
-            break;
+         const auto* it = entry.second;
          asset_id_type asset_to_sell = it->asset_type;
          share_type amount_to_sell = it->balance;
-         next_asset = asset_to_sell + 1;
          if( asset_to_sell == asset_to_buy.id )
             continue;
          if( amount_to_sell == 0 )
@@ -740,8 +734,10 @@ void schedule_pending_dividend_balances(database& db,
 { try {
    dlog("Processing dividend payments for dividend holder asset type ${holder_asset} at time ${t}",
         ("holder_asset", dividend_holder_asset_obj.symbol)("t", db.head_block_time()));
+   auto balance_by_acc_index = db.get_index_type< primary_index< account_balance_index > >().get_secondary_index< balances_by_account_index >();
    auto current_distribution_account_balance_range = 
-      balance_index.indices().get<by_account_asset>().equal_range(boost::make_tuple(dividend_data.dividend_distribution_account));
+      //balance_index.indices().get<by_account_asset>().equal_range(boost::make_tuple(dividend_data.dividend_distribution_account));
+      balance_by_acc_index.get_account_balances(dividend_data.dividend_distribution_account);
    auto previous_distribution_account_balance_range =
       distributed_dividend_balance_index.indices().get<by_dividend_payout_asset>().equal_range(boost::make_tuple(dividend_holder_asset_obj.id));
    // the current range is now all current balances for the distribution account, sorted by asset_type
@@ -789,10 +785,10 @@ void schedule_pending_dividend_balances(database& db,
    }
 #endif
 
-   auto current_distribution_account_balance_iter = current_distribution_account_balance_range.first;
+   auto current_distribution_account_balance_iter = current_distribution_account_balance_range.begin();
    auto previous_distribution_account_balance_iter = previous_distribution_account_balance_range.first;
    dlog("Current balances in distribution account: ${current}, Previous balances: ${previous}",
-        ("current", (int64_t)std::distance(current_distribution_account_balance_range.first, current_distribution_account_balance_range.second))
+        ("current", (int64_t)std::distance(current_distribution_account_balance_range.begin(), current_distribution_account_balance_range.end()))
         ("previous", (int64_t)std::distance(previous_distribution_account_balance_range.first, previous_distribution_account_balance_range.second)));
 
    // when we pay out the dividends to the holders, we need to know the total balance of the dividend asset in all
@@ -808,7 +804,7 @@ void schedule_pending_dividend_balances(database& db,
              total_balance_of_dividend_asset += itr->second;
       }
    // loop through all of the assets currently or previously held in the distribution account
-   while (current_distribution_account_balance_iter != current_distribution_account_balance_range.second ||
+   while (current_distribution_account_balance_iter != current_distribution_account_balance_range.end() ||
           previous_distribution_account_balance_iter != previous_distribution_account_balance_range.second)
    {
       try
@@ -819,15 +815,15 @@ void schedule_pending_dividend_balances(database& db,
          asset_id_type payout_asset_type;
 
          if (previous_distribution_account_balance_iter == previous_distribution_account_balance_range.second || 
-             current_distribution_account_balance_iter->asset_type < previous_distribution_account_balance_iter->dividend_payout_asset_type)
+             current_distribution_account_balance_iter->second->asset_type < previous_distribution_account_balance_iter->dividend_payout_asset_type)
          {
             // there are no more previous balances or there is no previous balance for this particular asset type
-            payout_asset_type = current_distribution_account_balance_iter->asset_type;
-            current_balance = current_distribution_account_balance_iter->balance;
+            payout_asset_type = current_distribution_account_balance_iter->second->asset_type;
+            current_balance = current_distribution_account_balance_iter->second->balance;
             idump((payout_asset_type)(current_balance));
          }
-         else if (current_distribution_account_balance_iter == current_distribution_account_balance_range.second || 
-                  previous_distribution_account_balance_iter->dividend_payout_asset_type < current_distribution_account_balance_iter->asset_type)
+         else if (current_distribution_account_balance_iter == current_distribution_account_balance_range.end() || 
+                  previous_distribution_account_balance_iter->dividend_payout_asset_type < current_distribution_account_balance_iter->second->asset_type)
          {
             // there are no more current balances or there is no current balance for this particular previous asset type
             payout_asset_type = previous_distribution_account_balance_iter->dividend_payout_asset_type;
@@ -837,8 +833,8 @@ void schedule_pending_dividend_balances(database& db,
          else
          {
             // we have both a previous and a current balance for this asset type
-            payout_asset_type = current_distribution_account_balance_iter->asset_type;
-            current_balance = current_distribution_account_balance_iter->balance;
+            payout_asset_type = current_distribution_account_balance_iter->second->asset_type;
+            current_balance = current_distribution_account_balance_iter->second->balance;
             previous_balance = previous_distribution_account_balance_iter->balance_at_last_maintenance_interval;
             idump((payout_asset_type)(current_balance)(previous_balance));
          }
@@ -1043,10 +1039,10 @@ void schedule_pending_dividend_balances(database& db,
 
       // iterate
       if (previous_distribution_account_balance_iter == previous_distribution_account_balance_range.second || 
-          current_distribution_account_balance_iter->asset_type < previous_distribution_account_balance_iter->dividend_payout_asset_type)
+          current_distribution_account_balance_iter->second->asset_type < previous_distribution_account_balance_iter->dividend_payout_asset_type)
          ++current_distribution_account_balance_iter;
-      else if (current_distribution_account_balance_iter == current_distribution_account_balance_range.second || 
-               previous_distribution_account_balance_iter->dividend_payout_asset_type < current_distribution_account_balance_iter->asset_type)
+      else if (current_distribution_account_balance_iter == current_distribution_account_balance_range.end() || 
+               previous_distribution_account_balance_iter->dividend_payout_asset_type < current_distribution_account_balance_iter->second->asset_type)
          ++previous_distribution_account_balance_iter;
       else
       {
@@ -1066,6 +1062,7 @@ void process_dividend_assets(database& db)
    ilog("In process_dividend_assets time ${time}", ("time", db.head_block_time()));
 
    const account_balance_index& balance_index = db.get_index_type<account_balance_index>();
+   //const auto& balance_index = db.get_index_type< primary_index< account_balance_index > >().get_secondary_index< balances_by_account_index >();
    const vesting_balance_index& vbalance_index = db.get_index_type<vesting_balance_index>();
    const total_distributed_dividend_balance_object_index& distributed_dividend_balance_index = db.get_index_type<total_distributed_dividend_balance_object_index>();
    const pending_dividend_payout_balance_for_holder_object_index& pending_payout_balance_index = db.get_index_type<pending_dividend_payout_balance_for_holder_object_index>();
@@ -1090,10 +1087,10 @@ void process_dividend_assets(database& db)
                     ("holder_asset", dividend_holder_asset_obj.symbol));
 #ifndef NDEBUG
                // dump balances before the payouts for debugging
-               const auto& balance_idx = db.get_index_type<account_balance_index>().indices().get<by_account_asset>();
-               auto holder_account_balance_range = balance_idx.equal_range(boost::make_tuple(dividend_data.dividend_distribution_account));
-               for (const account_balance_object& holder_balance_object : boost::make_iterator_range(holder_account_balance_range.first, holder_account_balance_range.second))
-                  ilog("  Current balance: ${asset}", ("asset", asset(holder_balance_object.balance, holder_balance_object.asset_type)));
+               const auto& balance_index = db.get_index_type< primary_index< account_balance_index > >();
+               const auto& balances = balance_index.get_secondary_index< balances_by_account_index >().get_account_balances( dividend_data.dividend_distribution_account );
+               for( const auto balance : balances )
+                  ilog("  Current balance: ${asset}", ("asset", asset(balance.second->balance, balance.second->asset_type)));
 #endif
 
                // when we do the payouts, we first increase the balances in all of the receiving accounts
