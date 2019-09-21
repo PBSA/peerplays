@@ -689,13 +689,6 @@ std::map<std::string, full_account> database_api_impl::get_full_accounts( const 
 
 
       // Add the account's balances
-/* This Branch
-      auto balance_range = _db.get_index_type<account_balance_index>().indices().get<by_account_asset>().equal_range(boost::make_tuple(account->id));
-      std::for_each(balance_range.first, balance_range.second,
-                    [&acnt](const account_balance_object& balance) {
-                       acnt.balances.emplace_back(balance);
-                    });
-*/
       const auto& balances = _db.get_index_type< primary_index< account_balance_index > >().get_secondary_index< balances_by_account_index >().get_account_balances( account->id );
       for( const auto balance : balances )
          acnt.balances.emplace_back( *balance.second );
