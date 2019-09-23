@@ -36,8 +36,8 @@ namespace graphene { namespace chain {
 } }
 
 namespace fc { 
-   void to_variant(const graphene::chain::event_object& event_obj, fc::variant& v);
-   void from_variant(const fc::variant& v, graphene::chain::event_object& event_obj);
+   void to_variant(const graphene::chain::event_object& event_obj, fc::variant& v, uint32_t max_depth = 1);
+   void from_variant(const fc::variant& v, graphene::chain::event_object& event_obj, uint32_t max_depth = 1);
 } //end namespace fc
 
 namespace graphene { namespace chain {
@@ -77,8 +77,8 @@ class event_object : public graphene::db::abstract_object< event_object >
       template<typename Stream>
       friend Stream& operator>>( Stream& s, event_object& event_obj );
 
-      friend void ::fc::to_variant(const graphene::chain::event_object& event_obj, fc::variant& v);
-      friend void ::fc::from_variant(const fc::variant& v, graphene::chain::event_object& event_obj);
+      friend void ::fc::to_variant(const graphene::chain::event_object& event_obj, fc::variant& v, uint32_t max_depth);
+      friend void ::fc::from_variant(const fc::variant& v, graphene::chain::event_object& event_obj, uint32_t max_depth);
 
       void pack_impl(std::ostream& stream) const;
       void unpack_impl(std::istream& stream);

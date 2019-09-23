@@ -171,7 +171,7 @@ BOOST_AUTO_TEST_CASE(subscribe_to_pending_transactions) {
 
         signed_transaction transaction_in_notification;
         network_node_api.subscribe_to_pending_transactions([&]( const variant& signed_transaction_object ){
-            transaction_in_notification = signed_transaction_object.as<signed_transaction>();
+            transaction_in_notification = signed_transaction_object.as<signed_transaction>( GRAPHENE_MAX_NESTED_OBJECTS );
         });
 
         auto sam_transaction = push_transaction_for_account_creation("sam");

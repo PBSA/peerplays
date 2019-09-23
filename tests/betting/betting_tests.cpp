@@ -962,7 +962,7 @@ BOOST_AUTO_TEST_CASE(persistent_objects_test)
       fc::variants objects_from_bookie = bookie_api.get_objects({automatically_canceled_bet_id});
       idump((objects_from_bookie));
       BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 1u);
-      BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>() == automatically_canceled_bet_id, "Bookie Plugin didn't return a deleted bet it");
+      BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>(1) == automatically_canceled_bet_id, "Bookie Plugin didn't return a deleted bet it");
 
       // lay 47 at 1.94 odds (50:47) -- this bet should go on the order books normally
       bet_id_type first_bet_on_books = place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(47, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
@@ -971,7 +971,7 @@ BOOST_AUTO_TEST_CASE(persistent_objects_test)
       objects_from_bookie = bookie_api.get_objects({first_bet_on_books});
       idump((objects_from_bookie));
       BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 1u);
-      BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>() == first_bet_on_books, "Bookie Plugin didn't return a bet that is currently on the books");
+      BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>(1) == first_bet_on_books, "Bookie Plugin didn't return a bet that is currently on the books");
 
       // place a bet that exactly matches 'first_bet_on_books', should result in empty books (thus, no bet_objects from the blockchain)
       bet_id_type matching_bet = place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(50, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
@@ -982,8 +982,8 @@ BOOST_AUTO_TEST_CASE(persistent_objects_test)
       objects_from_bookie = bookie_api.get_objects({first_bet_on_books, matching_bet});
       idump((objects_from_bookie));
       BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 2u);
-      BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>() == first_bet_on_books, "Bookie Plugin didn't return a bet that has been filled");
-      BOOST_CHECK_MESSAGE(objects_from_bookie[1]["id"].as<bet_id_type>() == matching_bet, "Bookie Plugin didn't return a bet that has been filled");
+      BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>(1) == first_bet_on_books, "Bookie Plugin didn't return a bet that has been filled");
+      BOOST_CHECK_MESSAGE(objects_from_bookie[1]["id"].as<bet_id_type>(1) == matching_bet, "Bookie Plugin didn't return a bet that has been filled");
 
       update_betting_market_group(moneyline_betting_markets.id, _status = betting_market_group_status::closed);
 
@@ -1249,7 +1249,7 @@ BOOST_AUTO_TEST_CASE( chained_market_create_test )
 
             for (const witness_id_type& witness_id : active_witnesses)
             {
-               BOOST_TEST_MESSAGE("Approving sport+competitors creation from witness " << fc::variant(witness_id).as<std::string>());
+               BOOST_TEST_MESSAGE("Approving sport+competitors creation from witness " << fc::variant(witness_id, 1).as<std::string>(1));
                const witness_object& witness = witness_id(db);
                const account_object& witness_account = witness.witness_account(db);
 
@@ -2077,7 +2077,7 @@ BOOST_AUTO_TEST_CASE(event_driven_standard_progression_1)
       // removed.
       fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
 
-      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(1), "settled");
    } FC_LOG_AND_RETHROW()
 }
 
@@ -2138,12 +2138,12 @@ BOOST_AUTO_TEST_CASE(event_driven_standard_progression_1_with_delay)
                                                                  blackhawks_win_market_id});
 
       idump((objects_from_bookie));
-      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
-      BOOST_CHECK_EQUAL(objects_from_bookie[1]["status"].as<std::string>(), "settled");
-      BOOST_CHECK_EQUAL(objects_from_bookie[2]["status"].as<std::string>(), "settled");
-      BOOST_CHECK_EQUAL(objects_from_bookie[2]["resolution"].as<std::string>(), "win");
-      BOOST_CHECK_EQUAL(objects_from_bookie[3]["status"].as<std::string>(), "settled");
-      BOOST_CHECK_EQUAL(objects_from_bookie[3]["resolution"].as<std::string>(), "not_win");
+      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(1), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[1]["status"].as<std::string>(1), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[2]["status"].as<std::string>(1), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[2]["resolution"].as<std::string>(1), "win");
+      BOOST_CHECK_EQUAL(objects_from_bookie[3]["status"].as<std::string>(1), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[3]["resolution"].as<std::string>(1), "not_win");
    } FC_LOG_AND_RETHROW()
 }
 
@@ -2230,7 +2230,7 @@ BOOST_AUTO_TEST_CASE(event_driven_standard_progression_2)
       // removed.
       fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
 
-      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(1), "settled");
    } FC_LOG_AND_RETHROW()
 }
 
@@ -2318,7 +2318,7 @@ BOOST_AUTO_TEST_CASE(event_driven_standard_progression_2_never_in_play)
       // removed.
       fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
 
-      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(1), "settled");
    } FC_LOG_AND_RETHROW()
 }
 
@@ -2393,7 +2393,7 @@ BOOST_AUTO_TEST_CASE(event_driven_standard_progression_3)
       // and group will cease to exist.  The event should transition to "canceled", then be removed
       fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
 
-      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "canceled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(1), "canceled");
 
    } FC_LOG_AND_RETHROW()
 }
@@ -2488,7 +2488,7 @@ BOOST_AUTO_TEST_CASE(event_driven_progression_errors_1)
       generate_blocks(1);
 
       fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
-      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "canceled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(1), "canceled");
 
       // we can't go back to upcoming, in_progress, frozen, or finished once we're canceled.
       // (this won't work because the event has been deleted)
@@ -2540,7 +2540,7 @@ BOOST_AUTO_TEST_CASE(event_driven_progression_errors_2)
       // as soon as a block is generated, the betting market group will settle, and the market
       // and group will cease to exist.  The event should transition to "settled", then removed
       fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
-      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(1), "settled");
 
       // we can't go back to upcoming, in_progress, frozen, or finished once we're canceled.
       // (this won't work because the event has been deleted)
@@ -2612,7 +2612,7 @@ BOOST_AUTO_TEST_CASE(betting_market_group_driven_standard_progression)
       // as soon as a block is generated, the betting market group will settle, and the market
       // and group will cease to exist.  The event should transition to "settled"
       fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
-      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(1), "settled");
    } FC_LOG_AND_RETHROW()
 }
 
@@ -2723,7 +2723,7 @@ BOOST_AUTO_TEST_CASE(multi_betting_market_group_driven_standard_progression)
       // as soon as a block is generated, the two betting market groups will settle, and the market
       // and group will cease to exist.  The event should transition to "settled"
       fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
-      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(1), "settled");
    } FC_LOG_AND_RETHROW()
 }
 
@@ -2834,13 +2834,13 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_sf_test )
       transfer(account_id_type(), alice_id, asset(10000000));
       transfer(account_id_type(), bob_id, asset(10000000));
 
-      BOOST_TEST_MESSAGE("moneyline_berdych_vs_federer  " << fc::variant(moneyline_berdych_vs_federer.id).as<std::string>());
-      BOOST_TEST_MESSAGE("moneyline_cilic_vs_querrey  " << fc::variant(moneyline_cilic_vs_querrey.id).as<std::string>());
+      BOOST_TEST_MESSAGE("moneyline_berdych_vs_federer  " << fc::variant(moneyline_berdych_vs_federer.id, 1).as<std::string>(1));
+      BOOST_TEST_MESSAGE("moneyline_cilic_vs_querrey  " << fc::variant(moneyline_cilic_vs_querrey.id, 1).as<std::string>(1));
 
-      BOOST_TEST_MESSAGE("berdych_wins_market " << fc::variant(berdych_wins_market.id).as<std::string>());
-      BOOST_TEST_MESSAGE("federer_wins_market " << fc::variant(federer_wins_market.id).as<std::string>());
-      BOOST_TEST_MESSAGE("cilic_wins_market " << fc::variant(cilic_wins_market.id).as<std::string>());
-      BOOST_TEST_MESSAGE("querrey_wins_market " << fc::variant(querrey_wins_market.id).as<std::string>());
+      BOOST_TEST_MESSAGE("berdych_wins_market " << fc::variant(berdych_wins_market.id, 1).as<std::string>(1));
+      BOOST_TEST_MESSAGE("federer_wins_market " << fc::variant(federer_wins_market.id, 1).as<std::string>(1));
+      BOOST_TEST_MESSAGE("cilic_wins_market " << fc::variant(cilic_wins_market.id, 1).as<std::string>(1));
+      BOOST_TEST_MESSAGE("querrey_wins_market " << fc::variant(querrey_wins_market.id, 1).as<std::string>(1));
 
       place_bet(alice_id, berdych_wins_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
       place_bet(bob_id, berdych_wins_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
@@ -2895,10 +2895,10 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_final_test )
       transfer(account_id_type(), alice_id, asset(10000000));
       transfer(account_id_type(), bob_id, asset(10000000));
 
-      BOOST_TEST_MESSAGE("moneyline_cilic_vs_federer  " << fc::variant(moneyline_cilic_vs_federer.id).as<std::string>());
+      BOOST_TEST_MESSAGE("moneyline_cilic_vs_federer  " << fc::variant(moneyline_cilic_vs_federer.id, 1).as<std::string>(1));
 
-      BOOST_TEST_MESSAGE("federer_wins_final_market " << fc::variant(federer_wins_final_market.id).as<std::string>());
-      BOOST_TEST_MESSAGE("cilic_wins_final_market " << fc::variant(cilic_wins_final_market.id).as<std::string>());
+      BOOST_TEST_MESSAGE("federer_wins_final_market " << fc::variant(federer_wins_final_market.id, 1).as<std::string>(1));
+      BOOST_TEST_MESSAGE("cilic_wins_final_market " << fc::variant(cilic_wins_final_market.id, 1).as<std::string>(1));
 
       betting_market_group_id_type moneyline_cilic_vs_federer_id = moneyline_cilic_vs_federer.id;
       update_betting_market_group(moneyline_cilic_vs_federer_id, _status = betting_market_group_status::in_play);
