@@ -3424,6 +3424,11 @@ vector<asset_object> wallet_api::list_assets(const string& lowerbound, uint32_t 
    return my->_remote_db->list_assets( lowerbound, limit );
 }
 
+uint64_t wallet_api::get_asset_count()const
+{
+   return my->_remote_db->get_asset_count();
+}
+
 vector<asset_object> wallet_api::get_lotteries( asset_id_type stop,
                                                 unsigned limit,
                                                 asset_id_type start )const
