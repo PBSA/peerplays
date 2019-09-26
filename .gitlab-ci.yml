@@ -24,5 +24,6 @@ test:
   script:
     - ./tests/betting_test
     - ./tests/chain_test
+    - ./tests/cli_test
   tags:
     - builder
