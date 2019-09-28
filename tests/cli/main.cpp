@@ -801,7 +801,7 @@ BOOST_AUTO_TEST_CASE( saving_keys_wallet_test ) {
    BOOST_CHECK_NO_THROW( cli.con.wallet_api_ptr->transfer( "nathan", "account1", "9000", "1.3.0", "", true ) );
 
    std::string path( cli.app_dir.path().generic_string() + "/wallet.json" );
-   graphene::wallet::wallet_data wallet = fc::json::from_file( path ).as<graphene::wallet::wallet_data>();
+   graphene::wallet::wallet_data wallet = fc::json::from_file( path ).as<graphene::wallet::wallet_data>( 2 * GRAPHENE_MAX_NESTED_OBJECTS );
    BOOST_CHECK( wallet.extra_keys.size() == 1 ); // nathan
    BOOST_CHECK( wallet.pending_account_registrations.size() == 1 ); // account1
    BOOST_CHECK( wallet.pending_account_registrations["account1"].size() == 2 ); // account1 active key + account1 memo key
@@ -812,7 +812,7 @@ BOOST_AUTO_TEST_CASE( saving_keys_wallet_test ) {
    BOOST_CHECK( generate_block( cli.app1 ) );
    fc::usleep( fc::seconds(1) );
 
-   wallet = fc::json::from_file( path ).as<graphene::wallet::wallet_data>();
+   wallet = fc::json::from_file( path ).as<graphene::wallet::wallet_data>( 2 * GRAPHENE_MAX_NESTED_OBJECTS );
    BOOST_CHECK( wallet.extra_keys.size() == 2 ); // nathan + account1
    BOOST_CHECK( wallet.pending_account_registrations.empty() );
    BOOST_CHECK_NO_THROW( cli.con.wallet_api_ptr->transfer( "account1", "nathan", "1000", "1.3.0", "", true ) );
