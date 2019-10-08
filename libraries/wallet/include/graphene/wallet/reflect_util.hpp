@@ -39,6 +39,7 @@ namespace impl {
 
 std::string clean_name( const std::string& name )
 {
+   std::string result;
    const static std::string prefix = "graphene::chain::";
    const static std::string suffix = "_operation";
    // graphene::chain::.*_operation
@@ -80,25 +81,24 @@ struct from_which_visitor
    result_type operator()( const Member& dummy )
    {
       Member result;
-      from_variant( v, result, _max_depth );
+      from_variant( v, result );
       return result;    // converted from StaticVariant to Result automatically due to return type
    }
 
    const variant& v;
-   const uint32_t _max_depth;
 
-   from_which_visitor( const variant& _v, uint32_t max_depth ) : v(_v), _max_depth(max_depth) {}
+   from_which_visitor( const variant& _v ) : v(_v) {}
 };
 
 } // namespace impl
 
 template< typename T >
-T from_which_variant( int which, const variant& v, uint32_t max_depth )
+T from_which_variant( int which, const variant& v )
 {
    // Parse a variant for a known which()
    T dummy;
    dummy.set_which( which );
-   impl::from_which_visitor< T > vtor(v, max_depth);
+   impl::from_which_visitor< T > vtor(v);
    return dummy.visit( vtor );
 }
 

@@ -98,7 +98,7 @@ namespace detail {
 struct operation_result_printer
 {
 public:
-   explicit operation_result_printer( const wallet_api_impl& w )
+   operation_result_printer( const wallet_api_impl& w )
       : _wallet(w) {}
    const wallet_api_impl& _wallet;
    typedef std::string result_type;
@@ -135,7 +135,6 @@ public:
    std::string operator()(const account_create_operation& op)const;
    std::string operator()(const account_update_operation& op)const;
    std::string operator()(const asset_create_operation& op)const;
-   std::string operator()(const lottery_asset_create_operation& op)const;
    std::string operator()(const asset_dividend_distribution_operation& op)const;
    std::string operator()(const tournament_payout_operation& op)const;
    std::string operator()(const bet_place_operation& op)const;
@@ -151,10 +150,10 @@ optional<T> maybe_id( const string& name_or_id )
    {
       try
       {
-         return fc::variant(name_or_id, 1).as<T>(1);
+         return fc::variant(name_or_id).as<T>();
       }
       catch (const fc::exception&)
-      { // not an ID
+      {
       }
    }
    return optional<T>();
@@ -378,8 +377,8 @@ private:
          {
             try
             {
-               object_id_type id = changed_object_variant["id"].as<tournament_id_type>( GRAPHENE_MAX_NESTED_OBJECTS );
-               tournament_object current_tournament_obj = changed_object_variant.as<tournament_object>( GRAPHENE_MAX_NESTED_OBJECTS );
+               object_id_type id = changed_object_variant["id"].as<tournament_id_type>();
+               tournament_object current_tournament_obj = changed_object_variant.as<tournament_object>();
                auto tournament_cache_iter = tournament_cache.find(id);
                if (tournament_cache_iter != tournament_cache.end())
                {
@@ -411,8 +410,8 @@ private:
             }
             try
             {
-               object_id_type id = changed_object_variant["id"].as<match_id_type>( GRAPHENE_MAX_NESTED_OBJECTS );
-               match_object current_match_obj = changed_object_variant.as<match_object>( GRAPHENE_MAX_NESTED_OBJECTS );
+               object_id_type id = changed_object_variant["id"].as<match_id_type>();
+               match_object current_match_obj = changed_object_variant.as<match_object>();
                auto match_cache_iter = match_cache.find(id);
                if (match_cache_iter != match_cache.end())
                {
@@ -436,8 +435,8 @@ private:
             }
             try
             {
-               object_id_type id = changed_object_variant["id"].as<game_id_type>( GRAPHENE_MAX_NESTED_OBJECTS );
-               game_object current_game_obj = changed_object_variant.as<game_object>( GRAPHENE_MAX_NESTED_OBJECTS );
+               object_id_type id = changed_object_variant["id"].as<game_id_type>();
+               game_object current_game_obj = changed_object_variant.as<game_object>();
                auto game_cache_iter = game_cache.find(id);
                if (game_cache_iter != game_cache.end())
                {
@@ -460,10 +459,10 @@ private:
             }
             try
             {
-               object_id_type id = changed_object_variant["id"].as<account_id_type>( GRAPHENE_MAX_NESTED_OBJECTS );
+               object_id_type id = changed_object_variant["id"].as<account_id_type>();
                if (_wallet.my_accounts.find(id) != _wallet.my_accounts.end())
                {
-                  account_object account = changed_object_variant.as<account_object>( GRAPHENE_MAX_NESTED_OBJECTS );
+                  account_object account = changed_object_variant.as<account_object>();
                   _wallet.update_account(account);
                }
                continue;
@@ -641,7 +640,7 @@ public:
    T get_object(object_id<T::space_id, T::type_id, T> id)const
    {
       auto ob = _remote_db->get_objects({id}).front();
-      return ob.template as<T>( GRAPHENE_MAX_NESTED_OBJECTS );
+      return ob.template as<T>();
    }
 
    void set_operation_fees( signed_transaction& tx, const fee_schedule& s  )
@@ -657,16 +656,16 @@ public:
       auto dynamic_props = get_dynamic_global_properties();
       fc::mutable_variant_object result;
       result["head_block_num"] = dynamic_props.head_block_number;
-      result["head_block_id"] = fc::variant(dynamic_props.head_block_id, 1);
+      result["head_block_id"] = dynamic_props.head_block_id;
       result["head_block_age"] = fc::get_approximate_relative_time_string(dynamic_props.time,
                                                                           time_point_sec(time_point::now()),
                                                                           " old");
       result["next_maintenance_time"] = fc::get_approximate_relative_time_string(dynamic_props.next_maintenance_time);
       result["chain_id"] = chain_props.chain_id;
       result["participation"] = (100*dynamic_props.recent_slots_filled.popcount()) / 128.0;
-      result["active_witnesses"] = fc::variant(global_props.active_witnesses, GRAPHENE_MAX_NESTED_OBJECTS);
-      result["active_committee_members"] = fc::variant(global_props.active_committee_members, GRAPHENE_MAX_NESTED_OBJECTS);
-      result["entropy"] = fc::variant(dynamic_props.random, GRAPHENE_MAX_NESTED_OBJECTS);
+      result["active_witnesses"] = global_props.active_witnesses;
+      result["active_committee_members"] = global_props.active_committee_members;
+      result["entropy"] = dynamic_props.random;
       return result;
    }
 
@@ -718,6 +717,8 @@ public:
    }
    account_object get_account(account_id_type id) const
    {
+      if( _wallet.my_accounts.get<by_id>().count(id) )
+         return *_wallet.my_accounts.get<by_id>().find(id);
       auto rec = _remote_db->get_accounts({id}).front();
       FC_ASSERT(rec);
       return *rec;
@@ -731,6 +732,19 @@ public:
          // It's an ID
          return get_account(*id);
       } else {
+         // It's a name
+         if( _wallet.my_accounts.get<by_name>().count(account_name_or_id) )
+         {
+            auto local_account = *_wallet.my_accounts.get<by_name>().find(account_name_or_id);
+            auto blockchain_account = _remote_db->lookup_account_names({account_name_or_id}).front();
+            FC_ASSERT( blockchain_account );
+            if (local_account.id != blockchain_account->id)
+               elog("my account id ${id} different from blockchain id ${id2}", ("id", local_account.id)("id2", blockchain_account->id));
+            if (local_account.name != blockchain_account->name)
+               elog("my account name ${id} different from blockchain name ${id2}", ("id", local_account.name)("id2", blockchain_account->name));
+
+            return *_wallet.my_accounts.get<by_name>().find(account_name_or_id);
+         }
          auto rec = _remote_db->lookup_account_names({account_name_or_id}).front();
          FC_ASSERT( rec && rec->name == account_name_or_id );
          return *rec;
@@ -786,7 +800,7 @@ public:
       FC_ASSERT( asset_symbol_or_id.size() > 0 );
       vector<optional<asset_object>> opt_asset;
       if( std::isdigit( asset_symbol_or_id.front() ) )
-         return fc::variant(asset_symbol_or_id, 1).as<asset_id_type>( 1 );
+         return fc::variant(asset_symbol_or_id).as<asset_id_type>();
       opt_asset = _remote_db->lookup_asset_symbols( {asset_symbol_or_id} );
       FC_ASSERT( (opt_asset.size() > 0) && (opt_asset[0].valid()) );
       return opt_asset[0]->id;
@@ -998,7 +1012,7 @@ public:
       if( ! fc::exists( wallet_filename ) )
          return false;
 
-      _wallet = fc::json::from_file( wallet_filename ).as< wallet_data >( 2 * GRAPHENE_MAX_NESTED_OBJECTS );
+      _wallet = fc::json::from_file( wallet_filename ).as< wallet_data >();
       if( _wallet.chain_id != _chain_id )
          FC_THROW( "Wallet chain ID does not match",
             ("wallet.chain_id", _wallet.chain_id)
@@ -1430,52 +1444,6 @@ public:
       return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (issuer)(symbol)(precision)(common)(bitasset_opts)(broadcast) ) }
 
-
-   signed_transaction create_lottery(string issuer,
-      string symbol,
-      asset_options common,
-      lottery_asset_options lottery_opts,
-      bool broadcast = false)
-   { try {
-      account_object issuer_account = get_account( issuer );
-      FC_ASSERT(!find_asset(symbol).valid(), "Asset with that symbol already exists!");
-
-      lottery_asset_create_operation create_op;
-      create_op.issuer = issuer_account.id;
-      create_op.symbol = symbol;
-      create_op.precision = 0;
-      create_op.common_options = common;
-
-      create_op.extensions = lottery_opts;
-
-      signed_transaction tx;
-      tx.operations.push_back( create_op );
-      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
-      tx.validate();
-
-      return sign_transaction( tx, broadcast );
-   } FC_CAPTURE_AND_RETHROW( (issuer)(symbol)(common)(broadcast) ) }
-   
-   signed_transaction buy_ticket( asset_id_type lottery, account_id_type buyer, uint64_t tickets_to_buy )
-   { try {
-      auto asset_obj = get_asset( lottery );
-      FC_ASSERT( asset_obj.is_lottery() );
-
-      ticket_purchase_operation top;
-      top.lottery = lottery;
-      top.buyer = buyer;
-      top.tickets_to_buy = tickets_to_buy;
-      top.amount = asset( asset_obj.lottery_options->ticket_price.amount * tickets_to_buy, asset_obj.lottery_options->ticket_price.asset_id );
-      
-      signed_transaction tx;
-      tx.operations.push_back( top );
-      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
-      tx.validate();
-
-      return sign_transaction( tx, true );
-   } FC_CAPTURE_AND_RETHROW( (lottery)(tickets_to_buy) ) }
-   
-   
    signed_transaction update_asset(string symbol,
                                    optional<string> new_issuer,
                                    asset_options new_options,
@@ -1801,11 +1769,10 @@ public:
       witness_create_op.witness_account = witness_account.id;
       witness_create_op.block_signing_key = witness_public_key;
       witness_create_op.url = url;
-
       secret_hash_type::encoder enc;
       fc::raw::pack(enc, witness_private_key);
       fc::raw::pack(enc, secret_hash_type());
-      witness_create_op.initial_secret = enc.result();
+      witness_create_op.initial_secret = secret_hash_type::hash(enc.result());
 
 
       if (_remote_db->get_witness_by_account(witness_create_op.witness_account))
@@ -1828,6 +1795,7 @@ public:
    { try {
       witness_object witness = get_witness(witness_name);
       account_object witness_account = get_account( witness.witness_account );
+      fc::ecc::private_key active_private_key = get_private_key_for_account(witness_account);
 
       witness_update_operation witness_update_op;
       witness_update_op.witness = witness.id;
@@ -1851,7 +1819,7 @@ public:
    static WorkerInit _create_worker_initializer( const variant& worker_settings )
    {
       WorkerInit result;
-      from_variant( worker_settings, result, GRAPHENE_MAX_NESTED_OBJECTS );
+      from_variant( worker_settings, result );
       return result;
    }
 
@@ -1905,6 +1873,7 @@ public:
       )
    {
       account_object acct = get_account( account );
+      account_update_operation op;
 
       // you could probably use a faster algorithm for this, but flat_set is fast enough :)
       flat_set< worker_id_type > merged;
@@ -1938,7 +1907,7 @@ public:
       for( const variant& obj : objects )
       {
          worker_object wo;
-         from_variant( obj, wo, GRAPHENE_MAX_NESTED_OBJECTS );
+         from_variant( obj, wo );
          new_votes.erase( wo.vote_for );
          new_votes.erase( wo.vote_against );
          if( delta.vote_for.find( wo.id ) != delta.vote_for.end() )
@@ -2189,16 +2158,77 @@ public:
 
    signed_transaction sign_transaction(signed_transaction tx, bool broadcast = false)
    {
-      set<public_key_type> pks = _remote_db->get_potential_signatures(tx);
-      flat_set<public_key_type> owned_keys;
-      owned_keys.reserve(pks.size());
-      std::copy_if(pks.begin(), pks.end(), std::inserter(owned_keys, owned_keys.end()),
-                   [this](const public_key_type &pk) { return _keys.find(pk) != _keys.end(); });
-      tx.clear_signatures();
-      set<public_key_type> approving_key_set = _remote_db->get_required_signatures(tx, owned_keys);
+      flat_set<account_id_type> req_active_approvals;
+      flat_set<account_id_type> req_owner_approvals;
+      vector<authority>         other_auths;
+
+      tx.get_required_authorities( req_active_approvals, req_owner_approvals, other_auths );
+
+      for( const auto& auth : other_auths )
+         for( const auto& a : auth.account_auths )
+            req_active_approvals.insert(a.first);
+
+      // std::merge lets us de-duplicate account_id's that occur in both
+      //   sets, and dump them into a vector (as required by remote_db api)
+      //   at the same time
+      vector<account_id_type> v_approving_account_ids;
+      std::merge(req_active_approvals.begin(), req_active_approvals.end(),
+                 req_owner_approvals.begin() , req_owner_approvals.end(),
+                 std::back_inserter(v_approving_account_ids));
+
+      /// TODO: fetch the accounts specified via other_auths as well.
+
+      vector< optional<account_object> > approving_account_objects =
+            _remote_db->get_accounts( v_approving_account_ids );
+
+      /// TODO: recursively check one layer deeper in the authority tree for keys
+
+      FC_ASSERT( approving_account_objects.size() == v_approving_account_ids.size() );
+
+      flat_map<account_id_type, account_object*> approving_account_lut;
+      size_t i = 0;
+      for( optional<account_object>& approving_acct : approving_account_objects )
+      {
+         if( !approving_acct.valid() )
+         {
+            wlog( "operation_get_required_auths said approval of non-existing account ${id} was needed",
+                  ("id", v_approving_account_ids[i]) );
+            i++;
+            continue;
+         }
+         approving_account_lut[ approving_acct->id ] = &(*approving_acct);
+         i++;
+      }
+
+      flat_set<public_key_type> approving_key_set;
+      for( account_id_type& acct_id : req_active_approvals )
+      {
+         const auto it = approving_account_lut.find( acct_id );
+         if( it == approving_account_lut.end() )
+            continue;
+         const account_object* acct = it->second;
+         vector<public_key_type> v_approving_keys = acct->active.get_keys();
+         for( const public_key_type& approving_key : v_approving_keys )
+            approving_key_set.insert( approving_key );
+      }
+      for( account_id_type& acct_id : req_owner_approvals )
+      {
+         const auto it = approving_account_lut.find( acct_id );
+         if( it == approving_account_lut.end() )
+            continue;
+         const account_object* acct = it->second;
+         vector<public_key_type> v_approving_keys = acct->owner.get_keys();
+         for( const public_key_type& approving_key : v_approving_keys )
+            approving_key_set.insert( approving_key );
+      }
+      for( const authority& a : other_auths )
+      {
+         for( const auto& k : a.key_auths )
+            approving_key_set.insert( k.first );
+      }
 
       auto dyn_props = get_dynamic_global_properties();
-      tx.set_reference_block(dyn_props.head_block_id);
+      tx.set_reference_block( dyn_props.head_block_id );
 
       // first, some bookkeeping, expire old items from _recently_generated_transactions
       // since transactions include the head block id, we just need the index for keeping transactions unique
@@ -2213,10 +2243,22 @@ public:
       for (;;)
       {
          tx.set_expiration( dyn_props.time + fc::seconds(30 + expiration_time_offset) );
-         tx.clear_signatures();
+         tx.signatures.clear();
 
-         for (const public_key_type &key : approving_key_set)
-            tx.sign(get_private_key(key), _chain_id);
+         for( public_key_type& key : approving_key_set )
+         {
+            auto it = _keys.find(key);
+            if( it != _keys.end() )
+            {
+               fc::optional<fc::ecc::private_key> privkey = wif_to_key( it->second );
+               FC_ASSERT( privkey.valid(), "Malformed private key in _keys" );
+               tx.sign( *privkey, _chain_id );
+            }
+            /// TODO: if transaction has enough signatures to be "valid" don't add any more,
+            /// there are cases where the wallet may have more keys than strictly necessary and
+            /// the transaction will be rejected if the transaction validates without requiring
+            /// all signatures provided
+         }
 
          graphene::chain::transaction_id_type this_transaction_id = tx.id();
          auto iter = _recently_generated_transactions.find(this_transaction_id);
@@ -2238,11 +2280,11 @@ public:
       {
          try
          {
-            _remote_net_broadcast->broadcast_transaction(tx);
+            _remote_net_broadcast->broadcast_transaction( tx );
          }
          catch (const fc::exception& e)
          {
-            elog("Caught exception while broadcasting tx ${id}:  ${e}", ("id", tx.id().str())("e", e.to_detail_string()));
+            elog("Caught exception while broadcasting tx ${id}:  ${e}", ("id", tx.id().str())("e", e.to_detail_string()) );
             throw;
          }
       }
@@ -2294,6 +2336,7 @@ public:
       trx.operations = {op};
       set_operation_fees( trx, _remote_db->get_global_properties().parameters.current_fees);
       trx.validate();
+      idump((broadcast));
 
       return sign_transaction(trx, broadcast);
    }
@@ -2394,7 +2437,7 @@ public:
 
       m["get_account_history"] = [this](variant result, const fc::variants& a)
       {
-         auto r = result.as<vector<operation_detail>>( GRAPHENE_MAX_NESTED_OBJECTS );
+         auto r = result.as<vector<operation_detail>>();
          std::stringstream ss;
 
          for( operation_detail& d : r )
@@ -2411,7 +2454,7 @@ public:
       };
       m["get_relative_account_history"] = [this](variant result, const fc::variants& a)
       {
-         auto r = result.as<vector<operation_detail>>( GRAPHENE_MAX_NESTED_OBJECTS );
+         auto r = result.as<vector<operation_detail>>();
          std::stringstream ss;
 
          for( operation_detail& d : r )
@@ -2429,7 +2472,7 @@ public:
 
       m["list_account_balances"] = [this](variant result, const fc::variants& a)
       {
-         auto r = result.as<vector<asset>>( GRAPHENE_MAX_NESTED_OBJECTS );
+         auto r = result.as<vector<asset>>();
          vector<asset_object> asset_recs;
          std::transform(r.begin(), r.end(), std::back_inserter(asset_recs), [this](const asset& a) {
             return get_asset(a.asset_id);
@@ -2446,7 +2489,7 @@ public:
       {
          std::stringstream ss;
 
-         auto balances = result.as<vector<account_balance_object>>( GRAPHENE_MAX_NESTED_OBJECTS );
+         auto balances = result.as<vector<account_balance_object>>();
          for (const account_balance_object& balance: balances)
          {
              const account_object& account = get_account(balance.owner);
@@ -2459,7 +2502,7 @@ public:
 
       m["get_blind_balances"] = [this](variant result, const fc::variants& a)
       {
-         auto r = result.as<vector<asset>>( GRAPHENE_MAX_NESTED_OBJECTS );
+         auto r = result.as<vector<asset>>();
          vector<asset_object> asset_recs;
          std::transform(r.begin(), r.end(), std::back_inserter(asset_recs), [this](const asset& a) {
             return get_asset(a.asset_id);
@@ -2473,7 +2516,7 @@ public:
       };
       m["transfer_to_blind"] = [this](variant result, const fc::variants& a)
       {
-         auto r = result.as<blind_confirmation>( GRAPHENE_MAX_NESTED_OBJECTS );
+         auto r = result.as<blind_confirmation>();
          std::stringstream ss;
          r.trx.operations[0].visit( operation_printer( ss, *this, operation_result() ) );
          ss << "\n";
@@ -2486,7 +2529,7 @@ public:
       };
       m["blind_transfer"] = [this](variant result, const fc::variants& a)
       {
-         auto r = result.as<blind_confirmation>( GRAPHENE_MAX_NESTED_OBJECTS );
+         auto r = result.as<blind_confirmation>();
          std::stringstream ss;
          r.trx.operations[0].visit( operation_printer( ss, *this, operation_result() ) );
          ss << "\n";
@@ -2499,7 +2542,7 @@ public:
       };
       m["receive_blind_transfer"] = [this](variant result, const fc::variants& a)
       {
-         auto r = result.as<blind_receipt>( GRAPHENE_MAX_NESTED_OBJECTS );
+         auto r = result.as<blind_receipt>();
          std::stringstream ss;
          asset_object as = get_asset( r.amount.asset_id );
          ss << as.amount_to_pretty_string( r.amount ) << "  " << r.from_label << "  =>  " << r.to_label  << "  " << r.memo <<"\n";
@@ -2507,7 +2550,7 @@ public:
       };
       m["blind_history"] = [this](variant result, const fc::variants& a)
       {
-         auto records = result.as<vector<blind_receipt>>( GRAPHENE_MAX_NESTED_OBJECTS );
+         auto records = result.as<vector<blind_receipt>>();
          std::stringstream ss;
          ss << "WHEN         "
             << "  " << "AMOUNT"  << "  " << "FROM" << "  =>  " << "TO" << "  " << "MEMO" <<"\n";
@@ -2522,14 +2565,14 @@ public:
       };
       m["get_upcoming_tournaments"] = m["get_tournaments"] = m["get_tournaments_by_state"] = [this](variant result, const fc::variants& a)
       {
-         const vector<tournament_object> tournaments = result.as<vector<tournament_object> >( GRAPHENE_MAX_NESTED_OBJECTS );
+         const vector<tournament_object> tournaments = result.as<vector<tournament_object> >();
          std::stringstream ss;
          ss << "ID       GAME                  BUY IN    PLAYERS\n";
          ss << "====================================================================================\n";
          for( const tournament_object& tournament_obj : tournaments )
          {
             asset_object buy_in_asset = get_asset(tournament_obj.options.buy_in.asset_id);
-            ss << fc::variant(tournament_obj.id, 1).as<std::string>( 1 ) << "  "
+            ss << fc::variant(tournament_obj.id).as<std::string>() << "  " 
                << buy_in_asset.amount_to_pretty_string(tournament_obj.options.buy_in.amount) << "  "
                << tournament_obj.options.number_of_players << " players\n";
             switch (tournament_obj.get_state())
@@ -2572,8 +2615,8 @@ public:
       {
          std::stringstream ss;
 
-         tournament_object tournament = result.as<tournament_object>( GRAPHENE_MAX_NESTED_OBJECTS );
-         tournament_details_object tournament_details = _remote_db->get_objects({result["tournament_details_id"].as<object_id_type>( 5 )})[0].as<tournament_details_object>( 5 );
+         tournament_object tournament = result.as<tournament_object>();
+         tournament_details_object tournament_details = _remote_db->get_objects({result["tournament_details_id"].as<object_id_type>()})[0].as<tournament_details_object>();
          tournament_state state = tournament.get_state();
          if (state == tournament_state::accepting_registrations)
          {
@@ -2671,7 +2714,7 @@ public:
       };
       m["get_order_book"] = [this](variant result, const fc::variants& a)
       {
-         auto orders = result.as<order_book>( GRAPHENE_MAX_NESTED_OBJECTS );
+         auto orders = result.as<order_book>();
          auto bids = orders.bids;
          auto asks = orders.asks;
          std::stringstream ss;
@@ -2681,10 +2724,12 @@ public:
          double ask_sum = 0;
          const int spacing = 20;
 
-         auto prettify_num = [&ss]( double n )
+         auto prettify_num = [&]( double n )
          {
+            //ss << n;
             if (abs( round( n ) - n ) < 0.00000000001 )
             {
+               //ss << setiosflags( !ios::fixed ) << (int) n;     // doesn't compile on Linux with gcc
                ss << (int) n;
             }
             else if (n - floor(n) < 0.000001)
@@ -2766,7 +2811,7 @@ public:
       const chain_parameters& current_params = get_global_properties().parameters;
       chain_parameters new_params = current_params;
       fc::reflector<chain_parameters>::visit(
-         fc::from_variant_visitor<chain_parameters>( changed_values, new_params, GRAPHENE_MAX_NESTED_OBJECTS )
+         fc::from_variant_visitor<chain_parameters>( changed_values, new_params )
          );
 
       committee_member_update_global_parameters_operation update_op;
@@ -2816,7 +2861,7 @@ public:
             continue;
          }
          // is key a number?
-         auto is_numeric = [&key]() -> bool
+         auto is_numeric = [&]() -> bool
          {
             size_t n = key.size();
             for( size_t i=0; i<n; i++ )
@@ -2838,7 +2883,7 @@ public:
             which = it->second;
          }
 
-         fee_parameters fp = from_which_variant< fee_parameters >( which, item.value(), GRAPHENE_MAX_NESTED_OBJECTS );
+         fee_parameters fp = from_which_variant< fee_parameters >( which, item.value() );
          fee_map[ which ] = fp;
       }
 
@@ -2882,7 +2927,7 @@ public:
       const chain_parameters& current_params = get_global_properties().parameters;
       asset_update_dividend_operation changed_op;
       fc::reflector<asset_update_dividend_operation>::visit(
-         fc::from_variant_visitor<asset_update_dividend_operation>( changed_values, changed_op, GRAPHENE_MAX_NESTED_OBJECTS )
+         fc::from_variant_visitor<asset_update_dividend_operation>( changed_values, changed_op )
          );
 
       optional<asset_object> asset_to_update = find_asset(changed_op.asset_to_update);
@@ -2920,7 +2965,7 @@ public:
       proposal_update_operation update_op;
 
       update_op.fee_paying_account = get_account(fee_paying_account).id;
-      update_op.proposal = fc::variant(proposal_id, 1).as<proposal_id_type>( 1 );
+      update_op.proposal = fc::variant(proposal_id).as<proposal_id_type>();
       // make sure the proposal exists
       get_object( update_op.proposal );
 
@@ -3047,7 +3092,7 @@ public:
       for( const auto& peer : peers )
       {
          variant v;
-         fc::to_variant( peer, v, GRAPHENE_MAX_NESTED_OBJECTS );
+         fc::to_variant( peer, v );
          result.push_back( v );
       }
       return result;
@@ -3060,6 +3105,7 @@ public:
          const account_object& master = *_wallet.my_accounts.get<by_name>().lower_bound("import");
          int number_of_accounts = number_of_transactions / 3;
          number_of_transactions -= number_of_accounts;
+         //auto key = derive_private_key("floodshill", 0);
          try {
             dbg_make_uia(master.name, "SHILL");
          } catch(...) {/* Ignore; the asset probably already exists.*/}
@@ -3251,18 +3297,7 @@ std::string operation_printer::operator()(const asset_create_operation& op) cons
    if( op.bitasset_opts.valid() )
       out << "BitAsset ";
    else
-      out << "User-Issued Asset ";
-   out << "'" << op.symbol << "' with issuer " << wallet.get_account(op.issuer).name;
-   return fee(op.fee);
-}
-
-std::string operation_printer::operator()(const lottery_asset_create_operation& op) const
-{
-   out << "Create ";
-   if( op.bitasset_opts.valid() )
-      out << "BitAsset ";
-   else
-      out << "User-Issued Asset ";
+      out << "User-Issue Asset ";
    out << "'" << op.symbol << "' with issuer " << wallet.get_account(op.issuer).name;
    return fee(op.fee);
 }
@@ -3424,79 +3459,30 @@ vector<asset_object> wallet_api::list_assets(const string& lowerbound, uint32_t 
    return my->_remote_db->list_assets( lowerbound, limit );
 }
 
-uint64_t wallet_api::get_asset_count()const
-{
-   return my->_remote_db->get_asset_count();
-}
-
-vector<asset_object> wallet_api::get_lotteries( asset_id_type stop,
-                                                unsigned limit,
-                                                asset_id_type start )const
-{
-   return my->_remote_db->get_lotteries( stop, limit, start );
-}
-
-vector<asset_object> wallet_api::get_account_lotteries(  account_id_type issuer,
-                                                         asset_id_type stop,
-                                                         unsigned limit,
-                                                         asset_id_type start )const
-{
-   return my->_remote_db->get_account_lotteries( issuer, stop, limit, start );
-}
-
-asset wallet_api::get_lottery_balance( asset_id_type lottery_id )const 
-{
-   return my->_remote_db->get_lottery_balance( lottery_id );
-}
-
-vector<operation_detail> wallet_api::get_account_history(string name, int limit) const
+vector<operation_detail> wallet_api::get_account_history(string name, int limit)const
 {
    vector<operation_detail> result;
    auto account_id = get_account(name).get_id();
 
-   while (limit > 0)
+   while( limit > 0 )
    {
-      bool skip_first_row = false;
       operation_history_id_type start;
-      if (result.size())
+      if( result.size() )
       {
          start = result.back().op.id;
-         if (start == operation_history_id_type()) // no more data
-            break;
-         start = start + (-1);
-         if (start == operation_history_id_type()) // will return most recent history if directly call remote API with this
-         {
-            start = start + 1;
-            skip_first_row = true;
-         }
+         start = start + 1;
       }
 
-      int page_limit = skip_first_row ? std::min(100, limit + 1) : std::min(100, limit);
 
-      vector<operation_history_object> current = my->_remote_hist->get_account_history(account_id, operation_history_id_type(),
-                                                                                       page_limit, start);
-      bool first_row = true;
-      for (auto &o : current)
-      {
-         if (first_row)
-         {
-            first_row = false;
-            if (skip_first_row)
-            {
-               continue;
-            }
-         }
+      vector<operation_history_object> current = my->_remote_hist->get_account_history(account_id, operation_history_id_type(), std::min(100,limit), start);
+      for( auto& o : current ) {
          std::stringstream ss;
          auto memo = o.op.visit(detail::operation_printer(ss, *my, o.result));
-         result.push_back(operation_detail{memo, ss.str(), o});
+         result.push_back( operation_detail{ memo, ss.str(), o } );
       }
-
-      if (int(current.size()) < page_limit)
+      if( (int)current.size() < std::min(100,limit) )
          break;
-
       limit -= current.size();
-      if (skip_first_row)
-         ++limit;
    }
 
    return result;
@@ -3893,22 +3879,6 @@ signed_transaction wallet_api::create_asset(string issuer,
 
 {
    return my->create_asset(issuer, symbol, precision, common, bitasset_opts, broadcast);
-}
-
-signed_transaction wallet_api::create_lottery(string issuer,
-      string symbol,
-      asset_options common,
-      lottery_asset_options lottery_opts,
-      bool broadcast)
-
-{
-   return my->create_lottery(issuer, symbol, common, lottery_opts, broadcast);
-}
-
-
-signed_transaction wallet_api::buy_ticket( asset_id_type lottery, account_id_type buyer, uint64_t tickets_to_buy )
-{
-   return my->buy_ticket(lottery, buyer, tickets_to_buy);
 }
 
 signed_transaction wallet_api::update_asset(string symbol,
@@ -4556,7 +4526,7 @@ string wallet_api::get_private_key( public_key_type pubkey )const
 
 public_key_type  wallet_api::get_public_key( string label )const
 {
-   try { return fc::variant(label, 1).as<public_key_type>( 1 ); } catch ( ... ){}
+   try { return fc::variant(label).as<public_key_type>(); } catch ( ... ){}
 
    auto key_itr   = my->_wallet.labeled_keys.get<by_label>().find(label);
    if( key_itr != my->_wallet.labeled_keys.get<by_label>().end() )
@@ -5734,7 +5704,7 @@ vector<tournament_object> wallet_api::get_tournaments_by_state(tournament_id_typ
 
 tournament_object wallet_api::get_tournament(tournament_id_type id)
 {
-   return my->_remote_db->get_objects({id})[0].as<tournament_object>( GRAPHENE_MAX_NESTED_OBJECTS );
+   return my->_remote_db->get_objects({id})[0].as<tournament_object>();
 }
 
 signed_transaction wallet_api::rps_throw(game_id_type game_id,
@@ -5784,6 +5754,37 @@ signed_transaction wallet_api::rps_throw(game_id_type game_id,
    tx.validate();
 
    return my->sign_transaction( tx, broadcast );
+}
+
+signed_transaction wallet_api::create_vesting_balance(string owner,
+                                                      string amount,
+                                                      string asset_symbol,
+                                                      bool is_gpos,
+                                                      bool broadcast)
+{
+   FC_ASSERT( !is_locked() );
+
+   account_object owner_account = get_account(owner);
+   account_id_type owner_id = owner_account.id;
+
+   fc::optional<asset_object> asset_obj = get_asset(asset_symbol);
+
+   auto type = vesting_balance_type::unspecified;
+   if(is_gpos)
+      type = vesting_balance_type::gpos;
+
+   vesting_balance_create_operation op;
+   op.creator = owner_id;
+   op.owner = owner_id;
+   op.amount = asset_obj->amount_from_string(amount);
+   op.balance_type = type;
+
+   signed_transaction trx;
+   trx.operations.push_back(op);
+   my->set_operation_fees( trx, my->_remote_db->get_global_properties().parameters.current_fees );
+   trx.validate();
+
+   return my->sign_transaction( trx, broadcast );
 }
 
 // default ctor necessary for FC_REFLECT
@@ -5846,15 +5847,13 @@ vesting_balance_object_with_info::vesting_balance_object_with_info( const vestin
 
 } } // graphene::wallet
 
-namespace fc {
-   void to_variant( const account_multi_index_type& accts, variant& vo, uint32_t max_depth )
-   {
-      to_variant( std::vector<account_object>(accts.begin(), accts.end()), vo, max_depth );
-   }
+void fc::to_variant(const account_multi_index_type& accts, fc::variant& vo)
+{
+   vo = vector<account_object>(accts.begin(), accts.end());
+}
 
-   void from_variant( const variant& var, account_multi_index_type& vo, uint32_t max_depth )
-   {
-      const std::vector<account_object>& v = var.as<std::vector<account_object>>( max_depth );
-      vo = account_multi_index_type(v.begin(), v.end());
-   }
+void fc::from_variant(const fc::variant& var, account_multi_index_type& vo)
+{
+   const vector<account_object>& v = var.as<vector<account_object>>();
+   vo = account_multi_index_type(v.begin(), v.end());
 }

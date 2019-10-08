@@ -9,7 +9,6 @@
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/protocol/committee_member.hpp>
-#include <graphene/app/api.hpp>
 #include <fc/crypto/digest.hpp>
 
 #include "../common/database_fixture.hpp"
@@ -270,7 +269,8 @@ BOOST_AUTO_TEST_CASE( check_failes_for_several_operations_of_mixed_type )
 
         auto trx = make_signed_transaction_with_proposed_operation(*this, {make_transfer_operation(account_id_type(), alice_id, asset(501)), //duplicate
                                                                            make_committee_member_create_operation(asset(1002), account_id_type(), "test url")});
-        //Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
+
+	//Modifying from BOOST_CHECK to BOOST_WARN just to make sure users might confuse about this error. If any changes in network_boradcast, would recommend to revert the changes
         BOOST_WARN_THROW(db.check_tansaction_for_duplicated_operations(trx), fc::exception);
     }
     catch( const fc::exception& e )
@@ -398,8 +398,6 @@ BOOST_AUTO_TEST_CASE( check_passes_for_duplicated_betting_market_or_group )
 
         proposal_create_operation pcop2 = pcop1;
 
-        trx.clear();
-
         pcop1.proposed_ops.emplace_back( evcop1 );
         pcop1.proposed_ops.emplace_back( bmgcop );
         pcop1.proposed_ops.emplace_back( bmcop  );
@@ -418,47 +416,6 @@ BOOST_AUTO_TEST_CASE( check_passes_for_duplicated_betting_market_or_group )
         edump((e.to_detail_string()));
         throw;
     }
-}
-
-BOOST_AUTO_TEST_SUITE_END()
-
-BOOST_FIXTURE_TEST_SUITE(network_broadcast_api_tests, database_fixture)
-
-BOOST_AUTO_TEST_CASE( broadcast_transaction_with_callback_test ) {
-    try {
-
-        uint32_t called = 0;
-        auto callback = [&]( const variant& v )
-        {
-            ++called;
-        };
-
-        fc::ecc::private_key cid_key = fc::ecc::private_key::regenerate( fc::digest("key") );
-        const account_id_type cid_id = create_account( "cid", cid_key.get_public_key() ).id;
-        fund( cid_id(db) );
-
-        auto nb_api = std::make_shared< graphene::app::network_broadcast_api >( app );
-
-        set_expiration( db, trx );
-        transfer_operation trans;
-        trans.from = cid_id;
-        trans.to   = account_id_type();
-        trans.amount = asset(1);
-        trx.operations.push_back( trans );
-        sign( trx, cid_key );
-
-        nb_api->broadcast_transaction_with_callback( callback, trx );
-
-        trx.operations.clear();
-        trx.signatures.clear();
-
-        generate_block();
-
-        fc::usleep(fc::milliseconds(200)); // sleep a while to execute callback in another thread
-
-        BOOST_CHECK_EQUAL( called, 1 );
-
-    } FC_LOG_AND_RETHROW()
 }
 
 BOOST_AUTO_TEST_SUITE_END()

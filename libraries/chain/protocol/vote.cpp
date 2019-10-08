@@ -38,12 +38,12 @@ vote_id_type get_next_vote_id( global_property_object& gpo, vote_id_type::vote_t
 namespace fc
 {
 
-void to_variant( const graphene::chain::vote_id_type& var, variant& vo, uint32_t max_depth )
+void to_variant(const graphene::chain::vote_id_type& var, variant& vo)
 {
    vo = string(var);
 }
 
-void from_variant( const variant& var, graphene::chain::vote_id_type& vo, uint32_t max_depth )
+void from_variant(const variant& var, graphene::chain::vote_id_type& vo)
 {
    vo = graphene::chain::vote_id_type(var.as_string());
 }

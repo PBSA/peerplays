@@ -215,15 +215,12 @@ bool database::_push_block(const signed_block& new_block)
 
             // pop blocks until we hit the forked block
             while( head_block_id() != branches.second.back()->data.previous )
-            {
-               ilog( "popping block #${n} ${id}", ("n",head_block_num())("id",head_block_id()) );
                pop_block();
-            }
 
             // push all blocks on the new fork
             for( auto ritr = branches.first.rbegin(); ritr != branches.first.rend(); ++ritr )
             {
-                ilog( "pushing block from fork #${n} ${id}", ("n",(*ritr)->data.block_num())("id",(*ritr)->id) );
+                ilog( "pushing blocks from fork ${n} ${id}", ("n",(*ritr)->data.block_num())("id",(*ritr)->data.id()) );
                 optional<fc::exception> except;
                 try {
                    undo_database::session session = _undo_db.start_undo_session();
@@ -238,27 +235,21 @@ bool database::_push_block(const signed_block& new_block)
                    // remove the rest of branches.first from the fork_db, those blocks are invalid
                    while( ritr != branches.first.rend() )
                    {
-                      ilog( "removing block from fork_db #${n} ${id}", ("n",(*ritr)->data.block_num())("id",(*ritr)->id) );
-                      _fork_db.remove( (*ritr)->id );
+                      _fork_db.remove( (*ritr)->data.id() );
                       ++ritr;
                    }
                    _fork_db.set_head( branches.second.front() );
 
                    // pop all blocks from the bad fork
                    while( head_block_id() != branches.second.back()->data.previous )
-                   {
-                      ilog( "popping block #${n} ${id}", ("n",head_block_num())("id",head_block_id()) );
                       pop_block();
-                   }
 
-                   ilog( "Switching back to fork: ${id}", ("id",branches.second.front()->data.id()) );
                    // restore all blocks from the good fork
-                   for( auto ritr2 = branches.second.rbegin(); ritr2 != branches.second.rend(); ++ritr2 )
+                   for( auto ritr = branches.second.rbegin(); ritr != branches.second.rend(); ++ritr )
                    {
-                      ilog( "pushing block #${n} ${id}", ("n",(*ritr2)->data.block_num())("id",(*ritr2)->id) );
                       auto session = _undo_db.start_undo_session();
-                      apply_block( (*ritr2)->data, skip );
-                      _block_id_to_block.store( (*ritr2)->id, (*ritr2)->data );
+                      apply_block( (*ritr)->data, skip );
+                      _block_id_to_block.store( new_block.id(), (*ritr)->data );
                       session.commit();
                    }
                    throw *except;
@@ -336,8 +327,6 @@ processed_transaction database::validate_transaction( const signed_transaction& 
 
 processed_transaction database::push_proposal(const proposal_object& proposal)
 { try {
-   FC_ASSERT( _undo_db.size() < _undo_db.max_size(), "Undo database is full!" );
-
    transaction_evaluation_state eval_state(this);
    eval_state._is_proposed_trx = true;
 
@@ -475,21 +464,22 @@ signed_block database::_generate_block(
    pending_block.timestamp = when;
    pending_block.transaction_merkle_root = pending_block.calculate_merkle_root();
    pending_block.witness = witness_id;
-   
-   // Genesis witnesses start with a default initial secret
-   if( witness_obj.next_secret_hash == secret_hash_type::hash( secret_hash_type() ) ) {
-         pending_block.previous_secret = secret_hash_type();
-   } else {
-         secret_hash_type::encoder last_enc;
-         fc::raw::pack( last_enc, block_signing_private_key );
-         fc::raw::pack( last_enc, witness_obj.previous_secret );
-         pending_block.previous_secret = last_enc.result();
-   }
+
+   // Genesis witnesses start with a default initial secret        
+   if( witness_obj.next_secret_hash == secret_hash_type::hash( secret_hash_type() ) )     
+       pending_block.previous_secret = secret_hash_type();       
+   else       
+   {      
+       secret_hash_type::encoder last_enc;        
+       fc::raw::pack( last_enc, block_signing_private_key );      
+       fc::raw::pack( last_enc, witness_obj.previous_secret );        
+       pending_block.previous_secret = last_enc.result();        
+   }      
       
-   secret_hash_type::encoder next_enc;
-   fc::raw::pack( next_enc, block_signing_private_key );
-   fc::raw::pack( next_enc, pending_block.previous_secret );
-   pending_block.next_secret_hash = secret_hash_type::hash(next_enc.result());
+   secret_hash_type::encoder next_enc;        
+   fc::raw::pack( next_enc, block_signing_private_key );      
+   fc::raw::pack( next_enc, pending_block.previous_secret );     
+   pending_block.next_secret_hash = secret_hash_type::hash(next_enc.result());       
 
    if( !(skip & skip_witness_signature) )
       pending_block.sign( block_signing_private_key );
@@ -500,7 +490,7 @@ signed_block database::_generate_block(
       FC_ASSERT( fc::raw::pack_size(pending_block) <= get_global_properties().parameters.maximum_block_size );
    }
 
-   push_block( pending_block, skip | skip_transaction_signatures ); // skip authority check when pushing self-generated blocks
+   push_block( pending_block, skip );
 
    return pending_block;
 } FC_CAPTURE_AND_RETHROW( (witness_id) ) }
@@ -517,6 +507,7 @@ void database::pop_block()
    GRAPHENE_ASSERT( head_block.valid(), pop_empty_chain, "there are no blocks to pop" );
 
    _fork_db.pop_block();
+   _block_id_to_block.remove( head_id );
    pop_undo();
 
    _popped_tx.insert( _popped_tx.begin(), head_block->transactions.begin(), head_block->transactions.end() );
@@ -597,8 +588,6 @@ void database::_apply_block( const signed_block& next_block )
 
    _current_block_num    = next_block_num;
    _current_trx_in_block = 0;
-   _current_op_in_trx    = 0;
-   _current_virtual_op   = 0;
 
    for( const auto& trx : next_block.transactions )
    {
@@ -608,31 +597,20 @@ void database::_apply_block( const signed_block& next_block )
        * for transactions when validating broadcast transactions or
        * when building a block.
        */
-
       apply_transaction( trx, skip );
-      // For real operations which are explicitly included in a transaction, virtual_op is 0.
-      // For VOPs derived directly from a real op,
-      //     use the real op's (block_num,trx_in_block,op_in_trx), virtual_op starts from 1.
-      // For VOPs created after processed all transactions,
-      //     trx_in_block = the_block.trsanctions.size(), virtual_op starts from 0.      
       ++_current_trx_in_block;
-      _current_op_in_trx  = 0;
-      _current_virtual_op = 0;   
    }
 
    if (global_props.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM)
        update_witness_schedule(next_block);
-   const uint32_t missed = update_witness_missed_blocks( next_block );
-   update_global_dynamic_data( next_block, missed );
+   update_global_dynamic_data(next_block);
    update_signing_witness(signing_witness, next_block);
    update_last_irreversible_block();
 
    // Are we at the maintenance interval?
    if( maint_needed )
       perform_chain_maintenance(next_block, global_props);
-   
-   check_ending_lotteries();
-   
+
    create_block_summary(next_block);
    place_delayed_bets(); // must happen after update_global_dynamic_data() updates the time
    clear_expired_transactions();
@@ -673,19 +651,6 @@ processed_transaction database::apply_transaction(const signed_transaction& trx,
    return result;
 }
 
-class undo_size_restorer {
-   public:
-      undo_size_restorer( undo_database& db ) : _db( db ), old_max( db.max_size() ) {
-         _db.set_max_size( old_max * 2 );
-      }
-      ~undo_size_restorer() {
-         _db.set_max_size( old_max );
-      }
-   private:
-      undo_database& _db;
-      size_t         old_max;
-};
-
 processed_transaction database::_apply_transaction(const signed_transaction& trx)
 { try {
    uint32_t skip = get_node_properties().skip_flags;
@@ -695,14 +660,9 @@ processed_transaction database::_apply_transaction(const signed_transaction& trx
 
    auto& trx_idx = get_mutable_index_type<transaction_index>();
    const chain_id_type& chain_id = get_chain_id();
-   transaction_id_type trx_id;
-   
-   if( !(skip & skip_transaction_dupe_check) )
-   {
-      trx_id = trx.id();
-      FC_ASSERT( trx_idx.indices().get<by_trx_id>().find(trx_id) == trx_idx.indices().get<by_trx_id>().end() );
-   }
-
+   auto trx_id = trx.id();
+   FC_ASSERT( (skip & skip_transaction_dupe_check) ||
+              trx_idx.indices().get<by_trx_id>().find(trx_id) == trx_idx.indices().get<by_trx_id>().end() );
    transaction_evaluation_state eval_state(this);
    const chain_parameters& chain_parameters = get_global_properties().parameters;
    eval_state._trx = &trx;
@@ -736,7 +696,7 @@ processed_transaction database::_apply_transaction(const signed_transaction& trx
    //Insert transaction into unique transactions database.
    if( !(skip & skip_transaction_dupe_check) )
    {
-      create<transaction_object>([&trx_id,&trx](transaction_object& transaction) {
+      create<transaction_object>([&](transaction_object& transaction) {
          transaction.trx_id = trx_id;
          transaction.trx = trx;
       });
@@ -744,23 +704,20 @@ processed_transaction database::_apply_transaction(const signed_transaction& trx
 
    eval_state.operation_results.reserve(trx.operations.size());
 
-   const undo_size_restorer undo_guard( _undo_db );
    //Finally process the operations
    processed_transaction ptrx(trx);
    _current_op_in_trx = 0;
-   _current_virtual_op = 0;
    for( const auto& op : ptrx.operations )
    {
-      _current_virtual_op = 0;
       eval_state.operation_results.emplace_back(apply_operation(eval_state, op));
       ++_current_op_in_trx;
    }
    ptrx.operation_results = std::move(eval_state.operation_results);
 
    //Make sure the temp account has no non-zero balances
-   const auto& balances = get_index_type< primary_index< account_balance_index > >().get_secondary_index< balances_by_account_index >().get_account_balances( GRAPHENE_TEMP_ACCOUNT );
-   for( const auto b : balances )
-      FC_ASSERT(b.second->balance == 0);
+   const auto& index = get_index_type<account_balance_index>().indices().get<by_account_asset>();
+   auto range = index.equal_range( boost::make_tuple( GRAPHENE_TEMP_ACCOUNT ) );
+   std::for_each(range.first, range.second, [](const account_balance_object& b) { FC_ASSERT(b.balance == 0); });
 
    return ptrx;
 } FC_CAPTURE_AND_RETHROW( (trx) ) }
@@ -785,9 +742,8 @@ const witness_object& database::validate_block_header( uint32_t skip, const sign
    FC_ASSERT( head_block_time() < next_block.timestamp, "", ("head_block_time",head_block_time())("next",next_block.timestamp)("blocknum",next_block.block_num()) );
    const witness_object& witness = next_block.witness(*this);
 //DLN: TODO: Temporarily commented out to test shuffle vs RNG scheduling algorithm for witnesses, this was causing shuffle agorithm to fail during create_witness test. This should be re-enabled for RNG, and maybe for shuffle too, don't really know for sure.
-   if( next_block.timestamp > HARDFORK_SWEEPS_TIME )
-      FC_ASSERT( secret_hash_type::hash( next_block.previous_secret ) == witness.next_secret_hash, "",
-               ( "previous_secret", next_block.previous_secret )( "next_secret_hash", witness.next_secret_hash ) );
+//   FC_ASSERT( secret_hash_type::hash( next_block.previous_secret ) == witness.next_secret_hash, "",        
+//              ("previous_secret", next_block.previous_secret)("next_secret_hash", witness.next_secret_hash)("null_secret_hash", secret_hash_type::hash( secret_hash_type())));
 
    if( !(skip&skip_witness_signature) ) 
       FC_ASSERT( next_block.validate_signee( witness.signing_key ) );

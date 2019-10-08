@@ -142,7 +142,7 @@ namespace detail {
          if( _options->count("seed-nodes") )
          {
             auto seeds_str = _options->at("seed-nodes").as<string>();
-            auto seeds = fc::json::from_string(seeds_str).as<vector<string>>(2);
+            auto seeds = fc::json::from_string(seeds_str).as<vector<string>>();
             for( const string& endpoint_string : seeds )
             {
                try {
@@ -162,28 +162,10 @@ namespace detail {
          {
             // t.me/peerplays #seednodes
             vector<string> seeds = {
-                "ppy-beatrice-seed.blckchnd.com:6666",
-                "159.69.223.206:7777",
-                "51.38.237.243:9666",
-                "pbsa-beatrice.blockchainprojectsbv.com:9195"
-              // OTTHER SEEDS:
-              //  "seed.ppy.blckchnd.com:6112",       // blckchnd 
-              //  "ppy.esteem.ws:7777",               // good-karma
-              //  "peerplays.bitcoiner.me:9777",      // bitcoiner
-              //  "peerplays.roelandp.nl:9777",       // roelandp
-              //  "78.46.95.153:7777",                // theprophet0 
-              //  "ppyseed.bacchist.me:42420",        // bacchist-witness
-              //  "5.9.18.213:18828",                 // pfunk
-              //  "31.171.244.121:7777",              // taconator
-              //  "seed.peerplaysdb.com:9777",        // jesta
-              //  "ppy-seed.xeldal.com:19777",        // xeldal
-              //  "peerplays-seed.altcap.io:61388",   // winner.winner.chicken.dinner
-              //  "seed.peerplaysnodes.com:9777",     // wackou
-              //  "peerplays-seed.privex.io:7777",    // someguy123/privex
-              //  "51.15.78.16:9777",	               // agoric.systems
-              //  "212.71.253.163:9777",	            // xtar
-              //  "51.15.35.96:9777",	               // lafona
-              //  "anyx.ca:9777"                      // anyx
+               "ppy-beatrice-seed.blckchnd.com:6666",
+               "159.69.223.206:7777",
+               "51.38.237.243:9666",
+               "pbsa-beatrice.blockchainprojectsbv.com:9195"
             };
 
             for( const string& endpoint_string : seeds )
@@ -244,7 +226,7 @@ namespace detail {
 
       void new_connection( const fc::http::websocket_connection_ptr& c )
       {
-         auto wsc = std::make_shared<fc::rpc::websocket_api_connection>(c, GRAPHENE_MAX_NESTED_OBJECTS);
+         auto wsc = std::make_shared<fc::rpc::websocket_api_connection>(*c);
          auto login = std::make_shared<graphene::app::login_api>( std::ref(*_self) );
          login->enable_api("database_api");
 
@@ -310,7 +292,7 @@ namespace detail {
          _websocket_tls_server->start_accept();
       } FC_CAPTURE_AND_RETHROW() }
 
-      explicit application_impl(application* self)
+      application_impl(application* self)
          : _self(self),
            _chain_db(std::make_shared<chain::database>())
       {
@@ -318,6 +300,7 @@ namespace detail {
 
       ~application_impl()
       {
+         fc::remove_all(_data_dir / "blockchain/dblock");
       }
 
       void set_dbg_init_key( genesis_state_type& genesis, const std::string& init_key )
@@ -326,19 +309,21 @@ namespace detail {
          public_key_type init_pubkey( init_key );
          for( uint64_t i=0; i<genesis.initial_active_witnesses; i++ )
             genesis.initial_witness_candidates[i].block_signing_key = init_pubkey;
+         return;
       }
 
       void startup()
       { try {
-         fc::create_directories(_data_dir / "blockchain");
+         bool clean = !fc::exists(_data_dir / "blockchain/dblock");
+         fc::create_directories(_data_dir / "blockchain/dblock");
 
-         auto initial_state = [this] {
+         auto initial_state = [&] {
             ilog("Initializing database...");
             if( _options->count("genesis-json") )
             {
                std::string genesis_str;
                fc::read_file_contents( _options->at("genesis-json").as<boost::filesystem::path>(), genesis_str );
-               genesis_state_type genesis = fc::json::from_string( genesis_str ).as<genesis_state_type>( 20 );
+               genesis_state_type genesis = fc::json::from_string( genesis_str ).as<genesis_state_type>();
                bool modified_genesis = false;
                if( _options->count("genesis-timestamp") )
                {
@@ -371,7 +356,7 @@ namespace detail {
                graphene::egenesis::compute_egenesis_json( egenesis_json );
                FC_ASSERT( egenesis_json != "" );
                FC_ASSERT( graphene::egenesis::get_egenesis_json_hash() == fc::sha256::hash( egenesis_json ) );
-               auto genesis = fc::json::from_string( egenesis_json ).as<genesis_state_type>( 20 );
+               auto genesis = fc::json::from_string( egenesis_json ).as<genesis_state_type>();
                genesis.initial_chain_id = fc::sha256::hash( egenesis_json );
                return genesis;
             }
@@ -387,7 +372,7 @@ namespace detail {
             loaded_checkpoints.reserve( cps.size() );
             for( auto cp : cps )
             {
-               auto item = fc::json::from_string(cp).as<std::pair<uint32_t,block_id_type> >( 2 );
+               auto item = fc::json::from_string(cp).as<std::pair<uint32_t,block_id_type> >();
                loaded_checkpoints[item.first] = item.second;
             }
          }
@@ -396,17 +381,64 @@ namespace detail {
          bool replay = false;
          std::string replay_reason = "reason not provided";
 
-         if( _options->count("replay-blockchain") )
-            _chain_db->wipe( _data_dir / "blockchain", false );
+         // never replay if data dir is empty
+         if( fc::exists( _data_dir ) && fc::directory_iterator( _data_dir ) != fc::directory_iterator() )
+         {
+            if( _options->count("replay-blockchain") )
+            {
+               replay = true;
+               replay_reason = "replay-blockchain argument specified";
+            }
+            else if( !clean )
+            {
+               replay = true;
+               replay_reason = "unclean shutdown detected";
+            }
+            else if( !fc::exists( _data_dir / "db_version" ) )
+            {
+               replay = true;
+               replay_reason = "db_version file not found";
+            }
+            else
+            {
+               std::string version_string;
+               fc::read_file_contents( _data_dir / "db_version", version_string );
 
-         try
-         {
-            _chain_db->open( _data_dir / "blockchain", initial_state, GRAPHENE_CURRENT_DB_VERSION );
+               if( version_string != GRAPHENE_CURRENT_DB_VERSION )
+               {
+                   replay = true;
+                   replay_reason = "db_version file content mismatch";
+               }
+            }
          }
-         catch( const fc::exception& e )
+
+         if( !replay )
          {
-            elog( "Caught exception ${e} in open(), you might want to force a replay", ("e", e.to_detail_string()) );
-            throw;
+            try
+            {
+               _chain_db->open( _data_dir / "blockchain", initial_state );
+            }
+            catch( const fc::exception& e )
+            {
+               ilog( "Caught exception ${e} in open()", ("e", e.to_detail_string()) );
+
+               replay = true;
+               replay_reason = "exception in open()";
+            }
+         }
+
+         if( replay )
+         {
+            ilog( "Replaying blockchain due to: ${reason}", ("reason", replay_reason) );
+
+            fc::remove_all( _data_dir / "db_version" );
+            _chain_db->reindex( _data_dir / "blockchain", initial_state() );
+
+            const auto mode = std::ios::out | std::ios::binary | std::ios::trunc;
+            std::ofstream db_version( (_data_dir / "db_version").generic_string().c_str(), mode );
+            std::string version_string = GRAPHENE_CURRENT_DB_VERSION;
+            db_version.write( version_string.c_str(), version_string.size() );
+            db_version.close();
          }
 
          if( _options->count("force-validate") )
@@ -415,21 +447,9 @@ namespace detail {
             _force_validate = true;
          }
 
-         if( _options->count("api-access") ) {
-
-            if(fc::exists(_options->at("api-access").as<boost::filesystem::path>()))
-            {
-               _apiaccess = fc::json::from_file( _options->at("api-access").as<boost::filesystem::path>() ).as<api_access>( 20 );
-               ilog( "Using api access file from ${path}",
-                     ("path", _options->at("api-access").as<boost::filesystem::path>().string()) );
-            }
-            else
-            {
-               elog("Failed to load file from ${path}",
-                  ("path", _options->at("api-access").as<boost::filesystem::path>().string()));
-               std::exit(EXIT_FAILURE);
-            }
-         }
+         if( _options->count("api-access") )
+            _apiaccess = fc::json::from_file( _options->at("api-access").as<boost::filesystem::path>() )
+               .as<api_access>();
          else
          {
             // TODO:  Remove this generous default access policy
@@ -972,7 +992,7 @@ void application::initialize(const fc::path& data_dir, const boost::program_opti
       if( fc::exists(genesis_out) )
       {
          try {
-            genesis_state = fc::json::from_file(genesis_out).as<genesis_state_type>( 20 );
+            genesis_state = fc::json::from_file(genesis_out).as<genesis_state_type>();
          } catch(const fc::exception& e) {
             std::cerr << "Unable to parse existing genesis file:\n" << e.to_string()
                       << "\nWould you like to replace it? [y/N] ";

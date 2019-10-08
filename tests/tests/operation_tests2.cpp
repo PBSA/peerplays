@@ -425,7 +425,7 @@ BOOST_AUTO_TEST_CASE( witness_create )
    ACTOR(nathan);
    upgrade_to_lifetime_member(nathan_id);
    trx.clear();
-   witness_id_type nathan_witness_id = create_witness(nathan_id, generate_private_key("null_key")).id;
+   witness_id_type nathan_witness_id = create_witness(nathan_id, nathan_private_key).id;
    // Give nathan some voting stake
    transfer(committee_account, nathan_id, asset(10000000));
    generate_block();
@@ -463,10 +463,6 @@ BOOST_AUTO_TEST_CASE( witness_create )
 
        // make sure we're scheduled to produce
        vector<witness_id_type> near_witnesses = db.get_near_witness_schedule();
-       while( std::find( near_witnesses.begin(), near_witnesses.end(), nathan_witness_id ) == near_witnesses.end() ) {
-          generate_block();
-          near_witnesses = db.get_near_witness_schedule();
-       }
        BOOST_CHECK( std::find( near_witnesses.begin(), near_witnesses.end(), nathan_witness_id )
                     != near_witnesses.end() );
 
@@ -480,7 +476,7 @@ BOOST_AUTO_TEST_CASE( witness_create )
              if( id == nathan_id )
              {
                 nathan_generated_block = true;
-                f.generate_block(0);
+                f.generate_block(0, nathan_key);
              } else
                 f.generate_block(0);
              BOOST_CHECK_EQUAL(f.db.get_dynamic_global_properties().current_witness.instance.value, id.instance.value);
@@ -491,8 +487,8 @@ BOOST_AUTO_TEST_CASE( witness_create )
        generator_helper h = std::for_each(near_witnesses.begin(), near_witnesses.end(),
                                           generator_helper{*this, nathan_witness_id, nathan_private_key, false});
        BOOST_CHECK(h.nathan_generated_block);
-      //  fails
-      //  BOOST_CHECK_EQUAL( db.witness_participation_rate(), GRAPHENE_100_PERCENT );
+
+       BOOST_CHECK_EQUAL( db.witness_participation_rate(), GRAPHENE_100_PERCENT );
    }
 
    if (db.get_global_properties().parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SHUFFLED_ALGORITHM)
@@ -675,7 +671,7 @@ BOOST_AUTO_TEST_CASE( worker_pay_test )
       trx.operations.push_back(op);
       sign( trx,  nathan_private_key );
       PUSH_TX( db, trx );
-      trx.clear_signatures();
+      trx.signatures.clear();
       REQUIRE_THROW_WITH_VALUE(op, amount, asset(1));
       trx.clear();
    }
@@ -710,7 +706,7 @@ BOOST_AUTO_TEST_CASE( worker_pay_test )
       trx.operations.back() = op;
       sign( trx,  nathan_private_key );
       PUSH_TX( db, trx );
-      trx.clear_signatures();
+      trx.signatures.clear();
       trx.clear();
    }
 
@@ -1111,7 +1107,7 @@ BOOST_AUTO_TEST_CASE( balance_object_test )
    auto _sign = [&]( signed_transaction& tx, const private_key_type& key )
    {  tx.sign( key, db.get_chain_id() );   };
 
-   db.open(td.path(), [this]{return genesis_state;}, "TEST");
+   db.open(td.path(), [this]{return genesis_state;});
    const balance_object& balance = balance_id_type()(db);
    BOOST_CHECK_EQUAL(balance.balance.amount.value, 1);
    BOOST_CHECK_EQUAL(balance_id_type(1)(db).balance.amount.value, 1);
@@ -1164,7 +1160,7 @@ BOOST_AUTO_TEST_CASE( balance_object_test )
    op.total_claimed.amount = 151;
    op.balance_owner_key = v2_key.get_public_key();
    trx.operations = {op};
-   trx.clear_signatures();
+   trx.signatures.clear();
    _sign( trx, n_key );
    _sign( trx, v2_key );
    // Attempting to claim 151 from a balance with 150 available
@@ -1174,7 +1170,7 @@ BOOST_AUTO_TEST_CASE( balance_object_test )
    op.total_claimed.amount = 100;
    op.balance_owner_key = v2_key.get_public_key();
    trx.operations = {op};
-   trx.clear_signatures();
+   trx.signatures.clear();
    _sign( trx, n_key );
    _sign( trx, v2_key );
    db.push_transaction(trx);
@@ -1183,7 +1179,7 @@ BOOST_AUTO_TEST_CASE( balance_object_test )
 
    op.total_claimed.amount = 10;
    trx.operations = {op};
-   trx.clear_signatures();
+   trx.signatures.clear();
    _sign( trx, n_key );
    _sign( trx, v2_key );
    // Attempting to claim twice within a day
@@ -1198,7 +1194,7 @@ BOOST_AUTO_TEST_CASE( balance_object_test )
    op.total_claimed.amount = 500;
    op.balance_owner_key = v1_key.get_public_key();
    trx.operations = {op};
-   trx.clear_signatures();
+   trx.signatures.clear();
    _sign( trx, n_key );
    _sign( trx, v1_key );
    db.push_transaction(trx);
@@ -1209,7 +1205,7 @@ BOOST_AUTO_TEST_CASE( balance_object_test )
    op.balance_owner_key = v2_key.get_public_key();
    op.total_claimed.amount = 10;
    trx.operations = {op};
-   trx.clear_signatures();
+   trx.signatures.clear();
    _sign( trx, n_key );
    _sign( trx, v2_key );
    // Attempting to claim twice within a day
@@ -1222,7 +1218,7 @@ BOOST_AUTO_TEST_CASE( balance_object_test )
 
    op.total_claimed = vesting_balance_2.balance;
    trx.operations = {op};
-   trx.clear_signatures();
+   trx.signatures.clear();
    _sign( trx, n_key );
    _sign( trx, v2_key );
    db.push_transaction(trx);
@@ -1316,6 +1312,7 @@ BOOST_AUTO_TEST_CASE(zero_second_vbo)
          create_op.owner = alice_id;
          create_op.amount = asset(500);
          create_op.policy = pinit;
+         create_op.balance_type = vesting_balance_type::unspecified;
 
          signed_transaction create_tx;
          create_tx.operations.push_back( create_op );
@@ -1399,6 +1396,7 @@ BOOST_AUTO_TEST_CASE( vbo_withdraw_different )
          create_op.owner = alice_id;
          create_op.amount = asset(100, stuff_id);
          create_op.policy = pinit;
+         create_op.balance_type = vesting_balance_type::unspecified;
 
          signed_transaction create_tx;
          create_tx.operations.push_back( create_op );
@@ -1648,7 +1646,7 @@ BOOST_AUTO_TEST_CASE( buyback )
             // Alice and Philbin signed, but asset issuer is invalid
             GRAPHENE_CHECK_THROW( db.push_transaction(tx), account_create_buyback_incorrect_issuer );
 
-            tx.clear_signatures();
+            tx.signatures.clear();
             tx.operations.back().get< account_create_operation >().extensions.value.buyback_options->asset_to_buy_issuer = izzy_id;
             sign( tx, philbin_private_key );
 
@@ -1661,7 +1659,7 @@ BOOST_AUTO_TEST_CASE( buyback )
             rex_id = ptx.operation_results.back().get< object_id_type >();
 
             // Try to create another account rex2 which is bbo on same asset
-            tx.clear_signatures();
+            tx.signatures.clear();
             tx.operations.back().get< account_create_operation >().name = "rex2";
             sign( tx, izzy_private_key );
             sign( tx, philbin_private_key );
