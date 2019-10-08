@@ -40,7 +40,6 @@
 #include <fc/interprocess/signals.hpp>
 
 #include <boost/filesystem.hpp>
-
 #include <boost/property_tree/ptree.hpp>
 #include <boost/container/flat_set.hpp>
 #include <boost/algorithm/string.hpp>
@@ -149,10 +148,11 @@ int main(int argc, char** argv) {
       std::for_each(plugins.begin(), plugins.end(), [node](const std::string& plug) mutable {
          if (!plug.empty()) {
             node->enable_plugin(plug);
-          }
+         }
       });
 
       bpo::notify(options);
+
       node->initialize(data_dir, options);
       node->initialize_plugins( options );
 
