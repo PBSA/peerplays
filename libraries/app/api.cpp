@@ -160,7 +160,10 @@ namespace graphene { namespace app {
              {
                 auto block_num = b.block_num();
                 auto& callback = _callbacks.find(id)->second;
-                fc::async( [capture_this,this,id,block_num,trx_num,trx,callback](){ callback( fc::variant(transaction_confirmation{ id, block_num, trx_num, trx}) ); } );
+                fc::async( [capture_this,this,id,block_num,trx_num,trx,callback]() {
+                   callback( fc::variant( transaction_confirmation{ id, block_num, trx_num, trx },
+                                          GRAPHENE_MAX_NESTED_OBJECTS ) );
+                } );
              }
           }
        }
@@ -189,7 +192,8 @@ namespace graphene { namespace app {
     void network_broadcast_api::broadcast_block( const signed_block& b )
     {
        _app.chain_database()->push_block(b);
-       _app.p2p_node()->broadcast( net::block_message( b ));
+       if( _app.p2p_node() != nullptr )
+          _app.p2p_node()->broadcast( net::block_message( b ));
     }
 
     void network_broadcast_api::broadcast_transaction_with_callback(confirmation_callback cb, const signed_transaction& trx)
@@ -197,7 +201,8 @@ namespace graphene { namespace app {
        trx.validate();
        _callbacks[trx.id()] = cb;
        _app.chain_database()->push_transaction(trx);
-       _app.p2p_node()->broadcast_transaction(trx);
+       if( _app.p2p_node() != nullptr )
+            _app.p2p_node()->broadcast_transaction(trx);
     }
 
     network_node_api::network_node_api( application& a ) : _app( a )
@@ -212,7 +217,7 @@ namespace graphene { namespace app {
 
             if (_on_pending_transaction)
             {
-                _on_pending_transaction(fc::variant(transaction));
+                _on_pending_transaction(fc::variant(transaction, GRAPHENE_MAX_NESTED_OBJECTS));
             }
         });
 
@@ -550,26 +555,32 @@ namespace graphene { namespace app {
                                                                        unsigned limit,
                                                                        operation_history_id_type start ) const
     {
-       FC_ASSERT( _app.chain_database() );
-       const auto& db = *_app.chain_database();
-       FC_ASSERT( limit <= 100 );
-       vector<operation_history_object> result;
-       const auto& stats = account(db).statistics(db);
-       if( stats.most_recent_op == account_transaction_history_id_type() ) return result;
-       const account_transaction_history_object* node = &stats.most_recent_op(db);
-       if( start == operation_history_id_type() )
-          start = node->operation_id;
+        FC_ASSERT( _app.chain_database() );
+        const auto& db = *_app.chain_database();
+        FC_ASSERT( limit <= 100 );
+        vector<operation_history_object> result;
+        try {
+           const account_transaction_history_object& node = account(db).statistics(db).most_recent_op(db);
+           if(start == operation_history_id_type() || start.instance.value > node.operation_id.instance.value)
+              start = node.operation_id;
+        } catch(...) { return result; }
 
-       while(node && node->operation_id.instance.value > stop.instance.value && result.size() < limit)
-       {
-          if( node->operation_id.instance.value <= start.instance.value )
-             result.push_back( node->operation_id(db) );
-          if( node->next == account_transaction_history_id_type() )
-             node = nullptr;
-          else node = &node->next(db);
-       }
+        const auto& hist_idx = db.get_index_type<account_transaction_history_index>();
+        const auto& by_op_idx = hist_idx.indices().get<by_op>();
+        auto index_start = by_op_idx.begin();
+        auto itr = by_op_idx.lower_bound(boost::make_tuple(account, start));
 
-       return result;
+        while(itr != index_start && itr->account == account && itr->operation_id.instance.value > stop.instance.value && result.size() < limit)
+        {
+           if(itr->operation_id.instance.value <= start.instance.value)
+              result.push_back(itr->operation_id(db));
+           --itr;
+        }
+        if(stop.instance.value == 0 && result.size() < limit && itr->account == account) {
+          result.push_back(itr->operation_id(db));
+        }
+
+        return result;
     }
 
     vector<operation_history_object> history_api::get_account_history_operations( account_id_type account,
@@ -594,10 +605,15 @@ namespace graphene { namespace app {
 
              if(node->operation_id(db).op.which() == operation_id)
                result.push_back( node->operation_id(db) );
-             }
+          }
           if( node->next == account_transaction_history_id_type() )
              node = nullptr;
           else node = &node->next(db);
+       }
+       if( stop.instance.value == 0 && result.size() < limit ) {
+          auto head = db.find(account_transaction_history_id_type());
+          if (head != nullptr && head->account == account && head->operation_id(db).op.which() == operation_id)
+            result.push_back(head->operation_id(db));
        }
        return result;
     }

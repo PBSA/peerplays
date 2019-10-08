@@ -26,8 +26,31 @@
 #include <graphene/chain/protocol/memo.hpp>
 
 namespace graphene { namespace chain { 
+   class database;
 
    bool is_valid_symbol( const string& symbol );
+
+   struct benefactor   {
+      account_id_type id;
+      uint16_t share; // percent * GRAPHENE_1_PERCENT
+      benefactor() = default;
+      benefactor( const benefactor & ) = default;
+      benefactor( account_id_type _id, uint16_t _share ) : id( _id ), share( _share ) {}
+   };
+
+   struct lottery_asset_options
+   {
+      std::vector<benefactor> benefactors;
+      asset_id_type           owner;
+      // specifying winning tickets as shares that will be issued
+      std::vector<uint16_t>   winning_tickets;
+      asset                   ticket_price;
+      time_point_sec          end_date;
+      bool                    ending_on_soldout;
+      bool                    is_active;
+
+      void validate()const;
+   };
 
    /**
     * @brief The asset_options struct contains options available on all assets in the network
@@ -191,7 +214,43 @@ namespace graphene { namespace chain {
       optional<bitasset_options> bitasset_opts;
       /// For BitAssets, set this to true if the asset implements a @ref prediction_market; false otherwise
       bool is_prediction_market = false;
+      // containing lottery_asset_options now
       extensions_type extensions;
+
+      account_id_type fee_payer()const { return issuer; }
+      void            validate()const;
+      share_type      calculate_fee( const fee_parameters_type& k )const;
+   };
+
+   ///Operation for creation of lottery
+   struct lottery_asset_create_operation : public base_operation
+   {
+      struct fee_parameters_type { 
+         uint64_t lottery_asset  = 20   * GRAPHENE_BLOCKCHAIN_PRECISION;
+         uint32_t price_per_kbyte = 10; /// only required for large lottery names.
+      };
+
+      asset                   fee;
+      /// This account must sign and pay the fee for this operation. Later, this account may update the asset
+      account_id_type         issuer;
+      /// The ticker symbol of this asset
+      string                  symbol;
+      /// Number of digits to the right of decimal point, must be less than or equal to 12
+      uint8_t                 precision = 0;
+
+      /// Options common to all assets.
+      ///
+      /// @note common_options.core_exchange_rate technically needs to store the asset ID of this new asset. Since this
+      /// ID is not known at the time this operation is created, create this price as though the new asset has instance
+      /// ID 1, and the chain will overwrite it with the new asset's ID.
+      asset_options              common_options;
+      /// Options only available for BitAssets. MUST be non-null if and only if the @ref market_issued flag is set in
+      /// common_options.flags
+      optional<bitasset_options> bitasset_opts;
+      /// For BitAssets, set this to true if the asset implements a @ref prediction_market; false otherwise
+      bool is_prediction_market = false;
+      // containing lottery_asset_options now
+      lottery_asset_options extensions;
 
       account_id_type fee_payer()const { return issuer; }
       void            validate()const;
@@ -398,7 +457,7 @@ namespace graphene { namespace chain {
     * BitAssets have some options which are not relevant to other asset types. This operation is used to update those
     * options an an existing BitAsset.
     *
-    * @pre @ref issuer MUST be an existing account and MUST match asset_object::issuer on @ref asset_to_update
+    * @pre @ref issuer MUST be an existing aaccount and MUST match asset_object::issuer on @ref asset_to_update
     * @pre @ref asset_to_update MUST be a BitAsset, i.e. @ref asset_object::is_market_issued() returns true
     * @pre @ref fee MUST be nonnegative, and @ref issuer MUST have a sufficient balance to pay it
     * @pre @ref new_options SHALL be internally consistent, as verified by @ref validate()
@@ -570,9 +629,27 @@ namespace graphene { namespace chain {
       account_id_type fee_payer()const { return issuer; }
       void            validate()const;
    };
-
+   
+   struct sweeps_vesting_claim_operation : public base_operation
+   {
+      struct fee_parameters_type {
+         uint64_t fee = 20 * GRAPHENE_BLOCKCHAIN_PRECISION;
+      };
+      
+      asset           fee;
+      account_id_type account;
+      asset           amount_to_claim;
+      extensions_type extensions;
+      
+      
+      account_id_type fee_payer()const { return account; }
+      void            validate()const {};
+   };
 
 } } // graphene::chain
+
+FC_REFLECT( graphene::chain::sweeps_vesting_claim_operation, (fee)(account)(amount_to_claim)(extensions) )
+FC_REFLECT( graphene::chain::sweeps_vesting_claim_operation::fee_parameters_type, (fee) )
 
 FC_REFLECT( graphene::chain::asset_claim_fees_operation, (fee)(issuer)(amount_to_claim)(extensions) )
 FC_REFLECT( graphene::chain::asset_claim_fees_operation::fee_parameters_type, (fee) )
@@ -610,8 +687,13 @@ FC_REFLECT( graphene::chain::bitasset_options,
             (extensions)
           )
 
+FC_REFLECT( graphene::chain::benefactor, (id)(share) )
+
+FC_REFLECT( graphene::chain::lottery_asset_options, (benefactors)(owner)(winning_tickets)(ticket_price)(end_date)(ending_on_soldout)(is_active) )
+
 
 FC_REFLECT( graphene::chain::asset_create_operation::fee_parameters_type, (symbol3)(symbol4)(long_symbol)(price_per_kbyte) )
+FC_REFLECT( graphene::chain::lottery_asset_create_operation::fee_parameters_type, (lottery_asset)(price_per_kbyte) )
 FC_REFLECT( graphene::chain::asset_global_settle_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::asset_settle_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::asset_settle_cancel_operation::fee_parameters_type, )
@@ -626,6 +708,16 @@ FC_REFLECT( graphene::chain::asset_reserve_operation::fee_parameters_type, (fee)
 FC_REFLECT( graphene::chain::asset_dividend_distribution_operation::fee_parameters_type, (distribution_base_fee)(distribution_fee_per_holder))
 
 FC_REFLECT( graphene::chain::asset_create_operation,
+            (fee)
+            (issuer)
+            (symbol)
+            (precision)
+            (common_options)
+            (bitasset_opts)
+            (is_prediction_market)
+            (extensions)
+          )
+FC_REFLECT( graphene::chain::lottery_asset_create_operation,
             (fee)
             (issuer)
             (symbol)

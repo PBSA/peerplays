@@ -468,28 +468,28 @@ void betting_market_object::on_canceled_event(database& db)
 
 namespace fc { 
    // Manually reflect betting_market_object to variant to properly reflect "state"
-   void to_variant(const graphene::chain::betting_market_object& event_obj, fc::variant& v)
+   void to_variant(const graphene::chain::betting_market_object& event_obj, fc::variant& v, uint32_t max_depth)
    {
       fc::mutable_variant_object o;
-      o("id", event_obj.id)
-       ("group_id", event_obj.group_id)
-       ("description", event_obj.description)
-       ("payout_condition", event_obj.payout_condition)
-       ("resolution", event_obj.resolution)
-       ("status", event_obj.get_status());
+      o("id", fc::variant(event_obj.id, max_depth) )
+       ("group_id", fc::variant(event_obj.group_id, max_depth))
+       ("description", fc::variant(event_obj.description, max_depth))
+       ("payout_condition", fc::variant(event_obj.payout_condition, max_depth))
+       ("resolution", fc::variant(event_obj.resolution, max_depth))
+       ("status", fc::variant(event_obj.get_status(), max_depth));
 
       v = o;
    }
 
    // Manually reflect betting_market_object to variant to properly reflect "state"
-   void from_variant(const fc::variant& v, graphene::chain::betting_market_object& event_obj)
+   void from_variant(const fc::variant& v, graphene::chain::betting_market_object& event_obj, uint32_t max_depth)
    {
-      event_obj.id = v["id"].as<graphene::chain::betting_market_id_type>();
-      event_obj.group_id = v["name"].as<graphene::chain::betting_market_group_id_type>();
-      event_obj.description = v["description"].as<graphene::chain::internationalized_string_type>();
-      event_obj.payout_condition = v["payout_condition"].as<graphene::chain::internationalized_string_type>();
-      event_obj.resolution = v["resolution"].as<fc::optional<graphene::chain::betting_market_resolution_type>>();
-      graphene::chain::betting_market_status status = v["status"].as<graphene::chain::betting_market_status>();
+      event_obj.id = v["id"].as<graphene::chain::betting_market_id_type>( max_depth );
+      event_obj.group_id = v["name"].as<graphene::chain::betting_market_group_id_type>( max_depth );
+      event_obj.description = v["description"].as<graphene::chain::internationalized_string_type>( max_depth );
+      event_obj.payout_condition = v["payout_condition"].as<graphene::chain::internationalized_string_type>( max_depth );
+      event_obj.resolution = v["resolution"].as<fc::optional<graphene::chain::betting_market_resolution_type>>( max_depth );
+      graphene::chain::betting_market_status status = v["status"].as<graphene::chain::betting_market_status>( max_depth );
       const_cast<int*>(event_obj.my->state_machine.current_state())[0] = (int)status;
    }
 } //end namespace fc

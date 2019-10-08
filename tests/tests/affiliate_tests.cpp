@@ -402,16 +402,16 @@ BOOST_AUTO_TEST_CASE( affiliate_payout_helper_test )
 
    {
       // Fix total supply
-      auto& index = db.get_index_type<account_balance_index>().indices().get<by_account_asset>();
-      auto itr = index.find( boost::make_tuple( account_id_type(), asset_id_type() ) );
-      BOOST_CHECK( itr != index.end() );
-      db.modify( *itr, [&ath]( account_balance_object& bal ) {
+      auto& index = db.get_index_type< primary_index< account_balance_index > >().get_secondary_index<balances_by_account_index>();
+      auto abo = index.get_account_balance( account_id_type(), asset_id_type() );
+      BOOST_CHECK( abo != nullptr );
+      db.modify( *abo, [&ath]( account_balance_object& bal ) {
          bal.balance -= ath.alice_ppy + ath.ann_ppy + ath.audrey_ppy;
       });
 
-      itr = index.find( boost::make_tuple( irene_id, btc_id ) );
-      BOOST_CHECK( itr != index.end() );
-      db.modify( *itr, [alice_btc,ann_btc,audrey_btc]( account_balance_object& bal ) {
+      abo = index.get_account_balance( irene_id, btc_id );
+      BOOST_CHECK( abo != nullptr );
+      db.modify( *abo, [alice_btc,ann_btc,audrey_btc]( account_balance_object& bal ) {
          bal.balance -= alice_btc + ann_btc + audrey_btc;
       });
    }

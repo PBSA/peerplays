@@ -25,6 +25,10 @@ RUN \
       locales \
       ntp \
       pkg-config \
+      ntp \
+      pkg-config \
+      doxygen \
+      ca-certificates \
       wget \
     && \
     apt-get clean && \
