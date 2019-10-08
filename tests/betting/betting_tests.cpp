@@ -49,11 +49,11 @@
 
 struct enable_betting_logging_config {
    enable_betting_logging_config()
-   { 
+   {
       fc::logger::get("betting").add_appender(fc::appender::get("stdout"));
       fc::logger::get("betting").set_log_level(fc::log_level::debug);
    }
-   ~enable_betting_logging_config()  { 
+   ~enable_betting_logging_config()  {
       fc::logger::get("betting").remove_appender(fc::appender::get("stdout"));
    }
 };
@@ -66,8 +66,8 @@ using namespace graphene::chain::keywords;
 
 // While the bets are placed, stored, and sorted using the decimal form of their odds, matching
 // uses the ratios to ensure no rounding takes place.
-// The allowed odds are defined by rules that can be changed at runtime.  
-// For reference when designing/debugging tests, here is the list of allowed decimal odds and their 
+// The allowed odds are defined by rules that can be changed at runtime.
+// For reference when designing/debugging tests, here is the list of allowed decimal odds and their
 // corresponding ratios as set in the genesis block.
 //
 // decimal    ratio  | decimal  ratio  | decimal    ratio  | decimal    ratio  | decimal    ratio  | decimal    ratio
@@ -129,7 +129,7 @@ using namespace graphene::chain::keywords;
 //    1.55    20:11  |   2.28   25:32  |    4.3     10:33  |     22      1:21  |    400     1:399  |    980     1:979
 //    1.56    25:14  |    2.3   10:13  |    4.4      5:17  |     23      1:22  |    410     1:409  |    990     1:989
 //    1.57   100:57  |   2.32   25:33  |    4.5       2:7  |     24      1:23  |    420     1:419  |   1000     1:999
-//    1.58    50:29  |   2.34   50:67  |    4.6      5:18  |     25      1:24  |    430     1:429  |  
+//    1.58    50:29  |   2.34   50:67  |    4.6      5:18  |     25      1:24  |    430     1:429  |
 //    1.59   100:59  |   2.36   25:34  |    4.7     10:37
 
 #define CREATE_ICE_HOCKEY_BETTING_MARKET(never_in_play, delay_before_settling) \
@@ -341,7 +341,7 @@ BOOST_AUTO_TEST_CASE(binned_order_books)
       const auto& bet_odds_idx = db.get_index_type<bet_object_index>().indices().get<by_odds>();
 
       auto bet_iter = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
-      while (bet_iter != bet_odds_idx.end() && 
+      while (bet_iter != bet_odds_idx.end() &&
              bet_iter->betting_market_id == capitals_win_market.id)
       {
         idump((*bet_iter));
@@ -366,7 +366,7 @@ BOOST_AUTO_TEST_CASE(binned_order_books)
       }
 
       bet_iter = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
-      while (bet_iter != bet_odds_idx.end() && 
+      while (bet_iter != bet_odds_idx.end() &&
              bet_iter->betting_market_id == capitals_win_market.id)
       {
         idump((*bet_iter));
@@ -382,10 +382,10 @@ BOOST_AUTO_TEST_CASE(binned_order_books)
 //       place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 165 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
 //       place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 165 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
 //       place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 165 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
-// 
+//
 //       binned_orders_point_one = bookie_api.get_binned_order_book(capitals_win_market.id, 1);
 //       idump((binned_orders_point_one));
-// 
+//
 //       // the binned orders returned should be chosen so that we if we assume those orders are real and we place
 //       // matching lay orders, we will completely consume the underlying orders and leave no orders on the books
 //       //
@@ -398,20 +398,20 @@ BOOST_AUTO_TEST_CASE(binned_order_books)
 //         share_type back_amount = bet_object::get_approximate_matching_amount(binned_order.amount_to_bet, binned_order.backer_multiplier, bet_type::lay, true /* round up */);
 //         ilog("Alice is backing with ${back_amount} at odds ${odds} to match the binned lay amount ${lay_amount}", ("back_amount", back_amount)("odds", binned_order.backer_multiplier)("lay_amount", binned_order.amount_to_bet));
 //         place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(back_amount, asset_id_type()), binned_order.backer_multiplier);
-// 
+//
 //       }
-// 
-// 
+//
+//
 //       bet_iter = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
-//       while (bet_iter != bet_odds_idx.end() && 
+//       while (bet_iter != bet_odds_idx.end() &&
 //              bet_iter->betting_market_id == capitals_win_market.id)
 //       {
 //         idump((*bet_iter));
 //         ++bet_iter;
 //       }
-// 
+//
 //       BOOST_CHECK(bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id)) == bet_odds_idx.end());
-// 
+//
    } FC_LOG_AND_RETHROW()
 }
 
@@ -426,9 +426,9 @@ BOOST_AUTO_TEST_CASE( peerplays_sport_create_test )
       transfer(account_id_type(), alice_id, asset(10000000));
       transfer(account_id_type(), bob_id, asset(10000000));
 
-      // have bob lay a bet for 1M (+20k fees) at 1:1 odds                  
+      // have bob lay a bet for 1M (+20k fees) at 1:1 odds
       place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
-      // have alice back a matching bet at 1:1 odds (also costing 1.02M) 
+      // have alice back a matching bet at 1:1 odds (also costing 1.02M)
       place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
       BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000);
@@ -522,7 +522,7 @@ ilog("message");
       BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
 
       // now have bob match it with a back of 300 at 1.5
-      // This should: 
+      // This should:
       //   match the full 47 @ 1.94 with 50
       //   match the full 91 @ 1.91 with 100
       //   bob's balance goes down by 300 (150 is matched, 150 is still on the books)
@@ -560,7 +560,7 @@ BOOST_AUTO_TEST_CASE(match_using_takers_expected_amounts2)
       BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
 
       // now have bob match it with a back of 900 at 1.5
-      // This should: 
+      // This should:
       //   match all 500 of bob's bet, and leave 400 @ 1.5 on the books
       //   bob's balance goes down by the 900 he paid (500 matched, 400 unmatched)
       //   alice's bet is completely removed from the books.
@@ -596,7 +596,7 @@ BOOST_AUTO_TEST_CASE(match_using_takers_expected_amounts3)
       BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
 
       // now have bob match it with a back of 1000 at 1.5
-      // This should: 
+      // This should:
       //   match all of the 470 @ 1.94 with 500, and leave 500 left on the books
       //   bob's balance goes down by the 1000 he paid, 500 matching, 500 unmatching
       //   alice's bet is removed from the books
@@ -638,18 +638,18 @@ BOOST_AUTO_TEST_CASE(match_using_takers_expected_amounts4)
       //   put another way, bob wants to buy a payout of up to 1807.2289 if the
       //   capitals win, and he is willing to pay up to 3000 to do so.
       // * The first thing that happens is bob's bet gets rounded down to something
-      //   that can match exactly.  2.66 is 50:83 odds, so bob's bet is 
+      //   that can match exactly.  2.66 is 50:83 odds, so bob's bet is
       //   reduced to 2988, which should match against 1800.
       //   So bob gets an immediate refund of 12
       // * The next thing that happens is a match against the top bet on the order book.
       //   That's 1000 @ 1.89.  We match at those odds (100:89), so bob will fully match
-      //   this bet, paying 890 to get 1000 of his desired win position.  
+      //   this bet, paying 890 to get 1000 of his desired win position.
       //   * this top bet is removed from the order books
       //   * bob now has 1000 of the 1800 win position he wants.  we adjust his bet
-      //     so that what is left will only match 800.  This means we will 
+      //     so that what is left will only match 800.  This means we will
       //     refund bob 770.  His remaining bet is now lay 1328 @ 2.66
       // * Now we match the next bet on the order books, which is 1000 @ 1.97 (100:97).
-      //   Bob only wants 800 of 1000 win position being offered, so he will not 
+      //   Bob only wants 800 of 1000 win position being offered, so he will not
       //   completely consume this bet.
       //   * Bob pays 776 to get his 800 win position.
       //   * alice's top bet on the books is reduced 200 @ 1.97
@@ -688,9 +688,9 @@ BOOST_AUTO_TEST_CASE(match_using_takers_expected_amounts5)
       //   put another way, bob wants to buy a payout of up to 1122.4 if the
       //   capitals win, and he is willing to pay up to 1100 to do so.
       // * The first thing that happens is bob's bet gets rounded down to something
-      //   that can match exactly.  1.98 (50:49) odds, so bob's bet is 
+      //   that can match exactly.  1.98 (50:49) odds, so bob's bet is
       //   reduced to 1078, which should match against 1100.
-      //   So bob gets an immediate refund of 22 
+      //   So bob gets an immediate refund of 22
       // * The next thing that happens is a match against the top bet on the order book.
       //   That's 1100 @ 1.86,  At these odds, bob's 980 can buy all 1100 of bet, he
       //   pays 1100:946.
@@ -777,7 +777,7 @@ BOOST_AUTO_TEST_CASE(match_using_takers_expected_amounts6)
       place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(5000000, asset_id_type()), 15 * GRAPHENE_BETTING_ODDS_PRECISION / 10);
       ilog("Order books after bob's matching lay bet:");
       bet_iter = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
-      while (bet_iter != bet_odds_idx.end() && 
+      while (bet_iter != bet_odds_idx.end() &&
              bet_iter->betting_market_id == capitals_win_market.id)
       {
         idump((*bet_iter));
@@ -857,7 +857,7 @@ BOOST_AUTO_TEST_CASE(inexact_odds)
       BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
 
       // now have bob match it with a back of 300 at 1.91
-      // This should: 
+      // This should:
       //   match the full 47 @ 1.94 with 50
       //   match the full 91 @ 1.91 with 100
       //     leaving 150
@@ -907,28 +907,28 @@ BOOST_AUTO_TEST_CASE(bet_reversal_test)
 //       generate_blocks(1);
 //       ACTORS( (alice)(bob) );
 //       CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
-// 
+//
 //       transfer(account_id_type(), alice_id, asset(10000000));
 //       transfer(account_id_type(), bob_id, asset(10000000));
 //       int64_t alice_expected_balance = 10000000;
 //       BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance);
 //       int64_t bob_expected_balance = 10000000;
 //       BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance);
-// 
+//
 //       // back with alice's entire balance
 //       place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(10000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 //       alice_expected_balance -= 10000000;
 //       BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance);
-// 
+//
 //       // lay with bob's entire balance, which fully matches bob's bet
 //       place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(10000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 //       bob_expected_balance -= 10000000;
 //       BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance);
-// 
+//
 //       // reverse the bet
 //       place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(20000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 //       BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance);
-// 
+//
 //       // try to re-reverse it, but go too far
 //       BOOST_CHECK_THROW( place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(30000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION), fc::exception);
 //       BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance);
@@ -952,7 +952,7 @@ BOOST_AUTO_TEST_CASE(persistent_objects_test)
       BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
       BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
 
-      idump((capitals_win_market.get_status())); 
+      idump((capitals_win_market.get_status()));
 
       // lay 46 at 1.94 odds (50:47) -- this is too small to be placed on the books and there's
       // nothing for it to match, so it should be canceled
@@ -962,7 +962,7 @@ BOOST_AUTO_TEST_CASE(persistent_objects_test)
       fc::variants objects_from_bookie = bookie_api.get_objects({automatically_canceled_bet_id});
       idump((objects_from_bookie));
       BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 1u);
-      BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>() == automatically_canceled_bet_id, "Bookie Plugin didn't return a deleted bet it");
+      BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>(1) == automatically_canceled_bet_id, "Bookie Plugin didn't return a deleted bet it");
 
       // lay 47 at 1.94 odds (50:47) -- this bet should go on the order books normally
       bet_id_type first_bet_on_books = place_bet(alice_id, capitals_win_market.id, bet_type::lay, asset(47, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
@@ -971,7 +971,7 @@ BOOST_AUTO_TEST_CASE(persistent_objects_test)
       objects_from_bookie = bookie_api.get_objects({first_bet_on_books});
       idump((objects_from_bookie));
       BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 1u);
-      BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>() == first_bet_on_books, "Bookie Plugin didn't return a bet that is currently on the books");
+      BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>(1) == first_bet_on_books, "Bookie Plugin didn't return a bet that is currently on the books");
 
       // place a bet that exactly matches 'first_bet_on_books', should result in empty books (thus, no bet_objects from the blockchain)
       bet_id_type matching_bet = place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(50, asset_id_type()), 194 * GRAPHENE_BETTING_ODDS_PRECISION / 100);
@@ -982,8 +982,8 @@ BOOST_AUTO_TEST_CASE(persistent_objects_test)
       objects_from_bookie = bookie_api.get_objects({first_bet_on_books, matching_bet});
       idump((objects_from_bookie));
       BOOST_REQUIRE_EQUAL(objects_from_bookie.size(), 2u);
-      BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>() == first_bet_on_books, "Bookie Plugin didn't return a bet that has been filled");
-      BOOST_CHECK_MESSAGE(objects_from_bookie[1]["id"].as<bet_id_type>() == matching_bet, "Bookie Plugin didn't return a bet that has been filled");
+      BOOST_CHECK_MESSAGE(objects_from_bookie[0]["id"].as<bet_id_type>(1) == first_bet_on_books, "Bookie Plugin didn't return a bet that has been filled");
+      BOOST_CHECK_MESSAGE(objects_from_bookie[1]["id"].as<bet_id_type>(1) == matching_bet, "Bookie Plugin didn't return a bet that has been filled");
 
       update_betting_market_group(moneyline_betting_markets.id, _status = betting_market_group_status::closed);
 
@@ -1049,7 +1049,7 @@ BOOST_AUTO_TEST_CASE(test_settled_market_states)
       BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
       BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
 
-      idump((capitals_win_market.get_status())); 
+      idump((capitals_win_market.get_status()));
 
       BOOST_TEST_MESSAGE("setting the event to in_progress");
       update_event(capitals_vs_blackhawks.id, _status = event_status::in_progress);
@@ -1091,48 +1091,48 @@ BOOST_AUTO_TEST_CASE(delayed_bets_test) // test live betting
    try
    {
       const auto& bet_odds_idx = db.get_index_type<bet_object_index>().indices().get<by_odds>();
- 
+
       ACTORS( (alice)(bob) );
- 
+
       CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
- 
+
       generate_blocks(1);
- 
+
       update_betting_market_group(moneyline_betting_markets.id, _status = betting_market_group_status::in_play);
       generate_blocks(1);
- 
+
       transfer(account_id_type(), alice_id, asset(10000000));
       transfer(account_id_type(), bob_id, asset(10000000));
       share_type alice_expected_balance = 10000000;
       share_type bob_expected_balance = 10000000;
       BOOST_REQUIRE_EQUAL(get_balance(bob_id, asset_id_type()), bob_expected_balance.value);
       BOOST_REQUIRE_EQUAL(get_balance(alice_id, asset_id_type()), alice_expected_balance.value);
- 
+
       generate_blocks(1);
- 
+
       BOOST_TEST_MESSAGE("Testing basic delayed bet mechanics");
       // alice backs 100 at odds 2
       BOOST_TEST_MESSAGE("Alice places a back bet of 100 at odds 2.0");
       bet_id_type delayed_back_bet = place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
       generate_blocks(1);
- 
+
       // verify the bet hasn't been placed in the active book
       auto first_bet_in_market = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
       BOOST_CHECK(first_bet_in_market == bet_odds_idx.end());
- 
+
       // after 3 blocks, the delay should have expired and it will be promoted to the active book
       generate_blocks(2);
       first_bet_in_market = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
       auto last_bet_in_market = bet_odds_idx.upper_bound(std::make_tuple(capitals_win_market.id));
       BOOST_CHECK(first_bet_in_market != bet_odds_idx.end());
       BOOST_CHECK(std::distance(first_bet_in_market, last_bet_in_market) == 1);
- 
+
       for (const auto& bet : boost::make_iterator_range(first_bet_in_market, last_bet_in_market))
         edump((bet));
       // bob lays 100 at odds 2 to match alice's bet currently on the books
       BOOST_TEST_MESSAGE("Bob places a lay bet of 100 at odds 2.0");
       /* bet_id_type delayed_lay_bet = */ place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(100, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
- 
+
       edump((db.get_global_properties().parameters.block_interval)(db.head_block_time()));
       // the bet should not enter the order books before a block has been generated
       first_bet_in_market = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
@@ -1140,7 +1140,7 @@ BOOST_AUTO_TEST_CASE(delayed_bets_test) // test live betting
       for (const auto& bet : bet_odds_idx)
         edump((bet));
       generate_blocks(1);
- 
+
       // bob's bet will still be delayed, so the active order book will only contain alice's bet
       first_bet_in_market = bet_odds_idx.lower_bound(std::make_tuple(capitals_win_market.id));
       last_bet_in_market = bet_odds_idx.upper_bound(std::make_tuple(capitals_win_market.id));
@@ -1148,12 +1148,12 @@ BOOST_AUTO_TEST_CASE(delayed_bets_test) // test live betting
       BOOST_CHECK(std::distance(first_bet_in_market, last_bet_in_market) == 1);
       for (const auto& bet : boost::make_iterator_range(first_bet_in_market, last_bet_in_market))
         edump((bet));
- 
+
       // once bob's bet's delay has expired, the two bets will annihilate each other, leaving
       // an empty order book
       generate_blocks(2);
       BOOST_CHECK(bet_odds_idx.empty());
- 
+
       // now test that when we cancel all bets on a market, delayed bets get canceled too
       BOOST_TEST_MESSAGE("Alice places a back bet of 100 at odds 2.0");
       delayed_back_bet = place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(100, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
@@ -1178,7 +1178,7 @@ BOOST_AUTO_TEST_CASE( chained_market_create_test )
    {
       {
          const flat_set<witness_id_type>& active_witnesses = db.get_global_properties().active_witnesses;
-         
+
          BOOST_TEST_MESSAGE("Creating a sport and competitors in the same proposal");
          {
             // operation 0 in the transaction
@@ -1239,7 +1239,7 @@ BOOST_AUTO_TEST_CASE( chained_market_create_test )
             tx.operations.push_back(proposal_op);
             set_expiration(db, tx);
             sign(tx, init_account_priv_key);
-            
+
             db.push_transaction(tx);
          }
 
@@ -1249,7 +1249,7 @@ BOOST_AUTO_TEST_CASE( chained_market_create_test )
 
             for (const witness_id_type& witness_id : active_witnesses)
             {
-               BOOST_TEST_MESSAGE("Approving sport+competitors creation from witness " << fc::variant(witness_id).as<std::string>());
+               BOOST_TEST_MESSAGE("Approving sport+competitors creation from witness " << fc::variant(witness_id, 1).as<std::string>(1));
                const witness_object& witness = witness_id(db);
                const account_object& witness_account = witness.witness_account(db);
 
@@ -1311,7 +1311,7 @@ BOOST_AUTO_TEST_CASE( testnet_witness_block_production_error )
 
 BOOST_AUTO_TEST_CASE( cancel_one_event_in_group )
 {
-   // test that creates an event group with two events in it.  We walk one event through the 
+   // test that creates an event group with two events in it.  We walk one event through the
    // usual sequence and cancel it, verify that it doesn't alter the other event in the group
    try
    {
@@ -1446,7 +1446,7 @@ BOOST_AUTO_TEST_SUITE_END()
 
 struct simple_bet_test_fixture_2 : database_fixture {
    betting_market_id_type capitals_win_betting_market_id;
-   simple_bet_test_fixture_2() 
+   simple_bet_test_fixture_2()
    {
       ACTORS( (alice)(bob) );
       CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
@@ -1467,7 +1467,7 @@ struct simple_bet_test_fixture_2 : database_fixture {
       // was already "promised" to her lay bet, so the 500 she would have received is placed in her refundable_unmatched_bets)
       place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(500, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
 
-      // match another 500, which will fully cancel bob's lay position and return the other 500 he had locked up in his position.  
+      // match another 500, which will fully cancel bob's lay position and return the other 500 he had locked up in his position.
       // alice's back position is now canceled, 1500 remains of her unmatched lay bet, and the 500 from canceling her position has
       // been moved to her refundable_unmatched_bets
       place_bet(bob_id, capitals_win_market.id, bet_type::back, asset(500, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
@@ -1499,15 +1499,15 @@ BOOST_AUTO_TEST_CASE(sport_delete_test)
     try
     {
         CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
-        
+
         const auto& event_group_1 = create_event_group({{"en", "group1"}}, ice_hockey.id);
         const auto& event_group_2 = create_event_group({{"en", "group2"}}, ice_hockey.id);
-        
+
         delete_sport(ice_hockey.id);
-        
+
         const auto& sport_by_id = db.get_index_type<sport_object_index>().indices().get<by_id>();
         BOOST_CHECK(sport_by_id.end() == sport_by_id.find(ice_hockey.id));
-        
+
         const auto& event_group_by_id = db.get_index_type<event_group_object_index>().indices().get<by_id>();
         BOOST_CHECK(event_group_by_id.end() == event_group_by_id.find(event_group_1.id));
         BOOST_CHECK(event_group_by_id.end() == event_group_by_id.find(event_group_2.id));
@@ -1519,10 +1519,10 @@ BOOST_AUTO_TEST_CASE(sport_delete_test_not_proposal)
     try
     {
         CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
-        
+
         sport_delete_operation sport_delete_op;
         sport_delete_op.sport_id = ice_hockey.id;
-        
+
         BOOST_CHECK_THROW(force_operation_by_witnesses(sport_delete_op), fc::exception);
     } FC_LOG_AND_RETHROW()
 }
@@ -1533,9 +1533,9 @@ BOOST_AUTO_TEST_CASE(sport_delete_test_not_proposal)
 //     try
 //     {
 //         CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
-//         
+//
 //         delete_sport(ice_hockey.id);
-//         
+//
 //         BOOST_CHECK_THROW(delete_sport(ice_hockey.id), fc::exception);
 //     } FC_LOG_AND_RETHROW()
 // }
@@ -1546,26 +1546,26 @@ BOOST_AUTO_TEST_CASE(event_group_update_test)
    {
       ACTORS( (alice)(bob) );
       CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
- 
+
       transfer(account_id_type(), alice_id, asset(10000000));
       transfer(account_id_type(), bob_id, asset(10000000));
- 
+
       place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
- 
+
       const sport_object& ice_on_hockey = create_sport({{"en", "Hockey on Ice"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}}); \
       fc::optional<object_id_type> sport_id = ice_on_hockey.id;
- 
+
       fc::optional<internationalized_string_type> name =  internationalized_string_type({{"en", "IBM"}, {"zh_Hans", "國家冰球聯"}, {"ja", "ナショナルホッケーリー"}});
- 
+
       update_event_group(nhl.id, fc::optional<object_id_type>(), name);
       update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>());
       update_event_group(nhl.id, sport_id, name);
- 
+
       place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
- 
+
       BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000);
       BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000);
- 
+
       update_betting_market_group(moneyline_betting_markets.id, _status = betting_market_group_status::closed);
 
       // caps win
@@ -1573,14 +1573,14 @@ BOOST_AUTO_TEST_CASE(event_group_update_test)
                                   {{capitals_win_market.id, betting_market_resolution_type::win},
                                    {blackhawks_win_market.id, betting_market_resolution_type::not_win}});
       generate_blocks(1);
- 
- 
+
+
       uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage();
       uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
       BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
       BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000 + 2000000 - rake_value);
       BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000);
- 
+
    } FC_LOG_AND_RETHROW()
 }
 
@@ -1602,33 +1602,33 @@ struct test_events
                   {
                       event.on_in_progress_event(db_fixture.db);
                   });
-        
+
         event_frozen_upcoming = &db_fixture.create_event({{"en", "event frozen_upcoming"}}, {{"en", "2016-17"}}, event_group_id);
         db_fixture.db.modify(*event_frozen_upcoming, [&](event_object& event)
                   {
                       event.on_frozen_event(db_fixture.db);
                   });
-        
+
         event_frozen_in_progress = &db_fixture.create_event({{"en", "event frozen_in_progress"}}, {{"en", "2016-17"}}, event_group_id);
         db_fixture.db.modify(*event_frozen_in_progress, [&](event_object& event)
                   {
                       event.on_in_progress_event(db_fixture.db);
                       event.on_frozen_event(db_fixture.db);
                   });
-        
+
         event_finished = &db_fixture.create_event({{"en", "event finished"}}, {{"en", "2016-17"}}, event_group_id);
         db_fixture.db.modify(*event_finished, [&](event_object& event)
                   {
                       event.on_frozen_event(db_fixture.db);
                       event.on_finished_event(db_fixture.db);
                   });
-        
+
         event_canceled = &db_fixture.create_event({{"en", "event canceled"}}, {{"en", "2016-17"}}, event_group_id);
         db_fixture.db.modify(*event_canceled, [&](event_object& event)
                   {
                       event.on_canceled_event(db_fixture.db);
                   });
-        
+
         event_settled = &db_fixture.create_event({{"en", "event settled"}}, {{"en", "2016-17"}}, event_group_id);
         db_fixture.db.modify(*event_settled, [&](event_object& event)
                   {
@@ -1648,7 +1648,7 @@ struct test_markets_groups
     const betting_market_group_object* market_group_graded = nullptr;
     const betting_market_group_object* market_group_canceled = nullptr;
     const betting_market_group_object* market_group_settled = nullptr;
-    
+
     test_markets_groups(database_fixture& db_fixture, event_id_type event_id, betting_market_rules_id_type betting_market_rules_id)
     {
         market_group_upcoming = &db_fixture.create_betting_market_group({{"en", "market group upcoming"}}, event_id, betting_market_rules_id, asset_id_type(), false, 0);
@@ -1657,39 +1657,39 @@ struct test_markets_groups
                   {
                       market_group.on_frozen_event(db_fixture.db);
                   });
-        
+
         market_group_in_play = &db_fixture.create_betting_market_group({{"en", "market group in_play"}}, event_id, betting_market_rules_id, asset_id_type(), false, 0);
         db_fixture.db.modify(*market_group_in_play, [&](betting_market_group_object& market_group)
                   {
                       market_group.on_in_play_event(db_fixture.db);
                   });
-        
+
         market_group_frozen_in_play = &db_fixture.create_betting_market_group({{"en", "market group frozen_in_play"}}, event_id, betting_market_rules_id, asset_id_type(), false, 0);
         db_fixture.db.modify(*market_group_frozen_in_play, [&](betting_market_group_object& market_group)
                   {
                       market_group.on_in_play_event(db_fixture.db);
                       market_group.on_frozen_event(db_fixture.db);
                   });
-        
+
         market_group_closed = &db_fixture.create_betting_market_group({{"en", "market group closed"}}, event_id, betting_market_rules_id, asset_id_type(), false, 0);
         db_fixture.db.modify(*market_group_closed, [&](betting_market_group_object& market_group)
                   {
                       market_group.on_closed_event(db_fixture.db, true);
                   });
-        
+
         market_group_graded = &db_fixture.create_betting_market_group({{"en", "market group graded"}}, event_id, betting_market_rules_id, asset_id_type(), false, 0);
         db_fixture.db.modify(*market_group_graded, [&](betting_market_group_object& market_group)
                   {
                       market_group.on_closed_event(db_fixture.db, true);
                       market_group.on_graded_event(db_fixture.db);
                   });
-        
+
         market_group_canceled = &db_fixture.create_betting_market_group({{"en", "market group canceled"}}, event_id, betting_market_rules_id, asset_id_type(), false, 0);
         db_fixture.db.modify(*market_group_canceled, [&](betting_market_group_object& market_group)
                   {
                       market_group.on_canceled_event(db_fixture.db, true);
                   });
-        
+
         market_group_settled = &db_fixture.create_betting_market_group({{"en", "market group settled"}}, event_id, betting_market_rules_id, asset_id_type(), false, 0);
         db_fixture.db.modify(*market_group_settled, [&](betting_market_group_object& market_group)
                   {
@@ -1708,7 +1708,7 @@ struct test_markets
     const betting_market_object* market_graded = nullptr;
     const betting_market_object* market_canceled = nullptr;
     const betting_market_object* market_settled = nullptr;
-    
+
     test_markets(database_fixture& db_fixture, betting_market_group_id_type market_group_id)
     {
         market_unresolved = &db_fixture.create_betting_market(market_group_id, {{"en", "market unresolved"}});
@@ -1717,26 +1717,26 @@ struct test_markets
                   {
                       market.on_frozen_event(db_fixture.db);
                   });
-        
+
         market_closed = &db_fixture.create_betting_market(market_group_id, {{"en", "market closed"}});
         db_fixture.db.modify(*market_closed, [&](betting_market_object& market)
                   {
                       market.on_closed_event(db_fixture.db);
                   });
-        
+
         market_graded = &db_fixture.create_betting_market(market_group_id, {{"en", "market graded"}});
         db_fixture.db.modify(*market_graded, [&](betting_market_object& market)
                   {
                       market.on_closed_event(db_fixture.db);
                       market.on_graded_event(db_fixture.db, betting_market_resolution_type::win);
                   });
-        
+
         market_canceled = &db_fixture.create_betting_market(market_group_id, {{"en", "market canceled"}});
         db_fixture.db.modify(*market_canceled, [&](betting_market_object& market)
                   {
                       market.on_canceled_event(db_fixture.db);
                   });
-        
+
         market_settled = &db_fixture.create_betting_market(market_group_id, {{"en", "market settled"}});
         db_fixture.db.modify(*market_settled, [&](betting_market_object& market)
                   {
@@ -1753,15 +1753,15 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test)
     {
         ACTORS( (alice)(bob) )
         CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
-        
+
         const int initialAccountAsset = 10000000;
         const int betAsset = 1000000;
-        
+
         transfer(account_id_type(), alice_id, asset(initialAccountAsset));
         transfer(account_id_type(), bob_id, asset(initialAccountAsset));
-        
+
         const auto& event = create_event({{"en", "event"}}, {{"en", "2016-17"}}, nhl.id);
-        
+
         const auto& market_group = create_betting_market_group({{"en", "market group"}}, event.id, betting_market_rules.id, asset_id_type(), false, 0);
         //to make bets be not removed immediately
         update_betting_market_group_impl(market_group.id,
@@ -1769,23 +1769,23 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test)
                                          fc::optional<object_id_type>(),
                                          betting_market_group_status::in_play,
                                          false);
-        
+
         const auto& market = create_betting_market(market_group.id, {{"en", "market"}});
-        
+
         test_events events(*this, nhl.id);
         test_markets_groups markets_groups(*this, event.id, betting_market_rules.id);
         test_markets markets(*this, market_group.id);
-        
+
         const auto& bet_1_id = place_bet(alice_id, market.id, bet_type::back, asset(betAsset, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
         const auto& bet_2_id = place_bet(bob_id, market.id, bet_type::lay, asset(betAsset, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
-        
+
         delete_event_group(nhl.id);
-        
+
         const auto& event_group_by_id = db.get_index_type<event_group_object_index>().indices().get<by_id>();
         BOOST_CHECK(event_group_by_id.end() == event_group_by_id.find(nhl.id));
-        
+
         BOOST_CHECK(event_status::canceled == event.get_status());
-        
+
         BOOST_CHECK(event_status::canceled == events.event_upcoming->get_status());
         BOOST_CHECK(event_status::canceled == events.event_in_progress->get_status());
         BOOST_CHECK(event_status::canceled == events.event_frozen_in_progress->get_status());
@@ -1793,9 +1793,9 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test)
         BOOST_CHECK(event_status::canceled == events.event_finished->get_status());
         BOOST_CHECK(event_status::canceled == events.event_canceled->get_status());
         BOOST_CHECK(event_status::settled == events.event_settled->get_status());
-        
+
         BOOST_CHECK(betting_market_group_status::canceled == market_group.get_status());
-        
+
         BOOST_CHECK(betting_market_group_status::canceled == markets_groups.market_group_upcoming->get_status());
         BOOST_CHECK(betting_market_group_status::canceled == markets_groups.market_group_frozen_upcoming->get_status());
         BOOST_CHECK(betting_market_group_status::canceled == markets_groups.market_group_in_play->get_status());
@@ -1804,21 +1804,21 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test)
         BOOST_CHECK(betting_market_group_status::canceled == markets_groups.market_group_graded->get_status());
         BOOST_CHECK(betting_market_group_status::canceled == markets_groups.market_group_canceled->get_status());
         BOOST_CHECK(betting_market_group_status::settled == markets_groups.market_group_settled->get_status());
-        
+
         BOOST_CHECK(betting_market_status::canceled == market.get_status());
-        
+
         BOOST_CHECK(betting_market_status::canceled == markets.market_unresolved->get_status());
         BOOST_CHECK(betting_market_status::canceled == markets.market_frozen->get_status());
         BOOST_CHECK(betting_market_status::canceled == markets.market_closed->get_status());
         BOOST_CHECK(betting_market_status::canceled == markets.market_graded->get_status());
         BOOST_CHECK(betting_market_status::canceled == markets.market_canceled->get_status());
         BOOST_CHECK(betting_market_status::settled == markets.market_settled->get_status()); //settled market should not be canceled
-        
+
         //check canceled bets and reverted balance changes
         const auto& bet_by_id = db.get_index_type<bet_object_index>().indices().get<by_id>();
         BOOST_CHECK(bet_by_id.end() == bet_by_id.find(bet_1_id));
         BOOST_CHECK(bet_by_id.end() == bet_by_id.find(bet_2_id));
-        
+
         BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), initialAccountAsset);
         BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), initialAccountAsset);
     } FC_LOG_AND_RETHROW()
@@ -1830,30 +1830,30 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test_with_matched_bets)
     {
         ACTORS( (alice)(bob) )
         CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
-        
+
         const int initialAccountAsset = 10000000;
         const int betAsset = 100000;
-        
+
         transfer(account_id_type(), alice_id, asset(initialAccountAsset));
         transfer(account_id_type(), bob_id, asset(initialAccountAsset));
         generate_blocks(1);
-        
+
         const auto& event = create_event({{"en", "event"}}, {{"en", "2016-17"}}, nhl.id);
         generate_blocks(1);
-        
+
         const auto& market_group = create_betting_market_group({{"en", "market group"}}, event.id, betting_market_rules.id, asset_id_type(), false, 0);
         generate_blocks(1);
-        
+
         const auto& market = create_betting_market(market_group.id, {{"en", "market"}});
         generate_blocks(1);
-        
+
         place_bet(alice_id, market.id, bet_type::back, asset(betAsset, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
         place_bet(bob_id, market.id, bet_type::lay, asset(betAsset, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
         generate_blocks(1);
-        
+
         delete_event_group(nhl.id);
         generate_blocks(1);
-        
+
         BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), initialAccountAsset);
         BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), initialAccountAsset);
     } FC_LOG_AND_RETHROW()
@@ -1864,10 +1864,10 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test_not_proposal)
     try
     {
         CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
-        
+
         event_group_delete_operation event_group_delete_op;
         event_group_delete_op.event_group_id = nhl.id;
-        
+
         BOOST_CHECK_THROW(force_operation_by_witnesses(event_group_delete_op), fc::exception);
     } FC_LOG_AND_RETHROW()
 }
@@ -1877,9 +1877,9 @@ BOOST_AUTO_TEST_CASE(event_group_delete_test_not_existed_event_group)
     try
     {
         CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
-        
+
         delete_event_group(nhl.id);
-        
+
         BOOST_CHECK_THROW(delete_event_group(nhl.id), fc::exception);
     } FC_LOG_AND_RETHROW()
 }
@@ -2077,7 +2077,7 @@ BOOST_AUTO_TEST_CASE(event_driven_standard_progression_1)
       // removed.
       fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
 
-      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(1), "settled");
    } FC_LOG_AND_RETHROW()
 }
 
@@ -2132,18 +2132,18 @@ BOOST_AUTO_TEST_CASE(event_driven_standard_progression_1_with_delay)
       // as soon as a block is generated, the betting market group will settle, and the market
       // and group will cease to exist.  The event should transition to "settled", then
       // removed.
-      fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id, 
-                                                                 moneyline_betting_markets_id, 
-                                                                 capitals_win_market_id, 
+      fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id,
+                                                                 moneyline_betting_markets_id,
+                                                                 capitals_win_market_id,
                                                                  blackhawks_win_market_id});
 
       idump((objects_from_bookie));
-      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
-      BOOST_CHECK_EQUAL(objects_from_bookie[1]["status"].as<std::string>(), "settled");
-      BOOST_CHECK_EQUAL(objects_from_bookie[2]["status"].as<std::string>(), "settled");
-      BOOST_CHECK_EQUAL(objects_from_bookie[2]["resolution"].as<std::string>(), "win");
-      BOOST_CHECK_EQUAL(objects_from_bookie[3]["status"].as<std::string>(), "settled");
-      BOOST_CHECK_EQUAL(objects_from_bookie[3]["resolution"].as<std::string>(), "not_win");
+      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(1), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[1]["status"].as<std::string>(1), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[2]["status"].as<std::string>(1), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[2]["resolution"].as<std::string>(1), "win");
+      BOOST_CHECK_EQUAL(objects_from_bookie[3]["status"].as<std::string>(1), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[3]["resolution"].as<std::string>(1), "not_win");
    } FC_LOG_AND_RETHROW()
 }
 
@@ -2230,7 +2230,7 @@ BOOST_AUTO_TEST_CASE(event_driven_standard_progression_2)
       // removed.
       fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
 
-      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(1), "settled");
    } FC_LOG_AND_RETHROW()
 }
 
@@ -2318,7 +2318,7 @@ BOOST_AUTO_TEST_CASE(event_driven_standard_progression_2_never_in_play)
       // removed.
       fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
 
-      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(1), "settled");
    } FC_LOG_AND_RETHROW()
 }
 
@@ -2393,8 +2393,8 @@ BOOST_AUTO_TEST_CASE(event_driven_standard_progression_3)
       // and group will cease to exist.  The event should transition to "canceled", then be removed
       fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
 
-      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "canceled");
- 
+      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(1), "canceled");
+
    } FC_LOG_AND_RETHROW()
 }
 
@@ -2488,7 +2488,7 @@ BOOST_AUTO_TEST_CASE(event_driven_progression_errors_1)
       generate_blocks(1);
 
       fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
-      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "canceled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(1), "canceled");
 
       // we can't go back to upcoming, in_progress, frozen, or finished once we're canceled.
       // (this won't work because the event has been deleted)
@@ -2540,7 +2540,7 @@ BOOST_AUTO_TEST_CASE(event_driven_progression_errors_2)
       // as soon as a block is generated, the betting market group will settle, and the market
       // and group will cease to exist.  The event should transition to "settled", then removed
       fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
-      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(1), "settled");
 
       // we can't go back to upcoming, in_progress, frozen, or finished once we're canceled.
       // (this won't work because the event has been deleted)
@@ -2585,7 +2585,7 @@ BOOST_AUTO_TEST_CASE(betting_market_group_driven_standard_progression)
       BOOST_CHECK(blackhawks_win_market.get_status() == betting_market_status::frozen);
 
       BOOST_TEST_MESSAGE("setting the event frozen");
-      // this should only change the status of the event, just verify that nothing weird happens when 
+      // this should only change the status of the event, just verify that nothing weird happens when
       // we try to set the bmg to frozen when it's already frozen
       update_event(capitals_vs_blackhawks.id, _status = event_status::frozen);
       generate_blocks(1);
@@ -2612,7 +2612,7 @@ BOOST_AUTO_TEST_CASE(betting_market_group_driven_standard_progression)
       // as soon as a block is generated, the betting market group will settle, and the market
       // and group will cease to exist.  The event should transition to "settled"
       fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
-      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(1), "settled");
    } FC_LOG_AND_RETHROW()
 }
 
@@ -2723,7 +2723,7 @@ BOOST_AUTO_TEST_CASE(multi_betting_market_group_driven_standard_progression)
       // as soon as a block is generated, the two betting market groups will settle, and the market
       // and group will cease to exist.  The event should transition to "settled"
       fc::variants objects_from_bookie = bookie_api.get_objects({capitals_vs_blackhawks_id});
-      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(), "settled");
+      BOOST_CHECK_EQUAL(objects_from_bookie[0]["status"].as<std::string>(1), "settled");
    } FC_LOG_AND_RETHROW()
 }
 
@@ -2762,53 +2762,53 @@ BOOST_FIXTURE_TEST_CASE( another_event_group_update_test, database_fixture)
    {
       ACTORS( (alice)(bob) );
       CREATE_ICE_HOCKEY_BETTING_MARKET(false, 0);
- 
+
       transfer(account_id_type(), alice_id, asset(10000000));
       transfer(account_id_type(), bob_id, asset(10000000));
- 
+
       place_bet(alice_id, capitals_win_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
- 
+
       fc::optional<internationalized_string_type> name = internationalized_string_type({{"en", "IBM"}, {"zh_Hans", "國家冰球聯"}, {"ja", "ナショナルホッケーリー"}});
- 
+
       const sport_object& ice_on_hockey = create_sport({{"en", "Hockey on Ice"}, {"zh_Hans", "冰球"}, {"ja", "アイスホッケー"}}); \
       fc::optional<object_id_type> sport_id = ice_on_hockey.id;
- 
+
       update_event_group(nhl.id, fc::optional<object_id_type>(), name);
       update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>());
       update_event_group(nhl.id, sport_id, name);
-     
+
       //Disabling the below 4 TRY_EXPECT_THROW lines to not throw anything beacuse functioning as expected
 
       // trx_state->_is_proposed_trx
       //GRAPHENE_REQUIRE_THROW(try_update_event_group(nhl.id, fc::optional<object_id_type>(), fc::optional<internationalized_string_type>(), true), fc::exception);
       // TRY_EXPECT_THROW(try_update_event_group(nhl.id, fc::optional<object_id_type>(), fc::optional<internationalized_string_type>(), true), fc::exception, "_is_proposed_trx");
- 
+
       // #! nothing to change
       //GRAPHENE_REQUIRE_THROW(try_update_event_group(nhl.id, fc::optional<object_id_type>(), fc::optional<internationalized_string_type>()), fc::exception);
       //TRY_EXPECT_THROW(try_update_event_group(nhl.id, fc::optional<object_id_type>(), fc::optional<internationalized_string_type>()), fc::exception, "nothing to change");
- 
+
       // #! sport_id must refer to a sport_id_type
       sport_id = capitals_win_market.id;
       //GRAPHENE_REQUIRE_THROW(try_update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>()), fc::exception);
       //TRY_EXPECT_THROW(try_update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>()), fc::exception, "sport_id must refer to a sport_id_type");
- 
+
       // #! invalid sport specified
       sport_id = sport_id_type(13);
       //GRAPHENE_REQUIRE_THROW(try_update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>()), fc::exception);
       //TRY_EXPECT_THROW(try_update_event_group(nhl.id, sport_id, fc::optional<internationalized_string_type>()), fc::exception, "invalid sport specified");
- 
+
       place_bet(bob_id, capitals_win_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
- 
+
       BOOST_CHECK_EQUAL(get_balance(alice_id, asset_id_type()), 10000000 - 1000000);
       BOOST_CHECK_EQUAL(get_balance(bob_id, asset_id_type()), 10000000 - 1000000);
- 
+
       update_betting_market_group(moneyline_betting_markets.id, _status = betting_market_group_status::closed);
       // caps win
       resolve_betting_market_group(moneyline_betting_markets.id,
                                   {{capitals_win_market.id, betting_market_resolution_type::win},
                                    {blackhawks_win_market.id, betting_market_resolution_type::not_win}});
       generate_blocks(1);
- 
+
       uint16_t rake_fee_percentage = db.get_global_properties().parameters.betting_rake_fee_percentage();
       uint32_t rake_value = (-1000000 + 2000000) * rake_fee_percentage / GRAPHENE_1_PERCENT / 100;
       BOOST_TEST_MESSAGE("Rake value " +  std::to_string(rake_value));
@@ -2834,13 +2834,13 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_sf_test )
       transfer(account_id_type(), alice_id, asset(10000000));
       transfer(account_id_type(), bob_id, asset(10000000));
 
-      BOOST_TEST_MESSAGE("moneyline_berdych_vs_federer  " << fc::variant(moneyline_berdych_vs_federer.id).as<std::string>());
-      BOOST_TEST_MESSAGE("moneyline_cilic_vs_querrey  " << fc::variant(moneyline_cilic_vs_querrey.id).as<std::string>());
+      BOOST_TEST_MESSAGE("moneyline_berdych_vs_federer  " << fc::variant(moneyline_berdych_vs_federer.id, 1).as<std::string>(1));
+      BOOST_TEST_MESSAGE("moneyline_cilic_vs_querrey  " << fc::variant(moneyline_cilic_vs_querrey.id, 1).as<std::string>(1));
 
-      BOOST_TEST_MESSAGE("berdych_wins_market " << fc::variant(berdych_wins_market.id).as<std::string>());
-      BOOST_TEST_MESSAGE("federer_wins_market " << fc::variant(federer_wins_market.id).as<std::string>());
-      BOOST_TEST_MESSAGE("cilic_wins_market " << fc::variant(cilic_wins_market.id).as<std::string>());
-      BOOST_TEST_MESSAGE("querrey_wins_market " << fc::variant(querrey_wins_market.id).as<std::string>());
+      BOOST_TEST_MESSAGE("berdych_wins_market " << fc::variant(berdych_wins_market.id, 1).as<std::string>(1));
+      BOOST_TEST_MESSAGE("federer_wins_market " << fc::variant(federer_wins_market.id, 1).as<std::string>(1));
+      BOOST_TEST_MESSAGE("cilic_wins_market " << fc::variant(cilic_wins_market.id, 1).as<std::string>(1));
+      BOOST_TEST_MESSAGE("querrey_wins_market " << fc::variant(querrey_wins_market.id, 1).as<std::string>(1));
 
       place_bet(alice_id, berdych_wins_market.id, bet_type::back, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
       place_bet(bob_id, berdych_wins_market.id, bet_type::lay, asset(1000000, asset_id_type()), 2 * GRAPHENE_BETTING_ODDS_PRECISION);
@@ -2895,10 +2895,10 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_final_test )
       transfer(account_id_type(), alice_id, asset(10000000));
       transfer(account_id_type(), bob_id, asset(10000000));
 
-      BOOST_TEST_MESSAGE("moneyline_cilic_vs_federer  " << fc::variant(moneyline_cilic_vs_federer.id).as<std::string>());
+      BOOST_TEST_MESSAGE("moneyline_cilic_vs_federer  " << fc::variant(moneyline_cilic_vs_federer.id, 1).as<std::string>(1));
 
-      BOOST_TEST_MESSAGE("federer_wins_final_market " << fc::variant(federer_wins_final_market.id).as<std::string>());
-      BOOST_TEST_MESSAGE("cilic_wins_final_market " << fc::variant(cilic_wins_final_market.id).as<std::string>());
+      BOOST_TEST_MESSAGE("federer_wins_final_market " << fc::variant(federer_wins_final_market.id, 1).as<std::string>(1));
+      BOOST_TEST_MESSAGE("cilic_wins_final_market " << fc::variant(cilic_wins_final_market.id, 1).as<std::string>(1));
 
       betting_market_group_id_type moneyline_cilic_vs_federer_id = moneyline_cilic_vs_federer.id;
       update_betting_market_group(moneyline_cilic_vs_federer_id, _status = betting_market_group_status::in_play);
@@ -2942,9 +2942,9 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_final_test )
 // BOOST_AUTO_TEST_CASE( check_transaction_for_duplicate_reworked_test )
 // {
 //    try
-//    {	   
+//    {
 //    std::vector<internationalized_string_type> names_vec(104);
-//    
+//
 //    // create 104 pattern for first name
 //    for( char co = 'A'; co <= 'D'; ++co ) {
 //       for( char ci = 'A'; ci <= 'Z'; ++ci ) {
@@ -2953,46 +2953,46 @@ BOOST_AUTO_TEST_CASE( wimbledon_2017_gentelmen_singles_final_test )
 //          names_vec.push_back( {{ first_name, second_name }} );
 //       }
 //    }
-//    
+//
 //    sport_id_type sport_id = create_sport( {{"SN","SPORT_NAME"}} ).id;
-//    
+//
 //    event_group_id_type event_group_id = create_event_group( {{"EG", "EVENT_GROUP"}}, sport_id ).id;
-// 
-//    betting_market_rules_id_type betting_market_rules_id = 
+//
+//    betting_market_rules_id_type betting_market_rules_id =
 //       create_betting_market_rules( {{"EN", "Rules"}}, {{"EN", "Some rules"}} ).id;
-//    
+//
 //    for( const auto& name : names_vec )
 //    {
-//       proposal_create_operation pcop = proposal_create_operation::committee_proposal( 
+//       proposal_create_operation pcop = proposal_create_operation::committee_proposal(
 //          db.get_global_properties().parameters,
-//          db.head_block_time() 
+//          db.head_block_time()
 //       );
 //       pcop.review_period_seconds.reset();
 //       pcop.review_period_seconds = db.get_global_properties().parameters.committee_proposal_review_period * 2;
-// 
+//
 //       event_create_operation evcop;
 //       evcop.event_group_id = event_group_id;
 //       evcop.name           = name;
 //       evcop.season         = name;
-// 
+//
 //       betting_market_group_create_operation bmgcop;
 //       bmgcop.description = name;
 //       bmgcop.event_id = object_id_type(relative_protocol_ids, 0, 0);
 //       bmgcop.rules_id = betting_market_rules_id;
-//       bmgcop.asset_id = asset_id_type();      
-// 
+//       bmgcop.asset_id = asset_id_type();
+//
 //       betting_market_create_operation bmcop;
 //       bmcop.group_id = object_id_type(relative_protocol_ids, 0, 1);
 //       bmcop.payout_condition.insert( internationalized_string_type::value_type( "CN", "CONDI_NAME" ) );
-//       
+//
 //       pcop.proposed_ops.emplace_back( evcop  );
 //       pcop.proposed_ops.emplace_back( bmgcop );
 //       pcop.proposed_ops.emplace_back( bmcop  );
-// 
+//
 //       signed_transaction trx;
 //       set_expiration( db, trx );
 //       trx.operations.push_back( pcop );
-// 
+//
 //       process_operation_by_witnesses( pcop );
 //    }
 //    }FC_LOG_AND_RETHROW()

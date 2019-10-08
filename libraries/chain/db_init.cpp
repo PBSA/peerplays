@@ -59,6 +59,7 @@
 
 #include <graphene/chain/account_evaluator.hpp>
 #include <graphene/chain/asset_evaluator.hpp>
+#include <graphene/chain/lottery_evaluator.hpp>
 #include <graphene/chain/assert_evaluator.hpp>
 #include <graphene/chain/balance_evaluator.hpp>
 #include <graphene/chain/committee_member_evaluator.hpp>
@@ -237,6 +238,11 @@ void database::initialize_evaluators()
    register_evaluator<tournament_join_evaluator>();
    register_evaluator<game_move_evaluator>();
    register_evaluator<tournament_leave_evaluator>();
+   register_evaluator<lottery_asset_create_evaluator>();
+   register_evaluator<ticket_purchase_evaluator>();
+   register_evaluator<lottery_reward_evaluator>();
+   register_evaluator<lottery_end_evaluator>();
+   register_evaluator<sweeps_vesting_claim_evaluator>();
 }
 
 void database::initialize_indexes()
@@ -245,15 +251,15 @@ void database::initialize_indexes()
    _undo_db.set_max_size( GRAPHENE_MIN_UNDO_HISTORY );
 
    //Protocol object indexes
-   add_index< primary_index<asset_index> >();
+   add_index< primary_index<asset_index, 13> >(); // 8192 assets per chunk
    add_index< primary_index<force_settlement_index> >();
 
-   auto acnt_index = add_index< primary_index<account_index> >();
+   auto acnt_index = add_index< primary_index<account_index, 20> >(); // ~1 million accounts per chunk
    acnt_index->add_secondary_index<account_member_index>();
    acnt_index->add_secondary_index<account_referrer_index>();
 
-   add_index< primary_index<committee_member_index> >();
-   add_index< primary_index<witness_index> >();
+   add_index< primary_index<committee_member_index, 8> >(); // 256 members per chunk
+   add_index< primary_index<witness_index, 10> >(); // 1024 witnesses per chunk
    add_index< primary_index<limit_order_index > >();
    add_index< primary_index<call_order_index > >();
 
@@ -281,8 +287,11 @@ void database::initialize_indexes()
 
    //Implementation object indexes
    add_index< primary_index<transaction_index                             > >();
-   add_index< primary_index<account_balance_index                         > >();
-   add_index< primary_index<asset_bitasset_data_index                     > >();
+
+   auto bal_idx = add_index< primary_index<account_balance_index          > >();
+   bal_idx->add_secondary_index<balances_by_account_index>();
+
+   add_index< primary_index<asset_bitasset_data_index,                 13 > >(); // 8192
    add_index< primary_index<asset_dividend_data_object_index              > >();
    add_index< primary_index<simple_index<global_property_object          >> >();
    add_index< primary_index<simple_index<dynamic_global_property_object  >> >();
@@ -301,6 +310,10 @@ void database::initialize_indexes()
    //add_index< primary_index<distributed_dividend_balance_object_index > >();
    add_index< primary_index<pending_dividend_payout_balance_for_holder_object_index > >();
    add_index< primary_index<total_distributed_dividend_balance_object_index > >();
+   
+   add_index< primary_index<lottery_balance_index                         > >();
+   add_index< primary_index<sweeps_vesting_balance_index                  > >();
+
 }
 
 void database::init_genesis(const genesis_state_type& genesis_state)
@@ -729,7 +742,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
                vbo.owner = get_account_id(account.name);
                vbo.balance = asset(vesting_balance.amount, get_asset_id(vesting_balance.asset_symbol));
                if (vesting_balance.policy_type == "linear") {
-                  auto initial_linear_vesting_policy = vesting_balance.policy.as<genesis_state_type::initial_bts_account_type::initial_linear_vesting_policy>();
+                  auto initial_linear_vesting_policy = vesting_balance.policy.as<genesis_state_type::initial_bts_account_type::initial_linear_vesting_policy>( 20 );
                   linear_vesting_policy new_vesting_policy;
                   new_vesting_policy.begin_timestamp = initial_linear_vesting_policy.begin_timestamp;
                   new_vesting_policy.vesting_cliff_seconds = initial_linear_vesting_policy.vesting_cliff_seconds;
@@ -737,7 +750,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
                   new_vesting_policy.begin_balance = initial_linear_vesting_policy.begin_balance;
                   vbo.policy = new_vesting_policy;
                } else if (vesting_balance.policy_type == "cdd") {
-                  auto initial_cdd_vesting_policy = vesting_balance.policy.as<genesis_state_type::initial_bts_account_type::initial_cdd_vesting_policy>();
+                  auto initial_cdd_vesting_policy = vesting_balance.policy.as<genesis_state_type::initial_bts_account_type::initial_cdd_vesting_policy>( 20 );
                   cdd_vesting_policy new_vesting_policy;
                   new_vesting_policy.vesting_seconds = initial_cdd_vesting_policy.vesting_seconds;
                   new_vesting_policy.coin_seconds_earned = initial_cdd_vesting_policy.coin_seconds_earned;
@@ -852,7 +865,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    std::for_each(genesis_state.initial_witness_candidates.begin(), genesis_state.initial_witness_candidates.end(),
                  [&](const genesis_state_type::initial_witness_type& witness) {
       witness_create_operation op;
-      op.initial_secret = secret_hash_type::hash(secret_hash_type());
+      op.initial_secret = secret_hash_type();
       op.witness_account = get_account_id(witness.owner_name);
       op.block_signing_key = witness.block_signing_key;
       apply_operation(genesis_eval_state, op);

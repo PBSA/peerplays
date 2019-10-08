@@ -91,10 +91,12 @@ namespace graphene { namespace chain {
           *
           * @param data_dir Path to open or create database in
           * @param genesis_loader A callable object which returns the genesis state to initialize new databases on
+          * @param db_version a version string that changes when the internal database format and/or logic is modified
           */
           void open(
              const fc::path& data_dir,
-             std::function<genesis_state_type()> genesis_loader );
+             std::function<genesis_state_type()> genesis_loader,
+             const std::string& db_version );
 
          /**
           * @brief Rebuild object graph from block history and open detabase
@@ -102,7 +104,7 @@ namespace graphene { namespace chain {
           * This method may be called after or instead of @ref database::open, and will rebuild the object graph by
           * replaying blockchain history. When this method exits successfully, the database will be open.
           */
-         void reindex(fc::path data_dir, const genesis_state_type& initial_allocation = genesis_state_type());
+         void reindex(fc::path data_dir);
 
          /**
           * @brief wipe Delete database from disk, and potentially the raw chain as well.
@@ -261,6 +263,9 @@ namespace graphene { namespace chain {
          vector<witness_id_type> get_near_witness_schedule()const;
          void update_witness_schedule();
          void update_witness_schedule(const signed_block& next_block);
+      
+         void check_lottery_end_by_participants( asset_id_type asset_id );
+         void check_ending_lotteries();
 
          //////////////////// db_getter.cpp ////////////////////
 
@@ -271,7 +276,8 @@ namespace graphene { namespace chain {
          const dynamic_global_property_object&  get_dynamic_global_properties()const;
          const node_property_object&            get_node_properties()const;
          const fee_schedule&                    current_fee_schedule()const;
-
+         const std::vector<uint32_t>            get_winner_numbers( asset_id_type for_asset, uint32_t count_members, uint8_t count_winners ) const;
+         std::vector<uint32_t>                  get_seeds( asset_id_type for_asset, uint8_t count_winners )const;
          uint64_t                               get_random_bits( uint64_t bound );
 
          time_point_sec   head_block_time()const;
@@ -310,13 +316,26 @@ namespace graphene { namespace chain {
          asset get_balance(account_id_type owner, asset_id_type asset_id)const;
          /// This is an overloaded method.
          asset get_balance(const account_object& owner, const asset_object& asset_obj)const;
-
+         /**
+          * @brief Get balance connected with lottery asset; if assset isnt lottery - return asset(0, 0)
+          */
+         asset get_balance(asset_id_type lottery_id)const;
          /**
           * @brief Adjust a particular account's balance in a given asset by a delta
           * @param account ID of account whose balance should be adjusted
           * @param delta Asset ID and amount to adjust balance by
           */
          void adjust_balance(account_id_type account, asset delta);
+         /**
+          * @brief Adjust a lottery's balance in a given asset by a delta
+          * @param asset ID(should be lottery) balance should be adjusted
+          * @param delta Asset ID and amount to adjust balance by
+          */
+         void adjust_balance(asset_id_type lottery_id, asset delta);
+         /**
+          * @brief Adjust a particular account's sweeps vesting balance in a given asset by a delta
+          */
+         void adjust_sweeps_vesting_balance(account_id_type account, int64_t delta);
 
          /**
           * @brief Helper to make lazy deposit to CDD VBO.
@@ -463,7 +482,7 @@ namespace graphene { namespace chain {
       private:
          void                  _apply_block( const signed_block& next_block );
          processed_transaction _apply_transaction( const signed_transaction& trx );
-
+      
          ///Steps involved in applying a new block
          ///@{
 
@@ -471,8 +490,11 @@ namespace graphene { namespace chain {
          const witness_object& _validate_block_header( const signed_block& next_block )const;
          void create_block_summary(const signed_block& next_block);
 
+         //////////////////// db_witness_schedule.cpp ////////////////////
+         uint32_t update_witness_missed_blocks( const signed_block& b );
+
          //////////////////// db_update.cpp ////////////////////
-         void update_global_dynamic_data( const signed_block& b );
+         void update_global_dynamic_data( const signed_block& b, const uint32_t missed_blocks );
          void update_signing_witness(const witness_object& signing_witness, const signed_block& new_block);
          void update_last_irreversible_block();
          void clear_expired_transactions();
@@ -498,11 +520,8 @@ namespace graphene { namespace chain {
          void update_active_witnesses();
          void update_active_committee_members();
          void update_worker_votes();
-         public:
-            double calculate_vesting_factor(const account_object& stake_account);
-
-
-      template<class... Types>
+      
+         template<class... Types>
          void perform_account_maintenance(std::tuple<Types...> helpers);
          ///@}
          ///@}
@@ -532,7 +551,7 @@ namespace graphene { namespace chain {
          uint32_t                          _current_block_num    = 0;
          uint16_t                          _current_trx_in_block = 0;
          uint16_t                          _current_op_in_trx    = 0;
-         uint16_t                          _current_virtual_op   = 0;
+         uint32_t                          _current_virtual_op   = 0;
 
          vector<uint64_t>                  _vote_tally_buffer;
          vector<uint64_t>                  _witness_count_histogram_buffer;
@@ -544,6 +563,15 @@ namespace graphene { namespace chain {
          node_property_object              _node_property_object;
          fc::hash_ctr_rng<secret_hash_type, 20> _random_number_generator;
          bool                              _slow_replays = false;
+
+         /**
+          * Whether database is successfully opened or not.
+          *
+          * The database is considered open when there's no exception
+          * or assertion fail during database::open() method, and
+          * database::close() has not been called, or failed during execution.
+          */
+         bool                              _opened = false;
    };
 
    namespace detail

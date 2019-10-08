@@ -109,6 +109,24 @@ database_fixture::database_fixture()
    genesis_state.initial_parameters.current_fees->zero_all_fees();
    open_database();
 
+   // add account tracking for ahplugin for special test case with track-account enabled
+   if( !options.count("track-account") && boost::unit_test::framework::current_test_case().p_name.value == "track_account") {
+      std::vector<std::string> track_account;
+      std::string track = "\"1.2.18\"";
+      track_account.push_back(track);
+      options.insert(std::make_pair("track-account", boost::program_options::variable_value(track_account, false)));
+      options.insert(std::make_pair("partial-operations", boost::program_options::variable_value(true, false)));
+   }
+   // account tracking 2 accounts
+   if( !options.count("track-account") && boost::unit_test::framework::current_test_case().p_name.value == "track_account2") {
+      std::vector<std::string> track_account;
+      std::string track = "\"1.2.0\"";
+      track_account.push_back(track);
+      track = "\"1.2.17\"";
+      track_account.push_back(track);
+      options.insert(std::make_pair("track-account", boost::program_options::variable_value(track_account, false)));
+   }
+
    // app.initialize();
    ahplugin->plugin_set_app(&app);
    ahplugin->plugin_initialize(options);
@@ -177,6 +195,7 @@ void database_fixture::verify_asset_supplies( const database& db )
    const auto& balance_index = db.get_index_type<account_balance_index>().indices();
    const auto& settle_index = db.get_index_type<force_settlement_index>().indices();
    const auto& tournaments_index = db.get_index_type<tournament_index>().indices();
+   const auto& asst_index = db.get_index_type<asset_index>().indices();
 
    map<asset_id_type,share_type> total_balances;
    map<asset_id_type,share_type> total_debts;
@@ -187,6 +206,11 @@ void database_fixture::verify_asset_supplies( const database& db )
       if (t.get_state() != tournament_state::concluded && t.get_state() != tournament_state::registration_period_expired)
         total_balances[t.options.buy_in.asset_id] += t.prize_pool;
 
+   for( const asset_object& ai : asst_index)
+      if (ai.is_lottery()) {
+         asset balance = db.get_balance( ai.get_id() );
+         total_balances[ balance.asset_id ] += balance.amount;
+      }
    for( const account_balance_object& b : balance_index )
       total_balances[b.asset_type] += b.balance;
    for( const force_settlement_object& s : settle_index )
@@ -239,6 +263,12 @@ void database_fixture::verify_asset_supplies( const database& db )
       total_balances[betting_market_group.asset_id] += o.fees_collected;
    }
 
+   
+   uint64_t sweeps_vestings = 0;
+   for( const sweeps_vesting_balance_object& svbo: db.get_index_type< sweeps_vesting_balance_index >().indices() )
+      sweeps_vestings += svbo.balance;
+   
+   total_balances[db.get_global_properties().parameters.sweeps_distribution_asset()] += sweeps_vestings / SWEEPS_VESTING_BALANCE_MULTIPLIER;
    total_balances[asset_id_type()] += db.get_dynamic_global_properties().witness_budget;
 
    for( const auto& item : total_debts )
@@ -343,7 +373,7 @@ void database_fixture::open_database()
 {
    if( !data_dir ) {
       data_dir = fc::temp_directory( graphene::utilities::temp_directory_path() );
-      db.open(data_dir->path(), [this]{return genesis_state;});
+      db.open(data_dir->path(), [this]{return genesis_state;}, "test");
    }
 }
 
@@ -485,7 +515,7 @@ const asset_object& database_fixture::create_bitasset(
    if( issuer == GRAPHENE_WITNESS_ACCOUNT )
       flags |= witness_fed_asset;
    creator.common_options.issuer_permissions = flags;
-   creator.common_options.flags = flags & ~global_settle;
+   creator.common_options.flags = flags & ~global_settle & ~witness_fed_asset;
    creator.common_options.core_exchange_rate = price({asset(1,asset_id_type(1)),asset(1)});
    creator.bitasset_opts = bitasset_options();
    trx.operations.push_back(std::move(creator));
@@ -669,7 +699,6 @@ const account_object& database_fixture::create_account(
       trx.validate();
 
       processed_transaction ptx = db.push_transaction(trx, ~0);
-      //wdump( (ptx) );
       const account_object& result = db.get<account_object>(ptx.operation_results[0].get<object_id_type>());
       trx.operations.clear();
       return result;
@@ -699,6 +728,7 @@ const witness_object& database_fixture::create_witness( const account_object& ow
    witness_create_operation op;
    op.witness_account = owner.id;
    op.block_signing_key = signing_private_key.get_public_key();
+   
    secret_hash_type::encoder enc;
    fc::raw::pack(enc, signing_private_key);
    fc::raw::pack(enc, secret_hash_type());
@@ -738,7 +768,6 @@ const limit_order_object*database_fixture::create_sell_order(account_id_type use
 
 const limit_order_object* database_fixture::create_sell_order( const account_object& user, const asset& amount, const asset& recv )
 {
-   //wdump((amount)(recv));
    limit_order_create_operation buy_order;
    buy_order.seller = user.id;
    buy_order.amount_to_sell = amount;
@@ -749,7 +778,6 @@ const limit_order_object* database_fixture::create_sell_order( const account_obj
    auto processed = db.push_transaction(trx, ~0);
    trx.operations.clear();
    verify_asset_supplies(db);
-   //wdump((processed));
    return db.find<limit_order_object>( processed.operation_results[0].get<object_id_type>() );
 }
 

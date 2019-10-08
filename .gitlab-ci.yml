@@ -1,0 +1,54 @@
+include:
+  - template: Code-Quality.gitlab-ci.yml
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  script:
+    - git submodule update --init --recursive
+    - cmake .
+    - make -j$(nproc)
+  artifacts:
+    untracked: true
+    paths:
+      - libraries/
+      - programs/
+      - tests/
+  tags:
+    - builder
+    
+test:
+  stage: test
+  dependencies: 
+    - build
+  script:
+    - ./tests/betting_test
+    - ./tests/chain_test
+    - ./tests/cli_test
+  tags:
+    - builder
+    
+code_quality:
+  stage: test
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env SOURCE_CODE="$PWD"
+        --volume "$PWD":/code
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/codequality:$SP_VERSION" /code
+  artifacts:
+    paths: [gl-code-quality-report.json]
+    expire_in: 1 week
+  except:
+    variables:
+      - $CODE_QUALITY_DISABLED

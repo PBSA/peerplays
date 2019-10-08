@@ -24,8 +24,6 @@
 #pragma once
 
 #include <graphene/chain/protocol/asset.hpp>
-#include <graphene/chain/protocol/vesting.hpp>
-
 #include <graphene/db/object.hpp>
 #include <graphene/db/generic_index.hpp>
 
@@ -34,9 +32,6 @@
 
 #include <algorithm>
 #include <boost/multi_index/composite_key.hpp>
-
-#define offset_d(i,f)    (long(&(i)->f) - long(i))
-#define offset_s(t,f)    offset_d((t*)1000, f)
 
 namespace graphene { namespace chain {
    using namespace graphene::db;
@@ -145,10 +140,11 @@ namespace graphene { namespace chain {
          /// The vesting policy stores details on when funds vest, and controls when they may be withdrawn
          vesting_policy policy;
 
-         /// We can have 2 types of vesting, gpos and all the rest
-         vesting_balance_type balance_type = vesting_balance_type::unspecified;
-
          vesting_balance_object() {}
+         
+         asset_id_type get_asset_id() const { return balance.asset_id; }
+
+         share_type get_asset_amount() const { return balance.amount; }
 
          ///@brief Deposit amount into vesting balance, requiring it to vest before withdrawal
          void deposit(const fc::time_point_sec& now, const asset& amount);
@@ -190,14 +186,12 @@ namespace graphene { namespace chain {
            composite_key<
               vesting_balance_object,
               member_offset<vesting_balance_object, asset_id_type, (size_t) (offsetof(vesting_balance_object,balance) + offsetof(asset,asset_id))>,
-              member<vesting_balance_object, vesting_balance_type, &vesting_balance_object::balance_type>,
               member_offset<vesting_balance_object, share_type, (size_t) (offsetof(vesting_balance_object,balance) + offsetof(asset,amount))>
               //member<vesting_balance_object, account_id_type, &vesting_balance_object::owner>
-              //member_offset<vesting_balance_object, account_id_type, (size_t) (offset_s(vesting_balance_object,owner))>
+              //member_offset<vesting_balance_object, account_id_type, (size_t) (offsetof(vesting_balance_object,owner))>
            >,
            composite_key_compare<
               std::less< asset_id_type >,
-              std::less< vesting_balance_type >,
               std::greater< share_type >
               //std::less< account_id_type >
            >
@@ -231,5 +225,4 @@ FC_REFLECT_DERIVED(graphene::chain::vesting_balance_object, (graphene::db::objec
                    (owner)
                    (balance)
                    (policy)
-                   (balance_type)
                   )

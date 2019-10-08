@@ -91,118 +91,118 @@ BOOST_AUTO_TEST_CASE(asset_claim_fees_test)
       // Alice and Bob trade in the market and pay fees
       // Verify that Izzy and Jill can claim the fees
 
-      const share_type core_prec = asset::scaled_precision( asset_id_type()(db).precision );
+//       const share_type core_prec = asset::scaled_precision( asset_id_type()(db).precision );
 
-      // Return number of core shares (times precision)
-      auto _core = [&]( int64_t x ) -> asset
-      {  return asset( x*core_prec );    };
+//       // Return number of core shares (times precision)
+//       auto _core = [&]( int64_t x ) -> asset
+//       {  return asset( x*core_prec );    };
 
-      transfer( committee_account, alice_id, _core(1000000) );
-      transfer( committee_account,   bob_id, _core(1000000) );
-      transfer( committee_account,  izzy_id, _core(1000000) );
-      transfer( committee_account,  jill_id, _core(1000000) );
+//       transfer( committee_account, alice_id, _core(1000000) );
+//       transfer( committee_account,   bob_id, _core(1000000) );
+//       transfer( committee_account,  izzy_id, _core(1000000) );
+//       transfer( committee_account,  jill_id, _core(1000000) );
 
-      asset_id_type izzycoin_id = create_bitasset( "IZZYCOIN", izzy_id,   GRAPHENE_1_PERCENT, charge_market_fee ).id;
-      asset_id_type jillcoin_id = create_bitasset( "JILLCOIN", jill_id, 2*GRAPHENE_1_PERCENT, charge_market_fee ).id;
+//       asset_id_type izzycoin_id = create_bitasset( "IZZYCOIN", izzy_id,   GRAPHENE_1_PERCENT, charge_market_fee ).id;
+//       asset_id_type jillcoin_id = create_bitasset( "JILLCOIN", jill_id, 2*GRAPHENE_1_PERCENT, charge_market_fee ).id;
 
-      const share_type izzy_prec = asset::scaled_precision( asset_id_type(izzycoin_id)(db).precision );
-      const share_type jill_prec = asset::scaled_precision( asset_id_type(jillcoin_id)(db).precision );
+//       const share_type izzy_prec = asset::scaled_precision( asset_id_type(izzycoin_id)(db).precision );
+//       const share_type jill_prec = asset::scaled_precision( asset_id_type(jillcoin_id)(db).precision );
 
-      auto _izzy = [&]( int64_t x ) -> asset
-      {   return asset( x*izzy_prec, izzycoin_id );   };
-      auto _jill = [&]( int64_t x ) -> asset
-      {   return asset( x*jill_prec, jillcoin_id );   };
+//       auto _izzy = [&]( int64_t x ) -> asset
+//       {   return asset( x*izzy_prec, izzycoin_id );   };
+//       auto _jill = [&]( int64_t x ) -> asset
+//       {   return asset( x*jill_prec, jillcoin_id );   };
 
-      update_feed_producers( izzycoin_id(db), { izzy_id } );
-      update_feed_producers( jillcoin_id(db), { jill_id } );
+//       update_feed_producers( izzycoin_id(db), { izzy_id } );
+//       update_feed_producers( jillcoin_id(db), { jill_id } );
 
-      const asset izzy_satoshi = asset(1, izzycoin_id);
-      const asset jill_satoshi = asset(1, jillcoin_id);
+//       const asset izzy_satoshi = asset(1, izzycoin_id);
+//       const asset jill_satoshi = asset(1, jillcoin_id);
 
-      // Izzycoin is worth 100 BTS
-      price_feed feed;
-      feed.settlement_price = price( _izzy(1), _core(100) );
-      feed.maintenance_collateral_ratio = 175 * GRAPHENE_COLLATERAL_RATIO_DENOM / 100;
-      feed.maximum_short_squeeze_ratio = 150 * GRAPHENE_COLLATERAL_RATIO_DENOM / 100;
-      publish_feed( izzycoin_id(db), izzy, feed );
+//       // Izzycoin is worth 100 BTS
+//       price_feed feed;
+//       feed.settlement_price = price( _izzy(1), _core(100) );
+//       feed.maintenance_collateral_ratio = 175 * GRAPHENE_COLLATERAL_RATIO_DENOM / 100;
+//       feed.maximum_short_squeeze_ratio = 150 * GRAPHENE_COLLATERAL_RATIO_DENOM / 100;
+//       publish_feed( izzycoin_id(db), izzy, feed );
 
-      // Jillcoin is worth 30 BTS
-      feed.settlement_price = price( _jill(1), _core(30) );
-      feed.maintenance_collateral_ratio = 175 * GRAPHENE_COLLATERAL_RATIO_DENOM / 100;
-      feed.maximum_short_squeeze_ratio = 150 * GRAPHENE_COLLATERAL_RATIO_DENOM / 100;
-      publish_feed( jillcoin_id(db), jill, feed );
+//       // Jillcoin is worth 30 BTS
+//       feed.settlement_price = price( _jill(1), _core(30) );
+//       feed.maintenance_collateral_ratio = 175 * GRAPHENE_COLLATERAL_RATIO_DENOM / 100;
+//       feed.maximum_short_squeeze_ratio = 150 * GRAPHENE_COLLATERAL_RATIO_DENOM / 100;
+//       publish_feed( jillcoin_id(db), jill, feed );
 
-      enable_fees();
+//       enable_fees();
 
-      // Alice and Bob create some coins
-      borrow( alice_id, _izzy( 200), _core( 60000) );
-      borrow(   bob_id, _jill(2000), _core(180000) );
+//       // Alice and Bob create some coins
+//       borrow( alice_id, _izzy( 200), _core( 60000) );
+//       borrow(   bob_id, _jill(2000), _core(180000) );
 
-      // Alice and Bob place orders which match
-      create_sell_order( alice_id, _izzy(100), _jill(300) );   // Alice is willing to sell her Izzy's for 3 Jill
-      create_sell_order(   bob_id, _jill(700), _izzy(200) );   // Bob is buying up to 200 Izzy's for up to 3.5 Jill
+//       // Alice and Bob place orders which match
+//       create_sell_order( alice_id, _izzy(100), _jill(300) );   // Alice is willing to sell her Izzy's for 3 Jill
+//       create_sell_order(   bob_id, _jill(700), _izzy(200) );   // Bob is buying up to 200 Izzy's for up to 3.5 Jill
 
-      // 100 Izzys and 300 Jills are matched, so the fees should be
-      //   1 Izzy (1%) and 6 Jill (2%).
+//       // 100 Izzys and 300 Jills are matched, so the fees should be
+//       //   1 Izzy (1%) and 6 Jill (2%).
 
-      auto claim_fees = [&]( account_id_type issuer, asset amount_to_claim )
-      {
-         asset_claim_fees_operation claim_op;
-         claim_op.issuer = issuer;
-         claim_op.amount_to_claim = amount_to_claim;
-         signed_transaction tx;
-         tx.operations.push_back( claim_op );
-         db.current_fee_schedule().set_fee( tx.operations.back() );
-         set_expiration( db, tx );
-         fc::ecc::private_key   my_pk = (issuer == izzy_id) ? izzy_private_key : jill_private_key;
-         fc::ecc::private_key your_pk = (issuer == izzy_id) ? jill_private_key : izzy_private_key;
-         sign( tx, your_pk );
-         GRAPHENE_REQUIRE_THROW( PUSH_TX( db, tx ), fc::exception );
-         tx.signatures.clear();
-         sign( tx, my_pk );
-         PUSH_TX( db, tx );
-      };
+//       auto claim_fees = [&]( account_id_type issuer, asset amount_to_claim )
+//       {
+//          asset_claim_fees_operation claim_op;
+//          claim_op.issuer = issuer;
+//          claim_op.amount_to_claim = amount_to_claim;
+//          signed_transaction tx;
+//          tx.operations.push_back( claim_op );
+//          db.current_fee_schedule().set_fee( tx.operations.back() );
+//          set_expiration( db, tx );
+//          fc::ecc::private_key   my_pk = (issuer == izzy_id) ? izzy_private_key : jill_private_key;
+//          fc::ecc::private_key your_pk = (issuer == izzy_id) ? jill_private_key : izzy_private_key;
+//          sign( tx, your_pk );
+//          GRAPHENE_REQUIRE_THROW( PUSH_TX( db, tx ), fc::exception );
+//          tx.signatures.clear();
+//          sign( tx, my_pk );
+//          PUSH_TX( db, tx );
+//       };
 
-      {
-         const asset_object& izzycoin = izzycoin_id(db);
-         const asset_object& jillcoin = jillcoin_id(db);
+//       {
+//          const asset_object& izzycoin = izzycoin_id(db);
+//          const asset_object& jillcoin = jillcoin_id(db);
 
-         //wdump( (izzycoin)(izzycoin.dynamic_asset_data_id(db))((*izzycoin.bitasset_data_id)(db)) );
-         //wdump( (jillcoin)(jillcoin.dynamic_asset_data_id(db))((*jillcoin.bitasset_data_id)(db)) );
+//          //wdump( (izzycoin)(izzycoin.dynamic_asset_data_id(db))((*izzycoin.bitasset_data_id)(db)) );
+//          //wdump( (jillcoin)(jillcoin.dynamic_asset_data_id(db))((*jillcoin.bitasset_data_id)(db)) );
 
-         // check the correct amount of fees has been awarded
-         BOOST_CHECK( izzycoin.dynamic_asset_data_id(db).accumulated_fees == _izzy(1).amount );
-         BOOST_CHECK( jillcoin.dynamic_asset_data_id(db).accumulated_fees == _jill(6).amount );
+//          // check the correct amount of fees has been awarded
+//          BOOST_CHECK( izzycoin.dynamic_asset_data_id(db).accumulated_fees == _izzy(1).amount );
+//          BOOST_CHECK( jillcoin.dynamic_asset_data_id(db).accumulated_fees == _jill(6).amount );
 
-      }
+//       }
 
-      if( db.head_block_time() <= HARDFORK_413_TIME )
-      {
-         // can't claim before hardfork
-         GRAPHENE_REQUIRE_THROW( claim_fees( izzy_id, _izzy(1) ), fc::exception );
-         generate_blocks( HARDFORK_413_TIME );
-         while( db.head_block_time() <= HARDFORK_413_TIME )
-         {
-            generate_block();
-         }
-      }
+//       if( db.head_block_time() <= HARDFORK_413_TIME )
+//       {
+//          // can't claim before hardfork
+//          GRAPHENE_REQUIRE_THROW( claim_fees( izzy_id, _izzy(1) ), fc::exception );
+//          generate_blocks( HARDFORK_413_TIME );
+//          while( db.head_block_time() <= HARDFORK_413_TIME )
+//          {
+//             generate_block();
+//          }
+//       }
 
-      {
-         const asset_object& izzycoin = izzycoin_id(db);
-         const asset_object& jillcoin = jillcoin_id(db);
+//       {
+//          const asset_object& izzycoin = izzycoin_id(db);
+//          const asset_object& jillcoin = jillcoin_id(db);
 
-         // can't claim more than balance
-         GRAPHENE_REQUIRE_THROW( claim_fees( izzy_id, _izzy(1) + izzy_satoshi ), fc::exception );
-         GRAPHENE_REQUIRE_THROW( claim_fees( jill_id, _jill(6) + jill_satoshi ), fc::exception );
+//          // can't claim more than balance
+//          GRAPHENE_REQUIRE_THROW( claim_fees( izzy_id, _izzy(1) + izzy_satoshi ), fc::exception );
+//          GRAPHENE_REQUIRE_THROW( claim_fees( jill_id, _jill(6) + jill_satoshi ), fc::exception );
 
-         // can't claim asset that doesn't belong to you
-         GRAPHENE_REQUIRE_THROW( claim_fees( jill_id, izzy_satoshi ), fc::exception );
-         GRAPHENE_REQUIRE_THROW( claim_fees( izzy_id, jill_satoshi ), fc::exception );
+//          // can't claim asset that doesn't belong to you
+//          GRAPHENE_REQUIRE_THROW( claim_fees( jill_id, izzy_satoshi ), fc::exception );
+//          GRAPHENE_REQUIRE_THROW( claim_fees( izzy_id, jill_satoshi ), fc::exception );
 
-         // can claim asset in one go
-         claim_fees( izzy_id, _izzy(1) );
-         GRAPHENE_REQUIRE_THROW( claim_fees( izzy_id, izzy_satoshi ), fc::exception );
-         BOOST_CHECK( izzycoin.dynamic_asset_data_id(db).accumulated_fees == _izzy(0).amount );
+//          // can claim asset in one go
+//          claim_fees( izzy_id, _izzy(1) );
+//          GRAPHENE_REQUIRE_THROW( claim_fees( izzy_id, izzy_satoshi ), fc::exception );
+//          BOOST_CHECK( izzycoin.dynamic_asset_data_id(db).accumulated_fees == _izzy(0).amount );
 
          // can claim in multiple goes
          claim_fees( jill_id, _jill(4) );
@@ -613,20 +613,20 @@ BOOST_AUTO_TEST_CASE( account_create_fee_scaling )
 //    try
 //    {
 //       ACTORS((alice)(bob)(izzy));
-// 
+//
 //       int64_t alice_b0 = 1000000, bob_b0 = 1000000;
-// 
+//
 //       transfer( account_id_type(), alice_id, asset(alice_b0) );
 //       transfer( account_id_type(), bob_id, asset(bob_b0) );
-// 
+//
 //       asset_id_type core_id = asset_id_type();
 //       asset_id_type usd_id = create_user_issued_asset( "IZZYUSD", izzy_id(db), charge_market_fee ).id;
 //       issue_uia( alice_id, asset( alice_b0, usd_id ) );
 //       issue_uia( bob_id, asset( bob_b0, usd_id ) );
-// 
+//
 //       int64_t order_create_fee = 537;
 //       int64_t order_cancel_fee = 129;
-// 
+//
 //       uint32_t skip = database::skip_witness_signature
 //                     | database::skip_transaction_signatures
 //                     | database::skip_transaction_dupe_check
@@ -635,9 +635,9 @@ BOOST_AUTO_TEST_CASE( account_create_fee_scaling )
 //                     | database::skip_authority_check
 //                     | database::skip_merkle_check
 //                     ;
-// 
+//
 //       generate_block( skip );
-// 
+//
 //       for( int i=0; i<2; i++ )
 //       {
 //          if( i == 1 )
@@ -645,7 +645,7 @@ BOOST_AUTO_TEST_CASE( account_create_fee_scaling )
 //             generate_blocks( HARDFORK_445_TIME, true, skip );
 //             generate_block( skip );
 //          }
-// 
+//
 //          // enable_fees() and change_fees() modifies DB directly, and results will be overwritten by block generation
 //          // so we have to do it every time we stop generating/popping blocks and start doing tx's
 //          enable_fees();
@@ -671,69 +671,69 @@ BOOST_AUTO_TEST_CASE( account_create_fee_scaling )
 //             }
 //             change_fees( new_fees );
 //          }
-// 
+//
 //          // Alice creates order
 //          // Bob creates order which doesn't match
-// 
+//
 //          // AAAAGGHH create_sell_order reads trx.expiration #469
 //          set_expiration( db, trx );
-// 
+//
 //          // Check non-overlapping
-// 
+//
 //          limit_order_id_type ao1_id = create_sell_order( alice_id, asset(1000), asset(1000, usd_id) )->id;
 //          limit_order_id_type bo1_id = create_sell_order(   bob_id, asset(500, usd_id), asset(1000) )->id;
-// 
+//
 //          BOOST_CHECK_EQUAL( get_balance( alice_id, core_id ), alice_b0 - 1000 - order_create_fee );
 //          BOOST_CHECK_EQUAL( get_balance( alice_id,  usd_id ), alice_b0 );
 //          BOOST_CHECK_EQUAL( get_balance(   bob_id, core_id ), bob_b0 - order_create_fee );
 //          BOOST_CHECK_EQUAL( get_balance(   bob_id,  usd_id ), bob_b0 - 500 );
-// 
+//
 //          // Bob cancels order
 //          cancel_limit_order( bo1_id(db) );
-// 
+//
 //          int64_t cancel_net_fee;
 //          if( db.head_block_time() >= HARDFORK_445_TIME )
 //             cancel_net_fee = order_cancel_fee;
 //          else
 //             cancel_net_fee = order_create_fee + order_cancel_fee;
-// 
+//
 //          BOOST_CHECK_EQUAL( get_balance( alice_id, core_id ), alice_b0 - 1000 - order_create_fee );
 //          BOOST_CHECK_EQUAL( get_balance( alice_id,  usd_id ), alice_b0 );
 //          BOOST_CHECK_EQUAL( get_balance(   bob_id, core_id ), bob_b0 - cancel_net_fee );
 //          BOOST_CHECK_EQUAL( get_balance(   bob_id,  usd_id ), bob_b0 );
-// 
+//
 //          // Alice cancels order
 //          cancel_limit_order( ao1_id(db) );
-// 
+//
 //          BOOST_CHECK_EQUAL( get_balance( alice_id, core_id ), alice_b0 - cancel_net_fee );
 //          BOOST_CHECK_EQUAL( get_balance( alice_id,  usd_id ), alice_b0 );
 //          BOOST_CHECK_EQUAL( get_balance(   bob_id, core_id ), bob_b0 - cancel_net_fee );
 //          BOOST_CHECK_EQUAL( get_balance(   bob_id,  usd_id ), bob_b0 );
-// 
+//
 //          // Check partial fill
 //          const limit_order_object* ao2 = create_sell_order( alice_id, asset(1000), asset(200, usd_id) );
 //          const limit_order_object* bo2 = create_sell_order(   bob_id, asset(100, usd_id), asset(500) );
-// 
+//
 //          BOOST_CHECK( ao2 != nullptr );
 //          BOOST_CHECK( bo2 == nullptr );
-// 
+//
 //          BOOST_CHECK_EQUAL( get_balance( alice_id, core_id ), alice_b0 - cancel_net_fee - order_create_fee - 1000 );
 //          BOOST_CHECK_EQUAL( get_balance( alice_id,  usd_id ), alice_b0 + 100 );
 //          BOOST_CHECK_EQUAL( get_balance(   bob_id, core_id ),   bob_b0 - cancel_net_fee - order_create_fee + 500 );
 //          BOOST_CHECK_EQUAL( get_balance(   bob_id,  usd_id ),   bob_b0 - 100 );
-// 
+//
 //          // cancel Alice order, show that entire deferred_fee was consumed by partial match
 //          cancel_limit_order( *ao2 );
-// 
+//
 //          BOOST_CHECK_EQUAL( get_balance( alice_id, core_id ), alice_b0 - cancel_net_fee - order_create_fee - 500 - order_cancel_fee );
 //          BOOST_CHECK_EQUAL( get_balance( alice_id,  usd_id ), alice_b0 + 100 );
 //          BOOST_CHECK_EQUAL( get_balance(   bob_id, core_id ),   bob_b0 - cancel_net_fee - order_create_fee + 500 );
 //          BOOST_CHECK_EQUAL( get_balance(   bob_id,  usd_id ),   bob_b0 - 100 );
-// 
+//
 //          // TODO: Check multiple fill
 //          // there really should be a test case involving Alice creating multiple orders matched by single Bob order
 //          // but we'll save that for future cleanup
-// 
+//
 //          // undo above tx's and reset
 //          generate_block( skip );
 //          db.pop_block();
@@ -947,6 +947,50 @@ BOOST_AUTO_TEST_CASE( stealth_fba_test )
       elog( "caught exception ${e}", ("e", e.to_detail_string()) );
       throw;
    }
+}
+// added test from bitshares for issues:
+//    https://github.com/bitshares/bitshares-core/issues/429
+//    https://github.com/bitshares/bitshares-core/issues/433
+BOOST_AUTO_TEST_CASE( defaults_test )
+{ try {
+    fee_schedule schedule;
+    const limit_order_create_operation::fee_parameters_type default_order_fee;
+
+    // no fees set yet -> default
+    asset fee = schedule.calculate_fee( limit_order_create_operation() );
+    BOOST_CHECK_EQUAL( default_order_fee.fee, fee.amount.value );
+
+    limit_order_create_operation::fee_parameters_type new_order_fee; new_order_fee.fee = 123;
+    // set fee + check
+    schedule.parameters.insert( new_order_fee );
+    fee = schedule.calculate_fee( limit_order_create_operation() );
+    BOOST_CHECK_EQUAL( new_order_fee.fee, fee.amount.value );
+
+    // NO bid_collateral_operation in this version
+
+    // bid_collateral fee defaults to call_order_update fee
+    // call_order_update fee is unset -> default
+    // const call_order_update_operation::fee_parameters_type default_short_fee;
+    // call_order_update_operation::fee_parameters_type new_short_fee; new_short_fee.fee = 123;
+    // fee = schedule.calculate_fee( bid_collateral_operation() );
+    // BOOST_CHECK_EQUAL( default_short_fee.fee, fee.amount.value );
+
+    // set call_order_update fee + check bid_collateral fee
+    // schedule.parameters.insert( new_short_fee );
+    // fee = schedule.calculate_fee( bid_collateral_operation() );
+    // BOOST_CHECK_EQUAL( new_short_fee.fee, fee.amount.value );
+
+    // set bid_collateral fee + check
+    // bid_collateral_operation::fee_parameters_type new_bid_fee; new_bid_fee.fee = 124;
+    // schedule.parameters.insert( new_bid_fee );
+    // fee = schedule.calculate_fee( bid_collateral_operation() );
+    // BOOST_CHECK_EQUAL( new_bid_fee.fee, fee.amount.value );
+  }
+  catch( const fc::exception& e )
+  {
+     elog( "caught exception ${e}", ("e", e.to_detail_string()) );
+     throw;
+  }
 }
 
 BOOST_AUTO_TEST_CASE( issue_429_test )

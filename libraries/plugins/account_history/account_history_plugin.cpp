@@ -81,11 +81,23 @@ void account_history_plugin_impl::update_account_histories( const signed_block& 
 {
    graphene::chain::database& db = database();
    vector<optional< operation_history_object > >& hist = db.get_applied_operations();
+   bool is_first = true;
+   auto skip_oho_id = [&is_first,&db,this]() {
+      if( is_first && db._undo_db.enabled() ) // this ensures that the current id is rolled back on undo
+      {
+         db.remove( db.create<operation_history_object>( []( operation_history_object& obj) {} ) );
+         is_first = false;
+      }
+      else
+         _oho_index->use_next_id();
+   };
+
    for( optional< operation_history_object >& o_op : hist )
    {
       optional<operation_history_object> oho;
 
       auto create_oho = [&]() {
+         is_first = false;
          operation_history_object result = db.create<operation_history_object>( [&]( operation_history_object& h )
          {
             if( o_op.valid() )
@@ -99,7 +111,7 @@ void account_history_plugin_impl::update_account_histories( const signed_block& 
       {
          // Note: the 2nd and 3rd checks above are for better performance, when the db is not clean,
          //       they will break consistency of account_stats.total_ops and removed_ops and most_recent_op
-         _oho_index->use_next_id();
+         skip_oho_id();
          continue;
       }
       else if( !_partial_operations )
@@ -117,7 +129,14 @@ void account_history_plugin_impl::update_account_histories( const signed_block& 
          impacted.insert( op.result.get<object_id_type>() );
       else
          graphene::app::operation_get_impacted_accounts( op.op, impacted );
-
+      if( op.op.which() == operation::tag< lottery_end_operation >::value ) 
+      {
+         auto lop = op.op.get< lottery_end_operation >();
+         auto asset_object = lop.lottery( db );
+         impacted.insert( asset_object.issuer );
+         for( auto benefactor : asset_object.lottery_options->benefactors )
+            impacted.insert( benefactor.id );
+      }
       for( auto& a : other )
          for( auto& item : a.account_auths )
             impacted.insert( item.first );
@@ -172,7 +191,7 @@ void account_history_plugin_impl::update_account_histories( const signed_block& 
          }
       }
       if (_partial_operations && ! oho.valid())
-         _oho_index->use_next_id();
+         skip_oho_id();
    }
 }
 

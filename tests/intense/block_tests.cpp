@@ -73,7 +73,7 @@ BOOST_FIXTURE_TEST_CASE( update_account_keys, database_fixture )
       // and assert that all four cases were tested at least once
       //
       account_object sam_account_object = create_account( "sam", sam_key );
-      
+
       upgrade_to_lifetime_member(sam_account_object.id);
       //Get a sane head block time
       generate_block( skip_flags );

@@ -364,41 +364,41 @@ namespace graphene { namespace chain {
 
 namespace fc { 
    // Manually reflect match_object to variant to properly reflect "state"
-   void to_variant(const graphene::chain::match_object& match_obj, fc::variant& v)
+   void to_variant(const graphene::chain::match_object& match_obj, fc::variant& v, uint32_t max_depth)
    { try {
       fc_elog(fc::logger::get("tournament"), "In match_obj to_variant");
       elog("In match_obj to_variant");
       fc::mutable_variant_object o;
-      o("id", match_obj.id)
-       ("tournament_id", match_obj.tournament_id)
-       ("players", match_obj.players)
-       ("games", match_obj.games)
-       ("game_winners", match_obj.game_winners)
-       ("number_of_wins", match_obj.number_of_wins)
-       ("number_of_ties", match_obj.number_of_ties)
-       ("match_winners", match_obj.match_winners)
-       ("start_time", match_obj.start_time)
-       ("end_time", match_obj.end_time)
-       ("state", match_obj.get_state());
+      o("id", fc::variant(match_obj.id, max_depth))
+       ("tournament_id", fc::variant(match_obj.tournament_id, max_depth))
+       ("players", fc::variant(match_obj.players, max_depth))
+       ("games", fc::variant(match_obj.games, max_depth))
+       ("game_winners", fc::variant(match_obj.game_winners, max_depth))
+       ("number_of_wins", fc::variant(match_obj.number_of_wins, max_depth))
+       ("number_of_ties", fc::variant(match_obj.number_of_ties, max_depth))
+       ("match_winners", fc::variant(match_obj.match_winners, max_depth))
+       ("start_time", fc::variant(match_obj.start_time, max_depth))
+       ("end_time", fc::variant(match_obj.end_time, max_depth))
+       ("state", fc::variant(match_obj.get_state(), max_depth));
 
       v = o;
    } FC_RETHROW_EXCEPTIONS(warn, "") }
 
    // Manually reflect match_object to variant to properly reflect "state"
-   void from_variant(const fc::variant& v, graphene::chain::match_object& match_obj)
+   void from_variant(const fc::variant& v, graphene::chain::match_object& match_obj, uint32_t max_depth)
    { try {
       fc_elog(fc::logger::get("tournament"), "In match_obj from_variant");
-      match_obj.id = v["id"].as<graphene::chain::match_id_type>();
-      match_obj.tournament_id = v["tournament_id"].as<graphene::chain::tournament_id_type>();
-      match_obj.players = v["players"].as<std::vector<graphene::chain::account_id_type> >();
-      match_obj.games = v["games"].as<std::vector<graphene::chain::game_id_type> >();
-      match_obj.game_winners = v["game_winners"].as<std::vector<flat_set<graphene::chain::account_id_type> > >();
-      match_obj.number_of_wins = v["number_of_wins"].as<std::vector<uint32_t> >();
-      match_obj.number_of_ties = v["number_of_ties"].as<uint32_t>();
-      match_obj.match_winners = v["match_winners"].as<flat_set<graphene::chain::account_id_type> >();
-      match_obj.start_time = v["start_time"].as<time_point_sec>();
-      match_obj.end_time = v["end_time"].as<optional<time_point_sec> >();
-      graphene::chain::match_state state = v["state"].as<graphene::chain::match_state>();
+      match_obj.id = v["id"].as<graphene::chain::match_id_type>( max_depth );
+      match_obj.tournament_id = v["tournament_id"].as<graphene::chain::tournament_id_type>( max_depth );
+      match_obj.players = v["players"].as<std::vector<graphene::chain::account_id_type> >( max_depth );
+      match_obj.games = v["games"].as<std::vector<graphene::chain::game_id_type> >( max_depth );
+      match_obj.game_winners = v["game_winners"].as<std::vector<flat_set<graphene::chain::account_id_type> > >( max_depth );
+      match_obj.number_of_wins = v["number_of_wins"].as<std::vector<uint32_t> >( max_depth );
+      match_obj.number_of_ties = v["number_of_ties"].as<uint32_t>( max_depth );
+      match_obj.match_winners = v["match_winners"].as<flat_set<graphene::chain::account_id_type> >( max_depth );
+      match_obj.start_time = v["start_time"].as<time_point_sec>( max_depth );
+      match_obj.end_time = v["end_time"].as<optional<time_point_sec> >( max_depth );
+      graphene::chain::match_state state = v["state"].as<graphene::chain::match_state>( max_depth );
       const_cast<int*>(match_obj.my->state_machine.current_state())[0] = (int)state;
    } FC_RETHROW_EXCEPTIONS(warn, "") }
 } //end namespace fc

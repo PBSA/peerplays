@@ -27,8 +27,6 @@
 #include <graphene/chain/protocol/types.hpp>
 #include <fc/smart_ref_fwd.hpp>
 
-#include <graphene/chain/hardfork.hpp>
-
 namespace graphene { namespace chain { struct fee_schedule; } }
 
 namespace graphene { namespace chain {
@@ -44,6 +42,9 @@ namespace graphene { namespace chain {
       optional < uint32_t >           gpos_subperiod;
       optional < uint32_t >           gpos_period_start;
       optional < uint16_t >           son_count;
+      optional< uint16_t >            sweeps_distribution_percentage;
+      optional< asset_id_type >       sweeps_distribution_asset;
+      optional< account_id_type >     sweeps_vesting_accumulator_account;
    };
 
    struct chain_parameters
@@ -93,6 +94,7 @@ namespace graphene { namespace chain {
       uint32_t                maximum_tournament_start_time_in_future = TOURNAMENT_MAX_START_TIME_IN_FUTURE;
       uint32_t                maximum_tournament_start_delay      = TOURNAMENT_MAX_START_DELAY;
       uint16_t                maximum_tournament_number_of_wins   = TOURNAMENT_MAX_NUMBER_OF_WINS;
+      
       extension<parameter_extension> extensions;
 
       /** defined in fee_schedule.cpp */
@@ -113,14 +115,14 @@ namespace graphene { namespace chain {
       inline uint16_t live_betting_delay_time()const {
          return extensions.value.live_betting_delay_time.valid() ? *extensions.value.live_betting_delay_time : GRAPHENE_DEFAULT_LIVE_BETTING_DELAY_TIME;
       }
-      inline uint32_t gpos_period()const {
-         return extensions.value.gpos_period.valid() ? *extensions.value.gpos_period : GPOS_PERIOD; /// total seconds of current gpos period
+      inline uint16_t sweeps_distribution_percentage()const {
+         return extensions.value.sweeps_distribution_percentage.valid() ? *extensions.value.sweeps_distribution_percentage : SWEEPS_DEFAULT_DISTRIBUTION_PERCENTAGE;
       }
-      inline uint32_t gpos_subperiod()const {
-         return extensions.value.gpos_subperiod.valid() ? *extensions.value.gpos_subperiod : GPOS_SUBPERIOD; /// gpos_period % gpos_subperiod = 0
+      inline asset_id_type sweeps_distribution_asset()const {
+         return extensions.value.sweeps_distribution_asset.valid() ? *extensions.value.sweeps_distribution_asset : SWEEPS_DEFAULT_DISTRIBUTION_ASSET;
       }
-      inline uint32_t gpos_period_start()const {
-         return extensions.value.gpos_period_start.valid() ? *extensions.value.gpos_period_start : HARDFORK_GPOS_TIME.sec_since_epoch(); /// current period start date
+      inline account_id_type sweeps_vesting_accumulator_account()const {
+         return extensions.value.sweeps_vesting_accumulator_account.valid() ? *extensions.value.sweeps_vesting_accumulator_account : SWEEPS_ACCUMULATOR_ACCOUNT;
       }
       inline uint16_t son_count()const {
          return extensions.value.son_count.valid() ? *extensions.value.son_count : MIN_SON_MEMBER_COUNT;
@@ -139,6 +141,9 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (gpos_subperiod)
    (gpos_period_start)
    (son_count)
+   (sweeps_distribution_percentage)
+   (sweeps_distribution_asset)
+   (sweeps_vesting_accumulator_account)
 )
 
 FC_REFLECT( graphene::chain::chain_parameters,

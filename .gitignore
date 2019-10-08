@@ -9,6 +9,10 @@ compile_commands.json
 moc_*
 *.moc
 hardfork.hpp
+build_xc
+data
+
+build
 
 libraries/utilities/git_revision.cpp
 

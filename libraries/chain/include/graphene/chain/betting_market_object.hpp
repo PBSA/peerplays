@@ -27,6 +27,7 @@
 #include <graphene/db/object.hpp>
 #include <graphene/db/generic_index.hpp>
 #include <graphene/chain/protocol/betting_market.hpp>
+#include <sstream>
 
 #include <boost/multi_index/composite_key.hpp>
 
@@ -36,10 +37,10 @@ namespace graphene { namespace chain {
 } }
 
 namespace fc { 
-   void to_variant(const graphene::chain::betting_market_object& betting_market_obj, fc::variant& v);
-   void from_variant(const fc::variant& v, graphene::chain::betting_market_object& betting_market_obj);
-   void to_variant(const graphene::chain::betting_market_group_object& betting_market_group_obj, fc::variant& v);
-   void from_variant(const fc::variant& v, graphene::chain::betting_market_group_object& betting_market_group_obj);
+   void to_variant(const graphene::chain::betting_market_object& betting_market_obj, fc::variant& v, uint32_t max_depth = 1);
+   void from_variant(const fc::variant& v, graphene::chain::betting_market_object& betting_market_obj, uint32_t max_depth = 1);
+   void to_variant(const graphene::chain::betting_market_group_object& betting_market_group_obj, fc::variant& v, uint32_t max_depth = 1);
+   void from_variant(const fc::variant& v, graphene::chain::betting_market_group_object& betting_market_group_obj, uint32_t max_depth = 1);
 } //end namespace fc
 
 namespace graphene { namespace chain {
@@ -109,8 +110,8 @@ class betting_market_group_object : public graphene::db::abstract_object< bettin
       template<typename Stream>
       friend Stream& operator>>( Stream& s, betting_market_group_object& betting_market_group_obj );
 
-      friend void ::fc::to_variant(const graphene::chain::betting_market_group_object& betting_market_group_obj, fc::variant& v);
-      friend void ::fc::from_variant(const fc::variant& v, graphene::chain::betting_market_group_object& betting_market_group_obj);
+      friend void ::fc::to_variant(const graphene::chain::betting_market_group_object& betting_market_group_obj, fc::variant& v, uint32_t max_depth);
+      friend void ::fc::from_variant(const fc::variant& v, graphene::chain::betting_market_group_object& betting_market_group_obj, uint32_t max_depth);
 
       void pack_impl(std::ostream& stream) const;
       void unpack_impl(std::istream& stream);
@@ -165,8 +166,8 @@ class betting_market_object : public graphene::db::abstract_object< betting_mark
       template<typename Stream>
       friend Stream& operator>>( Stream& s, betting_market_object& betting_market_obj );
 
-      friend void ::fc::to_variant(const graphene::chain::betting_market_object& betting_market_obj, fc::variant& v);
-      friend void ::fc::from_variant(const fc::variant& v, graphene::chain::betting_market_object& betting_market_obj);
+      friend void ::fc::to_variant(const graphene::chain::betting_market_object& betting_market_obj, fc::variant& v, uint32_t max_depth);
+      friend void ::fc::from_variant(const fc::variant& v, graphene::chain::betting_market_object& betting_market_obj, uint32_t max_depth);
 
       void pack_impl(std::ostream& stream) const;
       void unpack_impl(std::istream& stream);

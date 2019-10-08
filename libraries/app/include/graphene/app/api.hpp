@@ -293,7 +293,7 @@ namespace graphene { namespace app {
    {
       public:
          crypto_api();         
-                                                       
+
          fc::ecc::commitment_type blind( const fc::ecc::blind_factor_type& blind, uint64_t value );
          
          fc::ecc::blind_factor_type blind_sum( const std::vector<blind_factor_type>& blinds_in, uint32_t non_neg );

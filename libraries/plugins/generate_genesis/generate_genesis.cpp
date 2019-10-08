@@ -113,7 +113,7 @@ std::string modify_account_name(const std::string& name)
 
 bool is_special_account(const graphene::chain::account_id_type& account_id)
 {
-    return account_id.instance < 100;
+    return account_id.instance.value < 100;
 }
 
     bool is_scam(const std::string& account_name)
