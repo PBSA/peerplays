@@ -27,6 +27,7 @@
 
 #include <graphene/utilities/tempdir.hpp>
 #include <graphene/bookie/bookie_plugin.hpp>
+#include <graphene/witness/witness.hpp>
 #include <graphene/account_history/account_history_plugin.hpp>
 #include <graphene/egenesis/egenesis.hpp>
 #include <graphene/wallet/wallet.hpp>
@@ -118,8 +119,10 @@ int get_available_port()
 std::shared_ptr<graphene::app::application> start_application(fc::temp_directory& app_dir, int& server_port_number) {
    std::shared_ptr<graphene::app::application> app1(new graphene::app::application{});
 
-   app1->register_plugin< graphene::bookie::bookie_plugin>();
+   app1->register_plugin<graphene::bookie::bookie_plugin>();
    app1->register_plugin<graphene::account_history::account_history_plugin>();
+   app1->register_plugin<graphene::market_history::market_history_plugin>();
+   app1->register_plugin<graphene::witness_plugin::witness_plugin>();
    app1->startup_plugins();
    boost::program_options::variables_map cfg;
 #ifdef _WIN32
@@ -132,6 +135,7 @@ std::shared_ptr<graphene::app::application> start_application(fc::temp_directory
    );
    cfg.emplace("genesis-json", boost::program_options::variable_value(create_genesis_file(app_dir), false));
    cfg.emplace("seed-nodes", boost::program_options::variable_value(string("[]"), false));
+   cfg.emplace("plugins", boost::program_options::variable_value(string("bookie account_history market_history"), false));
 
    app1->initialize(app_dir.path(), cfg);
 
