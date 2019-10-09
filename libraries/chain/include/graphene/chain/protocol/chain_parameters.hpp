@@ -37,10 +37,6 @@ namespace graphene { namespace chain {
       optional< uint16_t >            betting_rake_fee_percentage;
       optional< flat_map<bet_multiplier_type, bet_multiplier_type> > permitted_betting_odds_increments;
       optional< uint16_t >            live_betting_delay_time;
-      /* gpos parameters */
-      optional < uint32_t >           gpos_period;
-      optional < uint32_t >           gpos_subperiod;
-      optional < uint32_t >           gpos_period_start;
       optional < uint16_t >           son_count;
       optional< uint16_t >            sweeps_distribution_percentage;
       optional< asset_id_type >       sweeps_distribution_asset;
@@ -63,6 +59,7 @@ namespace graphene { namespace chain {
       uint8_t                 maximum_asset_feed_publishers       = GRAPHENE_DEFAULT_MAX_ASSET_FEED_PUBLISHERS; ///< the maximum number of feed publishers for a given asset
       uint16_t                maximum_witness_count               = GRAPHENE_DEFAULT_MAX_WITNESSES; ///< maximum number of active witnesses
       uint16_t                maximum_committee_count             = GRAPHENE_DEFAULT_MAX_COMMITTEE; ///< maximum number of active committee_members
+      uint16_t                maximum_son_count                   = GRAPHENE_DEFAULT_MAX_SONS; ///< maximum number of active SONS
       uint16_t                maximum_authority_membership        = GRAPHENE_DEFAULT_MAX_AUTHORITY_MEMBERSHIP; ///< largest number of keys/accounts an authority can have
       uint16_t                reserve_percent_of_fee              = GRAPHENE_DEFAULT_BURN_PERCENT_OF_FEE; ///< the percentage of the network's allocation of a fee that is taken out of circulation
       uint16_t                network_percent_of_fee              = GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE; ///< percent of transaction fees paid to network
@@ -137,9 +134,6 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (betting_rake_fee_percentage)
    (permitted_betting_odds_increments)
    (live_betting_delay_time)
-   (gpos_period)
-   (gpos_subperiod)
-   (gpos_period_start)
    (son_count)
    (sweeps_distribution_percentage)
    (sweeps_distribution_asset)
@@ -160,6 +154,7 @@ FC_REFLECT( graphene::chain::chain_parameters,
             (maximum_asset_feed_publishers)
             (maximum_witness_count)
             (maximum_committee_count)
+            (maximum_son_count)
             (maximum_authority_membership)
             (reserve_percent_of_fee)
             (network_percent_of_fee)

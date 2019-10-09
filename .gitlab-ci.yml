@@ -19,10 +19,10 @@ build:
       - tests/
   tags:
     - builder
-    
+
 test:
   stage: test
-  dependencies: 
+  dependencies:
     - build
   script:
     - ./tests/betting_test
@@ -30,7 +30,7 @@ test:
     - ./tests/cli_test
   tags:
     - builder
-    
+
 code_quality:
   stage: test
   image: docker:stable

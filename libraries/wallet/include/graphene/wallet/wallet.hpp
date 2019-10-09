@@ -188,6 +188,7 @@ struct wallet_data
    //    incomplete account regs
    map<string, vector<string> > pending_account_registrations;
    map<string, string> pending_witness_registrations;
+   map<string, string> pending_son_registrations;
 
    key_label_index_type                                              labeled_keys;
    blind_receipt_index_type                                          blind_receipts;
@@ -1283,6 +1284,12 @@ class wallet_api
        */
       map<string, committee_member_id_type>       list_committee_members(const string& lowerbound, uint32_t limit);
 
+      /** Returns information about the given SON.
+       * @param owner_account the name or id of the SON account owner, or the id of the SON
+       * @returns the information about the SON stored in the block chain
+       */
+      son_object get_son(string owner_account);
+
       /** Returns information about the given witness.
        * @param owner_account the name or id of the witness account owner, or the id of the witness
        * @returns the information about the witness stored in the block chain
@@ -1294,6 +1301,63 @@ class wallet_api
        * @returns the information about the committee_member stored in the block chain
        */
       committee_member_object get_committee_member(string owner_account);
+
+
+      /** Creates a SON object owned by the given account.
+       *
+       * An account can have at most one SON object.
+       *
+       * @param owner_account the name or id of the account which is creating the SON
+       * @param url a URL to include in the SON record in the blockchain.  Clients may
+       *            display this when showing a list of SONs.  May be blank.
+       * @param broadcast true to broadcast the transaction on the network
+       * @returns the signed transaction registering a SON
+       */
+      signed_transaction create_son(string owner_account,
+                                    string url,
+                                    bool broadcast = false);
+
+      /**
+       * Update a SON object owned by the given account.
+       *
+       * @param witness The name of the SON's owner account.  Also accepts the ID of the owner account or the ID of the SON.
+       * @param url Same as for create_son.  The empty string makes it remain the same.
+       * @param block_signing_key The new block signing public key.  The empty string makes it remain the same.
+       * @param broadcast true if you wish to broadcast the transaction.
+       */
+      signed_transaction update_son(string owner_account,
+                                    string url,
+                                    string block_signing_key,
+                                    bool broadcast = false);
+
+
+      /** Deletes a SON object owned by the given account.
+       *
+       * An account can have at most one witness object.
+       *
+       * @param owner_account the name or id of the account which is creating the witness
+       * @param url a URL to include in the witness record in the blockchain.  Clients may
+       *            display this when showing a list of witnesses.  May be blank.
+       * @param broadcast true to broadcast the transaction on the network
+       * @returns the signed transaction registering a witness
+       */
+      signed_transaction delete_son(string owner_account,
+                                    bool broadcast = false);
+
+      /** Lists all SONs in the blockchain.
+       * This returns a list of all account names that own SON, and the associated SON id,
+       * sorted by name.  This lists SONs whether they are currently voted in or not.
+       *
+       * Use the \c lowerbound and limit parameters to page through the list.  To retrieve all SONs,
+       * start by setting \c lowerbound to the empty string \c "", and then each iteration, pass
+       * the last SON name returned as the \c lowerbound for the next \c list_sons() call.
+       *
+       * @param lowerbound the name of the first SON to return.  If the named SON does not exist,
+       *                   the list will start at the SON that comes after \c lowerbound
+       * @param limit the maximum number of SON to return (max: 1000)
+       * @returns a list of SON mapping SON names to SON ids
+       */
+      map<string, son_id_type> list_sons(const string& lowerbound, uint32_t limit);
 
       /** Creates a witness object owned by the given account.
        *
@@ -1401,6 +1465,61 @@ class wallet_api
                                            string committee_member,
                                            bool approve,
                                            bool broadcast = false);
+
+      /** Vote for a given SON.
+       *
+       * An account can publish a list of all SONs they approve of.  This
+       * command allows you to add or remove SONs from this list.
+       * Each account's vote is weighted according to the number of shares of the
+       * core asset owned by that account at the time the votes are tallied.
+       *
+       * @note you cannot vote against a SON, you can only vote for the SON
+       *       or not vote for the SON.
+       *
+       * @param voting_account the name or id of the account who is voting with their shares
+       * @param son the name or id of the SONs' owner account
+       * @param approve true if you wish to vote in favor of that SON, false to
+       *                remove your vote in favor of that SON
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed transaction changing your vote for the given SON
+       */
+      signed_transaction vote_for_son(string voting_account,
+                                             string son,
+                                             bool approve,
+                                             bool broadcast = false);
+
+      /** Change your SON votes.
+       *
+       * An account can publish a list of all SONs they approve of.
+       * Each account's vote is weighted according to the number of shares of the
+       * core asset owned by that account at the time the votes are tallied.
+       * This command allows you to add or remove one or more SON from this list
+       * in one call.  When you are changing your vote on several SONs, this
+       * may be easier than multiple `vote_for_sons` and
+       * `set_desired_witness_and_committee_member_count` calls.
+       *
+       * @note you cannot vote against a SON, you can only vote for the SON
+       *       or not vote for the SON.
+       *
+       * @param voting_account the name or id of the account who is voting with their shares
+       * @param sons_to_approve the names or ids of the sons owner accounts you wish
+       *                             to approve (these will be added to the list of sons
+       *                             you currently approve).  This list can be empty.
+       * @param sons_to_reject the names or ids of the SONs owner accounts you wish
+       *                            to reject (these will be removed from the list of SONs
+       *                            you currently approve).  This list can be empty.
+       * @param desired_number_of_sons the number of SONs you believe the network
+       *                                    should have.  You must vote for at least this many
+       *                                    SONs.  You can set this to 0 to abstain from
+       *                                    voting on the number of SONNs.
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed transaction changing your vote for the given witnesses
+       */
+      signed_transaction update_son_votes(string voting_account,
+                                              std::vector<std::string> sons_to_approve,
+                                              std::vector<std::string> sons_to_reject,
+                                              uint16_t desired_number_of_son,
+                                              bool broadcast = false);
 
       /** Vote for a given witness.
        *
@@ -1863,7 +1982,7 @@ FC_REFLECT( graphene::wallet::wallet_data,
             (my_accounts)
             (cipher_keys)
             (extra_keys)
-            (pending_account_registrations)(pending_witness_registrations)
+            (pending_account_registrations)(pending_witness_registrations)(pending_son_registrations)
             (labeled_keys)
             (blind_receipts)
             (committed_game_moves)
@@ -1969,10 +2088,15 @@ FC_API( graphene::wallet::wallet_api,
         (settle_asset)
         (whitelist_account)
         (create_committee_member)
+        (get_son)
         (get_witness)
         (get_committee_member)
         (list_witnesses)
         (list_committee_members)
+        (create_son)
+        (update_son)
+        (delete_son)
+        (list_sons)
         (create_witness)
         (update_witness)
         (create_worker)
@@ -1980,6 +2104,8 @@ FC_API( graphene::wallet::wallet_api,
         (get_vesting_balances)
         (withdraw_vesting)
         (vote_for_committee_member)
+        (vote_for_son)
+        (update_son_votes)
         (vote_for_witness)
         (update_witness_votes)
         (set_voting_proxy)

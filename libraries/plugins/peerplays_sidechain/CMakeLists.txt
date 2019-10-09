@@ -1,4 +1,4 @@
-file(GLOB HEADERS "include/graphene/peerplays_sidechain_history/*.hpp")
+file(GLOB HEADERS "include/graphene/peerplays_sidechain/*.hpp")
 
 add_library( peerplays_sidechain
              peerplays_sidechain_plugin.cpp

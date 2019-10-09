@@ -49,13 +49,12 @@
 #include <graphene/chain/tournament_object.hpp>
 #include <graphene/chain/match_object.hpp>
 #include <graphene/chain/game_object.hpp>
-
-
 #include <graphene/chain/sport_object.hpp>
 #include <graphene/chain/event_group_object.hpp>
 #include <graphene/chain/event_object.hpp>
 #include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/global_betting_statistics_object.hpp>
+#include <graphene/chain/son_object.hpp>
 
 #include <graphene/chain/account_evaluator.hpp>
 #include <graphene/chain/asset_evaluator.hpp>
@@ -77,6 +76,7 @@
 #include <graphene/chain/event_evaluator.hpp>
 #include <graphene/chain/betting_market_evaluator.hpp>
 #include <graphene/chain/tournament_evaluator.hpp>
+#include <graphene/chain/son_evaluator.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
@@ -243,6 +243,9 @@ void database::initialize_evaluators()
    register_evaluator<lottery_reward_evaluator>();
    register_evaluator<lottery_end_evaluator>();
    register_evaluator<sweeps_vesting_claim_evaluator>();
+   register_evaluator<create_son_evaluator>();
+   register_evaluator<update_son_evaluator>();
+   register_evaluator<delete_son_evaluator>();
 }
 
 void database::initialize_indexes()
@@ -259,6 +262,7 @@ void database::initialize_indexes()
    acnt_index->add_secondary_index<account_referrer_index>();
 
    add_index< primary_index<committee_member_index, 8> >(); // 256 members per chunk
+   add_index< primary_index<son_index, 8> >(); // 256 sons per chunk
    add_index< primary_index<witness_index, 10> >(); // 1024 witnesses per chunk
    add_index< primary_index<limit_order_index > >();
    add_index< primary_index<call_order_index > >();

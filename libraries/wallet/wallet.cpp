@@ -293,6 +293,23 @@ private:
       _wallet.pending_account_registrations.erase( it );
    }
 
+   // after a son registration succeeds, this saves the private key in the wallet permanently
+   //
+   void claim_registered_son(const std::string& son_name)
+   {
+      auto iter = _wallet.pending_son_registrations.find(son_name);
+      FC_ASSERT(iter != _wallet.pending_son_registrations.end());
+      std::string wif_key = iter->second;
+
+      // get the list key id this key is registered with in the chain
+      fc::optional<fc::ecc::private_key> son_private_key = wif_to_key(wif_key);
+      FC_ASSERT(son_private_key);
+
+      auto pub_key = son_private_key->get_public_key();
+      _keys[pub_key] = wif_key;
+      _wallet.pending_son_registrations.erase(iter);
+   }
+
    // after a witness registration succeeds, this saves the private key in the wallet permanently
    //
    void claim_registered_witness(const std::string& witness_name)
@@ -352,6 +369,24 @@ private:
                fc::optional<witness_object> witness_obj = _remote_db->get_witness_by_account(optional_account->id);
                if (witness_obj)
                   claim_registered_witness(optional_account->name);
+            }
+      }
+
+      if (!_wallet.pending_son_registrations.empty())
+      {
+         // make a vector of the owner accounts for sons pending registration
+         std::vector<string> pending_son_names = boost::copy_range<std::vector<string> >(boost::adaptors::keys(_wallet.pending_son_registrations));
+
+         // look up the owners on the blockchain
+         std::vector<fc::optional<graphene::chain::account_object>> owner_account_objects = _remote_db->lookup_account_names(pending_son_names);
+
+         // if any of them have registered sons, claim them
+         for( const fc::optional<graphene::chain::account_object>& optional_account : owner_account_objects )
+            if (optional_account)
+            {
+               fc::optional<son_object> son_obj = _remote_db->get_son_by_account(optional_account->id);
+               if (son_obj)
+                  claim_registered_son(optional_account->name);
             }
       }
    }
@@ -666,6 +701,7 @@ public:
       result["participation"] = (100*dynamic_props.recent_slots_filled.popcount()) / 128.0;
       result["active_witnesses"] = fc::variant(global_props.active_witnesses, GRAPHENE_MAX_NESTED_OBJECTS);
       result["active_committee_members"] = fc::variant(global_props.active_committee_members, GRAPHENE_MAX_NESTED_OBJECTS);
+      result["active_sons"] = fc::variant(global_props.active_sons, GRAPHENE_MAX_NESTED_OBJECTS);
       result["entropy"] = fc::variant(dynamic_props.random, GRAPHENE_MAX_NESTED_OBJECTS);
       return result;
    }
@@ -1752,6 +1788,41 @@ public:
       FC_CAPTURE_AND_RETHROW( (owner_account) )
    }
 
+   son_object get_son(string owner_account)
+   {
+      try
+      {
+         fc::optional<son_id_type> son_id = maybe_id<son_id_type>(owner_account);
+         if (son_id)
+         {
+            std::vector<son_id_type> ids_to_get;
+            ids_to_get.push_back(*son_id);
+            std::vector<fc::optional<son_object>> son_objects = _remote_db->get_sons(ids_to_get);
+            if (son_objects.front())
+               return *son_objects.front();
+            FC_THROW("No SON is registered for id ${id}", ("id", owner_account));
+         }
+         else
+         {
+            // then maybe it's the owner account
+            try
+            {
+               account_id_type owner_account_id = get_account_id(owner_account);
+               fc::optional<son_object> son = _remote_db->get_son_by_account(owner_account_id);
+               if (son)
+                  return *son;
+               else
+                  FC_THROW("No SON is registered for account ${account}", ("account", owner_account));
+            }
+            catch (const fc::exception&)
+            {
+               FC_THROW("No account or SON named ${account}", ("account", owner_account));
+            }
+         }
+      }
+      FC_CAPTURE_AND_RETHROW( (owner_account) )
+   }
+
    committee_member_object get_committee_member(string owner_account)
    {
       try
@@ -1786,6 +1857,82 @@ public:
       }
       FC_CAPTURE_AND_RETHROW( (owner_account) )
    }
+
+   signed_transaction create_son(string owner_account,
+                                 string url,
+                                 bool broadcast /* = false */)
+   { try {
+      account_object son_account = get_account(owner_account);
+      fc::ecc::private_key active_private_key = get_private_key_for_account(son_account);
+      int son_key_index = find_first_unused_derived_key_index(active_private_key);
+      fc::ecc::private_key son_private_key = derive_private_key(key_to_wif(active_private_key), son_key_index);
+      graphene::chain::public_key_type son_public_key = son_private_key.get_public_key();
+
+      son_create_operation son_create_op;
+      son_create_op.owner_account = son_account.id;
+      son_create_op.signing_key = son_public_key;
+      son_create_op.url = url;
+      secret_hash_type::encoder enc;
+      fc::raw::pack(enc, son_private_key);
+      fc::raw::pack(enc, secret_hash_type());
+
+      if (_remote_db->get_son_by_account(son_create_op.owner_account))
+         FC_THROW("Account ${owner_account} is already a SON", ("owner_account", owner_account));
+
+      signed_transaction tx;
+      tx.operations.push_back( son_create_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
+      tx.validate();
+
+      _wallet.pending_son_registrations[owner_account] = key_to_wif(son_private_key);
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (owner_account)(broadcast) ) }
+
+   signed_transaction update_son(string owner_account,
+                                 string url,
+                                 string block_signing_key,
+                                 bool broadcast /* = false */)
+   { try {
+      son_object son = get_son(owner_account);
+      account_object son_account = get_account( son.son_account );
+      fc::ecc::private_key active_private_key = get_private_key_for_account(son_account);
+
+      son_update_operation son_update_op;
+      son_update_op.son_id = son.id;
+      son_update_op.owner_account = son_account.id;
+      if( url != "" )
+         son_update_op.new_url = url;
+      if( block_signing_key != "" ) {
+         son_update_op.new_signing_key = public_key_type( block_signing_key );
+      }
+
+      signed_transaction tx;
+      tx.operations.push_back( son_update_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (owner_account)(url)(block_signing_key)(broadcast) ) }
+
+   signed_transaction delete_son(string owner_account,
+                                 bool broadcast /* = false */)
+   { try {
+      son_object son = get_son(owner_account);
+      account_object son_account = get_account( son.son_account );
+      fc::ecc::private_key active_private_key = get_private_key_for_account(son_account);
+
+      son_delete_operation son_delete_op;
+      son_delete_op.son_id = son.id;
+      son_delete_op.owner_account = son_account.id;
+
+      signed_transaction tx;
+      tx.operations.push_back( son_delete_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (owner_account)(broadcast) ) }
 
    signed_transaction create_witness(string owner_account,
                                      string url,
@@ -2054,6 +2201,81 @@ public:
 
       return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (voting_account)(committee_member)(approve)(broadcast) ) }
+
+   signed_transaction vote_for_son(string voting_account,
+                                        string son,
+                                        bool approve,
+                                        bool broadcast /* = false */)
+   { try {
+      account_object voting_account_object = get_account(voting_account);
+      account_id_type son_account_id = get_account_id(son);
+      fc::optional<son_object> son_obj = _remote_db->get_son_by_account(son_account_id);
+      if (!son_obj)
+         FC_THROW("Account ${son} is not registered as a son", ("son", son));
+      if (approve)
+      {
+         auto insert_result = voting_account_object.options.votes.insert(son_obj->vote_id);
+         if (!insert_result.second)
+            FC_THROW("Account ${account} was already voting for son ${son}", ("account", voting_account)("son", son));
+      }
+      else
+      {
+         unsigned votes_removed = voting_account_object.options.votes.erase(son_obj->vote_id);
+         if (!votes_removed)
+            FC_THROW("Account ${account} is already not voting for son ${son}", ("account", voting_account)("son", son));
+      }
+      account_update_operation account_update_op;
+      account_update_op.account = voting_account_object.id;
+      account_update_op.new_options = voting_account_object.options;
+
+      signed_transaction tx;
+      tx.operations.push_back( account_update_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (voting_account)(son)(approve)(broadcast) ) }
+
+   signed_transaction update_son_votes(string voting_account,
+                                           std::vector<std::string> sons_to_approve,
+                                           std::vector<std::string> sons_to_reject,
+                                           uint16_t desired_number_of_sons,
+                                           bool broadcast /* = false */)
+   { try {
+      account_object voting_account_object = get_account(voting_account);
+      for (const std::string& son : sons_to_approve)
+      {
+         account_id_type son_owner_account_id = get_account_id(son);
+         fc::optional<son_object> son_obj = _remote_db->get_son_by_account(son_owner_account_id);
+         if (!son_obj)
+            FC_THROW("Account ${son} is not registered as a witness", ("son", son));
+         auto insert_result = voting_account_object.options.votes.insert(son_obj->vote_id);
+         if (!insert_result.second)
+            FC_THROW("Account ${account} was already voting for son ${son}", ("account", voting_account)("son", son));
+      }
+      for (const std::string& son : sons_to_reject)
+      {
+         account_id_type son_owner_account_id = get_account_id(son);
+         fc::optional<son_object> son_obj = _remote_db->get_son_by_account(son_owner_account_id);
+         if (!son_obj)
+            FC_THROW("Account ${son} is not registered as a son", ("son", son));
+         unsigned votes_removed = voting_account_object.options.votes.erase(son_obj->vote_id);
+         if (!votes_removed)
+            FC_THROW("Account ${account} is already not voting for son ${son}", ("account", voting_account)("son", son));
+      }
+      voting_account_object.options.num_son = desired_number_of_sons;
+
+      account_update_operation account_update_op;
+      account_update_op.account = voting_account_object.id;
+      account_update_op.new_options = voting_account_object.options;
+
+      signed_transaction tx;
+      tx.operations.push_back( account_update_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (voting_account)(sons_to_approve)(sons_to_reject)(desired_number_of_sons)(broadcast) ) }
 
    signed_transaction vote_for_witness(string voting_account,
                                        string witness,
@@ -4004,6 +4226,11 @@ map<string,committee_member_id_type> wallet_api::list_committee_members(const st
    return my->_remote_db->lookup_committee_member_accounts(lowerbound, limit);
 }
 
+son_object wallet_api::get_son(string owner_account)
+{
+   return my->get_son(owner_account);
+}
+
 witness_object wallet_api::get_witness(string owner_account)
 {
    return my->get_witness(owner_account);
@@ -4012,6 +4239,32 @@ witness_object wallet_api::get_witness(string owner_account)
 committee_member_object wallet_api::get_committee_member(string owner_account)
 {
    return my->get_committee_member(owner_account);
+}
+
+signed_transaction wallet_api::create_son(string owner_account,
+                                          string url,
+                                          bool broadcast /* = false */)
+{
+   return my->create_son(owner_account, url, broadcast);
+}
+
+signed_transaction wallet_api::update_son(string owner_account,
+                                          string url,
+                                          string block_signing_key,
+                                          bool broadcast /* = false */)
+{
+   return my->update_son(owner_account, url, block_signing_key, broadcast);
+}
+
+signed_transaction wallet_api::delete_son(string owner_account,
+                                          bool broadcast /* = false */)
+{
+   my->delete_son(owner_account, broadcast);
+}
+
+map<string, son_id_type> wallet_api::list_sons(const string& lowerbound, uint32_t limit)
+{
+   my->_remote_db->lookup_son_accounts(lowerbound, limit);
 }
 
 signed_transaction wallet_api::create_witness(string owner_account,
@@ -4072,6 +4325,23 @@ signed_transaction wallet_api::vote_for_committee_member(string voting_account,
                                                  bool broadcast /* = false */)
 {
    return my->vote_for_committee_member(voting_account, witness, approve, broadcast);
+}
+
+signed_transaction wallet_api::vote_for_son(string voting_account,
+                                                   string son,
+                                                   bool approve,
+                                                   bool broadcast /* = false */)
+{
+   return my->vote_for_son(voting_account, son, approve, broadcast);
+}
+
+signed_transaction wallet_api::update_son_votes(string voting_account,
+                                                    std::vector<std::string> sons_to_approve,
+                                                    std::vector<std::string> sons_to_reject,
+                                                    uint16_t desired_number_of_sons,
+                                                    bool broadcast /* = false */)
+{
+   return my->update_son_votes(voting_account, sons_to_approve, sons_to_reject, desired_number_of_sons, broadcast);
 }
 
 signed_transaction wallet_api::vote_for_witness(string voting_account,

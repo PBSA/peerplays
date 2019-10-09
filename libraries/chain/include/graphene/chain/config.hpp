@@ -90,8 +90,10 @@
 
 #define GRAPHENE_DEFAULT_MIN_WITNESS_COUNT                    (11)
 #define GRAPHENE_DEFAULT_MIN_COMMITTEE_MEMBER_COUNT           (11)
+#define GRAPHENE_DEFAULT_MIN_SON_COUNT                        (5)
 #define GRAPHENE_DEFAULT_MAX_WITNESSES                        (1001) // SHOULD BE ODD
 #define GRAPHENE_DEFAULT_MAX_COMMITTEE                        (1001) // SHOULD BE ODD
+#define GRAPHENE_DEFAULT_MAX_SONS                             (15)
 #define GRAPHENE_DEFAULT_MAX_PROPOSAL_LIFETIME_SEC            (60*60*24*7*4) // Four weeks
 #define GRAPHENE_DEFAULT_COMMITTEE_PROPOSAL_REVIEW_PERIOD_SEC (60*60*24*7*2) // Two weeks
 #define GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE               (20*GRAPHENE_1_PERCENT)
@@ -173,6 +175,8 @@
 #define GRAPHENE_PROXY_TO_SELF_ACCOUNT (graphene::chain::account_id_type(5))
 ///
 #define GRAPHENE_RAKE_FEE_ACCOUNT_ID (graphene::chain::account_id_type(6))
+///
+#define GRAPHENE_SON_ACCOUNT_ID (graphene::chain::account_id_type(7))
 /// Sentinel value used in the scheduler.
 #define GRAPHENE_NULL_WITNESS (graphene::chain::witness_id_type(0))
 ///@}
@@ -227,8 +231,6 @@
 #define TOURNAMENT_MAX_WHITELIST_LENGTH                     1000
 #define TOURNAMENT_MAX_START_TIME_IN_FUTURE                 (60*60*24*7*4) // 1 month
 #define TOURNAMENT_MAX_START_DELAY                          (60*60*24*7) // 1 week
-#define GPOS_PERIOD                                         (60*60*24*30*6) // 6 months
-#define GPOS_SUBPERIOD                                      (60*60*24*30) // 1 month
 #define MIN_SON_MEMBER_COUNT                                15
 
 #define SWEEPS_DEFAULT_DISTRIBUTION_PERCENTAGE              (2*GRAPHENE_1_PERCENT)

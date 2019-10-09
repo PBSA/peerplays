@@ -135,6 +135,18 @@ struct proposal_operation_hardfork_visitor
        FC_ASSERT( block_time >= HARDFORK_1000_TIME, "event_update_status_operation not allowed yet!" );
    }
 
+   void operator()(const son_create_operation &v) const {
+      FC_ASSERT( block_time >= HARDFORK_SON_TIME, "son_create_operation not allowed yet!" );
+   }
+
+   void operator()(const son_update_operation &v) const {
+      FC_ASSERT( block_time >= HARDFORK_SON_TIME, "son_update_operation not allowed yet!" );
+   }
+
+   void operator()(const son_delete_operation &v) const {
+      FC_ASSERT( block_time >= HARDFORK_SON_TIME, "son_delete_operation not allowed yet!" );
+   }
+
    // loop and self visit in proposals
    void operator()(const proposal_create_operation &v) const {
       for (const op_wrapper &op : v.proposed_ops)

@@ -285,6 +285,15 @@ struct get_impacted_account_visitor
    void operator()( const sweeps_vesting_claim_operation& op ) {
       _impacted.insert( op.account );
    }
+   void operator()( const son_create_operation& op ) {
+      _impacted.insert( op.owner_account );
+   }
+   void operator()( const son_update_operation& op ) {
+       _impacted.insert( op.owner_account );
+   }
+   void operator()( const son_delete_operation& op ) {
+      _impacted.insert( op.owner_account );
+   }
 };
 
 void operation_get_impacted_accounts( const operation& op, flat_set<account_id_type>& result )
@@ -372,6 +381,11 @@ void get_relevant_accounts( const object* obj, flat_set<account_id_type>& accoun
            break;
         } case balance_object_type:{
            /** these are free from any accounts */
+           break;
+        } case son_object_type:{
+           const auto& aobj = dynamic_cast<const son_object*>(obj);
+           assert( aobj != nullptr );
+           accounts.insert( aobj->son_account );
            break;
         }
       }

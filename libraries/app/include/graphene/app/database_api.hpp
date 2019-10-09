@@ -43,6 +43,7 @@
 #include <graphene/chain/event_object.hpp>
 #include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/global_betting_statistics_object.hpp>
+#include <graphene/chain/son_object.hpp>
 
 #include <graphene/chain/worker_object.hpp>
 #include <graphene/chain/witness_object.hpp>
@@ -568,6 +569,38 @@ class database_api
        */
       map<string, committee_member_id_type> lookup_committee_member_accounts(const string& lower_bound_name, uint32_t limit)const;
 
+      /////////////////
+      // SON members //
+      /////////////////
+
+      /**
+       * @brief Get a list of SONs by ID
+       * @param son_ids IDs of the SONs to retrieve
+       * @return The SONs corresponding to the provided IDs
+       *
+       * This function has semantics identical to @ref get_objects
+       */
+      vector<optional<son_object>> get_sons(const vector<son_id_type>& son_ids)const;
+
+      /**
+       * @brief Get the SON owned by a given account
+       * @param account The ID of the account whose SON should be retrieved
+       * @return The SON object, or null if the account does not have a SON
+       */
+      fc::optional<son_object> get_son_by_account(account_id_type account)const;
+
+      /**
+       * @brief Get names and IDs for registered SONs
+       * @param lower_bound_name Lower bound of the first name to return
+       * @param limit Maximum number of results to return -- must not exceed 1000
+       * @return Map of SON names to corresponding IDs
+       */
+      map<string, son_id_type> lookup_son_accounts(const string& lower_bound_name, uint32_t limit)const;
+
+      /**
+       * @brief Get the total number of SONs registered with the blockchain
+       */
+      uint64_t get_son_count()const;
 
       /// WORKERS
 
@@ -774,6 +807,12 @@ FC_API(graphene::app::database_api,
    (get_committee_members)
    (get_committee_member_by_account)
    (lookup_committee_member_accounts)
+
+   // SON members
+   (get_sons)
+   (get_son_by_account)
+   (lookup_son_accounts)
+   (get_son_count)
 
    // workers
    (get_workers_by_account)

@@ -113,6 +113,8 @@ add_library( graphene_chain
 
              affiliate_payout.cpp
 
+             son_evaluator.cpp
+
              ${HEADERS}
              ${PROTOCOL_HEADERS}
              "${CMAKE_CURRENT_BINARY_DIR}/include/graphene/chain/hardfork.hpp"

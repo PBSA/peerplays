@@ -253,7 +253,7 @@ void database::update_active_witnesses()
 void database::update_active_committee_members()
 { try {
    assert( _committee_count_histogram_buffer.size() > 0 );
-   share_type stake_target = (_total_voting_stake-_witness_count_histogram_buffer[0]) / 2;
+   share_type stake_target = (_total_voting_stake-_committee_count_histogram_buffer[0]) / 2;
 
    /// accounts that vote for 0 or 1 witness do not get to express an opinion on
    /// the number of witnesses to have (they abstain and are non-voting accounts)
@@ -324,6 +324,96 @@ void database::update_active_committee_members()
                      std::inserter(gp.active_committee_members, gp.active_committee_members.begin()),
                      [](const committee_member_object& d) { return d.id; });
    });
+} FC_CAPTURE_AND_RETHROW() }
+
+void database::update_active_sons()
+{ try {
+   assert( _son_count_histogram_buffer.size() > 0 );
+   share_type stake_target = (_total_voting_stake-_son_count_histogram_buffer[0]) / 2;
+
+   /// accounts that vote for 0 or 1 son do not get to express an opinion on
+   /// the number of sons to have (they abstain and are non-voting accounts)
+
+   share_type stake_tally = 0;
+
+   size_t son_count = 0;
+   if( stake_target > 0 )
+   {
+      while( (son_count < _son_count_histogram_buffer.size() - 1)
+             && (stake_tally <= stake_target) )
+      {
+         stake_tally += _son_count_histogram_buffer[++son_count];
+      }
+   }
+
+   const chain_property_object& cpo = get_chain_properties();
+   auto sons = sort_votable_objects<son_index>(std::max(son_count*2+1, (size_t)cpo.immutable_parameters.min_son_count));
+
+   const global_property_object& gpo = get_global_properties();
+
+   const auto& all_sons = get_index_type<son_index>().indices();
+
+   for( const son_object& son : all_sons )
+   {
+      modify( son, [&]( son_object& obj ){
+              obj.total_votes = _vote_tally_buffer[son.vote_id];
+              });
+   }
+
+   // Update SON authority
+   modify( get(GRAPHENE_SON_ACCOUNT_ID), [&]( account_object& a )
+   {
+      if( head_block_time() < HARDFORK_533_TIME )
+      {
+         uint64_t total_votes = 0;
+         map<account_id_type, uint64_t> weights;
+         a.active.weight_threshold = 0;
+         a.active.clear();
+
+         for( const son_object& son : sons )
+         {
+            weights.emplace(son.son_account, _vote_tally_buffer[son.vote_id]);
+            total_votes += _vote_tally_buffer[son.vote_id];
+         }
+
+         // total_votes is 64 bits. Subtract the number of leading low bits from 64 to get the number of useful bits,
+         // then I want to keep the most significant 16 bits of what's left.
+         int8_t bits_to_drop = std::max(int(boost::multiprecision::detail::find_msb(total_votes)) - 15, 0);
+         for( const auto& weight : weights )
+         {
+            // Ensure that everyone has at least one vote. Zero weights aren't allowed.
+            uint16_t votes = std::max((weight.second >> bits_to_drop), uint64_t(1) );
+            a.active.account_auths[weight.first] += votes;
+            a.active.weight_threshold += votes;
+         }
+
+         a.active.weight_threshold /= 2;
+         a.active.weight_threshold += 1;
+      }
+      else
+      {
+         vote_counter vc;
+         for( const son_object& son : sons )
+            vc.add( son.son_account, std::max(_vote_tally_buffer[son.vote_id], UINT64_C(1)) );
+         vc.finish( a.active );
+      }
+   } );
+
+   modify(gpo, [&]( global_property_object& gp ){
+      gp.active_sons.clear();
+      gp.active_sons.reserve(sons.size());
+      std::transform(sons.begin(), sons.end(),
+                     std::inserter(gp.active_sons, gp.active_sons.end()),
+                     [](const son_object& s) {
+         return s.id;
+      });
+   });
+
+   //const witness_schedule_object& wso = witness_schedule_id_type()(*this);
+   //modify(wso, [&](witness_schedule_object& _wso)
+   //{
+   //   _wso.scheduler.update(gpo.active_witnesses);
+   //});
 } FC_CAPTURE_AND_RETHROW() }
 
 void database::initialize_budget_record( fc::time_point_sec now, budget_record& rec )const
@@ -1239,6 +1329,7 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
          d._vote_tally_buffer.resize(props.next_available_vote_id);
          d._witness_count_histogram_buffer.resize(props.parameters.maximum_witness_count / 2 + 1);
          d._committee_count_histogram_buffer.resize(props.parameters.maximum_committee_count / 2 + 1);
+         d._son_count_histogram_buffer.resize(props.parameters.maximum_son_count / 2 + 1);
          d._total_voting_stake = 0;
 
          const vesting_balance_index& vesting_index = d.get_index_type<vesting_balance_index>();
@@ -1323,6 +1414,18 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
                // same rationale as for witnesses
                d._committee_count_histogram_buffer[offset] += voting_stake;
             }
+            if( opinion_account.options.num_son <= props.parameters.maximum_son_count )
+            {
+               uint16_t offset = std::min(size_t(opinion_account.options.num_son/2),
+                                          d._son_count_histogram_buffer.size() - 1);
+               // votes for a number greater than maximum_son_count
+               // are turned into votes for maximum_son_count.
+               //
+               // in particular, this takes care of the case where a
+               // member was voting for a high number, then the
+               // parameter was lowered.
+               d._son_count_histogram_buffer[offset] += voting_stake;
+            }
 
             d._total_voting_stake += voting_stake;
          }
@@ -1353,11 +1456,13 @@ void database::perform_chain_maintenance(const signed_block& next_block, const g
    };
    clear_canary a(_witness_count_histogram_buffer),
                 b(_committee_count_histogram_buffer),
+                d(_son_count_histogram_buffer),
                 c(_vote_tally_buffer);
 
    update_top_n_authorities(*this);
    update_active_witnesses();
    update_active_committee_members();
+   update_active_sons();
    update_worker_votes();
 
    modify(gpo, [this](global_property_object& p) {

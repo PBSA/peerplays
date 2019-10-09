@@ -146,6 +146,12 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       fc::optional<committee_member_object> get_committee_member_by_account(account_id_type account)const;
       map<string, committee_member_id_type> lookup_committee_member_accounts(const string& lower_bound_name, uint32_t limit)const;
 
+      // SON members
+      vector<optional<son_object>> get_sons(const vector<son_id_type>& son_ids)const;
+      fc::optional<son_object> get_son_by_account(account_id_type account)const;
+      map<string, son_id_type> lookup_son_accounts(const string& lower_bound_name, uint32_t limit)const;
+      uint64_t get_son_count()const;
+
       // Votes
       vector<variant> lookup_vote_ids( const vector<vote_id_type>& votes )const;
 
@@ -1684,6 +1690,81 @@ map<string, committee_member_id_type> database_api_impl::lookup_committee_member
 
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
+// SON members                                                      //
+//                                                                  //
+//////////////////////////////////////////////////////////////////////
+
+vector<optional<son_object>> database_api::get_sons(const vector<son_id_type>& son_ids)const
+{
+   return my->get_sons( son_ids );
+}
+
+vector<optional<son_object>> database_api_impl::get_sons(const vector<son_id_type>& son_ids)const
+{
+   vector<optional<son_object>> result; result.reserve(son_ids.size());
+   std::transform(son_ids.begin(), son_ids.end(), std::back_inserter(result),
+                  [this](son_id_type id) -> optional<son_object> {
+      if(auto o = _db.find(id))
+         return *o;
+      return {};
+   });
+   return result;
+}
+
+fc::optional<son_object> database_api::get_son_by_account(account_id_type account)const
+{
+   return my->get_son_by_account( account );
+}
+
+fc::optional<son_object> database_api_impl::get_son_by_account(account_id_type account) const
+{
+   const auto& idx = _db.get_index_type<son_index>().indices().get<by_account>();
+   auto itr = idx.find(account);
+   if( itr != idx.end() )
+      return *itr;
+   return {};
+}
+
+map<string, son_id_type> database_api::lookup_son_accounts(const string& lower_bound_name, uint32_t limit)const
+{
+   return my->lookup_son_accounts( lower_bound_name, limit );
+}
+
+map<string, son_id_type> database_api_impl::lookup_son_accounts(const string& lower_bound_name, uint32_t limit)const
+{
+   FC_ASSERT( limit <= 1000 );
+   const auto& sons_by_id = _db.get_index_type<son_index>().indices().get<by_id>();
+
+   // we want to order sons by account name, but that name is in the account object
+   // so the son_index doesn't have a quick way to access it.
+   // get all the names and look them all up, sort them, then figure out what
+   // records to return.  This could be optimized, but we expect the
+   // number of witnesses to be few and the frequency of calls to be rare
+   std::map<std::string, son_id_type> sons_by_account_name;
+   for (const son_object& son : sons_by_id)
+       if (auto account_iter = _db.find(son.son_account))
+           if (account_iter->name >= lower_bound_name) // we can ignore anything below lower_bound_name
+               sons_by_account_name.insert(std::make_pair(account_iter->name, son.id));
+
+   auto end_iter = sons_by_account_name.begin();
+   while (end_iter != sons_by_account_name.end() && limit--)
+       ++end_iter;
+   sons_by_account_name.erase(end_iter, sons_by_account_name.end());
+   return sons_by_account_name;
+}
+
+uint64_t database_api::get_son_count()const
+{
+   return my->get_son_count();
+}
+
+uint64_t database_api_impl::get_son_count()const
+{
+   return _db.get_index_type<son_index>().indices().size();
+}
+
+//////////////////////////////////////////////////////////////////////
+//                                                                  //
 // Votes                                                            //
 //                                                                  //
 //////////////////////////////////////////////////////////////////////
@@ -1701,6 +1782,7 @@ vector<variant> database_api_impl::lookup_vote_ids( const vector<vote_id_type>& 
    const auto& committee_idx = _db.get_index_type<committee_member_index>().indices().get<by_vote_id>();
    const auto& for_worker_idx = _db.get_index_type<worker_index>().indices().get<by_vote_for>();
    const auto& against_worker_idx = _db.get_index_type<worker_index>().indices().get<by_vote_against>();
+   const auto& son_idx = _db.get_index_type<son_index>().indices().get<by_vote_id>();
 
    vector<variant> result;
    result.reserve( votes.size() );
@@ -1743,6 +1825,16 @@ vector<variant> database_api_impl::lookup_vote_ids( const vector<vote_id_type>& 
             }
             break;
          }
+         case vote_id_type::son:
+         {
+            auto itr = son_idx.find( id );
+            if( itr != son_idx.end() )
+               result.emplace_back( variant( *itr, 1 ) );
+            else
+               result.emplace_back( variant() );
+            break;
+         }
+
          case vote_id_type::VOTE_TYPE_COUNT: break; // supress unused enum value warnings
          default:
             FC_CAPTURE_AND_THROW( fc::out_of_range_exception, (id) );
