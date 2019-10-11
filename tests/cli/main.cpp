@@ -593,3 +593,53 @@ BOOST_FIXTURE_TEST_CASE( account_history_pagination, cli_fixture )
       throw;
    }
 }
+
+BOOST_FIXTURE_TEST_CASE( cli_get_son, cli_fixture )
+{
+   try
+   {
+      BOOST_TEST_MESSAGE("Cli get_son Test");
+
+      INVOKE(upgrade_nathan_account); // just to fund nathan
+
+      // create a new account
+      graphene::wallet::brain_key_info bki = con.wallet_api_ptr->suggest_brain_key();
+      BOOST_CHECK(!bki.brain_priv_key.empty());
+      signed_transaction create_acct_tx = con.wallet_api_ptr->create_account_with_brain_key(
+            bki.brain_priv_key, "sonmember", "nathan", "nathan", true
+      );
+      // save the private key for this new account in the wallet file
+      BOOST_CHECK(con.wallet_api_ptr->import_key("sonmember", bki.wif_priv_key));
+      con.wallet_api_ptr->save_wallet_file(con.wallet_filename);
+
+      // attempt to give sonmember some CORE
+      BOOST_TEST_MESSAGE("Transferring CORE from Nathan to sonmember");
+      signed_transaction transfer_tx = con.wallet_api_ptr->transfer(
+            "nathan", "sonmember", "100000", "1.3.0", "Here are some CORE token for your new account", true
+      );
+
+      BOOST_CHECK(generate_block(app1));
+
+      // upgrade sonmember account
+      con.wallet_api_ptr->upgrade_account("sonmember", true);
+      auto sonmember_acct = con.wallet_api_ptr->get_account("sonmember");
+      BOOST_CHECK(sonmember_acct.is_lifetime_member());
+
+      // create son
+      con.wallet_api_ptr->create_son("sonmember", "http://sonmember", true);
+
+      // get_son
+      auto son_data = con.wallet_api_ptr->get_son("sonmember");
+      BOOST_CHECK(son_data.url == "http://sonmember");
+      BOOST_CHECK(son_data.son_account == sonmember_acct.get_id());
+
+      // update SON
+      con.wallet_api_ptr->update_son("sonmember", "http://sonmember_updated", "", true);
+      son_data = con.wallet_api_ptr->get_son("sonmember");
+      BOOST_CHECK(son_data.url == "http://sonmember_updated");
+
+   } catch( fc::exception& e ) {
+      edump((e.to_detail_string()));
+      throw;
+   }
+}
