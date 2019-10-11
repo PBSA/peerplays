@@ -25,9 +25,9 @@ test:
   dependencies:
     - build
   script:
-    - ./tests/betting_test
-    - ./tests/chain_test
-    - ./tests/cli_test
+    - ./tests/betting_test --log_level=message
+    - ./tests/chain_test --log_level=message
+    - ./tests/cli_test --log_level=message
   tags:
     - builder
 

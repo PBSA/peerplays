@@ -447,6 +447,115 @@ BOOST_FIXTURE_TEST_CASE( cli_vote_for_2_witnesses, cli_fixture )
 }
 
 ///////////////////////
+// SON CLI
+///////////////////////
+BOOST_FIXTURE_TEST_CASE( create_son, cli_fixture )
+{
+   BOOST_TEST_MESSAGE("SON cli wallet tests begin");
+   try
+   {
+      INVOKE(upgrade_nathan_account);
+
+      graphene::wallet::brain_key_info bki;
+      signed_transaction create_tx;
+      signed_transaction transfer_tx;
+      signed_transaction upgrade_tx;
+      account_object son1_before_upgrade, son1_after_upgrade;
+      account_object son2_before_upgrade, son2_after_upgrade;
+
+      // create son1account
+      bki = con.wallet_api_ptr->suggest_brain_key();
+      BOOST_CHECK(!bki.brain_priv_key.empty());
+      create_tx = con.wallet_api_ptr->create_account_with_brain_key(
+            bki.brain_priv_key, "son1account", "nathan", "nathan", true
+      );
+      // save the private key for this new account in the wallet file
+      BOOST_CHECK(con.wallet_api_ptr->import_key("son1account", bki.wif_priv_key));
+      con.wallet_api_ptr->save_wallet_file(con.wallet_filename);
+
+      // attempt to give son1account some CORE tokens
+      BOOST_TEST_MESSAGE("Transferring CORE tokens from Nathan to son1account");
+      transfer_tx = con.wallet_api_ptr->transfer(
+            "nathan", "son1account", "15000", "1.3.0", "Here are some CORE token for your new account", true
+      );
+
+      son1_before_upgrade = con.wallet_api_ptr->get_account("son1account");
+      BOOST_CHECK(generate_block(app1));
+
+      // upgrade son1account
+      BOOST_TEST_MESSAGE("Upgrading son1account to LTM");
+      upgrade_tx = con.wallet_api_ptr->upgrade_account("son1account", true);
+      son1_after_upgrade = con.wallet_api_ptr->get_account("son1account");
+
+      // verify that the upgrade was successful
+      BOOST_CHECK_PREDICATE(
+            std::not_equal_to<uint32_t>(),
+            (son1_before_upgrade.membership_expiration_date.sec_since_epoch())
+                  (son1_after_upgrade.membership_expiration_date.sec_since_epoch())
+      );
+      BOOST_CHECK(son1_after_upgrade.is_lifetime_member());
+
+      BOOST_CHECK(generate_block(app1));
+
+
+
+      // create son2account
+      bki = con.wallet_api_ptr->suggest_brain_key();
+      BOOST_CHECK(!bki.brain_priv_key.empty());
+      create_tx = con.wallet_api_ptr->create_account_with_brain_key(
+            bki.brain_priv_key, "son2account", "nathan", "nathan", true
+      );
+      // save the private key for this new account in the wallet file
+      BOOST_CHECK(con.wallet_api_ptr->import_key("son2account", bki.wif_priv_key));
+      con.wallet_api_ptr->save_wallet_file(con.wallet_filename);
+
+      // attempt to give son1account some CORE tokens
+      BOOST_TEST_MESSAGE("Transferring CORE tokens from Nathan to son2account");
+      transfer_tx = con.wallet_api_ptr->transfer(
+            "nathan", "son2account", "15000", "1.3.0", "Here are some CORE token for your new account", true
+      );
+
+      son2_before_upgrade = con.wallet_api_ptr->get_account("son2account");
+      BOOST_CHECK(generate_block(app1));
+
+      // upgrade son1account
+      BOOST_TEST_MESSAGE("Upgrading son2account to LTM");
+      upgrade_tx = con.wallet_api_ptr->upgrade_account("son2account", true);
+      son2_after_upgrade = con.wallet_api_ptr->get_account("son2account");
+
+      // verify that the upgrade was successful
+      BOOST_CHECK_PREDICATE(
+            std::not_equal_to<uint32_t>(),
+            (son2_before_upgrade.membership_expiration_date.sec_since_epoch())
+                  (son2_after_upgrade.membership_expiration_date.sec_since_epoch())
+      );
+      BOOST_CHECK(son2_after_upgrade.is_lifetime_member());
+
+      BOOST_CHECK(generate_block(app1));
+
+
+      // create 2 SONs
+      create_tx = con.wallet_api_ptr->create_son("son1account", "http://son1", "true");
+      create_tx = con.wallet_api_ptr->create_son("son2account", "http://son2", "true");
+      BOOST_CHECK(generate_maintenance_block(app1));
+
+      son_object son1_obj = con.wallet_api_ptr->get_son("son1account");
+      BOOST_CHECK(son1_obj.son_account == con.wallet_api_ptr->get_account_id("son1account"));
+      BOOST_CHECK_EQUAL(son1_obj.url, "http://son1");
+
+      son_object son2_obj = con.wallet_api_ptr->get_son("son2account");
+      BOOST_CHECK(son2_obj.son_account == con.wallet_api_ptr->get_account_id("son2account"));
+      BOOST_CHECK_EQUAL(son2_obj.url, "http://son2");
+
+   } catch( fc::exception& e ) {
+      BOOST_TEST_MESSAGE("SON cli wallet tests exception");
+      edump((e.to_detail_string()));
+      throw;
+   }
+   BOOST_TEST_MESSAGE("SON cli wallet tests end");
+}
+
+///////////////////////
 // Check account history pagination
 ///////////////////////
 BOOST_FIXTURE_TEST_CASE( account_history_pagination, cli_fixture )
