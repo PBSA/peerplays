@@ -4264,7 +4264,7 @@ signed_transaction wallet_api::delete_son(string owner_account,
 
 map<string, son_id_type> wallet_api::list_sons(const string& lowerbound, uint32_t limit)
 {
-   my->_remote_db->lookup_son_accounts(lowerbound, limit);
+   return my->_remote_db->lookup_son_accounts(lowerbound, limit);
 }
 
 signed_transaction wallet_api::create_witness(string owner_account,
