@@ -4259,7 +4259,7 @@ signed_transaction wallet_api::update_son(string owner_account,
 signed_transaction wallet_api::delete_son(string owner_account,
                                           bool broadcast /* = false */)
 {
-   my->delete_son(owner_account, broadcast);
+   return my->delete_son(owner_account, broadcast);
 }
 
 map<string, son_id_type> wallet_api::list_sons(const string& lowerbound, uint32_t limit)
