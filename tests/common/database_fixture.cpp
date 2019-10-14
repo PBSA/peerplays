@@ -141,6 +141,8 @@ database_fixture::database_fixture()
    mhplugin->plugin_startup();
    bookieplugin->plugin_startup();
    affiliateplugin->plugin_startup();
+   // stats api requests affiliate_stats plugin from app,  so add it to app plugin list
+   app.enable_plugin(affiliateplugin->plugin_name());
 
    generate_block();
 
