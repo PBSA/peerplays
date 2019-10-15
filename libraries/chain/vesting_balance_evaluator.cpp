@@ -42,6 +42,12 @@ void_result vesting_balance_create_evaluator::do_evaluate( const vesting_balance
    FC_ASSERT( d.get_balance( creator_account.id, op.amount.asset_id ) >= op.amount );
    FC_ASSERT( !op.amount.asset_id(d).is_transfer_restricted() );
 
+   if(d.head_block_time() < HARDFORK_SON_TIME) // Todo: can be removed after gpos hf time pass
+      FC_ASSERT( op.balance_type == vesting_balance_type::normal);
+
+   if(d.head_block_time() >= HARDFORK_SON_TIME && op.balance_type == vesting_balance_type::son) // Todo: hf check can be removed after pass
+      FC_ASSERT( op.amount.amount >= d.get_global_properties().parameters.son_vesting_amount() );
+
    return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -92,6 +98,7 @@ object_id_type vesting_balance_create_evaluator::do_apply( const vesting_balance
       // If making changes to this logic, check if those changes should also be made there as well.
       obj.owner = op.owner;
       obj.balance = op.amount;
+      obj.balance_type = op.balance_type;
       op.policy.visit( init_policy_visitor( obj.policy, op.amount.amount, now ) );
    } );
 

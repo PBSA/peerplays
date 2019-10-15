@@ -27,6 +27,8 @@
 #include <graphene/chain/protocol/types.hpp>
 #include <fc/smart_ref_fwd.hpp>
 
+#include <graphene/chain/hardfork.hpp>
+
 namespace graphene { namespace chain { struct fee_schedule; } }
 
 namespace graphene { namespace chain {

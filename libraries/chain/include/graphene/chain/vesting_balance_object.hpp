@@ -24,6 +24,7 @@
 #pragma once
 
 #include <graphene/chain/protocol/asset.hpp>
+#include <graphene/chain/protocol/vesting.hpp>
 #include <graphene/db/object.hpp>
 #include <graphene/db/generic_index.hpp>
 
@@ -140,6 +141,9 @@ namespace graphene { namespace chain {
          /// The vesting policy stores details on when funds vest, and controls when they may be withdrawn
          vesting_policy policy;
 
+         /// We can have 3 types of vesting, gpos, son and the rest
+         vesting_balance_type balance_type = vesting_balance_type::normal;
+
          vesting_balance_object() {}
          
          asset_id_type get_asset_id() const { return balance.asset_id; }
@@ -225,4 +229,5 @@ FC_REFLECT_DERIVED(graphene::chain::vesting_balance_object, (graphene::db::objec
                    (owner)
                    (balance)
                    (policy)
+                   (balance_type)
                   )
