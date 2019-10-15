@@ -232,6 +232,8 @@
 #define TOURNAMENT_MAX_START_TIME_IN_FUTURE                 (60*60*24*7*4) // 1 month
 #define TOURNAMENT_MAX_START_DELAY                          (60*60*24*7) // 1 week
 #define MIN_SON_MEMBER_COUNT                                15
+#define SON_VESTING_AMOUNT                                  50 // 50 PPY
+#define SON_VESTING_PERIOD                                  (60*60*24*30) // 2 days
 
 #define SWEEPS_DEFAULT_DISTRIBUTION_PERCENTAGE              (2*GRAPHENE_1_PERCENT)
 #define SWEEPS_DEFAULT_DISTRIBUTION_ASSET                   (graphene::chain::asset_id_type(0))
