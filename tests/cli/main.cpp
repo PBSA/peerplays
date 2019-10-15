@@ -460,6 +460,7 @@ BOOST_FIXTURE_TEST_CASE( create_son, cli_fixture )
       signed_transaction create_tx;
       signed_transaction transfer_tx;
       signed_transaction upgrade_tx;
+      signed_transaction delete_tx;
       account_object son1_before_upgrade, son1_after_upgrade;
       account_object son2_before_upgrade, son2_after_upgrade;
       son_object son1_obj;
@@ -604,6 +605,16 @@ BOOST_FIXTURE_TEST_CASE( create_son, cli_fixture )
       son2_obj = con.wallet_api_ptr->get_son("son2account");
       son2_end_votes = son2_obj.total_votes;
       BOOST_CHECK(son2_end_votes == son2_start_votes);
+
+
+
+      BOOST_TEST_MESSAGE("Deleting SONs");
+      auto _db = app1->chain_database();
+      BOOST_CHECK(_db->get_index_type<son_index>().indices().size() == 2);
+      delete_tx = con.wallet_api_ptr->delete_son("son1account", "true");
+      delete_tx = con.wallet_api_ptr->delete_son("son2account", "true");
+      BOOST_CHECK(generate_maintenance_block(app1));
+      BOOST_CHECK(_db->get_index_type<son_index>().indices().size() == 0);
 
    } catch( fc::exception& e ) {
       BOOST_TEST_MESSAGE("SON cli wallet tests exception");
