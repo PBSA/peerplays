@@ -157,6 +157,59 @@ bool cdd_vesting_policy::is_withdraw_allowed(const vesting_policy_context& ctx)c
    return (ctx.amount <= get_allowed_withdraw(ctx));
 }
 
+asset dormant_vesting_policy::get_allowed_withdraw( const vesting_policy_context& ctx )const
+{
+   share_type allowed_withdraw = 0;
+
+   if( !dormant_mode && ctx.now > begin_timestamp)
+   {
+      const auto elapsed_seconds = (ctx.now - begin_timestamp).to_seconds();
+      assert( elapsed_seconds > 0 );
+
+      if( elapsed_seconds >= vesting_cliff_seconds )
+      {
+         share_type total_vested = 0;
+         if( elapsed_seconds < vesting_duration_seconds )
+         {
+            total_vested = (fc::uint128_t( begin_balance.value ) * elapsed_seconds / vesting_duration_seconds).to_uint64();
+         }
+         else
+         {
+            total_vested = begin_balance;
+         }
+         assert( total_vested >= 0 );
+
+         const share_type withdrawn_already = begin_balance - ctx.balance.amount;
+         assert( withdrawn_already >= 0 );
+
+         allowed_withdraw = total_vested - withdrawn_already;
+         assert( allowed_withdraw >= 0 );
+      }
+   }
+
+   return asset( allowed_withdraw, ctx.balance.asset_id );
+}
+
+void dormant_vesting_policy::on_deposit(const vesting_policy_context& ctx)
+{
+}
+
+bool dormant_vesting_policy::is_deposit_allowed(const vesting_policy_context& ctx)const
+{
+   return (ctx.amount.asset_id == ctx.balance.asset_id)
+      && sum_below_max_shares(ctx.amount, ctx.balance);
+}
+
+void dormant_vesting_policy::on_withdraw(const vesting_policy_context& ctx)
+{
+}
+
+bool dormant_vesting_policy::is_withdraw_allowed(const vesting_policy_context& ctx)const
+{
+   return (ctx.amount.asset_id == ctx.balance.asset_id)
+          && (ctx.amount <= get_allowed_withdraw(ctx));
+}
+
 #define VESTING_VISITOR(NAME, MAYBE_CONST)                    \
 struct NAME ## _visitor                                       \
 {                                                             \

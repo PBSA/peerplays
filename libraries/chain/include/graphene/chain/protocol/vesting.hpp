@@ -44,9 +44,16 @@ namespace graphene { namespace chain {
       cdd_vesting_policy_initializer( uint32_t vest_sec = 0, fc::time_point_sec sc = fc::time_point_sec() ):start_claim(sc),vesting_seconds(vest_sec){}
    };
 
-   typedef fc::static_variant<linear_vesting_policy_initializer, cdd_vesting_policy_initializer> vesting_policy_initializer;
+   struct dormant_vesting_policy_initializer
+   {
+      /** none may be claimed if dormant is true, otherwise this is a linear policy */
+      bool dormant = true;
+      fc::time_point_sec begin_timestamp;
+      uint32_t vesting_cliff_seconds = 0;
+      uint32_t vesting_duration_seconds = 0;
+   };
 
-
+   typedef fc::static_variant<linear_vesting_policy_initializer, cdd_vesting_policy_initializer, dormant_vesting_policy_initializer> vesting_policy_initializer;
 
    /**
     * @brief Create a vesting balance.
@@ -120,6 +127,7 @@ FC_REFLECT( graphene::chain::vesting_balance_withdraw_operation, (fee)(vesting_b
 
 FC_REFLECT(graphene::chain::linear_vesting_policy_initializer, (begin_timestamp)(vesting_cliff_seconds)(vesting_duration_seconds) )
 FC_REFLECT(graphene::chain::cdd_vesting_policy_initializer, (start_claim)(vesting_seconds) )
+FC_REFLECT(graphene::chain::dormant_vesting_policy_initializer, (dormant)(begin_timestamp)(vesting_cliff_seconds)(vesting_duration_seconds) )
 FC_REFLECT_TYPENAME( graphene::chain::vesting_policy_initializer )
 
 FC_REFLECT_ENUM( graphene::chain::vesting_balance_type, (normal)(gpos)(son) )

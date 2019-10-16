@@ -119,10 +119,44 @@ namespace graphene { namespace chain {
       void on_withdraw(const vesting_policy_context& ctx);
    };
 
+   /**
+    * @brief Cant withdraw anything while dormant mode is true, linear policy after that changes.
+    *
+    * This vesting balance type is needed to register SON users where balance may be claimable only after
+    * the SON object is deleted(plus a linear policy).
+    * When deleting a SON member the dormant_mode will change and the linear policy will became active.
+    *
+    * @note New funds may not be added to a dormant vesting balance.
+    */
+      struct dormant_vesting_policy
+      {
+         /// dormant mode flag indicates if we are in dormant mode or linear policy.
+         bool dormant_mode = true;
+
+         /// This is the time at which funds begin vesting.
+         fc::time_point_sec begin_timestamp;
+         /// No amount may be withdrawn before this many seconds of the vesting period have elapsed.
+         uint32_t vesting_cliff_seconds = 0;
+         /// Duration of the vesting period, in seconds. Must be greater than 0 and greater than vesting_cliff_seconds.
+         uint32_t vesting_duration_seconds = 0;
+         /// The total amount of asset to vest.
+         share_type begin_balance;
+
+         asset get_allowed_withdraw(const vesting_policy_context& ctx)const;
+         bool is_deposit_allowed(const vesting_policy_context& ctx)const;
+         bool is_deposit_vested_allowed(const vesting_policy_context&)const { return false; }
+         bool is_withdraw_allowed(const vesting_policy_context& ctx)const;
+         void on_deposit(const vesting_policy_context& ctx);
+         void on_deposit_vested(const vesting_policy_context&)
+         { FC_THROW( "May not deposit vested into a linear vesting balance." ); }
+         void on_withdraw(const vesting_policy_context& ctx);
+      };
+
    typedef fc::static_variant<
       linear_vesting_policy,
-      cdd_vesting_policy
-      > vesting_policy;
+      cdd_vesting_policy,
+      dormant_vesting_policy
+   > vesting_policy;
 
    /**
     * Vesting balance object is a balance that is locked by the blockchain for a period of time.
@@ -221,6 +255,14 @@ FC_REFLECT(graphene::chain::cdd_vesting_policy,
            (start_claim)
            (coin_seconds_earned)
            (coin_seconds_earned_last_update)
+          )
+
+FC_REFLECT(graphene::chain::dormant_vesting_policy,
+           (dormant_mode)
+           (begin_timestamp)
+           (vesting_cliff_seconds)
+           (vesting_duration_seconds)
+           (begin_balance)
           )
 
 FC_REFLECT_TYPENAME( graphene::chain::vesting_policy )

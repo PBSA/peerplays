@@ -82,6 +82,16 @@ struct init_policy_visitor
       policy.coin_seconds_earned_last_update = now;
       p = policy;
    }
+   void operator()( const dormant_vesting_policy_initializer& i )const
+   {
+      dormant_vesting_policy policy;
+      policy.dormant_mode = i.dormant;
+      policy.begin_timestamp = i.begin_timestamp;
+      policy.vesting_cliff_seconds = i.vesting_cliff_seconds;
+      policy.vesting_duration_seconds = i.vesting_duration_seconds;
+      policy.begin_balance = init_balance;
+      p = policy;
+   }
 };
 
 object_id_type vesting_balance_create_evaluator::do_apply( const vesting_balance_create_operation& op )
@@ -99,10 +109,17 @@ object_id_type vesting_balance_create_evaluator::do_apply( const vesting_balance
       obj.owner = op.owner;
       obj.balance = op.amount;
       obj.balance_type = op.balance_type;
-      op.policy.visit( init_policy_visitor( obj.policy, op.amount.amount, now ) );
+      if(op.balance_type == vesting_balance_type::son)
+      {
+         const auto &gpo = d.get_global_properties();
+         // forcing son dormant policy
+         dormant_vesting_policy p;
+         p.dormant_mode = true;
+         obj.policy = p;
+      }
+      else
+         op.policy.visit( init_policy_visitor( obj.policy, op.amount.amount, now ) );
    } );
-
-
    return vbo.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 

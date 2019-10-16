@@ -5,6 +5,7 @@
 #include <graphene/chain/hardfork.hpp>
 #include <graphene/chain/son_object.hpp>
 #include <graphene/chain/son_evaluator.hpp>
+#include <graphene/chain/vesting_balance_object.hpp>
 
 using namespace graphene::chain;
 using namespace graphene::chain::test;
@@ -13,9 +14,6 @@ BOOST_FIXTURE_TEST_SUITE( son_operation_tests, database_fixture )
 
 BOOST_AUTO_TEST_CASE( create_son_test ) {
    generate_blocks(HARDFORK_SON_TIME);
-   while (db.head_block_time() <= HARDFORK_SON_TIME) {
-      generate_block();
-   }
    generate_block();
    set_expiration(db, trx);
 
@@ -36,30 +34,49 @@ BOOST_AUTO_TEST_CASE( create_son_test ) {
       vesting_balance_create_operation op;
       op.creator = alice_id;
       op.owner = alice_id;
-      op.amount = asset(50);
+      op.amount = asset(10);
       op.balance_type = vesting_balance_type::son;
+      trx.operations.push_back(op);
+
+      // amount in the son balance need to be at least 50
+      GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx ), fc::exception );
+
+      op.amount = asset(50);
+      trx.clear();
 
       trx.operations.push_back(op);
-      set_expiration(db, trx);
       processed_transaction ptx = PUSH_TX(db, trx, ~0);
-      trx.clear();
       deposit = ptx.operation_results[0].get<object_id_type>();
+
+      auto deposit_vesting = db.get<vesting_balance_object>(ptx.operation_results[0].get<object_id_type>());
+
+      BOOST_CHECK_EQUAL(deposit(db).balance.amount.value, 50);
+      auto now = db.head_block_time();
+      BOOST_CHECK_EQUAL(deposit(db).is_withdraw_allowed(now, asset(50)), false); // cant withdraw
    }
-   // create payment vesting
-   vesting_balance_id_type payment;
+   generate_block();
+   set_expiration(db, trx);
+
+   // create payment normal vesting
+   vesting_balance_id_type payment ;
    {
       vesting_balance_create_operation op;
       op.creator = alice_id;
       op.owner = alice_id;
-      op.amount = asset(50);
+      op.amount = asset(1);
       op.balance_type = vesting_balance_type::normal;
 
+      op.validate();
+
       trx.operations.push_back(op);
-      set_expiration(db, trx);
+      trx.validate();
       processed_transaction ptx = PUSH_TX(db, trx, ~0);
       trx.clear();
       payment = ptx.operation_results[0].get<object_id_type>();
    }
+
+   generate_block();
+   set_expiration(db, trx);
 
    // alice became son
    {
@@ -116,6 +133,9 @@ BOOST_AUTO_TEST_CASE( delete_son_test ) {
    INVOKE(create_son_test);
    GET_ACTOR(alice);
 
+   auto deposit_vesting = db.get<vesting_balance_object>(vesting_balance_id_type(0));
+   BOOST_CHECK_EQUAL(deposit_vesting.policy.get<dormant_vesting_policy>().dormant_mode, true); // dormant while active
+
    {
       son_delete_operation op;
       op.owner_account = alice_id;
@@ -129,6 +149,20 @@ BOOST_AUTO_TEST_CASE( delete_son_test ) {
 
    const auto& idx = db.get_index_type<son_index>().indices().get<by_account>();
    BOOST_REQUIRE( idx.empty() );
+
+   deposit_vesting = db.get<vesting_balance_object>(vesting_balance_id_type(0));
+   BOOST_CHECK_EQUAL(deposit_vesting.policy.get<dormant_vesting_policy>().dormant_mode, false); // not sleeping anymore
+
+   auto now = db.head_block_time();
+
+   BOOST_CHECK_EQUAL(deposit_vesting.is_withdraw_allowed(now, asset(50)), false); // but still cant withdraw
+
+   generate_blocks(now + fc::seconds(db.get_global_properties().parameters.son_vesting_period()));
+   generate_block();
+
+   deposit_vesting = db.get<vesting_balance_object>(vesting_balance_id_type(0));
+   now = db.head_block_time();
+   BOOST_CHECK_EQUAL(deposit_vesting.is_withdraw_allowed(now, asset(50)), true); // after 2 days withdraw is allowed
 }
 
 BOOST_AUTO_TEST_CASE( update_delete_not_own ) { // fee payer needs to be the son object owner

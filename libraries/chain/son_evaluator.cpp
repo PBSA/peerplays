@@ -3,6 +3,7 @@
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/son_object.hpp>
 #include <graphene/chain/hardfork.hpp>
+#include <graphene/chain/vesting_balance_object.hpp>
 
 namespace graphene { namespace chain {
 
@@ -68,7 +69,20 @@ void_result delete_son_evaluator::do_evaluate(const son_delete_operation& op)
 void_result delete_son_evaluator::do_apply(const son_delete_operation& op)
 { try {
     const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
-    db().remove(*idx.find(op.son_id));
+    auto son = idx.find(op.son_id);
+    if(son != idx.end()) {
+       vesting_balance_object deposit = son->deposit(db());
+       dormant_vesting_policy new_vesting_policy;
+       new_vesting_policy.dormant_mode = false;
+       new_vesting_policy.begin_timestamp = db().head_block_time();
+       new_vesting_policy.vesting_cliff_seconds = db().get_global_properties().parameters.son_vesting_period();
+
+       db().modify(son->deposit(db()), [&new_vesting_policy](vesting_balance_object &vbo) {
+          vbo.policy = new_vesting_policy;
+       });
+
+       db().remove(*son);
+    }
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
