@@ -22,8 +22,8 @@ BOOST_AUTO_TEST_CASE( create_son_test ) {
    upgrade_to_lifetime_member(alice);
    upgrade_to_lifetime_member(bob);
 
-   transfer( committee_account, alice_id, asset( 100000 ) );
-   transfer( committee_account, bob_id, asset( 100000 ) );
+   transfer( committee_account, alice_id, asset( 1000*GRAPHENE_BLOCKCHAIN_PRECISION ) );
+   transfer( committee_account, bob_id, asset( 1000*GRAPHENE_BLOCKCHAIN_PRECISION ) );
 
    set_expiration(db, trx);
    std::string test_url = "https://create_son_test";
@@ -34,14 +34,14 @@ BOOST_AUTO_TEST_CASE( create_son_test ) {
       vesting_balance_create_operation op;
       op.creator = alice_id;
       op.owner = alice_id;
-      op.amount = asset(10);
+      op.amount = asset(10*GRAPHENE_BLOCKCHAIN_PRECISION);
       op.balance_type = vesting_balance_type::son;
       trx.operations.push_back(op);
 
       // amount in the son balance need to be at least 50
       GRAPHENE_REQUIRE_THROW( PUSH_TX( db, trx ), fc::exception );
 
-      op.amount = asset(50);
+      op.amount = asset(50*GRAPHENE_BLOCKCHAIN_PRECISION);
       trx.clear();
 
       trx.operations.push_back(op);
@@ -50,9 +50,9 @@ BOOST_AUTO_TEST_CASE( create_son_test ) {
 
       auto deposit_vesting = db.get<vesting_balance_object>(ptx.operation_results[0].get<object_id_type>());
 
-      BOOST_CHECK_EQUAL(deposit(db).balance.amount.value, 50);
+      BOOST_CHECK_EQUAL(deposit(db).balance.amount.value, 50*GRAPHENE_BLOCKCHAIN_PRECISION);
       auto now = db.head_block_time();
-      BOOST_CHECK_EQUAL(deposit(db).is_withdraw_allowed(now, asset(50)), false); // cant withdraw
+      BOOST_CHECK_EQUAL(deposit(db).is_withdraw_allowed(now, asset(50*GRAPHENE_BLOCKCHAIN_PRECISION)), false); // cant withdraw
    }
    generate_block();
    set_expiration(db, trx);
@@ -63,7 +63,7 @@ BOOST_AUTO_TEST_CASE( create_son_test ) {
       vesting_balance_create_operation op;
       op.creator = alice_id;
       op.owner = alice_id;
-      op.amount = asset(1);
+      op.amount = asset(1*GRAPHENE_BLOCKCHAIN_PRECISION);
       op.balance_type = vesting_balance_type::normal;
 
       op.validate();
