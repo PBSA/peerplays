@@ -41,6 +41,7 @@ namespace graphene { namespace chain {
       optional< uint16_t >            sweeps_distribution_percentage;
       optional< asset_id_type >       sweeps_distribution_asset;
       optional< account_id_type >     sweeps_vesting_accumulator_account;
+      optional < uint32_t >           son_pay_daily_max;
    };
 
    struct chain_parameters
@@ -124,6 +125,9 @@ namespace graphene { namespace chain {
       inline uint16_t son_count()const {
          return extensions.value.son_count.valid() ? *extensions.value.son_count : MIN_SON_MEMBER_COUNT;
       }
+      inline uint16_t son_pay_daily_max()const {
+         return extensions.value.son_pay_daily_max.valid() ? *extensions.value.son_pay_daily_max : MIN_SON_PAY_DAILY_MAX;
+      }
    };
 
 } }  // graphene::chain
@@ -138,6 +142,7 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (sweeps_distribution_percentage)
    (sweeps_distribution_asset)
    (sweeps_vesting_accumulator_account)
+   (son_pay_daily_max)
 )
 
 FC_REFLECT( graphene::chain::chain_parameters,

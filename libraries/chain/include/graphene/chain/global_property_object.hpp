@@ -79,6 +79,9 @@ namespace graphene { namespace chain {
          time_point_sec    next_maintenance_time;
          time_point_sec    last_budget_time;
          share_type        witness_budget;
+         //Last SON Payout time, it can be different to the maintenance interval time
+         time_point_sec    last_son_payout_time;
+         share_type        son_budget = 0;
          uint32_t          accounts_registered_this_interval = 0;
          /**
           *  Every time a block is missed this increases by

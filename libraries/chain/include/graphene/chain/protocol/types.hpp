@@ -174,7 +174,8 @@ namespace graphene { namespace chain {
       impl_betting_market_position_object_type,
       impl_global_betting_statistics_object_type,
       impl_lottery_balance_object_type,
-      impl_sweeps_vesting_balance_object_type
+      impl_sweeps_vesting_balance_object_type,
+      impl_son_statistics_object_type
    };
 
    //typedef fc::unsigned_int            object_id_type;
@@ -256,6 +257,7 @@ namespace graphene { namespace chain {
    class global_betting_statistics_object;
    class lottery_balance_object;
    class sweeps_vesting_balance_object;
+   class son_statistics_object;
 
    typedef object_id< implementation_ids, impl_global_property_object_type,            global_property_object>          global_property_id_type;
    typedef object_id< implementation_ids, impl_dynamic_global_property_object_type,    dynamic_global_property_object>  dynamic_global_property_id_type;
@@ -284,6 +286,7 @@ namespace graphene { namespace chain {
    typedef object_id< implementation_ids, impl_global_betting_statistics_object_type, global_betting_statistics_object > global_betting_statistics_id_type;
    typedef object_id< implementation_ids, impl_lottery_balance_object_type, lottery_balance_object >                    lottery_balance_id_type;
    typedef object_id< implementation_ids, impl_sweeps_vesting_balance_object_type, sweeps_vesting_balance_object>       sweeps_vesting_balance_id_type;
+   typedef object_id< implementation_ids, impl_son_statistics_object_type, son_statistics_object >                      son_statistics_id_type;
 
    typedef fc::array<char, GRAPHENE_MAX_ASSET_SYMBOL_LENGTH>    symbol_type;
    typedef fc::ripemd160                                        block_id_type;
@@ -441,6 +444,7 @@ FC_REFLECT_ENUM( graphene::chain::impl_object_type,
                  (impl_global_betting_statistics_object_type)
                  (impl_lottery_balance_object_type)
                  (impl_sweeps_vesting_balance_object_type)
+                 (impl_son_statistics_object_type)
                )
 
 FC_REFLECT_TYPENAME( graphene::chain::share_type )

@@ -27,6 +27,7 @@ object_id_type create_son_evaluator::do_apply(const son_create_operation& op)
         obj.deposit = op.deposit;
         obj.signing_key = op.signing_key;
         obj.pay_vb = op.pay_vb;
+        obj.statistics = db().create<son_statistics_object>([&](son_statistics_object& s){s.owner = obj.id;}).id;
     });
     return new_son_object.id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
