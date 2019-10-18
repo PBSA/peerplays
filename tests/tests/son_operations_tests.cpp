@@ -36,6 +36,7 @@ BOOST_AUTO_TEST_CASE( create_son_test ) {
       op.owner = alice_id;
       op.amount = asset(10*GRAPHENE_BLOCKCHAIN_PRECISION);
       op.balance_type = vesting_balance_type::son;
+      op.policy = dormant_vesting_policy_initializer {};
       trx.operations.push_back(op);
 
       // amount in the son balance need to be at least 50
@@ -129,12 +130,13 @@ BOOST_AUTO_TEST_CASE( update_son_test ) {
 }
 
 BOOST_AUTO_TEST_CASE( delete_son_test ) {
-
+try {
    INVOKE(create_son_test);
    GET_ACTOR(alice);
 
    auto deposit_vesting = db.get<vesting_balance_object>(vesting_balance_id_type(0));
-   BOOST_CHECK_EQUAL(deposit_vesting.policy.get<dormant_vesting_policy>().dormant_mode, true); // dormant while active
+   auto now = db.head_block_time();
+   BOOST_CHECK_EQUAL(deposit_vesting.is_withdraw_allowed(now, asset(50)), false); // cant withdraw
 
    {
       son_delete_operation op;
@@ -151,10 +153,10 @@ BOOST_AUTO_TEST_CASE( delete_son_test ) {
    BOOST_REQUIRE( idx.empty() );
 
    deposit_vesting = db.get<vesting_balance_object>(vesting_balance_id_type(0));
-   BOOST_CHECK_EQUAL(deposit_vesting.policy.get<dormant_vesting_policy>().dormant_mode, false); // not sleeping anymore
+   BOOST_CHECK_EQUAL(deposit_vesting.policy.get<linear_vesting_policy>().vesting_cliff_seconds,
+         db.get_global_properties().parameters.son_vesting_period()); // in linear policy
 
-   auto now = db.head_block_time();
-
+   now = db.head_block_time();
    BOOST_CHECK_EQUAL(deposit_vesting.is_withdraw_allowed(now, asset(50)), false); // but still cant withdraw
 
    generate_blocks(now + fc::seconds(db.get_global_properties().parameters.son_vesting_period()));
@@ -164,6 +166,10 @@ BOOST_AUTO_TEST_CASE( delete_son_test ) {
    now = db.head_block_time();
    BOOST_CHECK_EQUAL(deposit_vesting.is_withdraw_allowed(now, asset(50)), true); // after 2 days withdraw is allowed
 }
+catch (fc::exception &e) {
+   edump((e.to_detail_string()));
+   throw;
+} }
 
 BOOST_AUTO_TEST_CASE( update_delete_not_own ) { // fee payer needs to be the son object owner
 try {

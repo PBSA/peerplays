@@ -72,8 +72,7 @@ void_result delete_son_evaluator::do_apply(const son_delete_operation& op)
     auto son = idx.find(op.son_id);
     if(son != idx.end()) {
        vesting_balance_object deposit = son->deposit(db());
-       dormant_vesting_policy new_vesting_policy;
-       new_vesting_policy.dormant_mode = false;
+       linear_vesting_policy new_vesting_policy;
        new_vesting_policy.begin_timestamp = db().head_block_time();
        new_vesting_policy.vesting_cliff_seconds = db().get_global_properties().parameters.son_vesting_period();
 
