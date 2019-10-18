@@ -11,7 +11,9 @@ void_result create_son_evaluator::do_evaluate(const son_create_operation& op)
 { try{
    FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK");
    FC_ASSERT(db().get(op.owner_account).is_lifetime_member(), "Only Lifetime members may register a SON.");
-    return void_result();
+   FC_ASSERT(op.deposit(db()).policy.which() == vesting_policy::tag<dormant_vesting_policy>::value,
+         "Deposit balance must have dormant vesting policy");
+   return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
 object_id_type create_son_evaluator::do_apply(const son_create_operation& op)
