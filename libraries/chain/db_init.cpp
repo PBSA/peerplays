@@ -317,6 +317,7 @@ void database::initialize_indexes()
    
    add_index< primary_index<lottery_balance_index                         > >();
    add_index< primary_index<sweeps_vesting_balance_index                  > >();
+   add_index< primary_index<son_stats_index                               > >();
 
 }
 

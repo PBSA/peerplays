@@ -114,6 +114,7 @@ add_library( graphene_chain
              affiliate_payout.cpp
 
              son_evaluator.cpp
+             son_object.cpp
 
              ${HEADERS}
              ${PROTOCOL_HEADERS}

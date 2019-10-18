@@ -234,7 +234,7 @@
 #define MIN_SON_MEMBER_COUNT                                15
 #define SON_VESTING_AMOUNT                                  (50*GRAPHENE_BLOCKCHAIN_PRECISION) // 50 PPY
 #define SON_VESTING_PERIOD                                  (60*60*24*30) // 2 days
-
+#define MIN_SON_PAY_DAILY_MAX                               (GRAPHENE_BLOCKCHAIN_PRECISION * int64_t(200))
 #define SWEEPS_DEFAULT_DISTRIBUTION_PERCENTAGE              (2*GRAPHENE_1_PERCENT)
 #define SWEEPS_DEFAULT_DISTRIBUTION_ASSET                   (graphene::chain::asset_id_type(0))
 #define SWEEPS_VESTING_BALANCE_MULTIPLIER                   100000000

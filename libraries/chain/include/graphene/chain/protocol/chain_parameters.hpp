@@ -45,6 +45,7 @@ namespace graphene { namespace chain {
       optional< account_id_type >     sweeps_vesting_accumulator_account;
       optional < uint32_t >           son_vesting_amount;
       optional < uint32_t >           son_vesting_period;
+      optional < uint32_t >           son_pay_daily_max;
    };
 
    struct chain_parameters
@@ -133,6 +134,8 @@ namespace graphene { namespace chain {
       }
       inline uint32_t son_vesting_period()const {
          return extensions.value.son_vesting_period.valid() ? *extensions.value.son_vesting_period : SON_VESTING_PERIOD; /// current period start date
+      inline uint16_t son_pay_daily_max()const {
+         return extensions.value.son_pay_daily_max.valid() ? *extensions.value.son_pay_daily_max : MIN_SON_PAY_DAILY_MAX;
       }
    };
 
@@ -150,6 +153,7 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (sweeps_vesting_accumulator_account)
    (son_vesting_amount)
    (son_vesting_period)
+   (son_pay_daily_max)
 )
 
 FC_REFLECT( graphene::chain::chain_parameters,

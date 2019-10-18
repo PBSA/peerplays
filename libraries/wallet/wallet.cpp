@@ -1872,9 +1872,6 @@ public:
       son_create_op.owner_account = son_account.id;
       son_create_op.signing_key = son_public_key;
       son_create_op.url = url;
-      secret_hash_type::encoder enc;
-      fc::raw::pack(enc, son_private_key);
-      fc::raw::pack(enc, secret_hash_type());
 
       if (_remote_db->get_son_by_account(son_create_op.owner_account))
          FC_THROW("Account ${owner_account} is already a SON", ("owner_account", owner_account));
@@ -1895,12 +1892,10 @@ public:
                                  bool broadcast /* = false */)
    { try {
       son_object son = get_son(owner_account);
-      account_object son_account = get_account( son.son_account );
-      fc::ecc::private_key active_private_key = get_private_key_for_account(son_account);
 
       son_update_operation son_update_op;
       son_update_op.son_id = son.id;
-      son_update_op.owner_account = son_account.id;
+      son_update_op.owner_account = son.son_account;
       if( url != "" )
          son_update_op.new_url = url;
       if( block_signing_key != "" ) {
@@ -1919,12 +1914,10 @@ public:
                                  bool broadcast /* = false */)
    { try {
       son_object son = get_son(owner_account);
-      account_object son_account = get_account( son.son_account );
-      fc::ecc::private_key active_private_key = get_private_key_for_account(son_account);
 
       son_delete_operation son_delete_op;
       son_delete_op.son_id = son.id;
-      son_delete_op.owner_account = son_account.id;
+      son_delete_op.owner_account = son.son_account;
 
       signed_transaction tx;
       tx.operations.push_back( son_delete_op );

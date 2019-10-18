@@ -272,6 +272,7 @@ void database_fixture::verify_asset_supplies( const database& db )
    
    total_balances[db.get_global_properties().parameters.sweeps_distribution_asset()] += sweeps_vestings / SWEEPS_VESTING_BALANCE_MULTIPLIER;
    total_balances[asset_id_type()] += db.get_dynamic_global_properties().witness_budget;
+   total_balances[asset_id_type()] += db.get_dynamic_global_properties().son_budget;
 
    for( const auto& item : total_debts )
    {

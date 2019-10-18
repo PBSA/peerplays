@@ -707,6 +707,11 @@ BOOST_FIXTURE_TEST_CASE( cli_get_son, cli_fixture )
       son_data = con.wallet_api_ptr->get_son("sonmember");
       BOOST_CHECK(son_data.url == "http://sonmember_updated");
 
+      // delete SON
+      con.wallet_api_ptr->delete_son("sonmember", true);
+      auto res = con.wallet_api_ptr->list_sons("", 100);
+      BOOST_CHECK(res.find("sonmember") == res.end());
+
    } catch( fc::exception& e ) {
       edump((e.to_detail_string()));
       throw;
