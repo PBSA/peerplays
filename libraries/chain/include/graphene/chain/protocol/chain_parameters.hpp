@@ -27,6 +27,8 @@
 #include <graphene/chain/protocol/types.hpp>
 #include <fc/smart_ref_fwd.hpp>
 
+#include <graphene/chain/hardfork.hpp>
+
 namespace graphene { namespace chain { struct fee_schedule; } }
 
 namespace graphene { namespace chain {
@@ -41,6 +43,8 @@ namespace graphene { namespace chain {
       optional< uint16_t >            sweeps_distribution_percentage;
       optional< asset_id_type >       sweeps_distribution_asset;
       optional< account_id_type >     sweeps_vesting_accumulator_account;
+      optional < uint32_t >           son_vesting_amount;
+      optional < uint32_t >           son_vesting_period;
       optional < uint32_t >           son_pay_daily_max;
    };
 
@@ -125,6 +129,11 @@ namespace graphene { namespace chain {
       inline uint16_t son_count()const {
          return extensions.value.son_count.valid() ? *extensions.value.son_count : MIN_SON_MEMBER_COUNT;
       }
+      inline uint32_t son_vesting_amount()const {
+         return extensions.value.son_vesting_amount.valid() ? *extensions.value.son_vesting_amount : SON_VESTING_AMOUNT; /// current period start date
+      }
+      inline uint32_t son_vesting_period()const {
+         return extensions.value.son_vesting_period.valid() ? *extensions.value.son_vesting_period : SON_VESTING_PERIOD; /// current period start date
       inline uint16_t son_pay_daily_max()const {
          return extensions.value.son_pay_daily_max.valid() ? *extensions.value.son_pay_daily_max : MIN_SON_PAY_DAILY_MAX;
       }
@@ -142,6 +151,8 @@ FC_REFLECT( graphene::chain::parameter_extension,
    (sweeps_distribution_percentage)
    (sweeps_distribution_asset)
    (sweeps_vesting_accumulator_account)
+   (son_vesting_amount)
+   (son_vesting_period)
    (son_pay_daily_max)
 )
 

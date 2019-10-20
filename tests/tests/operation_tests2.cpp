@@ -1316,7 +1316,7 @@ BOOST_AUTO_TEST_CASE(zero_second_vbo)
          create_op.owner = alice_id;
          create_op.amount = asset(500);
          create_op.policy = pinit;
-         //create_op.balance_type = vesting_balance_type::unspecified;
+         create_op.balance_type = vesting_balance_type::normal;
 
          signed_transaction create_tx;
          create_tx.operations.push_back( create_op );
@@ -1400,7 +1400,7 @@ BOOST_AUTO_TEST_CASE( vbo_withdraw_different )
          create_op.owner = alice_id;
          create_op.amount = asset(100, stuff_id);
          create_op.policy = pinit;
-         //create_op.balance_type = vesting_balance_type::unspecified;
+         create_op.balance_type = vesting_balance_type::normal;
 
          signed_transaction create_tx;
          create_tx.operations.push_back( create_op );

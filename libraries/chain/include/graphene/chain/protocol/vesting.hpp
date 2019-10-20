@@ -24,7 +24,9 @@
 #pragma once
 #include <graphene/chain/protocol/base.hpp>
 
-namespace graphene { namespace chain { 
+namespace graphene { namespace chain {
+
+   enum class vesting_balance_type { normal, gpos, son };
 
    struct linear_vesting_policy_initializer
    {
@@ -42,9 +44,10 @@ namespace graphene { namespace chain {
       cdd_vesting_policy_initializer( uint32_t vest_sec = 0, fc::time_point_sec sc = fc::time_point_sec() ):start_claim(sc),vesting_seconds(vest_sec){}
    };
 
-   typedef fc::static_variant<linear_vesting_policy_initializer, cdd_vesting_policy_initializer> vesting_policy_initializer;
+   struct dormant_vesting_policy_initializer {};
 
-
+   typedef fc::static_variant<linear_vesting_policy_initializer, cdd_vesting_policy_initializer,
+         dormant_vesting_policy_initializer> vesting_policy_initializer;
 
    /**
     * @brief Create a vesting balance.
@@ -72,6 +75,7 @@ namespace graphene { namespace chain {
       account_id_type             owner; ///< Who is able to withdraw the balance
       asset                       amount;
       vesting_policy_initializer  policy;
+      vesting_balance_type        balance_type;
 
       account_id_type   fee_payer()const { return creator; }
       void              validate()const
@@ -112,9 +116,12 @@ namespace graphene { namespace chain {
 FC_REFLECT( graphene::chain::vesting_balance_create_operation::fee_parameters_type, (fee) )
 FC_REFLECT( graphene::chain::vesting_balance_withdraw_operation::fee_parameters_type, (fee) )
 
-FC_REFLECT( graphene::chain::vesting_balance_create_operation, (fee)(creator)(owner)(amount)(policy) )
+FC_REFLECT( graphene::chain::vesting_balance_create_operation, (fee)(creator)(owner)(amount)(policy)(balance_type) )
 FC_REFLECT( graphene::chain::vesting_balance_withdraw_operation, (fee)(vesting_balance)(owner)(amount) )
 
 FC_REFLECT(graphene::chain::linear_vesting_policy_initializer, (begin_timestamp)(vesting_cliff_seconds)(vesting_duration_seconds) )
 FC_REFLECT(graphene::chain::cdd_vesting_policy_initializer, (start_claim)(vesting_seconds) )
+FC_REFLECT(graphene::chain::dormant_vesting_policy_initializer,  )
 FC_REFLECT_TYPENAME( graphene::chain::vesting_policy_initializer )
+
+FC_REFLECT_ENUM( graphene::chain::vesting_balance_type, (normal)(gpos)(son) )
