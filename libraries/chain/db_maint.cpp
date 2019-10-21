@@ -393,10 +393,9 @@ void database::update_active_sons()
       }
    }
 
-   const chain_property_object& cpo = get_chain_properties();
-   auto sons = sort_votable_objects<son_index>(std::max(son_count*2+1, (size_t)cpo.immutable_parameters.min_son_count));
-
    const global_property_object& gpo = get_global_properties();
+   const chain_parameters& cp = gpo.parameters;
+   auto sons = sort_votable_objects<son_index>(cp.maximum_son_count);
 
    const auto& all_sons = get_index_type<son_index>().indices();
 
