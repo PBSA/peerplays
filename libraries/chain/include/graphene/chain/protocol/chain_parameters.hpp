@@ -134,6 +134,7 @@ namespace graphene { namespace chain {
       }
       inline uint32_t son_vesting_period()const {
          return extensions.value.son_vesting_period.valid() ? *extensions.value.son_vesting_period : SON_VESTING_PERIOD; /// current period start date
+      }
       inline uint16_t son_pay_daily_max()const {
          return extensions.value.son_pay_daily_max.valid() ? *extensions.value.son_pay_daily_max : MIN_SON_PAY_DAILY_MAX;
       }

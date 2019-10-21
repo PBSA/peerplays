@@ -293,7 +293,10 @@ BOOST_AUTO_TEST_CASE( son_pay_test )
          vesting_balance_create_operation op;
          op.creator = alice_id;
          op.owner = alice_id;
-         op.amount = asset(10);
+         op.amount = asset(50*GRAPHENE_BLOCKCHAIN_PRECISION);
+         op.balance_type = vesting_balance_type::son;
+         op.policy = dormant_vesting_policy_initializer {};
+
          trx.operations.push_back(op);
          for( auto& op : trx.operations ) db.current_fee_schedule().set_fee(op);
          set_expiration(db, trx);
@@ -308,7 +311,9 @@ BOOST_AUTO_TEST_CASE( son_pay_test )
          vesting_balance_create_operation op;
          op.creator = alice_id;
          op.owner = alice_id;
-         op.amount = asset(10);
+         op.amount = asset(1*GRAPHENE_BLOCKCHAIN_PRECISION);
+         op.balance_type = vesting_balance_type::normal;
+
          trx.operations.push_back(op);
          for( auto& op : trx.operations ) db.current_fee_schedule().set_fee(op);
          set_expiration(db, trx);
@@ -323,7 +328,10 @@ BOOST_AUTO_TEST_CASE( son_pay_test )
          vesting_balance_create_operation op;
          op.creator = bob_id;
          op.owner = bob_id;
-         op.amount = asset(10);
+         op.amount = asset(50*GRAPHENE_BLOCKCHAIN_PRECISION);
+         op.balance_type = vesting_balance_type::son;
+         op.policy = dormant_vesting_policy_initializer {};
+         
          trx.operations.push_back(op);
          for( auto& op : trx.operations ) db.current_fee_schedule().set_fee(op);
          set_expiration(db, trx);
@@ -338,7 +346,9 @@ BOOST_AUTO_TEST_CASE( son_pay_test )
          vesting_balance_create_operation op;
          op.creator = bob_id;
          op.owner = bob_id;
-         op.amount = asset(10);
+         op.amount = asset(1*GRAPHENE_BLOCKCHAIN_PRECISION);
+         op.balance_type = vesting_balance_type::normal;
+         
          trx.operations.push_back(op);
          for( auto& op : trx.operations ) db.current_fee_schedule().set_fee(op);
          set_expiration(db, trx);
