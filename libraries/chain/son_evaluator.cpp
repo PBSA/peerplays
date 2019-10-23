@@ -2,6 +2,7 @@
 
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/son_object.hpp>
+#include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/hardfork.hpp>
 #include <graphene/chain/vesting_balance_object.hpp>
 
@@ -63,7 +64,11 @@ object_id_type update_son_evaluator::do_apply(const son_update_operation& op)
 void_result delete_son_evaluator::do_evaluate(const son_delete_operation& op)
 { try {
     FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON_HARDFORK"); // can be removed after HF date pass
-    FC_ASSERT(db().get(op.son_id).son_account == op.owner_account);
+    // Get the current block witness signatory
+    witness_id_type wit_id = db().get_scheduled_witness(1);
+    const witness_object& current_witness = wit_id(db());
+    // Either owner can remove or witness
+    FC_ASSERT(db().get(op.son_id).son_account == op.owner_account || (db().is_son_dereg_valid(op.son_id) && op.payer == current_witness.witness_account));
     const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
     FC_ASSERT( idx.find(op.son_id) != idx.end() );
     return void_result();

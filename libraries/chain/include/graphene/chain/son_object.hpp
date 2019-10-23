@@ -6,6 +6,12 @@
 namespace graphene { namespace chain {
    using namespace graphene::db;
 
+   enum class son_status
+   {
+      inactive,
+      active,
+      in_maintenance
+   };
    /**
     * @class son_statistics_object
     * @ingroup object
@@ -23,6 +29,10 @@ namespace graphene { namespace chain {
          son_id_type  owner;
          // Transactions signed since the last son payouts
          uint64_t txs_signed = 0;
+         // Total Downtime barring the current down time in seconds, used for stats to present to user
+         uint64_t total_downtime = 0;
+         // Down timestamp, if son status is in_maintenance use this
+         fc::time_point_sec last_down_timestamp;
    };
 
    /**
@@ -44,6 +54,7 @@ namespace graphene { namespace chain {
          public_key_type signing_key;
          vesting_balance_id_type pay_vb;
          son_statistics_id_type statistics;
+         son_status status = son_status::inactive;
 
          void pay_son_fee(share_type pay, database& db);
    };
@@ -75,6 +86,8 @@ namespace graphene { namespace chain {
 
    using son_stats_index = generic_index<son_statistics_object, son_stats_multi_index_type>;
 } } // graphene::chain
+
+FC_REFLECT_ENUM(graphene::chain::son_status, (inactive)(active)(in_maintenance) )
 
 FC_REFLECT_DERIVED( graphene::chain::son_object, (graphene::db::object),
                     (son_account)(vote_id)(total_votes)(url)(deposit)(signing_key)(pay_vb) )

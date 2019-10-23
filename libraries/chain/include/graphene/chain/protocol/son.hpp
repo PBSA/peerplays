@@ -40,9 +40,10 @@ namespace graphene { namespace chain {
 
         asset fee;
         son_id_type son_id;
+        account_id_type payer;
         account_id_type owner_account;
 
-        account_id_type fee_payer()const { return owner_account; }
+        account_id_type fee_payer()const { return payer; }
         share_type      calculate_fee(const fee_parameters_type& k)const { return 0; }
     };
 

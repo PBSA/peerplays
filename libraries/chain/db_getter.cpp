@@ -27,7 +27,8 @@
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/chain_property_object.hpp>
 #include <graphene/chain/global_property_object.hpp>
-
+#include <graphene/chain/son_object.hpp>
+#include <graphene/chain/son_proposal_object.hpp>
 #include <fc/smart_ref_impl.hpp>
 
 #include <ctime>
@@ -139,6 +140,120 @@ const std::vector<uint32_t> database::get_winner_numbers( asset_id_type for_asse
    
    FC_ASSERT(result.size() == count_winners);
    return result;
+}
+
+std::set<son_id_type> database::get_sons_being_deregistered()
+{
+   std::set<son_id_type> ret;
+   const auto& son_proposal_idx = get_index_type<son_proposal_index>().indices().get< by_id >();
+
+   for( auto& son_proposal : son_proposal_idx )
+   {
+      if(son_proposal.proposal_type == son_proposal_type::son_deregister_proposal)
+      {
+         ret.insert(son_proposal.son_id);
+      }
+   }
+   return ret;
+}
+
+std::set<son_id_type> database::get_sons_to_be_deregistered()
+{
+   std::set<son_id_type> ret;
+   const auto& son_idx = get_index_type<son_index>().indices().get< by_id >();
+
+   for( auto& son : son_idx )
+   {
+      if(son.status == son_status::in_maintenance)
+      {
+         auto stats = son.statistics(*this);
+         // TODO : We need to add a function that returns if we can deregister SON 
+         // i.e. with introduction of PW code, we have to make a decision if the SON 
+         // is needed for release of funds from the PW
+         if(head_block_time() - stats.last_down_timestamp >= fc::hours(SON_DEREGISTER_TIME))
+         {
+            ret.insert(son.id);
+         }
+      }
+   }
+   return ret;
+}
+
+fc::optional<operation> database::create_son_deregister_proposal(const son_id_type& son_id, const witness_object& current_witness )
+{
+   son_delete_operation son_dereg_op;
+   son_dereg_op.payer = current_witness.witness_account;
+   son_dereg_op.son_id = son_id;
+
+   proposal_create_operation proposal_op;
+   proposal_op.fee_paying_account = current_witness.witness_account;
+   proposal_op.proposed_ops.push_back( op_wrapper( son_dereg_op ) );
+   uint32_t lifetime = ( get_global_properties().parameters.block_interval * get_global_properties().active_witnesses.size() ) * 3;
+   proposal_op.expiration_time = time_point_sec( head_block_time().sec_since_epoch() + lifetime );
+   return proposal_op;
+}
+
+signed_transaction database::create_signed_transaction( const fc::ecc::private_key& signing_private_key, const operation& op )
+{
+   signed_transaction processed_trx;
+   auto dyn_props = get_dynamic_global_properties();
+   processed_trx.set_reference_block( dyn_props.head_block_id );
+   processed_trx.set_expiration( head_block_time() + get_global_properties().parameters.maximum_time_until_expiration );
+   processed_trx.operations.push_back( op );
+   current_fee_schedule().set_fee( processed_trx.operations.back() );
+
+   processed_trx.sign( signing_private_key, get_chain_id() );
+
+   return processed_trx;
+}
+
+void database::process_son_proposals( const witness_object& current_witness, const fc::ecc::private_key& private_key )
+{
+   const auto& son_proposal_idx = get_index_type<son_proposal_index>().indices().get< by_id >();
+   const auto& proposal_idx = get_index_type<proposal_index>().indices().get< by_id >();
+
+   auto approve_proposal = [ & ]( const proposal_id_type& id )
+   {
+      proposal_update_operation puo;
+      puo.fee_paying_account = current_witness.witness_account;
+      puo.proposal = id;
+      puo.active_approvals_to_add = { current_witness.witness_account };
+      _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( private_key, puo ) );
+   };
+
+   for( auto& son_proposal : son_proposal_idx )
+   {
+      const auto& proposal = proposal_idx.find( son_proposal.proposal_id );
+      FC_ASSERT( proposal != proposal_idx.end() );
+      if( proposal->proposer == current_witness.witness_account)
+      {
+         approve_proposal( proposal->id );
+      }
+   }
+}
+
+void database::remove_son_proposal( const proposal_object& proposal )
+{ try {
+   if( proposal.proposed_transaction.operations.size() == 1 &&
+     ( proposal.proposed_transaction.operations.back().which() == operation::tag<son_delete_operation>::value) )
+   {
+      const auto& son_proposal_idx = get_index_type<son_proposal_index>().indices().get<by_proposal>();
+      auto son_proposal_itr = son_proposal_idx.find( proposal.id );
+      if( son_proposal_itr == son_proposal_idx.end() ) {
+         return;
+      }
+      remove( *son_proposal_itr );
+   }
+} FC_CAPTURE_AND_RETHROW( (proposal) ) }
+
+bool database::is_son_dereg_valid( const son_id_type& son_id )
+{
+   const auto& son_idx = get_index_type<son_index>().indices().get< by_id >();
+   auto son = son_idx.find( son_id );
+   FC_ASSERT( son != son_idx.end() );
+   bool ret = ( son->status == son_status::in_maintenance &&
+                (head_block_time() - son->statistics(*this).last_down_timestamp >= fc::hours(SON_DEREGISTER_TIME)));
+   return ret;
 }
 
 } }

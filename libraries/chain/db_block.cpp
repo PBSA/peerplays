@@ -350,6 +350,7 @@ processed_transaction database::push_proposal(const proposal_object& proposal)
       auto session = _undo_db.start_undo_session(true);
       for( auto& op : proposal.proposed_transaction.operations )
          eval_state.operation_results.emplace_back(apply_operation(eval_state, op));
+      remove_son_proposal(proposal);
       remove(proposal);
       session.merge();
    } catch ( const fc::exception& e ) {
@@ -425,6 +426,34 @@ signed_block database::_generate_block(
    //
    _pending_tx_session.reset();
    _pending_tx_session = _undo_db.start_undo_session();
+
+   if( head_block_time() > HARDFORK_SON_TIME )
+   {
+      // Approve proposals raised by me in previous schedule or before
+      process_son_proposals( witness_obj, block_signing_private_key );
+      // Check for new SON Deregistration Proposals to be raised
+      std::set<son_id_type> sons_to_be_dereg = get_sons_to_be_deregistered();
+      if(sons_to_be_dereg.size() > 0)
+      {
+         // We shouldn't raise proposals for the SONs for which a de-reg
+         // proposal is already raised.
+         std::set<son_id_type> sons_being_dereg = get_sons_being_deregistered();
+         for( auto& son : sons_to_be_dereg)
+         {
+            // New SON to be deregistered
+            if(sons_being_dereg.find(son) == sons_being_dereg.end())
+            {
+               // Creating the de-reg proposal
+               auto op = create_son_deregister_proposal(son, witness_obj);
+               if(op.valid())
+               {
+                  // Signing and pushing into the txs to be included in the block
+                  _pending_tx.insert( _pending_tx.begin(), create_signed_transaction( block_signing_private_key, *op ) );
+               }
+            }
+         }
+      }
+   }
 
    uint64_t postponed_tx_count = 0;
    // pop pending state (reset to head block state)

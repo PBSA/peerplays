@@ -233,7 +233,8 @@
 #define TOURNAMENT_MAX_START_DELAY                          (60*60*24*7) // 1 week
 #define MIN_SON_MEMBER_COUNT                                15
 #define SON_VESTING_AMOUNT                                  (50*GRAPHENE_BLOCKCHAIN_PRECISION) // 50 PPY
-#define SON_VESTING_PERIOD                                  (60*60*24*30) // 2 days
+#define SON_VESTING_PERIOD                                  (60*60*24*2) // 2 days
+#define SON_DEREGISTER_TIME                                 (12) // 12 Hours
 #define MIN_SON_PAY_DAILY_MAX                               (GRAPHENE_BLOCKCHAIN_PRECISION * int64_t(200))
 #define SWEEPS_DEFAULT_DISTRIBUTION_PERCENTAGE              (2*GRAPHENE_1_PERCENT)
 #define SWEEPS_DEFAULT_DISTRIBUTION_ASSET                   (graphene::chain::asset_id_type(0))
