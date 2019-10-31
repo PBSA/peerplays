@@ -58,4 +58,4 @@ FC_REFLECT(graphene::chain::son_update_operation, (fee)(son_id)(owner_account)(n
            (new_signing_key)(new_pay_vb) )
 
 FC_REFLECT(graphene::chain::son_delete_operation::fee_parameters_type, (fee) )
-FC_REFLECT(graphene::chain::son_delete_operation, (fee)(son_id)(owner_account) )
+FC_REFLECT(graphene::chain::son_delete_operation, (fee)(son_id)(payer)(owner_account) )
