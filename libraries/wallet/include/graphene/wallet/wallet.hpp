@@ -1429,15 +1429,17 @@ class wallet_api
 
       /** Creates a vesting deposit owned by the given account.
        *
-       * @param owner_account the name or id of the account
-       * @param amount the amount to deposit
+       * @param owner_account vesting balance owner and creator (the name or id)
+       * @param amount amount to vest
+       * @param asset_symbol the symbol of the asset to vest
        * @param vesting_type "normal", "gpos" or "son"
        * @param broadcast true to broadcast the transaction on the network
        * @returns the signed transaction registering a vesting object
        */
-      signed_transaction create_vesting(string owner_account,
+      signed_transaction create_vesting_balance(string owner_account,
                                         string amount,
-                                        string vesting_type,
+                                        string asset_symbol,
+                                        vesting_balance_type vesting_type,
                                         bool broadcast = false);
 
       /**
@@ -2118,7 +2120,7 @@ FC_API( graphene::wallet::wallet_api,
         (update_witness)
         (create_worker)
         (update_worker_votes)
-        (create_vesting)
+        (create_vesting_balance)
         (get_vesting_balances)
         (withdraw_vesting)
         (vote_for_committee_member)

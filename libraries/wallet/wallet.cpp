@@ -2107,27 +2107,21 @@ public:
       return sign_transaction( tx, broadcast );
    }
 
-   signed_transaction create_vesting(string owner_account,
+   signed_transaction create_vesting_balance(string owner_account,
                                      string amount,
-                                     string vesting_type,
+                                     string asset_symbol,
+                                     vesting_balance_type vesting_type,
                                      bool broadcast /* = false */)
    { try {
       account_object son_account = get_account(owner_account);
+      fc::optional<asset_object> asset_obj = get_asset(asset_symbol);
+      FC_ASSERT(asset_obj, "Invalid asset symbol {asst}", ("asst", asset_symbol));
 
       vesting_balance_create_operation op;
       op.creator = son_account.get_id();
       op.owner = son_account.get_id();
-      op.amount = asset_object().amount_from_string(amount);
-      if (vesting_type == "normal")
-          op.balance_type = vesting_balance_type::normal;
-      else if (vesting_type == "gpos")
-          op.balance_type = vesting_balance_type::gpos;
-      else if (vesting_type == "son")
-          op.balance_type = vesting_balance_type::son;
-      else
-      {
-          FC_ASSERT( false, "unknown vesting type value ${vt}", ("vt", vesting_type) );
-      }
+      op.amount = asset_obj->amount_from_string(amount);
+      op.balance_type = vesting_type;
       if (op.balance_type == vesting_balance_type::son)
           op.policy = dormant_vesting_policy_initializer {};
 
@@ -4271,12 +4265,13 @@ committee_member_object wallet_api::get_committee_member(string owner_account)
    return my->get_committee_member(owner_account);
 }
 
-signed_transaction wallet_api::create_vesting(string owner_account,
+signed_transaction wallet_api::create_vesting_balance(string owner_account,
                                               string amount,
-                                              string vesting_type,
+                                              string asset_symbol,
+                                              vesting_balance_type vesting_type,
                                               bool broadcast /* = false */)
 {
-   return my->create_vesting(owner_account, amount, vesting_type, broadcast);
+   return my->create_vesting_balance(owner_account, amount, asset_symbol, vesting_type, broadcast);
 }
 
 signed_transaction wallet_api::create_son(string owner_account,
