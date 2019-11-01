@@ -393,7 +393,7 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
        accepted.push_back("son1account");
        accepted.push_back("son2account");
        update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted,
-                                                              rejected, 15, true);
+                                                              rejected, 2, true);
        BOOST_CHECK(generate_block());
        BOOST_CHECK(generate_maintenance_block());
 
@@ -413,7 +413,7 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
        rejected.clear();
        rejected.push_back("son1account");
        update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted,
-                                                              rejected, 15, true);
+                                                              rejected, 1, true);
        BOOST_CHECK(generate_maintenance_block());
 
        // Verify the votes
@@ -432,7 +432,7 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
        rejected.clear();
        rejected.push_back("son1accnt");
        BOOST_CHECK_THROW(update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted,
-                                                              rejected, 15, true), fc::exception);
+                                                              rejected, 1, true), fc::exception);
        BOOST_CHECK(generate_block());
 
        // Verify the votes
@@ -450,7 +450,7 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
        rejected.clear();
        rejected.push_back("son2account");
        update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted,
-                                                              rejected, 15, true);
+                                                              rejected, 0, true);
        BOOST_CHECK(generate_maintenance_block());
 
        // Verify the votes
@@ -469,7 +469,24 @@ BOOST_AUTO_TEST_CASE( update_son_votes_test )
        rejected.push_back("son1accnt");
        accepted.push_back("son1accnt");
        BOOST_REQUIRE_THROW(update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted,
-                                                              rejected, 15, true), fc::exception);
+                                                              rejected, 1, true), fc::exception);
+       BOOST_CHECK(generate_maintenance_block());
+
+       // Verify the votes
+       son1_obj = con.wallet_api_ptr->get_son("son1account");
+       son1_end_votes = son1_obj.total_votes;
+       BOOST_CHECK(son1_end_votes == son1_start_votes);
+       son1_start_votes = son1_end_votes;
+       son2_obj = con.wallet_api_ptr->get_son("son2account");
+       son2_end_votes = son2_obj.total_votes;
+       BOOST_CHECK(son2_end_votes == son2_start_votes);
+       son2_start_votes = son2_end_votes;
+
+       // Try to accept and reject empty lists
+       accepted.clear();
+       rejected.clear();
+       BOOST_REQUIRE_THROW(update_votes_tx = con.wallet_api_ptr->update_son_votes("nathan", accepted,
+                                                              rejected, 1, true), fc::exception);
        BOOST_CHECK(generate_maintenance_block());
 
        // Verify the votes

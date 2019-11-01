@@ -171,15 +171,22 @@ void account_options::validate() const
 {
    auto needed_witnesses = num_witness;
    auto needed_committee = num_committee;
+   auto needed_sons = num_son;
 
    for( vote_id_type id : votes )
       if( id.type() == vote_id_type::witness && needed_witnesses )
          --needed_witnesses;
       else if ( id.type() == vote_id_type::committee && needed_committee )
          --needed_committee;
+      else if ( id.type() == vote_id_type::son && needed_sons )
+         --needed_sons;
 
-   FC_ASSERT( needed_witnesses == 0 && needed_committee == 0,
-              "May not specify fewer witnesses or committee members than the number voted for.");
+   FC_ASSERT( needed_witnesses == 0,
+              "May not specify fewer witnesses than the number voted for.");
+   FC_ASSERT( needed_committee == 0,
+              "May not specify fewer committee members than the number voted for.");
+   FC_ASSERT( needed_sons == 0,
+              "May not specify fewer SONs than the number voted for.");
 }
 
 void affiliate_reward_distribution::validate() const
