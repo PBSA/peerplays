@@ -1363,6 +1363,13 @@ class wallet_api
        */
       map<string, son_id_type> list_sons(const string& lowerbound, uint32_t limit);
 
+      /** Lists active at the moment SONs.
+       * This returns a list of all account names that own active SON, and the associated SON id,
+       * sorted by name.
+       * @returns a list of active SONs mapping SON names to SON ids
+       */
+      map<string, son_id_type> list_active_sons();
+
       /** Creates a witness object owned by the given account.
        *
        * An account can have at most one witness object.
