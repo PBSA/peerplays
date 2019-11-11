@@ -1934,28 +1934,26 @@ public:
 
    map<string, son_id_type> list_active_sons()
    { try {
-           global_property_object gpo = get_global_properties();
-           std::vector<fc::optional<son_object>> son_objects =
-                   _remote_db->get_sons(gpo.active_sons);
-           vector<account_id_type> owners;
-           owners.resize(son_objects.size());
-           std::transform(son_objects.begin(), son_objects.end(), owners.begin(),
-                          [](const fc::optional<son_object>& obj) {
-                                if(!obj)
-                                    FC_THROW("Invalid active SONs list in global properties.");
-                                return obj->son_account;
-                          });
-           vector<fc::optional<account_object>> accs = _remote_db->get_accounts(owners);
-           map<string, son_id_type> result;
-           std::transform(accs.begin(), accs.end(), gpo.active_sons.begin(),
-                          std::inserter(result, result.end()),
-                          [](fc::optional<account_object>& acct,
-                          son_id_type& sid) {
-                               if(!acct)
-                                   FC_THROW("Invalid active SONs list in global properties.");
-                               return std::make_pair<string, son_id_type>(string(acct->name), std::move(sid));
-                           });
-           return result;
+      global_property_object gpo = get_global_properties();
+      std::vector<fc::optional<son_object>> son_objects = _remote_db->get_sons(gpo.active_sons);
+      vector<account_id_type> owners;
+      owners.resize(son_objects.size());
+      std::transform(son_objects.begin(), son_objects.end(), owners.begin(),
+                     [](const fc::optional<son_object>& obj) {
+                        if(!obj)
+                           FC_THROW("Invalid active SONs list in global properties.");
+                        return obj->son_account;
+                     });
+      vector<fc::optional<account_object>> accs = _remote_db->get_accounts(owners);
+      map<string, son_id_type> result;
+      std::transform(accs.begin(), accs.end(), gpo.active_sons.begin(),
+                     std::inserter(result, result.end()),
+                     [](fc::optional<account_object>& acct, son_id_type& sid) {
+                        if(!acct)
+                           FC_THROW("Invalid active SONs list in global properties.");
+                        return std::make_pair<string, son_id_type>(string(acct->name), std::move(sid));
+                     });
+      return result;
    } FC_CAPTURE_AND_RETHROW() }
 
    signed_transaction create_witness(string owner_account,
