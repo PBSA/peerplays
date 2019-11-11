@@ -402,15 +402,6 @@ namespace graphene { namespace db {
             DerivedIndex::remove(obj);
          }
 
-         virtual const object& insert( object&& obj )override
-         {
-             const auto& res = DerivedIndex::insert(std::move(obj));
-             for( const auto& item : _sindex )
-                item->object_inserted( res );
-             on_add(res);
-             return res;
-         }
-
          virtual void modify( const object& obj, const std::function<void(object&)>& m )override
          {
             save_undo( obj );

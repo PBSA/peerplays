@@ -263,7 +263,7 @@ void database::initialize_indexes()
    acnt_index->add_secondary_index<account_referrer_index>();
 
    add_index< primary_index<committee_member_index, 8> >(); // 256 members per chunk
-   add_index< primary_index<son_index, 8> >(); // 256 sons per chunk
+   add_index< primary_index<son_index> >();
    add_index< primary_index<witness_index, 10> >(); // 1024 witnesses per chunk
    add_index< primary_index<limit_order_index > >();
    add_index< primary_index<call_order_index > >();
