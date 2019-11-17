@@ -1932,6 +1932,28 @@ public:
       return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (owner_account)(broadcast) ) }
 
+   map<string, son_id_type> list_active_sons()
+   { try {
+      global_property_object gpo = get_global_properties();
+      std::vector<fc::optional<son_object>> son_objects = _remote_db->get_sons(gpo.active_sons);
+      vector<account_id_type> owners;
+      owners.resize(son_objects.size());
+      std::transform(son_objects.begin(), son_objects.end(), owners.begin(),
+                     [](const fc::optional<son_object>& obj) {
+                        FC_ASSERT(obj, "Invalid active SONs list in global properties.");
+                        return obj->son_account;
+                     });
+      vector<fc::optional<account_object>> accs = _remote_db->get_accounts(owners);
+      map<string, son_id_type> result;
+      std::transform(accs.begin(), accs.end(), gpo.active_sons.begin(),
+                     std::inserter(result, result.end()),
+                     [](fc::optional<account_object>& acct, son_id_type& sid) {
+                        FC_ASSERT(acct, "Invalid active SONs list in global properties.");
+                        return std::make_pair<string, son_id_type>(string(acct->name), std::move(sid));
+                     });
+      return result;
+   } FC_CAPTURE_AND_RETHROW() }
+
    signed_transaction create_witness(string owner_account,
                                      string url,
                                      bool broadcast /* = false */)
@@ -4301,6 +4323,11 @@ signed_transaction wallet_api::delete_son(string owner_account,
 map<string, son_id_type> wallet_api::list_sons(const string& lowerbound, uint32_t limit)
 {
    return my->_remote_db->lookup_son_accounts(lowerbound, limit);
+}
+
+map<string, son_id_type> wallet_api::list_active_sons()
+{
+    return my->list_active_sons();
 }
 
 signed_transaction wallet_api::create_witness(string owner_account,
