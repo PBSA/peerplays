@@ -7,9 +7,10 @@ This is a quick introduction to get new developers and witnesses up to speed on 
  The following dependencies were necessary for a clean install of Ubuntu 18.04 LTS:
 
  ```
- sudo apt-get install gcc-5 g++-5 cmake make libbz2-dev\
-     libdb++-dev libdb-dev libssl-dev openssl libreadline-dev\
-      autoconf libtool git
+ sudo apt-get install autoconf bash build-essential ca-certificates cmake \
+      doxygen git graphviz libbz2-dev libcurl4-openssl-dev libncurses-dev \
+      libreadline-dev libssl-dev libtool libzmq3-dev locales ntp pkg-config \
+      wget
 ```
 ## Build Boost 1.67.0
 

@@ -22,6 +22,7 @@ RUN \
       libreadline-dev \
       libssl-dev \
       libtool \
+      libzmq3-dev \
       locales \
       ntp \
       pkg-config \

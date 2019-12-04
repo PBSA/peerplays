@@ -1,10 +1,9 @@
 #pragma once
 
 #include <graphene/app/plugin.hpp>
-#include <graphene/chain/database.hpp>
-#include <graphene/chain/account_object.hpp>
 
-#include <fc/thread/future.hpp>
+#include <graphene/chain/account_object.hpp>
+#include <graphene/chain/database.hpp>
 
 namespace graphene { namespace peerplays_sidechain {
 using namespace chain;
@@ -30,5 +29,5 @@ class peerplays_sidechain_plugin : public graphene::app::plugin
       std::unique_ptr<detail::peerplays_sidechain_plugin_impl> my;
 };
 
-} } //graphene::peerplays_sidechain_plugin
+} } //graphene::peerplays_sidechain
 
