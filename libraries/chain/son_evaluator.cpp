@@ -83,6 +83,7 @@ void_result delete_son_evaluator::do_apply(const son_delete_operation& op)
        linear_vesting_policy new_vesting_policy;
        new_vesting_policy.begin_timestamp = db().head_block_time();
        new_vesting_policy.vesting_cliff_seconds = db().get_global_properties().parameters.son_vesting_period();
+       new_vesting_policy.begin_balance = deposit.balance.amount;
 
        db().modify(son->deposit(db()), [&new_vesting_policy](vesting_balance_object &vbo) {
           vbo.policy = new_vesting_policy;
