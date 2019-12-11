@@ -2,6 +2,7 @@
 
 #include <fc/log/logger.hpp>
 #include <graphene/peerplays_sidechain/sidechain_net_manager.hpp>
+#include <graphene/utilities/key_conversion.hpp>
 
 namespace bpo = boost::program_options;
 
@@ -51,15 +52,15 @@ void peerplays_sidechain_plugin::plugin_set_program_options(
    boost::program_options::options_description& cfg
    )
 {
+   auto default_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(std::string("nathan")));
+   string son_id_example = fc::json::to_string(chain::son_id_type(5));
+
    cli.add_options()
-         //("bitcoin-node-ip", bpo::value<string>()->implicit_value("127.0.0.1"), "IP address of Bitcoin node")
-         //("bitcoin-node-zmq-port", bpo::value<uint32_t>()->implicit_value(28332), "ZMQ port of Bitcoin node")
-         //("bitcoin-node-rpc-port", bpo::value<uint32_t>()->implicit_value(18332), "RPC port of Bitcoin node")
-         //("bitcoin-node-rpc-user", bpo::value<string>(), "Bitcoin RPC user")
-         //("bitcoin-node-rpc-password", bpo::value<string>(), "Bitcoin RPC password")
-         //("bitcoin-address", bpo::value<string>(), "Bitcoin address")
-         //("bitcoin-public-key", bpo::value<string>(), "Bitcoin public key")
-         //("bitcoin-private-key", bpo::value<string>(), "Bitcoin private key")
+         ("son-id,w", bpo::value<vector<string>>(), ("ID of SON controlled by this node (e.g. " + son_id_example + ", quotes are required)").c_str())
+         ("peerplays-private-key", bpo::value<vector<string>>()->composing()->multitoken()->
+               DEFAULT_VALUE_VECTOR(std::make_pair(chain::public_key_type(default_priv_key.get_public_key()), graphene::utilities::key_to_wif(default_priv_key))),
+               "Tuple of [PublicKey, WIF private key]")
+
          ("bitcoin-node-ip", bpo::value<string>()->default_value("99.79.189.95"), "IP address of Bitcoin node")
          ("bitcoin-node-zmq-port", bpo::value<uint32_t>()->default_value(11111), "ZMQ port of Bitcoin node")
          ("bitcoin-node-rpc-port", bpo::value<uint32_t>()->default_value(22222), "RPC port of Bitcoin node")
