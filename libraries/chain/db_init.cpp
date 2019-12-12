@@ -247,6 +247,7 @@ void database::initialize_evaluators()
    register_evaluator<create_son_evaluator>();
    register_evaluator<update_son_evaluator>();
    register_evaluator<delete_son_evaluator>();
+   register_evaluator<son_heartbeat_evaluator>();
 }
 
 void database::initialize_indexes()

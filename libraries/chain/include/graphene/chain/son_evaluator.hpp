@@ -31,4 +31,13 @@ public:
     void_result do_apply(const son_delete_operation& o);
 };
 
+class son_heartbeat_evaluator : public evaluator<son_heartbeat_evaluator>
+{
+public:
+    typedef son_heartbeat_operation operation_type;
+
+    void_result do_evaluate(const son_heartbeat_operation& o);
+    object_id_type do_apply(const son_heartbeat_operation& o);
+};
+
 } } // namespace graphene::chain

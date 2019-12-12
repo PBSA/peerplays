@@ -94,4 +94,51 @@ void_result delete_son_evaluator::do_apply(const son_delete_operation& op)
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
+void_result son_heartbeat_evaluator::do_evaluate(const son_heartbeat_operation& op)
+{ try {
+    FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK"); // can be removed after HF date pass
+    FC_ASSERT(db().get(op.son_id).son_account == op.owner_account);
+    const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
+    FC_ASSERT( idx.find(op.son_id) != idx.end() );
+    auto itr = idx.find(op.son_id);
+    auto stats = itr->statistics( db() );
+    // Inactive SONs need not send heartbeats
+    FC_ASSERT(itr->status == son_status::active || itr->status == son_status::in_maintenance, "Inactive SONs need not send heartbeats");
+    // Account for network delays
+    fc::time_point_sec min_ts = db().head_block_time() - fc::seconds(5 * db().block_interval());
+    // Account for server ntp sync difference
+    fc::time_point_sec max_ts = db().head_block_time() + fc::seconds(2 * db().block_interval());
+    FC_ASSERT(op.ts > stats.last_active_timestamp, "Heartbeat sent without waiting minimum time");
+    FC_ASSERT(op.ts > stats.last_down_timestamp, "Heartbeat sent is invalid can't be <= last down timestamp");
+    FC_ASSERT(op.ts >= min_ts, "Heartbeat ts is behind the min threshold");
+    FC_ASSERT(op.ts <= max_ts, "Heartbeat ts is above the max threshold");
+    return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+object_id_type son_heartbeat_evaluator::do_apply(const son_heartbeat_operation& op)
+{ try {
+    const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
+    auto itr = idx.find(op.son_id);
+    if(itr != idx.end())
+    {
+        if(itr->status == son_status::in_maintenance) {
+            db().modify( itr->statistics( db() ), [&]( son_statistics_object& sso )
+            {
+                sso.current_interval_downtime += op.ts.sec_since_epoch() - sso.last_down_timestamp.sec_since_epoch();
+                sso.last_active_timestamp = op.ts;
+            } );
+
+            db().modify(*itr, [&op](son_object &so) {
+                so.status = son_status::active;
+            });
+        } else if (itr->status == son_status::active) {
+            db().modify( itr->statistics( db() ), [&]( son_statistics_object& sso )
+            {
+                sso.last_active_timestamp = op.ts;
+            } );
+        }
+    }
+    return op.son_id;
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
 } } // namespace graphene::chain

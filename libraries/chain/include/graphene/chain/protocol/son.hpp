@@ -47,6 +47,19 @@ namespace graphene { namespace chain {
         share_type      calculate_fee(const fee_parameters_type& k)const { return 0; }
     };
 
+    struct son_heartbeat_operation : public base_operation
+    {
+        struct fee_parameters_type { uint64_t fee = 0; };
+
+        asset fee;
+        son_id_type son_id;
+        account_id_type owner_account;
+        time_point_sec ts;
+
+        account_id_type fee_payer()const { return owner_account; }
+        share_type      calculate_fee(const fee_parameters_type& k)const { return 0; }
+    };
+
 } } // namespace graphene::chain
 
 FC_REFLECT(graphene::chain::son_create_operation::fee_parameters_type, (fee) )
@@ -59,3 +72,6 @@ FC_REFLECT(graphene::chain::son_update_operation, (fee)(son_id)(owner_account)(n
 
 FC_REFLECT(graphene::chain::son_delete_operation::fee_parameters_type, (fee) )
 FC_REFLECT(graphene::chain::son_delete_operation, (fee)(son_id)(payer)(owner_account) )
+
+FC_REFLECT(graphene::chain::son_heartbeat_operation::fee_parameters_type, (fee) )
+FC_REFLECT(graphene::chain::son_heartbeat_operation, (fee)(son_id)(owner_account)(ts) )

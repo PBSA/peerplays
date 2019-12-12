@@ -652,4 +652,88 @@ BOOST_AUTO_TEST_CASE( son_witness_proposal_test )
       generate_block();
    } FC_LOG_AND_RETHROW()
 
+} 
+
+BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
+
+   try
+   {
+      INVOKE(create_son_test);
+      GET_ACTOR(alice);
+
+      {
+         // Send Heartbeat for an inactive SON
+         son_heartbeat_operation op;
+         op.owner_account = alice_id;
+         op.son_id = son_id_type(0);
+         op.ts = fc::time_point::now();
+
+         trx.operations.push_back(op);
+         sign(trx, alice_private_key);
+         // Expect an exception
+         GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0), fc::exception);
+         trx.clear();
+      }
+      generate_block();
+
+      const auto& idx = db.get_index_type<son_index>().indices().get<by_account>();
+      BOOST_REQUIRE( idx.size() == 1 );
+      auto obj = idx.find( alice_id );
+      BOOST_REQUIRE( obj != idx.end() );
+
+      const auto& sidx = db.get_index_type<son_stats_index>().indices().get<by_id>();
+      BOOST_REQUIRE( sidx.size() == 1 );
+      auto son_stats_obj = sidx.find( obj->statistics );
+      BOOST_REQUIRE( son_stats_obj != sidx.end() );
+
+      // Modify SON's status to in_maintenance
+      db.modify( *obj, [&]( son_object& _s)
+      {
+         _s.status = son_status::in_maintenance;
+      });
+
+      db.modify( *son_stats_obj, [&]( son_statistics_object& _s)
+      {
+         _s.last_down_timestamp = fc::time_point_sec(db.head_block_time() - fc::hours(1));
+      });
+
+      uint64_t downtime = 0;
+
+      {
+         generate_block();
+         // Send Heartbeat for an in_maintenance SON
+         son_heartbeat_operation op;
+         op.owner_account = alice_id;
+         op.son_id = son_id_type(0);
+         op.ts = (db.head_block_time()+fc::seconds(2*db.block_interval()));
+
+         trx.operations.push_back(op);
+         sign(trx, alice_private_key);
+         PUSH_TX( db, trx, ~0);
+         generate_block();
+         trx.clear();
+         BOOST_REQUIRE_EQUAL(son_stats_obj->current_interval_downtime, op.ts.sec_since_epoch() - son_stats_obj->last_down_timestamp.sec_since_epoch());
+         downtime = op.ts.sec_since_epoch() - son_stats_obj->last_down_timestamp.sec_since_epoch();
+         BOOST_CHECK( obj->status == son_status::active);
+         BOOST_CHECK( son_stats_obj->last_active_timestamp == op.ts);
+      }
+
+      {
+         generate_block();
+         // Send Heartbeat for an active SON
+         son_heartbeat_operation op;
+         op.owner_account = alice_id;
+         op.son_id = son_id_type(0);
+         op.ts = (db.head_block_time()+fc::seconds(2*db.block_interval()));
+
+         trx.operations.push_back(op);
+         sign(trx, alice_private_key);
+         PUSH_TX( db, trx, ~0);
+         generate_block();
+         trx.clear();
+         BOOST_REQUIRE_EQUAL(son_stats_obj->current_interval_downtime, downtime);
+         BOOST_CHECK( obj->status == son_status::active);
+         BOOST_CHECK( son_stats_obj->last_active_timestamp == op.ts);
+      }
+   } FC_LOG_AND_RETHROW()
 } BOOST_AUTO_TEST_SUITE_END()
