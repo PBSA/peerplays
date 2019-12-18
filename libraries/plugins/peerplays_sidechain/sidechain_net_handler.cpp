@@ -1,34 +1,49 @@
 #include <graphene/peerplays_sidechain/sidechain_net_handler.hpp>
 
+#include <graphene/chain/sidechain_address_object.hpp>
+
+#include <fc/log/logger.hpp>
+
 namespace graphene { namespace peerplays_sidechain {
 
-sidechain_net_handler::sidechain_net_handler(const boost::program_options::variables_map& options) {
+sidechain_net_handler::sidechain_net_handler(std::shared_ptr<graphene::chain::database> db, const boost::program_options::variables_map& options) :
+   database(db)
+{
 }
 
 sidechain_net_handler::~sidechain_net_handler() {
 }
 
-std::vector<std::string> sidechain_net_handler::get_user_sidechain_address_mapping() {
+std::vector<std::string> sidechain_net_handler::get_sidechain_addresses() {
    std::vector<std::string> result;
 
-   switch (network) {
-      case network::bitcoin:
-         result.push_back("2N5aFW5WFaYZLuJWx9RGziHBdEMj9Zf8s3J");
-         result.push_back("2MxAnE469fhhdvUqUB7daU997VSearb2mn7");
-         result.push_back("2NAYptFvTU8vJ1pC7CxvVA9R7D3NdBJHpwL");
-         result.push_back("2N9zPaLDfaJazUmVfr3wgn8BK75tid2kkzR");
-         result.push_back("2NDN7cDH3E57E1B8TwTYvBgF7CndL4FTBPL");
-         //result.push_back("2MzEmSiwrRzozxE6gfZ14LAyDHZ4DYP1zVG");
-         //result.push_back("2NDCdm1WVJVCMWJzRaSSy9NDvpNKiqkbrMg");
-         //result.push_back("2Mu2iz3Jfqjyv3hBQGQZSGmZGZxhJp91TNX");
-         //result.push_back("2N1sFbwcn4QVbvjp7yRsN4mg4mBFbvC8gKM");
-         //result.push_back("2NDmxr6ufBE7Zgdgq9hShF2grx2YPEiTyNy");
-
+   switch (sidechain) {
+      case sidechain_type::bitcoin:
+      {
+         const auto& sidechain_addresses_idx = database->get_index_type<sidechain_address_index>();
+         const auto& sidechain_addresses_by_sidechain_idx = sidechain_addresses_idx.indices().get<by_sidechain>();
+         const auto& sidechain_addresses_by_sidechain_range = sidechain_addresses_by_sidechain_idx.equal_range(sidechain);
+         std::for_each(sidechain_addresses_by_sidechain_range.first, sidechain_addresses_by_sidechain_range.second,
+               [&result] (const sidechain_address_object& sao) {
+            result.push_back(sao.address);
+         });
+         break;
+      }
       default:
          assert(false);
    }
 
    return result;
+}
+
+void sidechain_net_handler::sidechain_event_data_received(const sidechain_event_data& sed) {
+   ilog( __FUNCTION__ );
+   ilog( "sidechain_event_data:" );
+   ilog( "  sidechain:      ${sidechain}", ( "sidechain", sed.sidechain ) );
+   ilog( "  transaction_id: ${transaction_id}", ( "transaction_id", sed.transaction_id ) );
+   ilog( "  from:           ${from}", ( "from", sed.from ) );
+   ilog( "  to:             ${to}", ( "to", sed.to ) );
+   ilog( "  amount:         ${amount}", ( "amount", sed.amount ) );
 }
 
 } } // graphene::peerplays_sidechain

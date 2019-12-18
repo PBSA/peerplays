@@ -46,6 +46,7 @@
 #include <graphene/chain/protocol/betting_market.hpp>
 #include <graphene/chain/protocol/tournament.hpp>
 #include <graphene/chain/protocol/son.hpp>
+#include <graphene/chain/protocol/sidechain_address.hpp>
 
 namespace graphene { namespace chain {
 
@@ -140,7 +141,10 @@ namespace graphene { namespace chain {
             son_create_operation,
             son_update_operation,
             son_delete_operation,
-            son_heartbeat_operation
+            son_heartbeat_operation,
+            sidechain_address_add_operation,
+            sidechain_address_update_operation,
+            sidechain_address_delete_operation
          > operation;
 
    /// @} // operations group

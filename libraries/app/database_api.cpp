@@ -103,7 +103,7 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       uint64_t                       get_asset_count()const;
 
       // Peerplays
-      vector<sport_object>                list_sports() const; 
+      vector<sport_object>                list_sports() const;
       vector<event_group_object>          list_event_groups(sport_id_type sport_id) const;
       vector<event_object>                list_events_in_group(event_group_id_type event_group_id) const;
       vector<betting_market_group_object> list_betting_market_groups(event_id_type) const;
@@ -115,14 +115,14 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       vector<asset_object> get_lotteries( asset_id_type stop  = asset_id_type(),
                                           unsigned limit = 100,
                                           asset_id_type start = asset_id_type() )const;
-      vector<asset_object> get_account_lotteries( account_id_type issuer, 
+      vector<asset_object> get_account_lotteries( account_id_type issuer,
                                                   asset_id_type stop,
                                                   unsigned limit,
                                                   asset_id_type start )const;
       asset get_lottery_balance( asset_id_type lottery_id )const;
       sweeps_vesting_balance_object get_sweeps_vesting_balance_object( account_id_type account )const;
       asset get_sweeps_vesting_balance_available_for_claim( account_id_type account )const;
-   
+
       // Markets / feeds
       vector<limit_order_object>         get_limit_orders(asset_id_type a, asset_id_type b, uint32_t limit)const;
       vector<call_order_object>          get_call_orders(asset_id_type a, uint32_t limit)const;
@@ -151,6 +151,13 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       fc::optional<son_object> get_son_by_account(account_id_type account)const;
       map<string, son_id_type> lookup_son_accounts(const string& lower_bound_name, uint32_t limit)const;
       uint64_t get_son_count()const;
+
+      // Sidechain addresses
+      vector<optional<sidechain_address_object>> get_sidechain_addresses(const vector<sidechain_address_id_type>& sidechain_address_ids)const;
+      vector<optional<sidechain_address_object>> get_sidechain_addresses_by_account(account_id_type account)const;
+      vector<optional<sidechain_address_object>> get_sidechain_addresses_by_sidechain(peerplays_sidechain::sidechain_type sidechain)const;
+      fc::optional<sidechain_address_object> get_sidechain_address_by_account_and_sidechain(account_id_type account, peerplays_sidechain::sidechain_type sidechain)const;
+      uint64_t get_sidechain_addresses_count()const;
 
       // Votes
       vector<variant> lookup_vote_ids( const vector<vote_id_type>& votes )const;
@@ -528,11 +535,11 @@ vector<vector<account_id_type>> database_api::get_key_references( vector<public_
 vector<vector<account_id_type>> database_api_impl::get_key_references( vector<public_key_type> keys )const
 {
    wdump( (keys) );
-   
+
    const auto& idx = _db.get_index_type<account_index>();
    const auto& aidx = dynamic_cast<const base_primary_index&>(idx);
    const auto& refs = aidx.get_secondary_index<graphene::chain::account_member_index>();
-   
+
    vector< vector<account_id_type> > final_result;
    final_result.reserve(keys.size());
 
@@ -648,7 +655,7 @@ std::map<std::string, full_account> database_api_impl::get_full_accounts( const 
    const auto& proposal_idx = _db.get_index_type<proposal_index>();
    const auto& pidx = dynamic_cast<const base_primary_index&>(proposal_idx);
    const auto& proposals_by_account = pidx.get_secondary_index<graphene::chain::required_approval_index>();
-   
+
    std::map<std::string, full_account> results;
 
    for (const std::string& account_name_or_id : names_or_ids)
@@ -738,7 +745,7 @@ std::map<std::string, full_account> database_api_impl::get_full_accounts( const 
                        acnt.withdraws.emplace_back(withdraw);
                     });
 
-      auto pending_payouts_range = 
+      auto pending_payouts_range =
          _db.get_index_type<pending_dividend_payout_balance_for_holder_object_index>().indices().get<by_account_dividend_payout>().equal_range(boost::make_tuple(account->id));
 
       std::copy(pending_payouts_range.first, pending_payouts_range.second, std::back_inserter(acnt.pending_dividend_payments));
@@ -1058,7 +1065,7 @@ vector<asset_object> database_api_impl::get_lotteries( asset_id_type stop,
 
    return result;
 }
-vector<asset_object> database_api::get_account_lotteries( account_id_type issuer, 
+vector<asset_object> database_api::get_account_lotteries( account_id_type issuer,
                                                                asset_id_type stop,
                                                                unsigned limit,
                                                                asset_id_type start )const
@@ -1066,7 +1073,7 @@ vector<asset_object> database_api::get_account_lotteries( account_id_type issuer
    return my->get_account_lotteries( issuer, stop, limit, start );
 }
 
-vector<asset_object> database_api_impl::get_account_lotteries( account_id_type issuer, 
+vector<asset_object> database_api_impl::get_account_lotteries( account_id_type issuer,
                                                                asset_id_type stop,
                                                                unsigned limit,
                                                                asset_id_type start )const
@@ -1765,6 +1772,85 @@ uint64_t database_api_impl::get_son_count()const
 
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
+// Sidechain Accounts                                               //
+//                                                                  //
+//////////////////////////////////////////////////////////////////////
+
+vector<optional<sidechain_address_object>> database_api::get_sidechain_addresses(const vector<sidechain_address_id_type>& sidechain_address_ids)const
+{
+   return my->get_sidechain_addresses( sidechain_address_ids );
+}
+
+vector<optional<sidechain_address_object>> database_api_impl::get_sidechain_addresses(const vector<sidechain_address_id_type>& sidechain_address_ids)const
+{
+   vector<optional<sidechain_address_object>> result; result.reserve(sidechain_address_ids.size());
+   std::transform(sidechain_address_ids.begin(), sidechain_address_ids.end(), std::back_inserter(result),
+                  [this](sidechain_address_id_type id) -> optional<sidechain_address_object> {
+      if(auto o = _db.find(id))
+         return *o;
+      return {};
+   });
+   return result;
+}
+
+vector<optional<sidechain_address_object>> database_api::get_sidechain_addresses_by_account(account_id_type account)const
+{
+   return my->get_sidechain_addresses_by_account( account );
+}
+
+vector<optional<sidechain_address_object>> database_api_impl::get_sidechain_addresses_by_account(account_id_type account)const
+{
+   vector<optional<sidechain_address_object>> result;
+   const auto& sidechain_addresses_range = _db.get_index_type<sidechain_address_index>().indices().get<by_account>().equal_range(account);
+   std::for_each(sidechain_addresses_range.first, sidechain_addresses_range.second,
+         [&result] (const sidechain_address_object& sao) {
+         result.push_back(sao);
+   });
+   return result;
+}
+
+vector<optional<sidechain_address_object>> database_api::get_sidechain_addresses_by_sidechain(peerplays_sidechain::sidechain_type sidechain)const
+{
+   return my->get_sidechain_addresses_by_sidechain( sidechain );
+}
+
+vector<optional<sidechain_address_object>> database_api_impl::get_sidechain_addresses_by_sidechain(peerplays_sidechain::sidechain_type sidechain)const
+{
+   vector<optional<sidechain_address_object>> result;
+   const auto& sidechain_addresses_range = _db.get_index_type<sidechain_address_index>().indices().get<by_sidechain>().equal_range(sidechain);
+   std::for_each(sidechain_addresses_range.first, sidechain_addresses_range.second,
+         [&result] (const sidechain_address_object& sao) {
+         result.push_back(sao);
+   });
+   return result;
+}
+
+fc::optional<sidechain_address_object> database_api::get_sidechain_address_by_account_and_sidechain(account_id_type account, peerplays_sidechain::sidechain_type sidechain)const
+{
+   return my->get_sidechain_address_by_account_and_sidechain( account, sidechain );
+}
+
+fc::optional<sidechain_address_object> database_api_impl::get_sidechain_address_by_account_and_sidechain(account_id_type account, peerplays_sidechain::sidechain_type sidechain)const
+{
+   const auto& idx = _db.get_index_type<sidechain_address_index>().indices().get<by_account_and_sidechain>();
+   auto itr = idx.find( boost::make_tuple( account, sidechain ) );
+   if( itr != idx.end() )
+      return *itr;
+   return {};
+}
+
+uint64_t database_api::get_sidechain_addresses_count()const
+{
+   return my->get_sidechain_addresses_count();
+}
+
+uint64_t database_api_impl::get_sidechain_addresses_count()const
+{
+   return _db.get_index_type<sidechain_address_index>().indices().size();
+}
+
+//////////////////////////////////////////////////////////////////////
+//                                                                  //
 // Votes                                                            //
 //                                                                  //
 //////////////////////////////////////////////////////////////////////
@@ -2164,7 +2250,7 @@ vector<tournament_object> database_api::get_tournaments(tournament_id_type stop,
 
 vector<tournament_object> database_api_impl::get_tournaments(tournament_id_type stop,
                                                              unsigned limit,
-                                                             tournament_id_type start) 
+                                                             tournament_id_type start)
 {
    vector<tournament_object> result;
    const auto& tournament_idx = _db.get_index_type<tournament_index>().indices().get<by_id>();
@@ -2191,7 +2277,7 @@ vector<tournament_object> database_api_impl::get_tournaments_by_state(tournament
                                                                       unsigned limit,
                                                                       tournament_id_type start,
                                                                       tournament_state state)
-{   
+{
    vector<tournament_object> result;
    const auto& tournament_idx = _db.get_index_type<tournament_index>().indices().get<by_id>();
    for (auto elem: tournament_idx) {
@@ -2320,7 +2406,7 @@ void database_api_impl::handle_object_changed(bool force_notify, bool full_objec
    /// if a connection hangs then this could get backed up and result in
    /// a failure to exit cleanly.
    //fc::async([capture_this,this,updates,market_broadcast_queue](){
-   //if( _subscribe_callback ) 
+   //if( _subscribe_callback )
    //         _subscribe_callback( updates );
 
       for(auto id : ids)

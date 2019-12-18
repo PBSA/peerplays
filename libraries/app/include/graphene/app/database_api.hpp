@@ -44,6 +44,7 @@
 #include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/global_betting_statistics_object.hpp>
 #include <graphene/chain/son_object.hpp>
+#include <graphene/chain/sidechain_address_object.hpp>
 
 #include <graphene/chain/worker_object.hpp>
 #include <graphene/chain/witness_object.hpp>
@@ -602,6 +603,46 @@ class database_api
        */
       uint64_t get_son_count()const;
 
+      /////////////////////////
+      // Sidechain Addresses //
+      /////////////////////////
+
+      /**
+       * @brief Get a list of sidechain addresses
+       * @param sidechain_address_ids IDs of the sidechain addresses to retrieve
+       * @return The sidechain accounts corresponding to the provided IDs
+       *
+       * This function has semantics identical to @ref get_objects
+       */
+      vector<optional<sidechain_address_object>> get_sidechain_addresses(const vector<sidechain_address_id_type>& sidechain_address_ids)const;
+
+      /**
+       * @brief Get the sidechain addresses for a given account
+       * @param account The ID of the account whose sidechain addresses should be retrieved
+       * @return The sidechain addresses objects, or null if the account does not have a sidechain addresses
+       */
+      vector<optional<sidechain_address_object>> get_sidechain_addresses_by_account(account_id_type account)const;
+
+      /**
+       * @brief Get the sidechain addresses for a given sidechain
+       * @param sidechain Sidechain for which addresses should be retrieved
+       * @return The sidechain addresses objects, or null if the sidechain does not have any addresses
+       */
+      vector<optional<sidechain_address_object>> get_sidechain_addresses_by_sidechain(peerplays_sidechain::sidechain_type sidechain)const;
+
+      /**
+       * @brief Get the sidechain addresses for a given account and sidechain
+       * @param account The ID of the account whose sidechain addresses should be retrieved
+       * @param sidechain Sidechain for which address should be retrieved
+       * @return The sidechain addresses objects, or null if the account does not have a sidechain addresses for a given sidechain
+       */
+      fc::optional<sidechain_address_object> get_sidechain_address_by_account_and_sidechain(account_id_type account, peerplays_sidechain::sidechain_type sidechain)const;
+
+      /**
+       * @brief Get the total number of sidechain addresses registered with the blockchain
+       */
+      uint64_t get_sidechain_addresses_count()const;
+
       /// WORKERS
 
       /**
@@ -813,6 +854,13 @@ FC_API(graphene::app::database_api,
    (get_son_by_account)
    (lookup_son_accounts)
    (get_son_count)
+
+   // Sidechain addresses
+   (get_sidechain_addresses)
+   (get_sidechain_addresses_by_account)
+   (get_sidechain_addresses_by_sidechain)
+   (get_sidechain_address_by_account_and_sidechain)
+   (get_sidechain_addresses_count)
 
    // workers
    (get_workers_by_account)

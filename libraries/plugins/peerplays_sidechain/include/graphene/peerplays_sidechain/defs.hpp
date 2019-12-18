@@ -8,9 +8,10 @@
 
 namespace graphene { namespace peerplays_sidechain {
 
-enum network {
+enum class sidechain_type {
    bitcoin,
-   //ethereum
+   //ethereum,
+   //eos
 };
 
 using bytes = std::vector<char>;
@@ -59,7 +60,7 @@ struct info_for_vin
 };
 
 struct sidechain_event_data {
-    network sidechain;
+    sidechain_type sidechain;
     std::string transaction_id;
     std::string from;
     std::string to;
@@ -68,3 +69,4 @@ struct sidechain_event_data {
 
 } } // graphene::peerplays_sidechain
 
+FC_REFLECT_ENUM(graphene::peerplays_sidechain::sidechain_type, (bitcoin) )

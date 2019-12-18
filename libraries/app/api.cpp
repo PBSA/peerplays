@@ -443,6 +443,11 @@ namespace graphene { namespace app {
                assert( aobj != nullptr );
                accounts.insert( aobj->son_account );
                break;
+            } case sidechain_address_object_type:{
+               const auto& aobj = dynamic_cast<const sidechain_address_object*>(obj);
+               assert( aobj != nullptr );
+               accounts.insert( aobj->sidechain_address_account );
+               break;
             }
             case sport_object_type:
             case event_group_object_type:
