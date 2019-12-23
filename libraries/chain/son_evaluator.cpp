@@ -30,6 +30,7 @@ object_id_type create_son_evaluator::do_apply(const son_create_operation& op)
         obj.url = op.url;
         obj.deposit = op.deposit;
         obj.signing_key = op.signing_key;
+        obj.sidechain_public_keys = op.sidechain_public_keys;
         obj.pay_vb = op.pay_vb;
         obj.statistics = db().create<son_statistics_object>([&](son_statistics_object& s){s.owner = obj.id;}).id;
     });
@@ -55,6 +56,7 @@ object_id_type update_son_evaluator::do_apply(const son_update_operation& op)
            if(op.new_url.valid()) so.url = *op.new_url;
            if(op.new_deposit.valid()) so.deposit = *op.new_deposit;
            if(op.new_signing_key.valid()) so.signing_key = *op.new_signing_key;
+           if(op.new_sidechain_public_keys.valid()) so.sidechain_public_keys = *op.new_sidechain_public_keys;
            if(op.new_pay_vb.valid()) so.pay_vb = *op.new_pay_vb;
        });
    }

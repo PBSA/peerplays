@@ -2,6 +2,7 @@
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/db/object.hpp>
 #include <graphene/db/generic_index.hpp>
+#include <graphene/peerplays_sidechain/defs.hpp>
 
 namespace graphene { namespace chain {
    using namespace graphene::db;
@@ -60,6 +61,7 @@ namespace graphene { namespace chain {
          vesting_balance_id_type pay_vb;
          son_statistics_id_type statistics;
          son_status status = son_status::inactive;
+         flat_map<peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
 
          void pay_son_fee(share_type pay, database& db);
    };
@@ -95,7 +97,7 @@ namespace graphene { namespace chain {
 FC_REFLECT_ENUM(graphene::chain::son_status, (inactive)(active)(in_maintenance)(deregistered) )
 
 FC_REFLECT_DERIVED( graphene::chain::son_object, (graphene::db::object),
-                    (son_account)(vote_id)(total_votes)(url)(deposit)(signing_key)(pay_vb) )
+                    (son_account)(vote_id)(total_votes)(url)(deposit)(signing_key)(pay_vb)(sidechain_public_keys) )
 
 FC_REFLECT_DERIVED( graphene::chain::son_statistics_object,
                     (graphene::db::object),

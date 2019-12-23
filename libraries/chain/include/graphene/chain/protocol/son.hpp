@@ -1,5 +1,6 @@
 #pragma once
 #include <graphene/chain/protocol/base.hpp>
+#include <graphene/peerplays_sidechain/defs.hpp>
 
 namespace graphene { namespace chain {
 
@@ -12,6 +13,7 @@ namespace graphene { namespace chain {
         std::string url;
         vesting_balance_id_type deposit;
         public_key_type signing_key;
+        flat_map<peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
         vesting_balance_id_type pay_vb;
 
         account_id_type fee_payer()const { return owner_account; }
@@ -28,6 +30,7 @@ namespace graphene { namespace chain {
          optional<std::string> new_url;
          optional<vesting_balance_id_type> new_deposit;
          optional<public_key_type> new_signing_key;
+         optional<flat_map<peerplays_sidechain::sidechain_type, string>> new_sidechain_public_keys;
          optional<vesting_balance_id_type> new_pay_vb;
 
          account_id_type fee_payer()const { return owner_account; }
@@ -63,12 +66,12 @@ namespace graphene { namespace chain {
 } } // namespace graphene::chain
 
 FC_REFLECT(graphene::chain::son_create_operation::fee_parameters_type, (fee) )
-FC_REFLECT(graphene::chain::son_create_operation, (fee)(owner_account)(url)(deposit)(signing_key)
+FC_REFLECT(graphene::chain::son_create_operation, (fee)(owner_account)(url)(deposit)(signing_key)(sidechain_public_keys)
            (pay_vb) )
 
 FC_REFLECT(graphene::chain::son_update_operation::fee_parameters_type, (fee) )
 FC_REFLECT(graphene::chain::son_update_operation, (fee)(son_id)(owner_account)(new_url)(new_deposit)
-           (new_signing_key)(new_pay_vb) )
+           (new_signing_key)(new_sidechain_public_keys)(new_pay_vb) )
 
 FC_REFLECT(graphene::chain::son_delete_operation::fee_parameters_type, (fee) )
 FC_REFLECT(graphene::chain::son_delete_operation, (fee)(son_id)(payer)(owner_account) )

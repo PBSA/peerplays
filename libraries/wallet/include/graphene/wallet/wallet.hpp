@@ -1312,6 +1312,7 @@ class wallet_api
        *            display this when showing a list of SONs.  May be blank.
        * @param deposit_id vesting balance id for SON deposit
        * @param pay_vb_id vesting balance id for SON pay_vb
+       * @param sidechain_public_keys The new set of sidechain public keys.
        * @param broadcast true to broadcast the transaction on the network
        * @returns the signed transaction registering a SON
        */
@@ -1319,6 +1320,7 @@ class wallet_api
                                     string url,
                                     vesting_balance_id_type deposit_id,
                                     vesting_balance_id_type pay_vb_id,
+                                    flat_map<peerplays_sidechain::sidechain_type, string> sidechain_public_keys,
                                     bool broadcast = false);
 
       /**
@@ -1327,11 +1329,13 @@ class wallet_api
        * @param witness The name of the SON's owner account.  Also accepts the ID of the owner account or the ID of the SON.
        * @param url Same as for create_son.  The empty string makes it remain the same.
        * @param block_signing_key The new block signing public key.  The empty string makes it remain the same.
+       * @param sidechain_public_keys The new set of sidechain public keys.  The empty string makes it remain the same.
        * @param broadcast true if you wish to broadcast the transaction.
        */
       signed_transaction update_son(string owner_account,
                                     string url,
                                     string block_signing_key,
+                                    flat_map<peerplays_sidechain::sidechain_type, string> sidechain_public_keys,
                                     bool broadcast = false);
 
 

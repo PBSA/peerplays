@@ -83,12 +83,16 @@ BOOST_AUTO_TEST_CASE( create_son_test ) {
 
    // alice became son
    {
+      flat_map<graphene::peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
+      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin address";
+
       son_create_operation op;
       op.owner_account = alice_id;
       op.url = test_url;
       op.deposit = deposit;
       op.pay_vb = payment;
       op.signing_key = alice_public_key;
+      op.sidechain_public_keys = sidechain_public_keys;
       trx.operations.push_back(op);
       sign(trx, alice_private_key);
       PUSH_TX(db, trx, ~0);
@@ -101,6 +105,7 @@ BOOST_AUTO_TEST_CASE( create_son_test ) {
    BOOST_REQUIRE( obj != idx.end() );
    BOOST_CHECK( obj->url == test_url );
    BOOST_CHECK( obj->signing_key == alice_public_key );
+   BOOST_CHECK( obj->sidechain_public_keys.at(graphene::peerplays_sidechain::sidechain_type::bitcoin) == "bitcoin address" );
    BOOST_CHECK( obj->deposit.instance == deposit.instance.value );
    BOOST_CHECK( obj->pay_vb.instance == payment.instance.value );
 }
@@ -113,10 +118,14 @@ BOOST_AUTO_TEST_CASE( update_son_test ) {
    std::string new_url = "https://anewurl.com";
 
    {
+      flat_map<graphene::peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
+      sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "new bitcoin address";
+
       son_update_operation op;
+      op.son_id = son_id_type(0);
       op.owner_account = alice_id;
       op.new_url = new_url;
-      op.son_id = son_id_type(0);
+      op.new_sidechain_public_keys = sidechain_public_keys;
 
       trx.operations.push_back(op);
       sign(trx, alice_private_key);
@@ -129,6 +138,7 @@ BOOST_AUTO_TEST_CASE( update_son_test ) {
    auto obj = idx.find( alice_id );
    BOOST_REQUIRE( obj != idx.end() );
    BOOST_CHECK( obj->url == new_url );
+   BOOST_CHECK( obj->sidechain_public_keys.at(graphene::peerplays_sidechain::sidechain_type::bitcoin) == "new bitcoin address" );
 }
 
 BOOST_AUTO_TEST_CASE( delete_son_test ) {
@@ -335,7 +345,7 @@ BOOST_AUTO_TEST_CASE( son_pay_test )
          op.amount = asset(50*GRAPHENE_BLOCKCHAIN_PRECISION);
          op.balance_type = vesting_balance_type::son;
          op.policy = dormant_vesting_policy_initializer {};
-         
+
          trx.operations.push_back(op);
          for( auto& op : trx.operations ) db.current_fee_schedule().set_fee(op);
          set_expiration(db, trx);
@@ -352,7 +362,7 @@ BOOST_AUTO_TEST_CASE( son_pay_test )
          op.owner = bob_id;
          op.amount = asset(1*GRAPHENE_BLOCKCHAIN_PRECISION);
          op.balance_type = vesting_balance_type::normal;
-         
+
          trx.operations.push_back(op);
          for( auto& op : trx.operations ) db.current_fee_schedule().set_fee(op);
          set_expiration(db, trx);
@@ -652,7 +662,7 @@ BOOST_AUTO_TEST_CASE( son_witness_proposal_test )
       generate_block();
    } FC_LOG_AND_RETHROW()
 
-} 
+}
 
 BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
 

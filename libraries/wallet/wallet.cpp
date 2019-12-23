@@ -1863,6 +1863,7 @@ public:
                                  string url,
                                  vesting_balance_id_type deposit_id,
                                  vesting_balance_id_type pay_vb_id,
+                                 flat_map<peerplays_sidechain::sidechain_type, string> sidechain_public_keys,
                                  bool broadcast /* = false */)
    { try {
       account_object son_account = get_account(owner_account);
@@ -1877,6 +1878,7 @@ public:
       son_create_op.url = url;
       son_create_op.deposit = deposit_id;
       son_create_op.pay_vb = pay_vb_id;
+      son_create_op.sidechain_public_keys = sidechain_public_keys;
 
       if (_remote_db->get_son_by_account(son_create_op.owner_account))
          FC_THROW("Account ${owner_account} is already a SON", ("owner_account", owner_account));
@@ -1894,6 +1896,7 @@ public:
    signed_transaction update_son(string owner_account,
                                  string url,
                                  string block_signing_key,
+                                 flat_map<peerplays_sidechain::sidechain_type, string> sidechain_public_keys,
                                  bool broadcast /* = false */)
    { try {
       son_object son = get_son(owner_account);
@@ -1905,6 +1908,9 @@ public:
          son_update_op.new_url = url;
       if( block_signing_key != "" ) {
          son_update_op.new_signing_key = public_key_type( block_signing_key );
+      }
+      if( !sidechain_public_keys.empty() ) {
+         son_update_op.new_sidechain_public_keys = sidechain_public_keys;
       }
 
       signed_transaction tx;
@@ -4369,17 +4375,19 @@ signed_transaction wallet_api::create_son(string owner_account,
                                           string url,
                                           vesting_balance_id_type deposit_id,
                                           vesting_balance_id_type pay_vb_id,
+                                          flat_map<peerplays_sidechain::sidechain_type, string> sidechain_public_keys,
                                           bool broadcast /* = false */)
 {
-   return my->create_son(owner_account, url, deposit_id, pay_vb_id, broadcast);
+   return my->create_son(owner_account, url, deposit_id, pay_vb_id, sidechain_public_keys, broadcast);
 }
 
 signed_transaction wallet_api::update_son(string owner_account,
                                           string url,
                                           string block_signing_key,
+                                          flat_map<peerplays_sidechain::sidechain_type, string> sidechain_public_keys,
                                           bool broadcast /* = false */)
 {
-   return my->update_son(owner_account, url, block_signing_key, broadcast);
+   return my->update_son(owner_account, url, block_signing_key, sidechain_public_keys, broadcast);
 }
 
 signed_transaction wallet_api::delete_son(string owner_account,
