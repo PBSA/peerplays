@@ -26,6 +26,7 @@
 #include <graphene/chain/global_property_object.hpp>
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/witness_schedule_object.hpp>
+#include <graphene/chain/son_object.hpp>
 
 namespace graphene { namespace chain {
 
@@ -70,6 +71,47 @@ witness_id_type database::get_scheduled_witness( uint32_t slot_num )const
        }
    }
    return wid;
+}
+
+son_id_type database::get_scheduled_son( uint32_t slot_num )const
+{
+   son_id_type sid;
+   const global_property_object& gpo = get_global_properties();
+   if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SHUFFLED_ALGORITHM)
+   {
+       const dynamic_global_property_object& dpo = get_dynamic_global_properties();
+       const son_schedule_object& sso = son_schedule_id_type()(*this);
+       uint64_t current_aslot = dpo.current_aslot + slot_num;
+       return sso.current_shuffled_sons[ current_aslot % sso.current_shuffled_sons.size() ];
+   }
+   if (gpo.parameters.witness_schedule_algorithm == GRAPHENE_WITNESS_SCHEDULED_ALGORITHM &&
+       slot_num != 0 )
+   {
+       const son_schedule_object& sso = son_schedule_id_type()(*this);
+       // ask the near scheduler who goes in the given slot
+       bool slot_is_near = sso.scheduler.get_slot(slot_num-1, sid);
+       if(! slot_is_near)
+       {
+          // if the near scheduler doesn't know, we have to extend it to
+          //   a far scheduler.
+          // n.b. instantiating it is slow, but block gaps long enough to
+          //   need it are likely pretty rare.
+
+          witness_scheduler_rng far_rng(sso.rng_seed.begin(), GRAPHENE_FAR_SCHEDULE_CTR_IV);
+
+          far_future_son_scheduler far_scheduler =
+             far_future_son_scheduler(sso.scheduler, far_rng);
+          if(!far_scheduler.get_slot(slot_num-1, sid))
+          {
+             // no scheduled son -- somebody set up us the bomb
+             // n.b. this code path is impossible, the present
+             // implementation of far_future_son_scheduler
+             // returns true unconditionally
+             assert( false );
+          }
+       }
+   }
+   return sid;
 }
 
 fc::time_point_sec database::get_slot_time(uint32_t slot_num)const
@@ -146,6 +188,41 @@ void database::update_witness_schedule()
    }
 }
 
+void database::update_son_schedule()
+{
+   const son_schedule_object& sso = son_schedule_id_type()(*this);
+   const global_property_object& gpo = get_global_properties();
+
+   if( head_block_num() % gpo.active_sons.size() == 0 )
+   {
+      modify( sso, [&]( son_schedule_object& _sso )
+      {
+         _sso.current_shuffled_sons.clear();
+         _sso.current_shuffled_sons.reserve( gpo.active_sons.size() );
+
+         for( const son_id_type& w : gpo.active_sons )
+            _sso.current_shuffled_sons.push_back( w );
+
+         auto now_hi = uint64_t(head_block_time().sec_since_epoch()) << 32;
+         for( uint32_t i = 0; i < _sso.current_shuffled_sons.size(); ++i )
+         {
+            /// High performance random generator
+            /// http://xorshift.di.unimi.it/
+            uint64_t k = now_hi + uint64_t(i)*2685821657736338717ULL;
+            k ^= (k >> 12);
+            k ^= (k << 25);
+            k ^= (k >> 27);
+            k *= 2685821657736338717ULL;
+
+            uint32_t jmax = _sso.current_shuffled_sons.size() - i;
+            uint32_t j = i + k%jmax;
+            std::swap( _sso.current_shuffled_sons[i],
+                       _sso.current_shuffled_sons[j] );
+         }
+      });
+   }
+}
+
 vector<witness_id_type> database::get_near_witness_schedule()const
 {
    const witness_schedule_object& wso = witness_schedule_id_type()(*this);
@@ -216,6 +293,71 @@ void database::update_witness_schedule(const signed_block& next_block)
       _wso.last_scheduling_block = next_block.block_num();
       _wso.recent_slots_filled = (
            (_wso.recent_slots_filled << 1)
+           + 1) << (schedule_slot - 1);
+   });
+   auto end = fc::time_point::now();
+   static uint64_t total_time = 0;
+   static uint64_t calls = 0;
+   total_time += (end - start).count();
+   if( ++calls % 1000 == 0 )
+      idump( ( double(total_time/1000000.0)/calls) );
+}
+
+void database::update_son_schedule(const signed_block& next_block)
+{
+   auto start = fc::time_point::now();
+   const global_property_object& gpo = get_global_properties();
+   const son_schedule_object& sso = get(son_schedule_id_type());
+   uint32_t schedule_needs_filled = gpo.active_sons.size();
+   uint32_t schedule_slot = get_slot_at_time(next_block.timestamp);
+
+   // We shouldn't be able to generate _pending_block with timestamp
+   // in the past, and incoming blocks from the network with timestamp
+   // in the past shouldn't be able to make it this far without
+   // triggering FC_ASSERT elsewhere
+
+   assert( schedule_slot > 0 );
+
+   son_id_type first_son;
+   bool slot_is_near = sso.scheduler.get_slot( schedule_slot-1, first_son );
+
+   son_id_type son;
+
+   const dynamic_global_property_object& dpo = get_dynamic_global_properties();
+
+   assert( dpo.random.data_size() == witness_scheduler_rng::seed_length );
+   assert( witness_scheduler_rng::seed_length == sso.rng_seed.size() );
+
+   modify(sso, [&](son_schedule_object& _sso)
+   {
+      _sso.slots_since_genesis += schedule_slot;
+      witness_scheduler_rng rng(sso.rng_seed.data, _sso.slots_since_genesis);
+
+      _sso.scheduler._min_token_count = std::max(int(gpo.active_sons.size()) / 2, 1);
+
+      if( slot_is_near )
+      {
+         uint32_t drain = schedule_slot;
+         while( drain > 0 )
+         {
+            if( _sso.scheduler.size() == 0 )
+               break;
+            _sso.scheduler.consume_schedule();
+            --drain;
+         }
+      }
+      else
+      {
+         _sso.scheduler.reset_schedule( first_son );
+      }
+      while( !_sso.scheduler.get_slot(schedule_needs_filled, son) )
+      {
+         if( _sso.scheduler.produce_schedule(rng) & emit_turn )
+            memcpy(_sso.rng_seed.begin(), dpo.random.data(), dpo.random.data_size());
+      }
+      _sso.last_scheduling_block = next_block.block_num();
+      _sso.recent_slots_filled = (
+           (_sso.recent_slots_filled << 1)
            + 1) << (schedule_slot - 1);
    });
    auto end = fc::time_point::now();

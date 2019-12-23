@@ -241,6 +241,22 @@ namespace graphene { namespace chain {
          witness_id_type get_scheduled_witness(uint32_t slot_num)const;
 
          /**
+          * @brief Get the son scheduled for block production in a slot.
+          *
+          * slot_num always corresponds to a time in the future.
+          *
+          * If slot_num == 1, returns the next scheduled son.
+          * If slot_num == 2, returns the next scheduled son after
+          * 1 block gap.
+          *
+          * Use the get_slot_time() and get_slot_at_time() functions
+          * to convert between slot_num and timestamp.
+          *
+          * Passing slot_num == 0 returns GRAPHENE_NULL_WITNESS
+          */
+         son_id_type get_scheduled_son(uint32_t slot_num)const;
+
+         /**
           * Get the time at which the given slot occurs.
           *
           * If slot_num == 0, return time_point_sec().
@@ -263,6 +279,8 @@ namespace graphene { namespace chain {
          vector<witness_id_type> get_near_witness_schedule()const;
          void update_witness_schedule();
          void update_witness_schedule(const signed_block& next_block);
+         void update_son_schedule();
+         void update_son_schedule(const signed_block& next_block);
       
          void check_lottery_end_by_participants( asset_id_type asset_id );
          void check_ending_lotteries();

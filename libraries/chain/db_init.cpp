@@ -314,6 +314,7 @@ void database::initialize_indexes()
    add_index< primary_index<flat_index<  block_summary_object            >> >();
    add_index< primary_index<simple_index<chain_property_object          > > >();
    add_index< primary_index<simple_index<witness_schedule_object        > > >();
+   add_index< primary_index<simple_index<son_schedule_object            > > >();
    add_index< primary_index<simple_index<budget_record_object           > > >();
    add_index< primary_index< special_authority_index                      > >();
    add_index< primary_index< buyback_index                                > >();
@@ -946,6 +947,29 @@ void database::init_genesis(const genesis_state_type& genesis_state)
          _wso.current_shuffled_witnesses.push_back( wid );
    });
    assert( wso.id == witness_schedule_id_type() );
+
+      // Initialize witness schedule
+#ifndef NDEBUG
+   const son_schedule_object& sso =
+#endif
+   create<son_schedule_object>([&](son_schedule_object& _sso)
+   {
+      // for scheduled
+      memset(_sso.rng_seed.begin(), 0, _sso.rng_seed.size());
+
+      witness_scheduler_rng rng(_sso.rng_seed.begin(), GRAPHENE_NEAR_SCHEDULE_CTR_IV);
+
+      auto init_witnesses = get_global_properties().active_witnesses;
+
+      _sso.scheduler = son_scheduler();
+      _sso.scheduler._min_token_count = std::max(int(init_witnesses.size()) / 2, 1);
+
+
+      _sso.last_scheduling_block = 0;
+
+      _sso.recent_slots_filled = fc::uint128::max_value();
+   });
+   assert( sso.id == son_schedule_id_type() );
 
    // Enable fees
    modify(get_global_properties(), [&genesis_state](global_property_object& p) {

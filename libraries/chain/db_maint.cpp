@@ -455,11 +455,12 @@ void database::update_active_sons()
       });
    });
 
-   //const witness_schedule_object& wso = witness_schedule_id_type()(*this);
-   //modify(wso, [&](witness_schedule_object& _wso)
-   //{
-   //   _wso.scheduler.update(gpo.active_witnesses);
-   //});
+   const son_schedule_object& sso = son_schedule_id_type()(*this);
+   modify(sso, [&](son_schedule_object& _sso)
+   {
+      flat_set<son_id_type> active_sons(gpo.active_sons.begin(), gpo.active_sons.end());
+      _sso.scheduler.update(active_sons);
+   });
 } FC_CAPTURE_AND_RETHROW() }
 
 void database::initialize_budget_record( fc::time_point_sec now, budget_record& rec )const
