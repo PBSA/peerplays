@@ -3,6 +3,7 @@
 #include <graphene/app/plugin.hpp>
 
 #include <graphene/chain/account_object.hpp>
+#include <graphene/chain/son_object.hpp>
 #include <graphene/chain/database.hpp>
 
 #include <graphene/peerplays_sidechain/defs.hpp>

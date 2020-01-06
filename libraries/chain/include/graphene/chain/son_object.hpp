@@ -103,4 +103,8 @@ FC_REFLECT_DERIVED( graphene::chain::son_statistics_object,
                     (graphene::db::object),
                     (owner)
                     (txs_signed)
+                    (total_downtime)
+                    (current_interval_downtime)
+                    (last_down_timestamp)
+                    (last_active_timestamp)
                   )
