@@ -152,6 +152,10 @@ struct proposal_operation_hardfork_visitor
       FC_ASSERT( block_time >= HARDFORK_SON_TIME, "son_heartbeat_operation not allowed yet!" );
    }
 
+   void operator()(const son_report_down_operation &v) const {
+      FC_ASSERT( block_time >= HARDFORK_SON_TIME, "son_report_down_operation not allowed yet!" );
+   }
+
    // loop and self visit in proposals
    void operator()(const proposal_create_operation &v) const {
       for (const op_wrapper &op : v.proposed_ops)

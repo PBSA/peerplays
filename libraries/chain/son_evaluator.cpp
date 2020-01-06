@@ -143,4 +143,36 @@ object_id_type son_heartbeat_evaluator::do_apply(const son_heartbeat_operation& 
     return op.son_id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
+void_result son_report_down_evaluator::do_evaluate(const son_report_down_operation& op)
+{ try {
+    FC_ASSERT(op.payer == db().get_global_properties().parameters.get_son_btc_account_id(), "Payer should be the son btc account");
+    const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
+    FC_ASSERT( idx.find(op.son_id) != idx.end() );
+    auto itr = idx.find(op.son_id);
+    auto stats = itr->statistics( db() );
+    FC_ASSERT(itr->status == son_status::active, "Inactive/Deregistered/in_maintenance SONs cannot be reported on as down");
+    FC_ASSERT(op.down_ts >= stats.last_active_timestamp, "down_ts should be greater than last_active_timestamp");
+    return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+object_id_type son_report_down_evaluator::do_apply(const son_report_down_operation& op)
+{ try {
+    const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
+    auto itr = idx.find(op.son_id);
+    if(itr != idx.end())
+    {
+        if (itr->status == son_status::active) {
+            db().modify( itr->statistics( db() ), [&]( son_statistics_object& sso )
+            {
+                sso.last_down_timestamp = op.down_ts;
+            });
+
+            db().modify(*itr, [&op](son_object &so) {
+                so.status = son_status::in_maintenance;
+            });
+        }
+    }
+    return op.son_id;
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
 } } // namespace graphene::chain

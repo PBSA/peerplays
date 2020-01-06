@@ -253,6 +253,7 @@ void database::initialize_evaluators()
    register_evaluator<add_sidechain_address_evaluator>();
    register_evaluator<update_sidechain_address_evaluator>();
    register_evaluator<delete_sidechain_address_evaluator>();
+   register_evaluator<son_report_down_evaluator>();
 }
 
 void database::initialize_indexes()
