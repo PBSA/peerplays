@@ -42,6 +42,7 @@
 #include <graphene/chain/global_property_object.hpp>
 #include <graphene/chain/market_object.hpp>
 #include <graphene/chain/special_authority_object.hpp>
+#include <graphene/chain/son_object.hpp>
 #include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/vote_count.hpp>
 #include <graphene/chain/witness_object.hpp>
@@ -445,20 +446,49 @@ void database::update_active_sons()
       }
    } );
 
+   // Compare current and to-be lists of active sons
+   //const global_property_object& gpo = get_global_properties();
+   auto cur_active_sons = gpo.active_sons;
+   vector<son_info> new_active_sons;
+   for( const son_object& son : sons ) {
+      son_info swi;
+      swi.son_id = son.id;
+      swi.total_votes = son.total_votes;
+      swi.signing_key = son.signing_key;
+      swi.sidechain_public_keys = son.sidechain_public_keys;
+      new_active_sons.push_back(swi);
+   }
+
+   bool son_sets_equal = (cur_active_sons.size() == new_active_sons.size());
+   if (son_sets_equal) {
+      for( size_t i = 0; i < cur_active_sons.size(); i++ ) {
+         son_sets_equal = son_sets_equal && cur_active_sons.at(i) == new_active_sons.at(i);
+      }
+   }
+
+   if (son_sets_equal) {
+      ilog( "Active SONs set NOT CHANGED" );
+   } else {
+      ilog( "Active SONs set CHANGED" );
+      // Store new SON info, initiate wallet recreation and transfer of funds
+   }
+
    modify(gpo, [&]( global_property_object& gp ){
       gp.active_sons.clear();
-      gp.active_sons.reserve(sons.size());
-      std::transform(sons.begin(), sons.end(),
-                     std::inserter(gp.active_sons, gp.active_sons.end()),
-                     [](const son_object& s) {
-         return s.id;
-      });
+      gp.active_sons.reserve(new_active_sons.size());
+      gp.active_sons.insert(gp.active_sons.end(), new_active_sons.begin(), new_active_sons.end());
    });
 
    const son_schedule_object& sso = son_schedule_id_type()(*this);
    modify(sso, [&](son_schedule_object& _sso)
    {
-      flat_set<son_id_type> active_sons(gpo.active_sons.begin(), gpo.active_sons.end());
+      flat_set<son_id_type> active_sons;
+      active_sons.reserve(gpo.active_sons.size());
+      std::transform(gpo.active_sons.begin(), gpo.active_sons.end(),
+                     std::inserter(active_sons, active_sons.end()),
+                     [](const son_info& swi) {
+         return swi.son_id;
+      });
       _sso.scheduler.update(active_sons);
    });
 

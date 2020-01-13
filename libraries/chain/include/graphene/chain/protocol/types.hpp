@@ -147,6 +147,7 @@ namespace graphene { namespace chain {
       bet_object_type,
       son_object_type,
       son_proposal_object_type,
+      son_wallet_object_type,
       sidechain_address_object_type,
       OBJECT_TYPE_COUNT ///< Sentry value which contains the number of different object types
    };
@@ -211,6 +212,7 @@ namespace graphene { namespace chain {
    class bet_object;
    class son_object;
    class son_proposal_object;
+   class son_wallet_object;
    class sidechain_address_object;
 
    typedef object_id< protocol_ids, account_object_type,            account_object>               account_id_type;
@@ -240,6 +242,7 @@ namespace graphene { namespace chain {
    typedef object_id< protocol_ids, bet_object_type,                bet_object>                   bet_id_type;
    typedef object_id< protocol_ids, son_object_type,                son_object>                   son_id_type;
    typedef object_id< protocol_ids, son_proposal_object_type,       son_proposal_object>          son_proposal_id_type;
+   typedef object_id< protocol_ids, son_wallet_object_type,         son_wallet_object>            son_wallet_id_type;
    typedef object_id< protocol_ids, sidechain_address_object_type,  sidechain_address_object>     sidechain_address_id_type;
 
    // implementation types

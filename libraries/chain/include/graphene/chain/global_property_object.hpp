@@ -27,6 +27,7 @@
 #include <graphene/chain/protocol/chain_parameters.hpp>
 #include <graphene/chain/protocol/types.hpp>
 #include <graphene/chain/database.hpp>
+#include <graphene/chain/son_info.hpp>
 #include <graphene/db/object.hpp>
 
 namespace graphene { namespace chain {
@@ -51,7 +52,7 @@ namespace graphene { namespace chain {
          uint32_t                           next_available_vote_id = 0;
          vector<committee_member_id_type>   active_committee_members; // updated once per maintenance interval
          flat_set<witness_id_type>          active_witnesses; // updated once per maintenance interval
-         vector<son_id_type>                active_sons; // updated once per maintenance interval
+         vector<son_info>                   active_sons; // updated once per maintenance interval
    };
 
    /**

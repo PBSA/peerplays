@@ -1942,7 +1942,14 @@ public:
    map<string, son_id_type> list_active_sons()
    { try {
       global_property_object gpo = get_global_properties();
-      std::vector<fc::optional<son_object>> son_objects = _remote_db->get_sons(gpo.active_sons);
+      vector<son_id_type> son_ids;
+      son_ids.reserve(gpo.active_sons.size());
+      std::transform(gpo.active_sons.begin(), gpo.active_sons.end(),
+                     std::inserter(son_ids, son_ids.end()),
+                     [](const son_info& swi) {
+         return swi.son_id;
+      });
+      std::vector<fc::optional<son_object>> son_objects = _remote_db->get_sons(son_ids);
       vector<account_id_type> owners;
       owners.resize(son_objects.size());
       std::transform(son_objects.begin(), son_objects.end(), owners.begin(),
@@ -1952,7 +1959,7 @@ public:
                      });
       vector<fc::optional<account_object>> accs = _remote_db->get_accounts(owners);
       map<string, son_id_type> result;
-      std::transform(accs.begin(), accs.end(), gpo.active_sons.begin(),
+      std::transform(accs.begin(), accs.end(), son_ids.begin(),
                      std::inserter(result, result.end()),
                      [](fc::optional<account_object>& acct, son_id_type& sid) {
                         FC_ASSERT(acct, "Invalid active SONs list in global properties.");

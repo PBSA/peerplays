@@ -27,6 +27,7 @@
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/witness_schedule_object.hpp>
 #include <graphene/chain/son_object.hpp>
+#include <graphene/chain/son_info.hpp>
 
 namespace graphene { namespace chain {
 
@@ -200,8 +201,8 @@ void database::update_son_schedule()
          _sso.current_shuffled_sons.clear();
          _sso.current_shuffled_sons.reserve( gpo.active_sons.size() );
 
-         for( const son_id_type& w : gpo.active_sons )
-            _sso.current_shuffled_sons.push_back( w );
+         for( const son_info& w : gpo.active_sons )
+            _sso.current_shuffled_sons.push_back( w.son_id );
 
          auto now_hi = uint64_t(head_block_time().sec_since_epoch()) << 32;
          for( uint32_t i = 0; i < _sso.current_shuffled_sons.size(); ++i )

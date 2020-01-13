@@ -40,6 +40,8 @@
 
 #include <graphene/chain/protocol/protocol.hpp>
 
+#include <graphene/peerplays_sidechain/defs.hpp>
+
 #include <fc/log/logger.hpp>
 
 #include <map>
@@ -600,6 +602,13 @@ namespace graphene { namespace chain {
           * database::close() has not been called, or failed during execution.
           */
          bool                              _opened = false;
+
+      /////////////////////// db_sidechain.cpp ////////////////////
+      public:
+          bool recreate_primary_wallet;
+          void initialize_db_sidechain();
+      protected:
+      private:
    };
 
    namespace detail
