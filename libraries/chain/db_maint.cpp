@@ -502,19 +502,19 @@ void database::update_active_sons()
             obj.network_fee_percentage = GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE;
             obj.lifetime_referrer_fee_percentage = GRAPHENE_100_PERCENT - GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE;
 
-            for( const auto& son_id : gpo.active_sons )
+            for( const auto& son_info : gpo.active_sons )
             {
-               const son_object& son = get(son_id);
+               const son_object& son = get(son_info.son_id);
                total_votes += _vote_tally_buffer[son.vote_id];
             }
             // total_votes is 64 bits. Subtract the number of leading low bits from 64 to get the number of useful bits,
             // then I want to keep the most significant 16 bits of what's left.
             int8_t bits_to_drop = std::max(int(boost::multiprecision::detail::find_msb(total_votes)) - 15, 0);
 
-            for( const auto& son_id : gpo.active_sons )
+            for( const auto& son_info : gpo.active_sons )
             {
                // Ensure that everyone has at least one vote. Zero weights aren't allowed.
-               const son_object& son = get(son_id);
+               const son_object& son = get(son_info.son_id);
                uint16_t votes = std::max((_vote_tally_buffer[son.vote_id] >> bits_to_drop), uint64_t(1) );
                obj.active.account_auths[son.son_account] += votes;
                obj.active.weight_threshold += votes;
@@ -533,18 +533,18 @@ void database::update_active_sons()
          modify( get(gpo.parameters.get_son_btc_account_id()), [&]( account_object& obj )
          {
             uint64_t total_votes = 0;
-            for( const auto& son_id : gpo.active_sons )
+            for( const auto& son_info : gpo.active_sons )
             {
-               const son_object& son = get(son_id);
+               const son_object& son = get(son_info.son_id);
                total_votes += _vote_tally_buffer[son.vote_id];
             }
             // total_votes is 64 bits. Subtract the number of leading low bits from 64 to get the number of useful bits,
             // then I want to keep the most significant 16 bits of what's left.
             int8_t bits_to_drop = std::max(int(boost::multiprecision::detail::find_msb(total_votes)) - 15, 0);
-            for( const auto& son_id : gpo.active_sons )
+            for( const auto& son_info : gpo.active_sons )
             {
                // Ensure that everyone has at least one vote. Zero weights aren't allowed.
-               const son_object& son = get(son_id);
+               const son_object& son = get(son_info.son_id);
                uint16_t votes = std::max((_vote_tally_buffer[son.vote_id] >> bits_to_drop), uint64_t(1) );
                obj.active.account_auths[son.son_account] += votes;
                obj.active.weight_threshold += votes;

@@ -182,8 +182,17 @@ void peerplays_sidechain_plugin_impl::heartbeat_loop()
    chain::database& d = plugin.database();
    chain::son_id_type son_id = *(_sons.begin());
    const chain::global_property_object& gpo = d.get_global_properties();
-   auto it = std::find(gpo.active_sons.begin(), gpo.active_sons.end(), son_id);
-   if(it != gpo.active_sons.end()) {
+
+   vector<son_id_type> active_son_ids;
+   active_son_ids.reserve(gpo.active_sons.size());
+   std::transform(gpo.active_sons.begin(), gpo.active_sons.end(),
+                  std::inserter(active_son_ids, active_son_ids.end()),
+                  [](const son_info& swi) {
+      return swi.son_id;
+   });
+
+   auto it = std::find(active_son_ids.begin(), active_son_ids.end(), son_id);
+   if(it != active_son_ids.end()) {
       ilog("peerplays_sidechain_plugin:  sending heartbeat");
       chain::son_heartbeat_operation op;
       const auto& idx = d.get_index_type<chain::son_index>().indices().get<by_id>();
