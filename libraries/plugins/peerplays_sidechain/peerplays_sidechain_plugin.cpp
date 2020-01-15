@@ -1,6 +1,7 @@
 #include <graphene/peerplays_sidechain/peerplays_sidechain_plugin.hpp>
 
 #include <fc/log/logger.hpp>
+#include <fc/smart_ref_impl.hpp>
 #include <graphene/chain/sidechain_address_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
 #include <graphene/peerplays_sidechain/sidechain_net_manager.hpp>
@@ -253,13 +254,13 @@ void peerplays_sidechain_plugin_impl::on_block_applied( const signed_block& b )
    chain::son_id_type next_son_id = d.get_scheduled_son(1);
    if(next_son_id == my_son_id) {
       const auto& idx = d.get_index_type<chain::son_index>().indices().get<by_id>();
-      for(auto son_id: gpo.active_sons) {
-         auto son_obj = idx.find( son_id );
+      for(auto son_inf: gpo.active_sons) {
+         auto son_obj = idx.find( son_inf.son_id );
          auto stats = son_obj->statistics(d);
          fc::time_point_sec last_active_ts = stats.last_active_timestamp;
          int64_t down_threshold = 2*180000000;
          if((fc::time_point::now() - last_active_ts) > fc::microseconds(down_threshold))  {
-            chain::proposal_create_operation op = create_son_down_proposal(son_id, last_active_ts);
+            chain::proposal_create_operation op = create_son_down_proposal(son_inf.son_id, last_active_ts);
             chain::signed_transaction trx = d.create_signed_transaction(_private_keys.begin()->second, op);
             fc::future<bool> fut = fc::async( [&](){
                try {
@@ -284,9 +285,16 @@ void peerplays_sidechain_plugin_impl::on_objects_new(const vector<object_id_type
    const chain::global_property_object& gpo = d.get_global_properties();
    const auto& idx = d.get_index_type<chain::son_index>().indices().get<by_id>();
    auto son_obj = idx.find( my_son_id );
+   vector<son_id_type> active_son_ids;
+   active_son_ids.reserve(gpo.active_sons.size());
+   std::transform(gpo.active_sons.begin(), gpo.active_sons.end(),
+                  std::inserter(active_son_ids, active_son_ids.end()),
+                  [](const son_info& swi) {
+      return swi.son_id;
+   });
 
-   auto it = std::find(gpo.active_sons.begin(), gpo.active_sons.end(), my_son_id);
-   if(it == gpo.active_sons.end()) {
+   auto it = std::find(active_son_ids.begin(), active_son_ids.end(), my_son_id);
+   if(it == active_son_ids.end()) {
       return;
    }
 
