@@ -123,6 +123,22 @@ object_id_type son_heartbeat_evaluator::do_apply(const son_heartbeat_operation& 
     auto itr = idx.find(op.son_id);
     if(itr != idx.end())
     {
+        const global_property_object& gpo = db().get_global_properties();
+        vector<son_id_type> active_son_ids;
+        active_son_ids.reserve(gpo.active_sons.size());
+        std::transform(gpo.active_sons.begin(), gpo.active_sons.end(),
+                        std::inserter(active_son_ids, active_son_ids.end()),
+                        [](const son_info& swi) {
+            return swi.son_id;
+        });
+
+        auto it_son = std::find(active_son_ids.begin(), active_son_ids.end(), op.son_id);
+        bool is_son_active = true;
+
+        if(it_son == active_son_ids.end()) {
+            is_son_active = false;
+        }
+
         if(itr->status == son_status::in_maintenance) {
             db().modify( itr->statistics( db() ), [&]( son_statistics_object& sso )
             {
@@ -130,8 +146,12 @@ object_id_type son_heartbeat_evaluator::do_apply(const son_heartbeat_operation& 
                 sso.last_active_timestamp = op.ts;
             } );
 
-            db().modify(*itr, [&op](son_object &so) {
-                so.status = son_status::active;
+            db().modify(*itr, [&is_son_active](son_object &so) {
+                if(is_son_active) {
+                    so.status = son_status::active;
+                } else {
+                    so.status = son_status::inactive;
+                }
             });
         } else if (itr->status == son_status::active) {
             db().modify( itr->statistics( db() ), [&]( son_statistics_object& sso )

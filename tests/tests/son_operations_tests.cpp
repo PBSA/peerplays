@@ -723,7 +723,40 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
          generate_block();
          trx.clear();
          BOOST_REQUIRE_EQUAL(son_stats_obj->current_interval_downtime, op.ts.sec_since_epoch() - son_stats_obj->last_down_timestamp.sec_since_epoch());
-         downtime = op.ts.sec_since_epoch() - son_stats_obj->last_down_timestamp.sec_since_epoch();
+         downtime += op.ts.sec_since_epoch() - son_stats_obj->last_down_timestamp.sec_since_epoch();
+         BOOST_CHECK( obj->status == son_status::inactive);
+         BOOST_CHECK( son_stats_obj->last_active_timestamp == op.ts);
+      }
+
+      // Modify SON's status to in_maintenance
+      db.modify( *obj, [&]( son_object& _s)
+      {
+         _s.status = son_status::in_maintenance;
+      });
+
+      // SON is selected as one of the active SONs
+      db.modify( db.get_global_properties(), [&]( global_property_object& _gpo )
+      {
+         son_info son_inf;
+         son_inf.son_id = son_id_type(0);
+         _gpo.active_sons.push_back(son_inf);
+      });
+
+      {
+         generate_block();
+         // Send Heartbeat for an in_maintenance SON
+         son_heartbeat_operation op;
+         op.owner_account = alice_id;
+         op.son_id = son_id_type(0);
+         op.ts = (db.head_block_time()+fc::seconds(2*db.block_interval()));
+
+         trx.operations.push_back(op);
+         sign(trx, alice_private_key);
+         PUSH_TX( db, trx, ~0);
+         generate_block();
+         trx.clear();
+         BOOST_REQUIRE_EQUAL(son_stats_obj->current_interval_downtime, downtime + op.ts.sec_since_epoch() - son_stats_obj->last_down_timestamp.sec_since_epoch());
+         downtime += op.ts.sec_since_epoch() - son_stats_obj->last_down_timestamp.sec_since_epoch();
          BOOST_CHECK( obj->status == son_status::active);
          BOOST_CHECK( son_stats_obj->last_active_timestamp == op.ts);
       }
