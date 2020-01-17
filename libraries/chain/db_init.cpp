@@ -250,6 +250,7 @@ void database::initialize_evaluators()
    register_evaluator<update_son_evaluator>();
    register_evaluator<delete_son_evaluator>();
    register_evaluator<son_heartbeat_evaluator>();
+   register_evaluator<son_maintenance_evaluator>();
    register_evaluator<add_sidechain_address_evaluator>();
    register_evaluator<update_sidechain_address_evaluator>();
    register_evaluator<delete_sidechain_address_evaluator>();

@@ -297,6 +297,9 @@ struct get_impacted_account_visitor
    void operator()( const son_heartbeat_operation& op ) {
       _impacted.insert( op.owner_account );
    }
+   void operator()( const son_maintenance_operation& op ) {
+      _impacted.insert( op.owner_account );
+   }
    void operator()( const sidechain_address_add_operation& op ) {
       _impacted.insert( op.sidechain_address_account );
    }

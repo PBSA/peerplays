@@ -684,6 +684,19 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
          GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0), fc::exception);
          trx.clear();
       }
+
+      {
+         // Try to go in maintenance for an inactive SON
+         son_maintenance_operation op;
+         op.owner_account = alice_id;
+         op.son_id = son_id_type(0);
+
+         trx.operations.push_back(op);
+         sign(trx, alice_private_key);
+         // Expect an exception
+         GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0), fc::exception);
+         trx.clear();
+      }
       generate_block();
 
       const auto& idx = db.get_index_type<son_index>().indices().get<by_account>();
@@ -696,16 +709,31 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
       auto son_stats_obj = sidx.find( obj->statistics );
       BOOST_REQUIRE( son_stats_obj != sidx.end() );
 
-      // Modify SON's status to in_maintenance
+      // Modify SON's status to active
       db.modify( *obj, [&]( son_object& _s)
       {
-         _s.status = son_status::in_maintenance;
+         _s.status = son_status::active;
       });
 
       db.modify( *son_stats_obj, [&]( son_statistics_object& _s)
       {
-         _s.last_down_timestamp = fc::time_point_sec(db.head_block_time() - fc::hours(1));
+         _s.last_down_timestamp = fc::time_point_sec(db.head_block_time());
       });
+
+      {
+         generate_block();
+         // Put SON in maintenance
+         son_maintenance_operation op;
+         op.owner_account = alice_id;
+         op.son_id = son_id_type(0);
+
+         trx.operations.push_back(op);
+         sign(trx, alice_private_key);
+         PUSH_TX( db, trx, ~0);
+         generate_block();
+         trx.clear();
+         BOOST_CHECK( obj->status == son_status::in_maintenance);
+      }
 
       uint64_t downtime = 0;
 

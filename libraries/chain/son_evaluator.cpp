@@ -195,4 +195,31 @@ object_id_type son_report_down_evaluator::do_apply(const son_report_down_operati
     return op.son_id;
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
+void_result son_maintenance_evaluator::do_evaluate(const son_maintenance_operation& op)
+{ try {
+    FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK"); // can be removed after HF date pass
+    FC_ASSERT(db().get(op.son_id).son_account == op.owner_account);
+    const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
+    auto itr = idx.find(op.son_id);
+    FC_ASSERT( itr != idx.end() );
+    // Inactive SONs can't go to maintenance
+    FC_ASSERT(itr->status == son_status::active || itr->status == son_status::in_maintenance, "Inactive SONs can't go to maintenance");
+    return void_result();
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
+object_id_type son_maintenance_evaluator::do_apply(const son_maintenance_operation& op)
+{ try {
+    const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
+    auto itr = idx.find(op.son_id);
+    if(itr != idx.end())
+    {
+        if(itr->status == son_status::active) {
+            db().modify(*itr, [](son_object &so) {
+                so.status = son_status::in_maintenance;
+            });
+        }
+    }
+    return op.son_id;
+} FC_CAPTURE_AND_RETHROW( (op) ) }
+
 } } // namespace graphene::chain

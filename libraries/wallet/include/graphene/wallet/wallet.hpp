@@ -1350,6 +1350,24 @@ class wallet_api
       signed_transaction delete_son(string owner_account,
                                     bool broadcast = false);
 
+      /** Modify status of the SON owned by the given account to maintenance.
+       *
+       * @param owner_account the name or id of the account which is owning the SON
+       * @param broadcast true to broadcast the transaction on the network
+       * @returns the signed transaction
+       */
+      signed_transaction start_son_maintenance(string owner_account,
+                                              bool broadcast = false);
+
+      /** Modify status of the SON owned by the given account back to active.
+       *
+       * @param owner_account the name or id of the account which is owning the SON
+       * @param broadcast true to broadcast the transaction on the network
+       * @returns the signed transaction
+       */
+      signed_transaction stop_son_maintenance(string owner_account,
+                                              bool broadcast = false);
+
       /** Lists all SONs in the blockchain.
        * This returns a list of all account names that own SON, and the associated SON id,
        * sorted by name.  This lists SONs whether they are currently voted in or not.

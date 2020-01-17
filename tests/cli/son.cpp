@@ -658,6 +658,67 @@ BOOST_FIXTURE_TEST_CASE( cli_list_active_sons, cli_fixture )
    BOOST_TEST_MESSAGE("SON cli wallet tests for list_active_sons end");
 }
 
+BOOST_AUTO_TEST_CASE( maintenance_test )
+{
+   BOOST_TEST_MESSAGE("SON maintenance cli wallet tests begin");
+   try
+   {
+      son_test_helper sth(*this);
+
+      std::string name("sonaccount1");
+
+      global_property_object gpo;
+      gpo = con.wallet_api_ptr->get_global_properties();
+      unsigned int son_number = gpo.parameters.maximum_son_count;
+
+      flat_map<graphene::peerplays_sidechain::sidechain_type, string> sidechain_public_keys;
+
+      // create son accounts
+      for(unsigned int i = 0; i < son_number + 1; i++)
+      {
+          sidechain_public_keys.clear();
+          sidechain_public_keys[graphene::peerplays_sidechain::sidechain_type::bitcoin] = "bitcoin_address " + fc::to_pretty_string(i);
+          sth.create_son("sonaccount" + fc::to_pretty_string(i),
+                         "http://son" + fc::to_pretty_string(i),
+                         sidechain_public_keys,
+                         false);
+      }
+      BOOST_CHECK(generate_maintenance_block());
+
+      BOOST_TEST_MESSAGE("Voting for SONs");
+      for(unsigned int i = 1; i < son_number + 1; i++)
+      {
+          con.wallet_api_ptr->vote_for_son("sonaccount" + fc::to_pretty_string(i), name, true, true);
+      }
+      BOOST_CHECK(generate_maintenance_block());
+
+      son_object son_obj = con.wallet_api_ptr->get_son(name);
+      BOOST_CHECK(son_obj.status == son_status::active);
+
+      // put SON in maintenance mode
+      con.wallet_api_ptr->start_son_maintenance(name, true);
+      BOOST_CHECK(generate_block());
+
+      // check SON is in maintenance
+      son_obj = con.wallet_api_ptr->get_son(name);
+      BOOST_CHECK(son_obj.status == son_status::in_maintenance);
+
+      // restore SON activity
+      con.wallet_api_ptr->stop_son_maintenance(name, true);
+      BOOST_CHECK(generate_block());
+
+      // check SON is active
+      son_obj = con.wallet_api_ptr->get_son(name);
+      BOOST_CHECK(son_obj.status == son_status::active);
+
+   } catch( fc::exception& e ) {
+      BOOST_TEST_MESSAGE("SON cli wallet tests exception");
+      edump((e.to_detail_string()));
+      throw;
+   }
+   BOOST_TEST_MESSAGE("SON maintenance cli wallet tests end");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 

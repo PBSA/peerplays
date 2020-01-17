@@ -97,7 +97,7 @@ namespace graphene { namespace chain {
 FC_REFLECT_ENUM(graphene::chain::son_status, (inactive)(active)(in_maintenance)(deregistered) )
 
 FC_REFLECT_DERIVED( graphene::chain::son_object, (graphene::db::object),
-                    (son_account)(vote_id)(total_votes)(url)(deposit)(signing_key)(pay_vb)(sidechain_public_keys) )
+                    (son_account)(vote_id)(total_votes)(url)(deposit)(signing_key)(pay_vb)(status)(sidechain_public_keys) )
 
 FC_REFLECT_DERIVED( graphene::chain::son_statistics_object,
                     (graphene::db::object),

@@ -471,6 +471,56 @@ void database::update_active_sons()
    } else {
       ilog( "Active SONs set CHANGED" );
       // Store new SON info, initiate wallet recreation and transfer of funds
+      vector<son_info> sons_to_remove;
+      // find all cur_active_sons members that is not in new_active_sons
+      for_each(cur_active_sons.begin(), cur_active_sons.end(),
+               [&sons_to_remove, &new_active_sons](const son_info& si)
+               {
+                  if(std::find(new_active_sons.begin(), new_active_sons.end(), si) ==
+                        new_active_sons.end())
+                  {
+                     sons_to_remove.push_back(si);
+                  }
+               }
+      );
+      const auto& idx = get_index_type<son_index>().indices().get<by_id>();
+      for( const son_info& si : sons_to_remove )
+      {
+         auto son = idx.find( si.son_id );
+         if(son == idx.end()) // SON is deleted already
+            continue;
+         // keep maintenance status for nodes becoming inactive
+         if(son->status == son_status::active)
+         {
+            modify( *son, [&]( son_object& obj ){
+                    obj.status = son_status::inactive;
+                    });
+         }
+      }
+      vector<son_info> sons_to_add;
+      // find all new_active_sons members that is not in cur_active_sons
+      for_each(new_active_sons.begin(), new_active_sons.end(),
+               [&sons_to_add, &cur_active_sons](const son_info& si)
+               {
+                  if(std::find(cur_active_sons.begin(), cur_active_sons.end(), si) ==
+                        cur_active_sons.end())
+                  {
+                     sons_to_add.push_back(si);
+                  }
+               }
+      );
+      for( const son_info& si : sons_to_add )
+      {
+         auto son = idx.find( si.son_id );
+         FC_ASSERT(son != idx.end(), "Invalid SON in active list, id={sonid}.", ("sonid", si.son_id));
+         // keep maintenance status for new nodes
+         if(son->status == son_status::inactive)
+         {
+            modify( *son, [&]( son_object& obj ){
+                    obj.status = son_status::active;
+                    });
+         }
+      }
    }
 
    modify(gpo, [&]( global_property_object& gp ){

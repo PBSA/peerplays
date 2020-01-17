@@ -1939,6 +1939,41 @@ public:
       return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (owner_account)(broadcast) ) }
 
+   signed_transaction start_son_maintenance(string owner_account,
+                                           bool broadcast)
+   { try {
+         son_object son = get_son(owner_account);
+
+         son_maintenance_operation op;
+         op.owner_account = son.son_account;
+         op.son_id = son.id;
+
+         signed_transaction tx;
+         tx.operations.push_back( op );
+         set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
+         tx.validate();
+
+         return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (owner_account) ) }
+
+   signed_transaction stop_son_maintenance(string owner_account,
+                                           bool broadcast)
+   { try {
+         son_object son = get_son(owner_account);
+
+         son_heartbeat_operation op;
+         op.owner_account = son.son_account;
+         op.son_id = son.id;
+         op.ts = _remote_db->get_dynamic_global_properties().time; // or fc::time_point_sec(fc::time_point::now()) ???
+
+         signed_transaction tx;
+         tx.operations.push_back( op );
+         set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
+         tx.validate();
+
+         return sign_transaction( tx, broadcast );
+   } FC_CAPTURE_AND_RETHROW( (owner_account) ) }
+
    map<string, son_id_type> list_active_sons()
    { try {
       global_property_object gpo = get_global_properties();
@@ -4401,6 +4436,16 @@ signed_transaction wallet_api::delete_son(string owner_account,
                                           bool broadcast /* = false */)
 {
    return my->delete_son(owner_account, broadcast);
+}
+
+signed_transaction wallet_api::start_son_maintenance(string owner_account, bool broadcast)
+{
+   return my->start_son_maintenance(owner_account, broadcast);
+}
+
+signed_transaction wallet_api::stop_son_maintenance(string owner_account, bool broadcast)
+{
+   return my->stop_son_maintenance(owner_account, broadcast);
 }
 
 map<string, son_id_type> wallet_api::list_sons(const string& lowerbound, uint32_t limit)
