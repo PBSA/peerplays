@@ -679,6 +679,7 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
          op.ts = fc::time_point::now();
 
          trx.operations.push_back(op);
+         set_expiration(db, trx);
          sign(trx, alice_private_key);
          // Expect an exception
          GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0), fc::exception);
@@ -692,6 +693,7 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
          op.son_id = son_id_type(0);
 
          trx.operations.push_back(op);
+         set_expiration(db, trx);
          sign(trx, alice_private_key);
          // Expect an exception
          GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0), fc::exception);
@@ -728,6 +730,7 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
          op.son_id = son_id_type(0);
 
          trx.operations.push_back(op);
+         set_expiration(db, trx);
          sign(trx, alice_private_key);
          PUSH_TX( db, trx, ~0);
          generate_block();
@@ -746,6 +749,7 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
          op.ts = (db.head_block_time()+fc::seconds(2*db.block_interval()));
 
          trx.operations.push_back(op);
+         set_expiration(db, trx);
          sign(trx, alice_private_key);
          PUSH_TX( db, trx, ~0);
          generate_block();
@@ -779,6 +783,7 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
          op.ts = (db.head_block_time()+fc::seconds(2*db.block_interval()));
 
          trx.operations.push_back(op);
+         set_expiration(db, trx);
          sign(trx, alice_private_key);
          PUSH_TX( db, trx, ~0);
          generate_block();
@@ -798,6 +803,7 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
          op.ts = (db.head_block_time()+fc::seconds(2*db.block_interval()));
 
          trx.operations.push_back(op);
+         set_expiration(db, trx);
          sign(trx, alice_private_key);
          PUSH_TX( db, trx, ~0);
          generate_block();
@@ -864,6 +870,7 @@ BOOST_AUTO_TEST_CASE( son_report_down_test ) {
          op.down_ts = fc::time_point_sec(son_stats_obj->last_active_timestamp - fc::seconds(1));
 
          trx.operations.push_back(op);
+         set_expiration(db, trx);
          sign(trx, bob_private_key);
           // Expect an exception
          GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0), fc::exception);
@@ -880,6 +887,7 @@ BOOST_AUTO_TEST_CASE( son_report_down_test ) {
          op.down_ts = son_stats_obj->last_active_timestamp;
 
          trx.operations.push_back(op);
+         set_expiration(db, trx);
          sign(trx, alice_private_key);
          // Expect an exception
          GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0), fc::exception);
@@ -896,6 +904,7 @@ BOOST_AUTO_TEST_CASE( son_report_down_test ) {
          op.down_ts = son_stats_obj->last_active_timestamp;
 
          trx.operations.push_back(op);
+         set_expiration(db, trx);
          sign(trx, bob_private_key);
          PUSH_TX( db, trx, ~0);
          generate_block();
@@ -915,6 +924,7 @@ BOOST_AUTO_TEST_CASE( son_report_down_test ) {
          op.down_ts = son_stats_obj->last_active_timestamp;
 
          trx.operations.push_back(op);
+         set_expiration(db, trx);
          sign(trx, bob_private_key);
          // Expect an exception
          GRAPHENE_REQUIRE_THROW(PUSH_TX( db, trx, ~0), fc::exception);
