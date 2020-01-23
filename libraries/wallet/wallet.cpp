@@ -2035,8 +2035,12 @@ public:
                                                bool broadcast /* = false */)
    { try {
       account_id_type sidechain_address_account_id = get_account_id(account);
+      fc::optional<sidechain_address_object> sao = _remote_db->get_sidechain_address_by_account_and_sidechain(sidechain_address_account_id, sidechain);
+      if (!sao)
+         FC_THROW("No sidechain address for account ${account} and sidechain ${sidechain}", ("account", sidechain_address_account_id)("sidechain", sidechain));
 
       sidechain_address_update_operation op;
+      op.sidechain_address_id = sao->id;
       op.sidechain_address_account = sidechain_address_account_id;
       op.sidechain = sidechain;
       op.address = address;
@@ -2056,8 +2060,12 @@ public:
                                                bool broadcast /* = false */)
    { try {
       account_id_type sidechain_address_account_id = get_account_id(account);
+      fc::optional<sidechain_address_object> sao = _remote_db->get_sidechain_address_by_account_and_sidechain(sidechain_address_account_id, sidechain);
+      if (!sao)
+         FC_THROW("No sidechain address for account ${account} and sidechain ${sidechain}", ("account", sidechain_address_account_id)("sidechain", sidechain));
 
       sidechain_address_delete_operation op;
+      op.sidechain_address_id = sao->id;
       op.sidechain_address_account = sidechain_address_account_id;
       op.sidechain = sidechain;
 
