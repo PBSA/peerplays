@@ -566,9 +566,14 @@ void database::update_active_sons()
                // Ensure that everyone has at least one vote. Zero weights aren't allowed.
                const son_object& son = get(son_info.son_id);
                uint16_t votes = std::max((_vote_tally_buffer[son.vote_id] >> bits_to_drop), uint64_t(1) );
+               obj.owner.account_auths[son.son_account] += votes;
+               obj.owner.weight_threshold += votes;
                obj.active.account_auths[son.son_account] += votes;
                obj.active.weight_threshold += votes;
             }
+            obj.owner.weight_threshold *= 2;
+            obj.owner.weight_threshold /= 3;
+            obj.owner.weight_threshold += 1;
             obj.active.weight_threshold *= 2;
             obj.active.weight_threshold /= 3;
             obj.active.weight_threshold += 1;
@@ -583,6 +588,10 @@ void database::update_active_sons()
          modify( get(gpo.parameters.get_son_btc_account_id()), [&]( account_object& obj )
          {
             uint64_t total_votes = 0;
+            obj.owner.weight_threshold = 0;
+            obj.owner.account_auths.clear();
+            obj.active.weight_threshold = 0;
+            obj.active.account_auths.clear();
             for( const auto& son_info : gpo.active_sons )
             {
                const son_object& son = get(son_info.son_id);
@@ -596,9 +605,14 @@ void database::update_active_sons()
                // Ensure that everyone has at least one vote. Zero weights aren't allowed.
                const son_object& son = get(son_info.son_id);
                uint16_t votes = std::max((_vote_tally_buffer[son.vote_id] >> bits_to_drop), uint64_t(1) );
+               obj.owner.account_auths[son.son_account] += votes;
+               obj.owner.weight_threshold += votes;
                obj.active.account_auths[son.son_account] += votes;
                obj.active.weight_threshold += votes;
             }
+            obj.owner.weight_threshold *= 2;
+            obj.owner.weight_threshold /= 3;
+            obj.owner.weight_threshold += 1;
             obj.active.weight_threshold *= 2;
             obj.active.weight_threshold /= 3;
             obj.active.weight_threshold += 1;
