@@ -858,6 +858,7 @@ public:
    //          account, false otherwise (but it is stored either way)
    bool import_key(string account_name_or_id, string wif_key)
    {
+      fc::scoped_lock<fc::mutex> lock(_resync_mutex);
       fc::optional<fc::ecc::private_key> optional_private_key = wif_to_key(wif_key);
       if (!optional_private_key)
          FC_THROW("Invalid private key");
@@ -1359,6 +1360,7 @@ public:
                                                       bool broadcast = false,
                                                       bool save_wallet = true)
    { try {
+         fc::scoped_lock<fc::mutex> lock(_resync_mutex);
          int active_key_index = find_first_unused_derived_key_index(owner_privkey);
          fc::ecc::private_key active_privkey = derive_private_key( key_to_wif(owner_privkey), active_key_index);
 
@@ -1866,6 +1868,7 @@ public:
                                  flat_map<peerplays_sidechain::sidechain_type, string> sidechain_public_keys,
                                  bool broadcast /* = false */)
    { try {
+      fc::scoped_lock<fc::mutex> lock(_resync_mutex);
       account_object son_account = get_account(owner_account);
       fc::ecc::private_key active_private_key = get_private_key_for_account(son_account);
       int son_key_index = find_first_unused_derived_key_index(active_private_key);
@@ -2082,6 +2085,7 @@ public:
                                      string url,
                                      bool broadcast /* = false */)
    { try {
+      fc::scoped_lock<fc::mutex> lock(_resync_mutex);
       account_object witness_account = get_account(owner_account);
       fc::ecc::private_key active_private_key = get_private_key_for_account(witness_account);
       int witness_key_index = find_first_unused_derived_key_index(active_private_key);
