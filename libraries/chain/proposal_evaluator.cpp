@@ -176,6 +176,15 @@ void son_hardfork_visitor::operator()( const son_delete_operation &v )
    });
 }
 
+void son_hardfork_visitor::operator()( const son_report_down_operation &v )
+{
+   db.create<son_proposal_object>([&]( son_proposal_object& son_prop ) {
+      son_prop.proposal_type = son_proposal_type::son_report_down_proposal;
+      son_prop.proposal_id = prop_id;
+      son_prop.son_id = v.son_id;
+   });
+}
+
 void_result proposal_create_evaluator::do_evaluate(const proposal_create_operation& o)
 { try {
    const database& d = db();

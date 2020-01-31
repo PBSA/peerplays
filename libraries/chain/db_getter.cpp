@@ -179,6 +179,21 @@ std::set<son_id_type> database::get_sons_to_be_deregistered()
    return ret;
 }
 
+std::set<son_id_type> database::get_sons_being_reported_down()
+{
+   std::set<son_id_type> ret;
+   const auto& son_proposal_idx = get_index_type<son_proposal_index>().indices().get< by_id >();
+
+   for( auto& son_proposal : son_proposal_idx )
+   {
+      if(son_proposal.proposal_type == son_proposal_type::son_report_down_proposal)
+      {
+         ret.insert(son_proposal.son_id);
+      }
+   }
+   return ret;
+}
+
 fc::optional<operation> database::create_son_deregister_proposal(const son_id_type& son_id, const witness_object& current_witness )
 {
    son_delete_operation son_dereg_op;
@@ -235,7 +250,8 @@ void database::process_son_proposals( const witness_object& current_witness, con
 void database::remove_son_proposal( const proposal_object& proposal )
 { try {
    if( proposal.proposed_transaction.operations.size() == 1 &&
-     ( proposal.proposed_transaction.operations.back().which() == operation::tag<son_delete_operation>::value) )
+     ( proposal.proposed_transaction.operations.back().which() == operation::tag<son_delete_operation>::value ||
+       proposal.proposed_transaction.operations.back().which() == operation::tag<son_report_down_operation>::value) )
    {
       const auto& son_proposal_idx = get_index_type<son_proposal_index>().indices().get<by_proposal>();
       auto son_proposal_itr = son_proposal_idx.find( proposal.id );

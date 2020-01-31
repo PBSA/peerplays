@@ -224,6 +224,7 @@ void database::clear_expired_proposals()
          elog("Failed to apply proposed transaction on its expiration. Deleting it.\n${proposal}\n${error}",
               ("proposal", proposal)("error", e.to_detail_string()));
       }
+      remove_son_proposal(proposal);
       remove(proposal);
    }
 }

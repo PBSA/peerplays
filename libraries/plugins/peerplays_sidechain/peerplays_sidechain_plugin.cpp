@@ -248,10 +248,12 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals()
    chain::database& d = plugin.database();
    const chain::global_property_object& gpo = d.get_global_properties();
    const auto& idx = d.get_index_type<chain::son_index>().indices().get<by_id>();
+   std::set<son_id_type> sons_being_reported_down = d.get_sons_being_reported_down();
    chain::son_id_type my_son_id = *(_sons.begin());
    for(auto son_inf: gpo.active_sons) {
-      if(my_son_id == son_inf.son_id)
+      if(my_son_id == son_inf.son_id || (sons_being_reported_down.find(son_inf.son_id) != sons_being_reported_down.end())){
          continue;
+      }
       auto son_obj = idx.find( son_inf.son_id );
       auto stats = son_obj->statistics(d);
       fc::time_point_sec last_active_ts = stats.last_active_timestamp;
@@ -339,7 +341,7 @@ void peerplays_sidechain_plugin_impl::on_objects_new(const vector<object_id_type
       if( object_id.is<chain::proposal_object>() ) {
          const object* obj = d.find_object(object_id);
          const chain::proposal_object* proposal = dynamic_cast<const chain::proposal_object*>(obj);
-         if(proposal == nullptr) {
+         if(proposal == nullptr || (proposal->available_active_approvals.find(son_obj->son_account) != proposal->available_active_approvals.end())) {
             return;
          }
 

@@ -300,6 +300,7 @@ namespace graphene { namespace chain {
          std::vector<uint32_t>                  get_seeds( asset_id_type for_asset, uint8_t count_winners )const;
          uint64_t                               get_random_bits( uint64_t bound );
          std::set<son_id_type>                  get_sons_being_deregistered();
+         std::set<son_id_type>                  get_sons_being_reported_down();
          std::set<son_id_type>                  get_sons_to_be_deregistered();
          fc::optional<operation>                create_son_deregister_proposal(const son_id_type& son_id, const witness_object& current_witness );
          signed_transaction                     create_signed_transaction( const fc::ecc::private_key& signing_private_key, const operation& op );

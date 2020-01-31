@@ -8,7 +8,8 @@ namespace graphene { namespace chain {
 
 enum class son_proposal_type
 {
-    son_deregister_proposal
+    son_deregister_proposal,
+    son_report_down_proposal
 };
 
 class son_proposal_object : public abstract_object<son_proposal_object>
@@ -36,6 +37,6 @@ using son_proposal_index = generic_index<son_proposal_object, son_proposal_multi
 
 } } // graphene::chain
 
-FC_REFLECT_ENUM(graphene::chain::son_proposal_type, (son_deregister_proposal) )
+FC_REFLECT_ENUM( graphene::chain::son_proposal_type, (son_deregister_proposal)(son_report_down_proposal) )
 
 FC_REFLECT_DERIVED( graphene::chain::son_proposal_object, (graphene::chain::object), (proposal_id)(son_id)(proposal_type) )
