@@ -165,6 +165,20 @@ void database::pay_sons()
    }
 }
 
+void database::update_son_metrics()
+{
+   const auto& son_idx = get_index_type<son_index>().indices().get< by_id >();
+   for( auto& son : son_idx )
+   {
+      auto& stats = son.statistics(*this);
+      modify( stats, [&]( son_statistics_object& _stats)
+      {
+         _stats.total_downtime += _stats.current_interval_downtime;
+         _stats.current_interval_downtime = 0;
+      });
+   }
+}
+
 void database::pay_workers( share_type& budget )
 {
 //   ilog("Processing payroll! Available budget is ${b}", ("b", budget));
@@ -541,6 +555,8 @@ void database::update_active_sons()
       });
       _sso.scheduler.update(active_sons);
    });
+
+   update_son_metrics();
 
    if(gpo.active_sons.size() > 0 ) {
       if(gpo.parameters.get_son_btc_account_id() == GRAPHENE_NULL_ACCOUNT) {

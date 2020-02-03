@@ -165,6 +165,7 @@ object_id_type son_heartbeat_evaluator::do_apply(const son_heartbeat_operation& 
 
 void_result son_report_down_evaluator::do_evaluate(const son_report_down_operation& op)
 { try {
+    FC_ASSERT(db().head_block_time() >= HARDFORK_SON_TIME, "Not allowed until SON HARDFORK"); // can be removed after HF date pass
     FC_ASSERT(op.payer == db().get_global_properties().parameters.get_son_btc_account_id(), "Payer should be the son btc account");
     const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
     FC_ASSERT( idx.find(op.son_id) != idx.end() );

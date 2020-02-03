@@ -247,6 +247,7 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals()
 
    chain::database& d = plugin.database();
    const chain::global_property_object& gpo = d.get_global_properties();
+   const chain::dynamic_global_property_object& dgpo = d.get_dynamic_global_properties();
    const auto& idx = d.get_index_type<chain::son_index>().indices().get<by_id>();
    std::set<son_id_type> sons_being_reported_down = d.get_sons_being_reported_down();
    chain::son_id_type my_son_id = *(_sons.begin());
@@ -256,7 +257,8 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals()
       }
       auto son_obj = idx.find( son_inf.son_id );
       auto stats = son_obj->statistics(d);
-      fc::time_point_sec last_active_ts = stats.last_active_timestamp;
+      fc::time_point_sec last_maintenance_time = dgpo.next_maintenance_time - gpo.parameters.maintenance_interval;
+      fc::time_point_sec last_active_ts = ((stats.last_active_timestamp > last_maintenance_time) ? stats.last_active_timestamp : last_maintenance_time);
       int64_t down_threshold = 2*180000000;
       if(son_obj->status == chain::son_status::active && (fc::time_point::now() - last_active_ts) > fc::microseconds(down_threshold))  {
          ilog("peerplays_sidechain_plugin:  sending son down proposal for ${t} from ${s}",("t",std::string(object_id_type(son_obj->id)))("s",std::string(object_id_type(my_son_id))));
