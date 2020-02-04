@@ -1390,6 +1390,26 @@ class wallet_api
        */
       map<string, son_id_type> list_active_sons();
 
+      /**
+       * @brief Get active SON wallet
+       * @return Active SON wallet object
+       */
+      optional<son_wallet_object> get_active_son_wallet();
+
+      /**
+       * @brief Get SON wallet that was active for a given time point
+       * @param time_point Time point
+       * @return SON wallet object, for the wallet that was active for a given time point
+       */
+      optional<son_wallet_object> get_son_wallet_by_time_point(time_point_sec time_point);
+
+      /**
+       * @brief Get full list of SON wallets
+       * @param limit Maximum number of results to return
+       * @return A list of SON wallet objects
+       */
+      vector<optional<son_wallet_object>> get_son_wallets(uint32_t limit);
+
       /** Adds sidechain address owned by the given account for a given sidechain.
        *
        * An account can have at most one sidechain address for one sidechain.
@@ -2221,6 +2241,9 @@ FC_API( graphene::wallet::wallet_api,
         (delete_son)
         (list_sons)
         (list_active_sons)
+        (get_active_son_wallet)
+        (get_son_wallet_by_time_point)
+        (get_son_wallets)
         (add_sidechain_address)
         (update_sidechain_address)
         (delete_sidechain_address)

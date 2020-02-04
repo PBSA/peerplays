@@ -310,8 +310,17 @@ struct get_impacted_account_visitor
    void operator()( const son_heartbeat_operation& op ){
       _impacted.insert( op.owner_account );
    }
+   void operator()( const son_report_down_operation& op ){
+      _impacted.insert( op.payer );
+   }
    void operator()( const son_maintenance_operation& op ){
       _impacted.insert( op.owner_account );
+   }
+   void operator()( const son_wallet_recreate_operation& op ){
+      _impacted.insert( op.payer );
+   }
+   void operator()( const son_wallet_update_operation& op ){
+      _impacted.insert( op.payer );
    }
    void operator()( const sidechain_address_add_operation& op ){
         _impacted.insert( op.sidechain_address_account );
@@ -321,9 +330,6 @@ struct get_impacted_account_visitor
    }
    void operator()( const sidechain_address_delete_operation& op ){
       _impacted.insert( op.sidechain_address_account );
-   }
-   void operator()( const son_report_down_operation& op ){
-      _impacted.insert( op.payer );
    }
 };
 

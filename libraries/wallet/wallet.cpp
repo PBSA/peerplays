@@ -2006,6 +2006,21 @@ public:
       return result;
    } FC_CAPTURE_AND_RETHROW() }
 
+   optional<son_wallet_object> get_active_son_wallet()
+   { try {
+       return _remote_db->get_active_son_wallet();
+   } FC_CAPTURE_AND_RETHROW() }
+
+   optional<son_wallet_object> get_son_wallet_by_time_point(time_point_sec time_point)
+   { try {
+       return _remote_db->get_son_wallet_by_time_point(time_point);
+   } FC_CAPTURE_AND_RETHROW() }
+
+   vector<optional<son_wallet_object>> get_son_wallets(uint32_t limit)
+   { try {
+      return _remote_db->get_son_wallets(limit);
+   } FC_CAPTURE_AND_RETHROW() }
+
    signed_transaction add_sidechain_address(string account,
                                             peerplays_sidechain::sidechain_type sidechain,
                                             string address,
@@ -4468,6 +4483,21 @@ map<string, son_id_type> wallet_api::list_sons(const string& lowerbound, uint32_
 map<string, son_id_type> wallet_api::list_active_sons()
 {
     return my->list_active_sons();
+}
+
+optional<son_wallet_object> wallet_api::get_active_son_wallet()
+{
+    return my->get_active_son_wallet();
+}
+
+optional<son_wallet_object> wallet_api::get_son_wallet_by_time_point(time_point_sec time_point)
+{
+    return my->get_son_wallet_by_time_point(time_point);
+}
+
+vector<optional<son_wallet_object>> wallet_api::get_son_wallets(uint32_t limit)
+{
+    return my->get_son_wallets(limit);
 }
 
 signed_transaction wallet_api::add_sidechain_address(string account,

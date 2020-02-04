@@ -12,12 +12,14 @@ namespace graphene { namespace peerplays_sidechain {
 
 class sidechain_net_manager {
 public:
-   sidechain_net_manager(std::shared_ptr<graphene::chain::database> db);
+   sidechain_net_manager(peerplays_sidechain_plugin& _plugin);
    virtual ~sidechain_net_manager();
 
    bool create_handler(peerplays_sidechain::sidechain_type sidechain, const boost::program_options::variables_map& options);
+   void recreate_primary_wallet();
 private:
-   std::shared_ptr<graphene::chain::database> database;
+   peerplays_sidechain_plugin& plugin;
+   graphene::chain::database& database;
    std::vector<std::unique_ptr<sidechain_net_handler>> net_handlers;
 
 };

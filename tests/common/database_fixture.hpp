@@ -199,6 +199,12 @@ struct database_fixture {
     */
    void generate_blocks(fc::time_point_sec timestamp, bool miss_intermediate_blocks = true, uint32_t skip = ~0);
 
+   ///////////
+   /// @brief Skip intermediate blocks, and generate a maintenance block
+   /// @returns true on success
+   ///////////
+   bool generate_maintenance_block();
+
    account_create_operation make_account(
       const std::string& name = "nathan",
       public_key_type = public_key_type()
@@ -295,7 +301,7 @@ struct database_fixture {
    int64_t get_balance( account_id_type account, asset_id_type a )const;
    int64_t get_balance( const account_object& account, const asset_object& a )const;
    int64_t get_dividend_pending_payout_balance(asset_id_type dividend_holder_asset_type,
-                                               account_id_type dividend_holder_account_id, 
+                                               account_id_type dividend_holder_account_id,
                                                asset_id_type dividend_payout_asset_type) const;
    vector< operation_history_object > get_operation_history( account_id_type account_id )const;
    void  process_operation_by_witnesses(operation op);
@@ -321,7 +327,7 @@ struct database_fixture {
                           fc::optional<internationalized_string_type> season,
                           fc::optional<event_status> status,
                           bool force);
-   BOOST_PARAMETER_MEMBER_FUNCTION((void), update_event, keywords::tag, 
+   BOOST_PARAMETER_MEMBER_FUNCTION((void), update_event, keywords::tag,
                                    (required (event_id, (event_id_type)))
                                    (optional (event_group_id, (fc::optional<object_id_type>), fc::optional<object_id_type>())
                                              (name, (fc::optional<internationalized_string_type>), fc::optional<internationalized_string_type>())
@@ -336,9 +342,9 @@ struct database_fixture {
    void update_betting_market_rules(betting_market_rules_id_type rules_id,
                                      fc::optional<internationalized_string_type> name,
                                      fc::optional<internationalized_string_type> description);
-   const betting_market_group_object& create_betting_market_group(internationalized_string_type description, 
-                                                                  event_id_type event_id, 
-                                                                  betting_market_rules_id_type rules_id, 
+   const betting_market_group_object& create_betting_market_group(internationalized_string_type description,
+                                                                  event_id_type event_id,
+                                                                  betting_market_rules_id_type rules_id,
                                                                   asset_id_type asset_id,
                                                                   bool never_in_play,
                                                                   uint32_t delay_before_settling);
@@ -347,7 +353,7 @@ struct database_fixture {
                                          fc::optional<object_id_type> rules_id,
                                          fc::optional<betting_market_group_status> status,
                                          bool force);
-   BOOST_PARAMETER_MEMBER_FUNCTION((void), update_betting_market_group, keywords::tag, 
+   BOOST_PARAMETER_MEMBER_FUNCTION((void), update_betting_market_group, keywords::tag,
                                    (required (betting_market_group_id, (betting_market_group_id_type)))
                                    (optional (description, (fc::optional<internationalized_string_type>), fc::optional<internationalized_string_type>())
                                              (rules_id, (fc::optional<object_id_type>), fc::optional<object_id_type>())

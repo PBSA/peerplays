@@ -12,6 +12,9 @@
 #include <fc/network/ip.hpp>
 
 #include <graphene/chain/sidechain_address_object.hpp>
+#include <graphene/chain/son_info.hpp>
+#include <graphene/chain/son_wallet_object.hpp>
+#include <graphene/chain/protocol/son_wallet.hpp>
 
 namespace graphene { namespace peerplays_sidechain {
 
@@ -129,6 +132,41 @@ void bitcoin_rpc_client::send_btc_tx( const std::string& tx_hex )
    }
 }
 
+std::string bitcoin_rpc_client::add_multisig_address( const std::vector<std::string> public_keys )
+{
+   std::string body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"addmultisigaddress\", \"method\": \"addmultisigaddress\", \"params\": [");
+   std::string params = "2, [";
+   std::string pubkeys = "";
+   for (std::string pubkey : public_keys) {
+      if (!pubkeys.empty()) {
+         pubkeys = pubkeys + ",";
+      }
+      pubkeys = pubkeys + std::string("\"") + pubkey + std::string("\"");
+   }
+   params = params + pubkeys + std::string("]");
+   body = body + params + std::string("] }");
+
+   const auto reply = send_post_request( body );
+
+   if( reply.body.empty() )
+      return "";
+
+   std::string reply_str( reply.body.begin(), reply.body.end() );
+
+   std::stringstream ss(reply_str);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json( ss, json );
+
+   if( reply.status == 200 ) {
+      return reply_str;
+   }
+
+   if( json.count( "error" ) && !json.get_child( "error" ).empty() ) {
+      wlog( "BTC multisig address creation failed! Reply: ${msg}", ("msg", reply_str) );
+   }
+   return "";
+}
+
 bool bitcoin_rpc_client::connection_is_not_defined() const
 {
    return ip.empty() || rpc_port == 0 || user.empty() || password.empty();
@@ -186,8 +224,8 @@ void zmq_listener::handle_zmq() {
 
 // =============================================================================
 
-sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(std::shared_ptr<graphene::chain::database> db, const boost::program_options::variables_map& options) :
-      sidechain_net_handler(db, options) {
+sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(peerplays_sidechain_plugin& _plugin, const boost::program_options::variables_map& options) :
+      sidechain_net_handler(_plugin, options) {
    sidechain = sidechain_type::bitcoin;
 
    ip = options.at("bitcoin-node-ip").as<std::string>();
@@ -215,6 +253,57 @@ sidechain_net_handler_bitcoin::sidechain_net_handler_bitcoin(std::shared_ptr<gra
 sidechain_net_handler_bitcoin::~sidechain_net_handler_bitcoin() {
 }
 
+void sidechain_net_handler_bitcoin::recreate_primary_wallet() {
+   const auto& idx_swi = database.get_index_type<son_wallet_index>().indices().get<by_id>();
+   auto obj = idx_swi.rbegin();
+   if (obj != idx_swi.rend()) {
+
+      if ((obj->addresses.find(sidechain_type::bitcoin) == obj->addresses.end()) ||
+          (obj->addresses.at(sidechain_type::bitcoin).empty())) {
+
+         const chain::global_property_object& gpo = database.get_global_properties();
+
+         auto active_sons = gpo.active_sons;
+         vector<string> son_pubkeys_bitcoin;
+         for ( const son_info& si : active_sons ) {
+            son_pubkeys_bitcoin.push_back(si.sidechain_public_keys.at(sidechain_type::bitcoin));
+         }
+         string reply_str = create_multisignature_wallet(son_pubkeys_bitcoin);
+
+         ilog(reply_str);
+
+         std::stringstream ss(reply_str);
+         boost::property_tree::ptree pt;
+         boost::property_tree::read_json( ss, pt );
+         if( pt.count( "error" ) && pt.get_child( "error" ).empty() ) {
+            ilog(__FUNCTION__);
+
+            std::stringstream res;
+            boost::property_tree::json_parser::write_json(res, pt.get_child("result"));
+
+            son_wallet_update_operation op;
+            op.payer = gpo.parameters.get_son_btc_account_id();
+            op.son_wallet_id = (*obj).id;
+            op.sidechain = sidechain_type::bitcoin;
+            op.address = res.str();
+
+            proposal_create_operation proposal_op;
+            proposal_op.fee_paying_account = plugin.get_son_object().son_account;
+            proposal_op.proposed_ops.push_back( op_wrapper( op ) );
+            uint32_t lifetime = ( gpo.parameters.block_interval * gpo.active_witnesses.size() ) * 3;
+            proposal_op.expiration_time = time_point_sec( database.head_block_time().sec_since_epoch() + lifetime );
+
+            signed_transaction trx = database.create_signed_transaction(plugin.get_private_keys().begin()->second, proposal_op);
+            try {
+               database.push_transaction(trx);
+            } catch(fc::exception e){
+               ilog("sidechain_net_handler:  sending proposal for son wallet update operation failed with exception ${e}",("e", e.what()));
+            }
+         }
+      }
+   }
+}
+
 bool sidechain_net_handler_bitcoin::connection_is_not_defined() const
 {
    return listener->connection_is_not_defined() && bitcoin_client->connection_is_not_defined();
@@ -222,7 +311,7 @@ bool sidechain_net_handler_bitcoin::connection_is_not_defined() const
 
 std::string sidechain_net_handler_bitcoin::create_multisignature_wallet( const std::vector<std::string> public_keys )
 {
-   return "";
+   return bitcoin_client->add_multisig_address(public_keys);
 }
 
 std::string sidechain_net_handler_bitcoin::transfer( const std::string& from, const std::string& to, const uint64_t amount )
@@ -248,7 +337,7 @@ void sidechain_net_handler_bitcoin::handle_event( const std::string& event_data 
    if( block != "" ) {
       const auto& vins = extract_info_from_block( block );
 
-      const auto& sidechain_addresses_idx = database->get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_address>();
+      const auto& sidechain_addresses_idx = database.get_index_type<sidechain_address_index>().indices().get<by_sidechain_and_address>();
 
       for( const auto& v : vins ) {
          const auto& addr_itr = sidechain_addresses_idx.find(std::make_tuple(sidechain_type::bitcoin, v.address));

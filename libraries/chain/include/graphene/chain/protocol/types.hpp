@@ -430,6 +430,7 @@ FC_REFLECT_ENUM( graphene::chain::object_type,
                  (bet_object_type)
                  (son_object_type)
                  (son_proposal_object_type)
+                 (son_wallet_object_type)
                  (sidechain_address_object_type)
                  (OBJECT_TYPE_COUNT)
                )
@@ -504,6 +505,7 @@ FC_REFLECT_TYPENAME( graphene::chain::global_betting_statistics_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::tournament_details_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::son_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::son_proposal_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::son_wallet_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::sidechain_address_id_type )
 
 

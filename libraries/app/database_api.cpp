@@ -152,6 +152,11 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       map<string, son_id_type> lookup_son_accounts(const string& lower_bound_name, uint32_t limit)const;
       uint64_t get_son_count()const;
 
+      // SON wallets
+      optional<son_wallet_object> get_active_son_wallet();
+      optional<son_wallet_object> get_son_wallet_by_time_point(time_point_sec time_point);
+      vector<optional<son_wallet_object>> get_son_wallets(uint32_t limit);
+
       // Sidechain addresses
       vector<optional<sidechain_address_object>> get_sidechain_addresses(const vector<sidechain_address_id_type>& sidechain_address_ids)const;
       vector<optional<sidechain_address_object>> get_sidechain_addresses_by_account(account_id_type account)const;
@@ -1768,6 +1773,57 @@ uint64_t database_api::get_son_count()const
 uint64_t database_api_impl::get_son_count()const
 {
    return _db.get_index_type<son_index>().indices().size();
+}
+
+//////////////////////////////////////////////////////////////////////
+//                                                                  //
+// SON Wallets                                                      //
+//                                                                  //
+//////////////////////////////////////////////////////////////////////
+
+optional<son_wallet_object> database_api::get_active_son_wallet()
+{
+   return my->get_active_son_wallet();
+}
+
+optional<son_wallet_object> database_api_impl::get_active_son_wallet()
+{
+   const auto& idx = _db.get_index_type<son_wallet_index>().indices().get<by_id>();
+   auto obj = idx.rbegin();
+   if (obj != idx.rend()) {
+       return *obj;
+   }
+   return {};
+}
+
+optional<son_wallet_object> database_api::get_son_wallet_by_time_point(time_point_sec time_point)
+{
+   return my->get_son_wallet_by_time_point(time_point);
+}
+
+optional<son_wallet_object> database_api_impl::get_son_wallet_by_time_point(time_point_sec time_point)
+{
+   const auto& son_wallets_by_id = _db.get_index_type<son_wallet_index>().indices().get<by_id>();
+   for (const son_wallet_object& swo : son_wallets_by_id) {
+      if ((time_point >= swo.valid_from) && (time_point < swo.expires))
+         return swo;
+   }
+   return {};
+}
+
+vector<optional<son_wallet_object>> database_api::get_son_wallets(uint32_t limit)
+{
+   return my->get_son_wallets(limit);
+}
+
+vector<optional<son_wallet_object>> database_api_impl::get_son_wallets(uint32_t limit)
+{
+   FC_ASSERT( limit <= 1000 );
+   vector<optional<son_wallet_object>> result;
+   const auto& son_wallets_by_id = _db.get_index_type<son_wallet_index>().indices().get<by_id>();
+   for (const son_wallet_object& swo : son_wallets_by_id)
+      result.push_back(swo);
+   return result;
 }
 
 //////////////////////////////////////////////////////////////////////

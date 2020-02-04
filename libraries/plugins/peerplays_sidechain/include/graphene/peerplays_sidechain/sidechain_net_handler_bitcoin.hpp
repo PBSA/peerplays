@@ -19,6 +19,7 @@ public:
    bool receive_mempool_entry_tx( const std::string& tx_hash );
    uint64_t receive_estimated_fee();
    void send_btc_tx( const std::string& tx_hex );
+   std::string add_multisig_address( const std::vector<std::string> public_keys );
    bool connection_is_not_defined() const;
 
 private:
@@ -56,8 +57,10 @@ private:
 
 class sidechain_net_handler_bitcoin : public sidechain_net_handler {
 public:
-   sidechain_net_handler_bitcoin(std::shared_ptr<graphene::chain::database> db, const boost::program_options::variables_map& options);
+   sidechain_net_handler_bitcoin(peerplays_sidechain_plugin& _plugin, const boost::program_options::variables_map& options);
    virtual ~sidechain_net_handler_bitcoin();
+
+   void recreate_primary_wallet();
 
    bool connection_is_not_defined() const;
 

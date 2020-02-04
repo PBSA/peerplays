@@ -117,6 +117,8 @@ add_library( graphene_chain
              son_evaluator.cpp
              son_object.cpp
 
+             son_wallet_evaluator.cpp
+
              sidechain_address_evaluator.cpp
 
              ${HEADERS}

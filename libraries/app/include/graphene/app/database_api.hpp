@@ -44,6 +44,7 @@
 #include <graphene/chain/betting_market_object.hpp>
 #include <graphene/chain/global_betting_statistics_object.hpp>
 #include <graphene/chain/son_object.hpp>
+#include <graphene/chain/son_wallet_object.hpp>
 #include <graphene/chain/sidechain_address_object.hpp>
 
 #include <graphene/chain/worker_object.hpp>
@@ -604,6 +605,30 @@ class database_api
       uint64_t get_son_count()const;
 
       /////////////////////////
+      // SON Wallets         //
+      /////////////////////////
+
+      /**
+       * @brief Get active SON wallet
+       * @return Active SON wallet object
+       */
+      optional<son_wallet_object> get_active_son_wallet();
+
+      /**
+       * @brief Get SON wallet that was active for a given time point
+       * @param time_point Time point
+       * @return SON wallet object, for the wallet that was active for a given time point
+       */
+      optional<son_wallet_object> get_son_wallet_by_time_point(time_point_sec time_point);
+
+      /**
+       * @brief Get full list of SON wallets
+       * @param limit Maximum number of results to return
+       * @return A list of SON wallet objects
+       */
+      vector<optional<son_wallet_object>> get_son_wallets(uint32_t limit);
+
+      /////////////////////////
       // Sidechain Addresses //
       /////////////////////////
 
@@ -854,6 +879,11 @@ FC_API(graphene::app::database_api,
    (get_son_by_account)
    (lookup_son_accounts)
    (get_son_count)
+
+   // SON wallets
+   (get_active_son_wallet)
+   (get_son_wallet_by_time_point)
+   (get_son_wallets)
 
    // Sidechain addresses
    (get_sidechain_addresses)

@@ -51,6 +51,7 @@
 #include <fc/crypto/digest.hpp>
 #include <fc/smart_ref_impl.hpp>
 
+#include <exception>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -265,11 +266,11 @@ void database_fixture::verify_asset_supplies( const database& db )
       total_balances[betting_market_group.asset_id] += o.fees_collected;
    }
 
-   
+
    uint64_t sweeps_vestings = 0;
    for( const sweeps_vesting_balance_object& svbo: db.get_index_type< sweeps_vesting_balance_index >().indices() )
       sweeps_vestings += svbo.balance;
-   
+
    total_balances[db.get_global_properties().parameters.sweeps_distribution_asset()] += sweeps_vestings / SWEEPS_VESTING_BALANCE_MULTIPLIER;
    total_balances[asset_id_type()] += db.get_dynamic_global_properties().witness_budget;
    total_balances[asset_id_type()] += db.get_dynamic_global_properties().son_budget;
@@ -411,6 +412,23 @@ void database_fixture::generate_blocks(fc::time_point_sec timestamp, bool miss_i
    }
    while( db.head_block_time() < timestamp )
       generate_block(skip);
+}
+
+bool database_fixture::generate_maintenance_block() {
+   try {
+      fc::ecc::private_key committee_key = fc::ecc::private_key::regenerate(fc::sha256::hash(string("nathan")));
+      uint32_t skip = ~database::skip_fork_db;
+      auto maint_time = db.get_dynamic_global_properties().next_maintenance_time;
+      auto slots_to_miss = db.get_slot_at_time(maint_time);
+      db.generate_block(db.get_slot_time(slots_to_miss),
+                         db.get_scheduled_witness(slots_to_miss),
+                         committee_key,
+                         skip);
+      return true;
+   } catch (std::exception& e)
+   {
+      return false;
+   }
 }
 
 account_create_operation database_fixture::make_account(
@@ -731,7 +749,7 @@ const witness_object& database_fixture::create_witness( const account_object& ow
    witness_create_operation op;
    op.witness_account = owner.id;
    op.block_signing_key = signing_private_key.get_public_key();
-   
+
    secret_hash_type::encoder enc;
    fc::raw::pack(enc, signing_private_key);
    fc::raw::pack(enc, secret_hash_type());
@@ -1116,12 +1134,12 @@ int64_t database_fixture::get_balance( const account_object& account, const asse
 }
 
 int64_t database_fixture::get_dividend_pending_payout_balance(asset_id_type dividend_holder_asset_type,
-                                                              account_id_type dividend_holder_account_id, 
-                                                              asset_id_type dividend_payout_asset_type) const 
+                                                              account_id_type dividend_holder_account_id,
+                                                              asset_id_type dividend_payout_asset_type) const
 {
-   const pending_dividend_payout_balance_for_holder_object_index& pending_payout_balance_index = 
+   const pending_dividend_payout_balance_for_holder_object_index& pending_payout_balance_index =
      db.get_index_type<pending_dividend_payout_balance_for_holder_object_index>();
-   auto pending_payout_iter = 
+   auto pending_payout_iter =
       pending_payout_balance_index.indices().get<by_dividend_payout_account>().find(boost::make_tuple(dividend_holder_asset_type, dividend_payout_asset_type, dividend_holder_account_id));
    if (pending_payout_iter == pending_payout_balance_index.indices().get<by_dividend_payout_account>().end())
      return 0;
@@ -1342,7 +1360,7 @@ void database_fixture::delete_sport(sport_id_type sport_id)
     sport_delete_op.sport_id = sport_id;
     process_operation_by_witnesses(sport_delete_op);
 } FC_CAPTURE_AND_RETHROW( (sport_id) ) }
-    
+
 const event_group_object& database_fixture::create_event_group(internationalized_string_type name, sport_id_type sport_id)
 { try {
    event_group_create_operation event_group_create_op;
@@ -1372,7 +1390,7 @@ void database_fixture::delete_event_group(event_group_id_type event_group_id)
     process_operation_by_witnesses(event_group_delete_op);
 } FC_CAPTURE_AND_RETHROW( (event_group_id) )
 }
-    
+
 void database_fixture::try_update_event_group(event_group_id_type event_group_id,
                                               fc::optional<object_id_type> sport_id,
                                               fc::optional<internationalized_string_type> name,
@@ -1412,7 +1430,7 @@ void database_fixture::update_event_impl(event_id_type event_id,
                                          fc::optional<object_id_type> event_group_id,
                                          fc::optional<internationalized_string_type> name,
                                          fc::optional<internationalized_string_type> season,
-                                         fc::optional<event_status> status, 
+                                         fc::optional<event_status> status,
                                          bool force)
 { try {
    event_update_operation event_update_op;
@@ -1449,9 +1467,9 @@ void database_fixture::update_betting_market_rules(betting_market_rules_id_type 
    process_operation_by_witnesses(betting_market_rules_update_op);
 } FC_CAPTURE_AND_RETHROW( (name)(description) ) }
 
-const betting_market_group_object& database_fixture::create_betting_market_group(internationalized_string_type description, 
-                                                                                 event_id_type event_id, 
-                                                                                 betting_market_rules_id_type rules_id, 
+const betting_market_group_object& database_fixture::create_betting_market_group(internationalized_string_type description,
+                                                                                 event_id_type event_id,
+                                                                                 betting_market_rules_id_type rules_id,
                                                                                  asset_id_type asset_id,
                                                                                  bool never_in_play,
                                                                                  uint32_t delay_before_settling)
@@ -1521,7 +1539,7 @@ void database_fixture::update_betting_market(betting_market_id_type betting_mark
    bet_place_op.amount_to_bet = amount_to_bet;
    bet_place_op.backer_multiplier = backer_multiplier;
    bet_place_op.back_or_lay = back_or_lay;
-   
+
    trx.operations.push_back(bet_place_op);
    trx.validate();
    processed_transaction ptx = db.push_transaction(trx, ~0);

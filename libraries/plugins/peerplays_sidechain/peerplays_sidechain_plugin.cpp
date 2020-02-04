@@ -1,9 +1,14 @@
 #include <graphene/peerplays_sidechain/peerplays_sidechain_plugin.hpp>
 
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+
 #include <fc/log/logger.hpp>
 #include <fc/smart_ref_impl.hpp>
-#include <graphene/chain/sidechain_address_object.hpp>
+
 #include <graphene/chain/proposal_object.hpp>
+#include <graphene/chain/sidechain_address_object.hpp>
+#include <graphene/chain/son_wallet_object.hpp>
 #include <graphene/peerplays_sidechain/sidechain_net_manager.hpp>
 #include <graphene/utilities/key_conversion.hpp>
 
@@ -25,11 +30,21 @@ class peerplays_sidechain_plugin_impl
          boost::program_options::options_description& cfg);
       void plugin_initialize(const boost::program_options::variables_map& options);
       void plugin_startup();
+
+      son_id_type get_son_id();
+      son_object get_son_object();
+      bool is_active_son();
+      std::map<chain::public_key_type, fc::ecc::private_key>& get_private_keys();
+
       void schedule_heartbeat_loop();
       void heartbeat_loop();
+      void create_son_down_proposals();
+      void recreate_primary_wallet();
+      void process_deposits();
+      //void process_withdrawals();
       void on_block_applied( const signed_block& b );
       void on_objects_new(const vector<object_id_type>& new_object_ids);
-      void create_son_down_proposals();
+
    private:
       peerplays_sidechain_plugin& plugin;
 
@@ -40,6 +55,7 @@ class peerplays_sidechain_plugin_impl
       std::map<chain::public_key_type, fc::ecc::private_key> _private_keys;
       std::set<chain::son_id_type> _sons;
       fc::future<void> _heartbeat_task;
+
 };
 
 peerplays_sidechain_plugin_impl::peerplays_sidechain_plugin_impl(peerplays_sidechain_plugin& _plugin) :
@@ -121,7 +137,10 @@ void peerplays_sidechain_plugin_impl::plugin_initialize(const boost::program_opt
       throw;
    }
 
-   net_manager = std::unique_ptr<sidechain_net_manager>(new sidechain_net_manager(plugin.app().chain_database()));
+   plugin.database().applied_block.connect( [&] (const signed_block& b) { on_block_applied(b); } );
+   plugin.database().new_objects.connect( [&] (const vector<object_id_type>& ids, const flat_set<account_id_type>& impacted_accounts) { on_objects_new(ids); } );
+
+   net_manager = std::unique_ptr<sidechain_net_manager>(new sidechain_net_manager(plugin));
 
    config_ready_bitcoin = options.count( "bitcoin-node-ip" ) &&
            options.count( "bitcoin-node-zmq-port" ) && options.count( "bitcoin-node-rpc-port" ) &&
@@ -153,22 +172,60 @@ void peerplays_sidechain_plugin_impl::plugin_startup()
 {
    if (config_ready_son) {
       ilog("SON running");
+
+      ilog("Starting heartbeats for ${n} sons.", ("n", _sons.size()));
+      schedule_heartbeat_loop();
+   } else {
+      elog("No sons configured! Please add SON IDs and private keys to configuration.");
    }
 
    if (config_ready_bitcoin) {
       ilog("Bitcoin sidechain handler running");
    }
 
-   if( !_sons.empty() && !_private_keys.empty() )
-   {
-      ilog("Starting heartbeats for ${n} sons.", ("n", _sons.size()));
-      heartbeat_loop();
-   } else
-      elog("No sons configured! Please add SON IDs and private keys to configuration.");
-
    //if (config_ready_ethereum) {
    //   ilog("Ethereum sidechain handler running");
    //}
+}
+
+son_id_type peerplays_sidechain_plugin_impl::get_son_id()
+{
+   return *(_sons.begin());
+}
+
+son_object peerplays_sidechain_plugin_impl::get_son_object()
+{
+   const auto& idx = plugin.database().get_index_type<chain::son_index>().indices().get<by_id>();
+   auto son_obj = idx.find( get_son_id() );
+   if (son_obj == idx.end())
+      return {};
+   return *son_obj;
+}
+
+bool peerplays_sidechain_plugin_impl::is_active_son()
+{
+   const auto& idx = plugin.database().get_index_type<chain::son_index>().indices().get<by_id>();
+   auto son_obj = idx.find( get_son_id() );
+   if (son_obj == idx.end())
+      return false;
+
+   const chain::global_property_object& gpo = plugin.database().get_global_properties();
+   vector<son_id_type> active_son_ids;
+   active_son_ids.reserve(gpo.active_sons.size());
+   std::transform(gpo.active_sons.begin(), gpo.active_sons.end(),
+                  std::inserter(active_son_ids, active_son_ids.end()),
+                  [](const son_info& swi) {
+      return swi.son_id;
+   });
+
+   auto it = std::find(active_son_ids.begin(), active_son_ids.end(), get_son_id());
+
+   return (it != active_son_ids.end());
+}
+
+std::map<chain::public_key_type, fc::ecc::private_key>& peerplays_sidechain_plugin_impl::get_private_keys()
+{
+   return _private_keys;
 }
 
 void peerplays_sidechain_plugin_impl::schedule_heartbeat_loop()
@@ -280,6 +337,17 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals()
    }
 }
 
+void peerplays_sidechain_plugin_impl::recreate_primary_wallet()
+{
+   net_manager->recreate_primary_wallet();
+}
+
+void peerplays_sidechain_plugin_impl::process_deposits() {
+}
+
+//void peerplays_sidechain_plugin_impl::process_withdrawals() {
+//}
+
 void peerplays_sidechain_plugin_impl::on_block_applied( const signed_block& b )
 {
    chain::database& d = plugin.database();
@@ -293,7 +361,15 @@ void peerplays_sidechain_plugin_impl::on_block_applied( const signed_block& b )
 
    chain::son_id_type next_son_id = d.get_scheduled_son(1);
    if(next_son_id == my_son_id) {
+
       create_son_down_proposals();
+
+      recreate_primary_wallet();
+
+      process_deposits();
+
+      //process_withdrawals();
+
    }
 }
 
@@ -351,6 +427,11 @@ void peerplays_sidechain_plugin_impl::on_objects_new(const vector<object_id_type
          && proposal->proposed_transaction.operations[0].which() == chain::operation::tag<chain::son_report_down_operation>::value) {
             approve_proposal( proposal->id );
          }
+
+         if(proposal->proposed_transaction.operations.size() == 1
+         && proposal->proposed_transaction.operations[0].which() == chain::operation::tag<chain::son_wallet_update_operation>::value) {
+            approve_proposal( proposal->id );
+         }
       }
    }
 }
@@ -384,14 +465,32 @@ void peerplays_sidechain_plugin::plugin_initialize(const boost::program_options:
 {
    ilog("peerplays sidechain plugin:  plugin_initialize()");
    my->plugin_initialize(options);
-   database().applied_block.connect( [&]( const signed_block& b){ my->on_block_applied(b); } );
-   database().new_objects.connect([this](const vector<object_id_type>& ids, const flat_set<account_id_type>& impacted_accounts) { my->on_objects_new(ids); });
 }
 
 void peerplays_sidechain_plugin::plugin_startup()
 {
    ilog("peerplays sidechain plugin:  plugin_startup()");
    my->plugin_startup();
+}
+
+son_id_type peerplays_sidechain_plugin::get_son_id()
+{
+   return my->get_son_id();
+}
+
+son_object peerplays_sidechain_plugin::get_son_object()
+{
+   return my->get_son_object();
+}
+
+bool peerplays_sidechain_plugin::is_active_son()
+{
+   return my->is_active_son();
+}
+
+std::map<chain::public_key_type, fc::ecc::private_key>& peerplays_sidechain_plugin::get_private_keys()
+{
+   return my->get_private_keys();
 }
 
 } } // graphene::peerplays_sidechain
