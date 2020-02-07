@@ -414,10 +414,20 @@ void database::update_active_sons()
 
    const auto& all_sons = get_index_type<son_index>().indices();
 
+   auto& local_vote_buffer_ref = _vote_tally_buffer;
    for( const son_object& son : all_sons )
    {
-      modify( son, [&]( son_object& obj ){
-              obj.total_votes = _vote_tally_buffer[son.vote_id];
+      if(son.status == son_status::request_maintenance)
+      {
+         auto& stats = son.statistics(*this);
+         modify( stats, [&]( son_statistics_object& _s){
+               _s.last_down_timestamp = head_block_time();
+            });
+      }
+      modify( son, [local_vote_buffer_ref]( son_object& obj ){
+              obj.total_votes = local_vote_buffer_ref[obj.vote_id];
+              if(obj.status == son_status::request_maintenance)
+                 obj.status = son_status::in_maintenance;
               });
    }
 

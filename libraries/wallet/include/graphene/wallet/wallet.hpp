@@ -2241,6 +2241,8 @@ FC_API( graphene::wallet::wallet_api,
         (delete_son)
         (list_sons)
         (list_active_sons)
+        (start_son_maintenance)
+        (stop_son_maintenance)
         (get_active_son_wallet)
         (get_son_wallet_by_time_point)
         (get_son_wallets)

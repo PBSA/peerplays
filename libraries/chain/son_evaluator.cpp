@@ -105,11 +105,11 @@ void_result son_heartbeat_evaluator::do_evaluate(const son_heartbeat_operation& 
     auto itr = idx.find(op.son_id);
     auto stats = itr->statistics( db() );
     // Inactive SONs need not send heartbeats
-    FC_ASSERT(itr->status == son_status::active || itr->status == son_status::in_maintenance, "Inactive SONs need not send heartbeats");
+    FC_ASSERT((itr->status == son_status::active) || (itr->status == son_status::in_maintenance) || (itr->status == son_status::request_maintenance), "Inactive SONs need not send heartbeats");
     // Account for network delays
     fc::time_point_sec min_ts = db().head_block_time() - fc::seconds(5 * db().block_interval());
     // Account for server ntp sync difference
-    fc::time_point_sec max_ts = db().head_block_time() + fc::seconds(2 * db().block_interval());
+    fc::time_point_sec max_ts = db().head_block_time() + fc::seconds(5 * db().block_interval());
     FC_ASSERT(op.ts > stats.last_active_timestamp, "Heartbeat sent without waiting minimum time");
     FC_ASSERT(op.ts > stats.last_down_timestamp, "Heartbeat sent is invalid can't be <= last down timestamp");
     FC_ASSERT(op.ts >= min_ts, "Heartbeat ts is behind the min threshold");
@@ -153,7 +153,7 @@ object_id_type son_heartbeat_evaluator::do_apply(const son_heartbeat_operation& 
                     so.status = son_status::inactive;
                 }
             });
-        } else if (itr->status == son_status::active) {
+        } else if ((itr->status == son_status::active) || (itr->status == son_status::request_maintenance)) {
             db().modify( itr->statistics( db() ), [&]( son_statistics_object& sso )
             {
                 sso.last_active_timestamp = op.ts;
@@ -171,7 +171,7 @@ void_result son_report_down_evaluator::do_evaluate(const son_report_down_operati
     FC_ASSERT( idx.find(op.son_id) != idx.end() );
     auto itr = idx.find(op.son_id);
     auto stats = itr->statistics( db() );
-    FC_ASSERT(itr->status == son_status::active, "Inactive/Deregistered/in_maintenance SONs cannot be reported on as down");
+    FC_ASSERT(itr->status == son_status::active || itr->status == son_status::request_maintenance, "Inactive/Deregistered/in_maintenance SONs cannot be reported on as down");
     FC_ASSERT(op.down_ts >= stats.last_active_timestamp, "down_ts should be greater than last_active_timestamp");
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
@@ -182,7 +182,7 @@ object_id_type son_report_down_evaluator::do_apply(const son_report_down_operati
     auto itr = idx.find(op.son_id);
     if(itr != idx.end())
     {
-        if (itr->status == son_status::active) {
+        if ((itr->status == son_status::active) || (itr->status == son_status::request_maintenance)) {
             db().modify( itr->statistics( db() ), [&]( son_statistics_object& sso )
             {
                 sso.last_down_timestamp = op.down_ts;
@@ -203,8 +203,8 @@ void_result son_maintenance_evaluator::do_evaluate(const son_maintenance_operati
     const auto& idx = db().get_index_type<son_index>().indices().get<by_id>();
     auto itr = idx.find(op.son_id);
     FC_ASSERT( itr != idx.end() );
-    // Inactive SONs can't go to maintenance
-    FC_ASSERT(itr->status == son_status::active || itr->status == son_status::in_maintenance, "Inactive SONs can't go to maintenance");
+    // Inactive SONs can't go to maintenance, toggle between active and request_maintenance states
+    FC_ASSERT(itr->status == son_status::active || itr->status == son_status::request_maintenance, "Inactive SONs can't go to maintenance");
     return void_result();
 } FC_CAPTURE_AND_RETHROW( (op) ) }
 
@@ -216,7 +216,11 @@ object_id_type son_maintenance_evaluator::do_apply(const son_maintenance_operati
     {
         if(itr->status == son_status::active) {
             db().modify(*itr, [](son_object &so) {
-                so.status = son_status::in_maintenance;
+                so.status = son_status::request_maintenance;
+            });
+        } else if(itr->status == son_status::request_maintenance) {
+            db().modify(*itr, [](son_object &so) {
+                so.status = son_status::active;
             });
         }
     }

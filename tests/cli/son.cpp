@@ -699,9 +699,9 @@ BOOST_AUTO_TEST_CASE( maintenance_test )
       con.wallet_api_ptr->start_son_maintenance(name, true);
       BOOST_CHECK(generate_block());
 
-      // check SON is in maintenance
+      // check SON is in request_maintenance
       son_obj = con.wallet_api_ptr->get_son(name);
-      BOOST_CHECK(son_obj.status == son_status::in_maintenance);
+      BOOST_CHECK(son_obj.status == son_status::request_maintenance);
 
       // restore SON activity
       con.wallet_api_ptr->stop_son_maintenance(name, true);
@@ -710,6 +710,22 @@ BOOST_AUTO_TEST_CASE( maintenance_test )
       // check SON is active
       son_obj = con.wallet_api_ptr->get_son(name);
       BOOST_CHECK(son_obj.status == son_status::active);
+
+      // put SON in maintenance mode
+      con.wallet_api_ptr->start_son_maintenance(name, true);
+      BOOST_CHECK(generate_block());
+
+      // check SON is in request_maintenance
+      son_obj = con.wallet_api_ptr->get_son(name);
+      BOOST_CHECK(son_obj.status == son_status::request_maintenance);
+
+      // process maintenance
+      BOOST_CHECK(generate_maintenance_block());
+
+      // check SON is in maintenance
+      son_obj = con.wallet_api_ptr->get_son(name);
+      BOOST_CHECK(son_obj.status == son_status::in_maintenance);
+
 
    } catch( fc::exception& e ) {
       BOOST_TEST_MESSAGE("SON cli wallet tests exception");

@@ -735,8 +735,14 @@ BOOST_AUTO_TEST_CASE( son_heartbeat_test ) {
          PUSH_TX( db, trx, ~0);
          generate_block();
          trx.clear();
-         BOOST_CHECK( obj->status == son_status::in_maintenance);
+         BOOST_CHECK( obj->status == son_status::request_maintenance);
       }
+
+      // Modify SON's status to in_maintenance
+      db.modify( *obj, [&]( son_object& _s)
+      {
+         _s.status = son_status::in_maintenance;
+      });
 
       uint64_t downtime = 0;
 

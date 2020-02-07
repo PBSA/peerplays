@@ -1964,10 +1964,9 @@ public:
    { try {
          son_object son = get_son(owner_account);
 
-         son_heartbeat_operation op;
+         son_maintenance_operation op;
          op.owner_account = son.son_account;
          op.son_id = son.id;
-         op.ts = _remote_db->get_dynamic_global_properties().time; // or fc::time_point_sec(fc::time_point::now()) ???
 
          signed_transaction tx;
          tx.operations.push_back( op );

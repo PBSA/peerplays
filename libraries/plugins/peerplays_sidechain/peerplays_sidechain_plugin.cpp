@@ -317,7 +317,8 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals()
       fc::time_point_sec last_maintenance_time = dgpo.next_maintenance_time - gpo.parameters.maintenance_interval;
       fc::time_point_sec last_active_ts = ((stats.last_active_timestamp > last_maintenance_time) ? stats.last_active_timestamp : last_maintenance_time);
       int64_t down_threshold = 2*180000000;
-      if(son_obj->status == chain::son_status::active && (fc::time_point::now() - last_active_ts) > fc::microseconds(down_threshold))  {
+      if(((son_obj->status == chain::son_status::active) || (son_obj->status == chain::son_status::request_maintenance)) &&
+          ((fc::time_point::now() - last_active_ts) > fc::microseconds(down_threshold)))  {
          ilog("peerplays_sidechain_plugin:  sending son down proposal for ${t} from ${s}",("t",std::string(object_id_type(son_obj->id)))("s",std::string(object_id_type(my_son_id))));
          chain::proposal_create_operation op = create_son_down_proposal(son_inf.son_id, last_active_ts);
          chain::signed_transaction trx = d.create_signed_transaction(_private_keys.begin()->second, op);
