@@ -148,6 +148,7 @@ namespace graphene { namespace chain {
       son_object_type,
       son_proposal_object_type,
       son_wallet_object_type,
+      son_wallet_transfer_object_type,
       sidechain_address_object_type,
       OBJECT_TYPE_COUNT ///< Sentry value which contains the number of different object types
    };
@@ -213,6 +214,7 @@ namespace graphene { namespace chain {
    class son_object;
    class son_proposal_object;
    class son_wallet_object;
+   class son_wallet_transfer_object;
    class sidechain_address_object;
 
    typedef object_id< protocol_ids, account_object_type,            account_object>               account_id_type;
@@ -243,6 +245,7 @@ namespace graphene { namespace chain {
    typedef object_id< protocol_ids, son_object_type,                son_object>                   son_id_type;
    typedef object_id< protocol_ids, son_proposal_object_type,       son_proposal_object>          son_proposal_id_type;
    typedef object_id< protocol_ids, son_wallet_object_type,         son_wallet_object>            son_wallet_id_type;
+   typedef object_id< protocol_ids, son_wallet_transfer_object_type, son_wallet_transfer_object>  son_wallet_transfer_id_type;
    typedef object_id< protocol_ids, sidechain_address_object_type,  sidechain_address_object>     sidechain_address_id_type;
 
    // implementation types
@@ -431,6 +434,7 @@ FC_REFLECT_ENUM( graphene::chain::object_type,
                  (son_object_type)
                  (son_proposal_object_type)
                  (son_wallet_object_type)
+                 (son_wallet_transfer_object_type)
                  (sidechain_address_object_type)
                  (OBJECT_TYPE_COUNT)
                )
@@ -506,6 +510,7 @@ FC_REFLECT_TYPENAME( graphene::chain::tournament_details_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::son_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::son_proposal_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::son_wallet_id_type )
+FC_REFLECT_TYPENAME( graphene::chain::son_wallet_transfer_id_type )
 FC_REFLECT_TYPENAME( graphene::chain::sidechain_address_id_type )
 
 

@@ -11,6 +11,7 @@
 #include <fc/log/logger.hpp>
 #include <fc/network/ip.hpp>
 
+#include <graphene/chain/account_object.hpp>
 #include <graphene/chain/sidechain_address_object.hpp>
 #include <graphene/chain/son_info.hpp>
 #include <graphene/chain/son_wallet_object.hpp>
@@ -333,6 +334,11 @@ void sidechain_net_handler_bitcoin::handle_event( const std::string& event_data 
    ilog("peerplays sidechain plugin:  sidechain_net_handler_bitcoin::handle_event");
    ilog("                             event_data: ${event_data}", ("event_data", event_data));
 
+   if (!plugin.is_active_son()) {
+      ilog("  !!!                        SON is not active and not processing sidechain events...");
+      return;
+   }
+
    std::string block = bitcoin_client->receive_full_block( event_data );
    if( block != "" ) {
       const auto& vins = extract_info_from_block( block );
@@ -344,12 +350,20 @@ void sidechain_net_handler_bitcoin::handle_event( const std::string& event_data 
          if ( addr_itr == sidechain_addresses_idx.end() )
             continue;
 
+         std::stringstream ss;
+         ss << "bitcoin" << "-" << v.out.hash_tx << "-" << v.out.n_vout;
+         std::string sidechain_uid = ss.str();
+
          sidechain_event_data sed;
+         sed.timestamp = plugin.database().head_block_time();
          sed.sidechain = addr_itr->sidechain;
-         sed.transaction_id = v.out.hash_tx;
-         sed.from = "";
-         sed.to = v.address;
-         sed.amount = v.out.amount;
+         sed.sidechain_uid = sidechain_uid;
+         sed.sidechain_transaction_id = v.out.hash_tx;
+         sed.sidechain_from = "";
+         sed.sidechain_to = v.address;
+         sed.sidechain_amount = v.out.amount;
+         sed.peerplays_from = addr_itr->sidechain_address_account;
+         sed.peerplays_to = GRAPHENE_SON_ACCOUNT_ID;
          sidechain_event_data_received(sed);
       }
    }
