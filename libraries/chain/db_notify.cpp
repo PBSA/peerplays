@@ -417,6 +417,10 @@ void get_relevant_accounts( const object* obj, flat_set<account_id_type>& accoun
            assert( aobj != nullptr );
            accounts.insert( aobj->son_account );
            break;
+        } case son_wallet_object_type:{
+           break;
+        } case son_wallet_transfer_object_type:{
+           break;
         } case sidechain_address_object_type:{
            const auto& aobj = dynamic_cast<const sidechain_address_object*>(obj);
            assert( aobj != nullptr );

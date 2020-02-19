@@ -2,6 +2,7 @@
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
+#include <boost/range/algorithm_ext/insert.hpp>
 
 #include <fc/log/logger.hpp>
 #include <fc/smart_ref_impl.hpp>
@@ -33,10 +34,12 @@ class peerplays_sidechain_plugin_impl
       void plugin_initialize(const boost::program_options::variables_map& options);
       void plugin_startup();
 
-      son_id_type get_son_id();
-      son_object get_son_object();
-      bool is_active_son();
+      std::set<chain::son_id_type>& get_sons();
+      son_object get_son_object(son_id_type son_id);
+      bool is_active_son(son_id_type son_id);
       std::map<chain::public_key_type, fc::ecc::private_key>& get_private_keys();
+      fc::ecc::private_key get_private_key(son_id_type son_id);
+      fc::ecc::private_key get_private_key(chain::public_key_type public_key);
 
       void schedule_heartbeat_loop();
       void heartbeat_loop();
@@ -86,12 +89,14 @@ void peerplays_sidechain_plugin_impl::plugin_set_program_options(
 {
    auto default_priv_key = fc::ecc::private_key::regenerate(fc::sha256::hash(std::string("nathan")));
    string son_id_example = fc::json::to_string(chain::son_id_type(5));
+   string son_id_example2 = fc::json::to_string(chain::son_id_type(6));
 
    cli.add_options()
          ("son-id", bpo::value<vector<string>>(), ("ID of SON controlled by this node (e.g. " + son_id_example + ", quotes are required)").c_str())
+         ("son-ids", bpo::value<string>(), ("IDs of multiple SONs controlled by this node (e.g. [" + son_id_example + ", " + son_id_example2 + "], quotes are required)").c_str())
          ("peerplays-private-key", bpo::value<vector<string>>()->composing()->multitoken()->
                DEFAULT_VALUE_VECTOR(std::make_pair(chain::public_key_type(default_priv_key.get_public_key()), graphene::utilities::key_to_wif(default_priv_key))),
-               "Tuple of [PublicKey, WIF private key]")
+               "Tuple of [PublicKey, WIF private key] (may specify multiple times)")
 
          ("bitcoin-node-ip", bpo::value<string>()->default_value("99.79.189.95"), "IP address of Bitcoin node")
          ("bitcoin-node-zmq-port", bpo::value<uint32_t>()->default_value(11111), "ZMQ port of Bitcoin node")
@@ -107,9 +112,17 @@ void peerplays_sidechain_plugin_impl::plugin_set_program_options(
 
 void peerplays_sidechain_plugin_impl::plugin_initialize(const boost::program_options::variables_map& options)
 {
-   config_ready_son = options.count( "son-id" ) && options.count( "peerplays-private-key" );
+   config_ready_son = (options.count( "son-id" ) || options.count( "son-ids" )) && options.count( "peerplays-private-key" );
    if (config_ready_son) {
       LOAD_VALUE_SET(options, "son-id", _sons, chain::son_id_type)
+      if (options.count("son-ids"))
+         boost::insert(_sons, fc::json::from_string(options.at("son-ids").as<string>()).as<vector<chain::son_id_type>>( 5 ));
+      config_ready_son = config_ready_son && !_sons.empty();
+
+#ifndef SUPPORT_MULTIPLE_SONS
+      FC_ASSERT( _sons.size() == 1, "Multiple SONs not supported" );
+#endif
+
       if( options.count("peerplays-private-key") )
       {
          const std::vector<std::string> key_id_to_wif_pair_strings = options["peerplays-private-key"].as<std::vector<std::string>>();
@@ -173,9 +186,8 @@ void peerplays_sidechain_plugin_impl::plugin_initialize(const boost::program_opt
 void peerplays_sidechain_plugin_impl::plugin_startup()
 {
    if (config_ready_son) {
-      ilog("SON running");
+      ilog("Starting ${n} SON instances", ("n", _sons.size()));
 
-      ilog("Starting heartbeats for ${n} sons.", ("n", _sons.size()));
       schedule_heartbeat_loop();
    } else {
       elog("No sons configured! Please add SON IDs and private keys to configuration.");
@@ -190,24 +202,24 @@ void peerplays_sidechain_plugin_impl::plugin_startup()
    //}
 }
 
-son_id_type peerplays_sidechain_plugin_impl::get_son_id()
+std::set<chain::son_id_type>& peerplays_sidechain_plugin_impl::get_sons()
 {
-   return *(_sons.begin());
+    return _sons;
 }
 
-son_object peerplays_sidechain_plugin_impl::get_son_object()
+son_object peerplays_sidechain_plugin_impl::get_son_object(son_id_type son_id)
 {
    const auto& idx = plugin.database().get_index_type<chain::son_index>().indices().get<by_id>();
-   auto son_obj = idx.find( get_son_id() );
+   auto son_obj = idx.find( son_id );
    if (son_obj == idx.end())
       return {};
    return *son_obj;
 }
 
-bool peerplays_sidechain_plugin_impl::is_active_son()
+bool peerplays_sidechain_plugin_impl::is_active_son(son_id_type son_id)
 {
    const auto& idx = plugin.database().get_index_type<chain::son_index>().indices().get<by_id>();
-   auto son_obj = idx.find( get_son_id() );
+   auto son_obj = idx.find( son_id );
    if (son_obj == idx.end())
       return false;
 
@@ -220,7 +232,7 @@ bool peerplays_sidechain_plugin_impl::is_active_son()
       return swi.son_id;
    });
 
-   auto it = std::find(active_son_ids.begin(), active_son_ids.end(), get_son_id());
+   auto it = std::find(active_son_ids.begin(), active_son_ids.end(), son_id);
 
    return (it != active_son_ids.end());
 }
@@ -228,6 +240,20 @@ bool peerplays_sidechain_plugin_impl::is_active_son()
 std::map<chain::public_key_type, fc::ecc::private_key>& peerplays_sidechain_plugin_impl::get_private_keys()
 {
    return _private_keys;
+}
+
+fc::ecc::private_key peerplays_sidechain_plugin_impl::get_private_key(son_id_type son_id)
+{
+   return get_private_key(get_son_object(son_id).signing_key);
+}
+
+fc::ecc::private_key peerplays_sidechain_plugin_impl::get_private_key(chain::public_key_type public_key)
+{
+   auto private_key_itr = _private_keys.find( public_key );
+   if( private_key_itr != _private_keys.end() ) {
+      return private_key_itr->second;
+   }
+   return {};
 }
 
 void peerplays_sidechain_plugin_impl::schedule_heartbeat_loop()
@@ -245,40 +271,29 @@ void peerplays_sidechain_plugin_impl::heartbeat_loop()
 {
    schedule_heartbeat_loop();
    chain::database& d = plugin.database();
-   chain::son_id_type son_id = *(_sons.begin());
-   const auto& idx = d.get_index_type<chain::son_index>().indices().get<by_id>();
-   auto son_obj = idx.find( son_id );
-   if(son_obj == idx.end())
-      return;
-   const chain::global_property_object& gpo = d.get_global_properties();
-   vector<son_id_type> active_son_ids;
-   active_son_ids.reserve(gpo.active_sons.size());
-   std::transform(gpo.active_sons.begin(), gpo.active_sons.end(),
-                  std::inserter(active_son_ids, active_son_ids.end()),
-                  [](const son_info& swi) {
-      return swi.son_id;
-   });
 
-   auto it = std::find(active_son_ids.begin(), active_son_ids.end(), son_id);
-   if(it != active_son_ids.end() || son_obj->status == chain::son_status::in_maintenance) {
-      ilog("peerplays_sidechain_plugin:  sending heartbeat");
-      chain::son_heartbeat_operation op;
-      op.owner_account = son_obj->son_account;
-      op.son_id = son_id;
-      op.ts = fc::time_point::now() + fc::seconds(0);
-      chain::signed_transaction trx = d.create_signed_transaction(_private_keys.begin()->second, op);
-      fc::future<bool> fut = fc::async( [&](){
-         try {
-            d.push_transaction(trx);
-            if(plugin.app().p2p_node())
-               plugin.app().p2p_node()->broadcast(net::trx_message(trx));
-            return true;
-         } catch(fc::exception e){
-            ilog("peerplays_sidechain_plugin_impl:  sending heartbeat failed with exception ${e}",("e", e.what()));
-            return false;
-         }
-      });
-      fut.wait(fc::seconds(10));
+   for (son_id_type son_id : _sons) {
+      if (is_active_son(son_id) || get_son_object(son_id).status == chain::son_status::in_maintenance) {
+
+         ilog("peerplays_sidechain_plugin:  sending heartbeat for SON ${son}", ("son", son_id));
+         chain::son_heartbeat_operation op;
+         op.owner_account = get_son_object(son_id).son_account;
+         op.son_id = son_id;
+         op.ts = fc::time_point::now() + fc::seconds(0);
+         chain::signed_transaction trx = d.create_signed_transaction(plugin.get_private_key(son_id), op);
+         fc::future<bool> fut = fc::async( [&](){
+            try {
+               d.push_transaction(trx, database::validation_steps::skip_block_size_check);
+               if(plugin.app().p2p_node())
+                  plugin.app().p2p_node()->broadcast(net::trx_message(trx));
+               return true;
+            } catch(fc::exception e){
+               ilog("peerplays_sidechain_plugin_impl:  sending heartbeat failed with exception ${e}",("e", e.what()));
+               return false;
+            }
+         });
+         fut.wait(fc::seconds(10));
+      }
    }
 }
 
@@ -323,10 +338,10 @@ void peerplays_sidechain_plugin_impl::create_son_down_proposals()
           ((fc::time_point::now() - last_active_ts) > fc::microseconds(down_threshold)))  {
          ilog("peerplays_sidechain_plugin:  sending son down proposal for ${t} from ${s}",("t",std::string(object_id_type(son_obj->id)))("s",std::string(object_id_type(my_son_id))));
          chain::proposal_create_operation op = create_son_down_proposal(son_inf.son_id, last_active_ts);
-         chain::signed_transaction trx = d.create_signed_transaction(_private_keys.begin()->second, op);
+         chain::signed_transaction trx = d.create_signed_transaction(plugin.get_private_key(son_obj->signing_key), op);
          fc::future<bool> fut = fc::async( [&](){
             try {
-               d.push_transaction(trx);
+               d.push_transaction(trx, database::validation_steps::skip_block_size_check);
                if(plugin.app().p2p_node())
                   plugin.app().p2p_node()->broadcast(net::trx_message(trx));
                return true;
@@ -347,13 +362,6 @@ void peerplays_sidechain_plugin_impl::recreate_primary_wallet()
 
 void peerplays_sidechain_plugin_impl::process_deposits() {
 
-   // Account who issues tokens to the user who made deposit
-   account_id_type pay_from = GRAPHENE_NULL_ACCOUNT;
-   const auto& account_idx = plugin.database().get_index_type<account_index>().indices().get<by_name>();
-   const auto& account_itr = account_idx.find("nathan");
-   if (account_itr != account_idx.end())
-      pay_from = (*account_itr).id;
-
    const auto& idx = plugin.database().get_index_type<son_wallet_transfer_index>().indices().get<by_processed>();
    const auto& idx_range = idx.equal_range(false);
 
@@ -362,22 +370,31 @@ void peerplays_sidechain_plugin_impl::process_deposits() {
 
       const chain::global_property_object& gpo = plugin.database().get_global_properties();
 
-      transfer_operation op;
-      op.from = pay_from;
-      op.to = swto.peerplays_from;
-      op.amount = asset(swto.sidechain_amount); // For Bitcoin, the exchange rate is 1:1, for others, get the exchange rate from market
+      for (son_id_type son_id : plugin.get_sons()) {
+         if (plugin.is_active_son(son_id)) {
 
-      proposal_create_operation proposal_op;
-      proposal_op.fee_paying_account = plugin.get_son_object().son_account;
-      proposal_op.proposed_ops.push_back( op_wrapper( op ) );
-      uint32_t lifetime = ( gpo.parameters.block_interval * gpo.active_witnesses.size() ) * 3;
-      proposal_op.expiration_time = time_point_sec( plugin.database().head_block_time().sec_since_epoch() + lifetime );
+            son_wallet_transfer_process_operation p_op;
+            p_op.payer = gpo.parameters.get_son_btc_account_id();
+            p_op.son_wallet_transfer_id = swto.id;
 
-      signed_transaction trx = plugin.database().create_signed_transaction(plugin.get_private_keys().begin()->second, proposal_op);
-      try {
-         plugin.database().push_transaction(trx);
-      } catch(fc::exception e){
-         ilog("sidechain_net_handler:  sending proposal for transfer operation failed with exception ${e}",("e", e.what()));
+            proposal_create_operation proposal_op;
+            proposal_op.fee_paying_account = plugin.get_son_object(son_id).son_account;
+            proposal_op.proposed_ops.emplace_back( op_wrapper( p_op ) );
+            uint32_t lifetime = ( gpo.parameters.block_interval * gpo.active_witnesses.size() ) * 3;
+            proposal_op.expiration_time = time_point_sec( plugin.database().head_block_time().sec_since_epoch() + lifetime );
+
+            ilog("sidechain_net_handler:  sending proposal for transfer operation ${swto} by ${son}", ("swto", swto.id) ("son", son_id));
+            signed_transaction trx = plugin.database().create_signed_transaction(plugin.get_private_key(son_id), proposal_op);
+            trx.validate();
+            ilog("sidechain_net_handler:  transaction validated ${swto} by ${son}", ("swto", swto.id) ("son", son_id));
+            try {
+               plugin.database().push_transaction(trx, database::validation_steps::skip_block_size_check);
+               if(plugin.app().p2p_node())
+                  plugin.app().p2p_node()->broadcast(net::trx_message(trx));
+            } catch(fc::exception e){
+               ilog("sidechain_net_handler:  sending proposal for transfer operation failed with exception ${e}",("e", e.what()));
+            }
+         }
       }
    });
 }
@@ -388,16 +405,17 @@ void peerplays_sidechain_plugin_impl::process_deposits() {
 void peerplays_sidechain_plugin_impl::on_block_applied( const signed_block& b )
 {
    chain::database& d = plugin.database();
-   chain::son_id_type my_son_id = *(_sons.begin());
    const chain::global_property_object& gpo = d.get_global_properties();
    bool latest_block = ((fc::time_point::now() - b.timestamp) < fc::microseconds(gpo.parameters.block_interval * 1000000));
-   // Return if there are no active SONs
    if(gpo.active_sons.size() <= 0 || !latest_block) {
       return;
    }
 
    chain::son_id_type next_son_id = d.get_scheduled_son(1);
-   if(next_son_id == my_son_id) {
+   ilog("peerplays_sidechain_plugin_impl:  Scheduled SON ${son}",("son", next_son_id));
+
+   // check if we control scheduled SON
+   if( _sons.find( next_son_id ) != _sons.end() ) {
 
       create_son_down_proposals();
 
@@ -412,35 +430,18 @@ void peerplays_sidechain_plugin_impl::on_block_applied( const signed_block& b )
 
 void peerplays_sidechain_plugin_impl::on_objects_new(const vector<object_id_type>& new_object_ids)
 {
-   chain::database& d = plugin.database();
-   chain::son_id_type my_son_id = *(_sons.begin());
-   const chain::global_property_object& gpo = d.get_global_properties();
-   const auto& idx = d.get_index_type<chain::son_index>().indices().get<by_id>();
-   auto son_obj = idx.find( my_son_id );
-   vector<son_id_type> active_son_ids;
-   active_son_ids.reserve(gpo.active_sons.size());
-   std::transform(gpo.active_sons.begin(), gpo.active_sons.end(),
-                  std::inserter(active_son_ids, active_son_ids.end()),
-                  [](const son_info& swi) {
-      return swi.son_id;
-   });
 
-   auto it = std::find(active_son_ids.begin(), active_son_ids.end(), my_son_id);
-   if(it == active_son_ids.end()) {
-      return;
-   }
-
-   auto approve_proposal = [ & ]( const chain::proposal_id_type& id )
+   auto approve_proposal = [ & ]( const chain::son_id_type& son_id, const chain::proposal_id_type& proposal_id )
    {
-      ilog("peerplays_sidechain_plugin:  sending approval for ${t} from ${s}",("t",std::string(object_id_type(id)))("s",std::string(object_id_type(my_son_id))));
+      ilog("peerplays_sidechain_plugin:  sending approval for ${p} from ${s}", ("p", proposal_id) ("s", son_id));
       chain::proposal_update_operation puo;
-      puo.fee_paying_account = son_obj->son_account;
-      puo.proposal = id;
-      puo.active_approvals_to_add = { son_obj->son_account };
-      chain::signed_transaction trx = d.create_signed_transaction(_private_keys.begin()->second, puo);
+      puo.fee_paying_account = get_son_object(son_id).son_account;
+      puo.proposal = proposal_id;
+      puo.active_approvals_to_add = { get_son_object(son_id).son_account };
+      chain::signed_transaction trx = plugin.database().create_signed_transaction(plugin.get_private_key(son_id), puo);
       fc::future<bool> fut = fc::async( [&](){
          try {
-            d.push_transaction(trx);
+            plugin.database().push_transaction(trx, database::validation_steps::skip_block_size_check);
             if(plugin.app().p2p_node())
                plugin.app().p2p_node()->broadcast(net::trx_message(trx));
             return true;
@@ -454,25 +455,42 @@ void peerplays_sidechain_plugin_impl::on_objects_new(const vector<object_id_type
 
    for(auto object_id: new_object_ids) {
       if( object_id.is<chain::proposal_object>() ) {
-         const object* obj = d.find_object(object_id);
-         const chain::proposal_object* proposal = dynamic_cast<const chain::proposal_object*>(obj);
-         if(proposal == nullptr || (proposal->available_active_approvals.find(son_obj->son_account) != proposal->available_active_approvals.end())) {
-            return;
-         }
 
-         if(proposal->proposed_transaction.operations.size() == 1
-         && proposal->proposed_transaction.operations[0].which() == chain::operation::tag<chain::son_report_down_operation>::value) {
-            approve_proposal( proposal->id );
-         }
+         for (son_id_type son_id : _sons) {
+            if (!is_active_son(son_id)) {
+               continue;
+            }
 
-         if(proposal->proposed_transaction.operations.size() == 1
-         && proposal->proposed_transaction.operations[0].which() == chain::operation::tag<chain::son_wallet_update_operation>::value) {
-            approve_proposal( proposal->id );
-         }
+            const object* obj = plugin.database().find_object(object_id);
+            const chain::proposal_object* proposal = dynamic_cast<const chain::proposal_object*>(obj);
 
-         if(proposal->proposed_transaction.operations.size() == 1
-         && proposal->proposed_transaction.operations[0].which() == chain::operation::tag<chain::transfer_operation>::value) {
-            approve_proposal( proposal->id );
+            if(proposal == nullptr || (proposal->available_active_approvals.find(get_son_object(son_id).son_account) != proposal->available_active_approvals.end())) {
+               continue;
+            }
+
+            if(proposal->proposed_transaction.operations.size() == 1
+            && proposal->proposed_transaction.operations[0].which() == chain::operation::tag<chain::son_report_down_operation>::value) {
+               approve_proposal( son_id, proposal->id );
+               continue;
+            }
+
+            if(proposal->proposed_transaction.operations.size() == 1
+            && proposal->proposed_transaction.operations[0].which() == chain::operation::tag<chain::son_wallet_update_operation>::value) {
+               approve_proposal( son_id, proposal->id );
+               continue;
+            }
+
+            if(proposal->proposed_transaction.operations.size() == 1
+            && proposal->proposed_transaction.operations[0].which() == chain::operation::tag<chain::son_wallet_transfer_create_operation>::value) {
+               approve_proposal( son_id, proposal->id );
+               continue;
+            }
+
+            if(proposal->proposed_transaction.operations.size() == 1
+            && proposal->proposed_transaction.operations[0].which() == chain::operation::tag<chain::son_wallet_transfer_process_operation>::value) {
+               approve_proposal( son_id, proposal->id );
+               continue;
+            }
          }
       }
    }
@@ -515,24 +533,34 @@ void peerplays_sidechain_plugin::plugin_startup()
    my->plugin_startup();
 }
 
-son_id_type peerplays_sidechain_plugin::get_son_id()
+std::set<chain::son_id_type>& peerplays_sidechain_plugin::get_sons()
 {
-   return my->get_son_id();
+    return my->get_sons();
 }
 
-son_object peerplays_sidechain_plugin::get_son_object()
+son_object peerplays_sidechain_plugin::get_son_object(son_id_type son_id)
 {
-   return my->get_son_object();
+   return my->get_son_object(son_id);
 }
 
-bool peerplays_sidechain_plugin::is_active_son()
+bool peerplays_sidechain_plugin::is_active_son(son_id_type son_id)
 {
-   return my->is_active_son();
+   return my->is_active_son(son_id);
 }
 
 std::map<chain::public_key_type, fc::ecc::private_key>& peerplays_sidechain_plugin::get_private_keys()
 {
    return my->get_private_keys();
+}
+
+fc::ecc::private_key peerplays_sidechain_plugin::get_private_key(son_id_type son_id)
+{
+   return my->get_private_key(son_id);
+}
+
+fc::ecc::private_key peerplays_sidechain_plugin::get_private_key(chain::public_key_type public_key)
+{
+    return my->get_private_key(public_key);
 }
 
 } } // graphene::peerplays_sidechain

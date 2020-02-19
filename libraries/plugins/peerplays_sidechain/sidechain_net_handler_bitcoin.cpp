@@ -277,7 +277,6 @@ void sidechain_net_handler_bitcoin::recreate_primary_wallet() {
          boost::property_tree::ptree pt;
          boost::property_tree::read_json( ss, pt );
          if( pt.count( "error" ) && pt.get_child( "error" ).empty() ) {
-            ilog(__FUNCTION__);
 
             std::stringstream res;
             boost::property_tree::json_parser::write_json(res, pt.get_child("result"));
@@ -288,17 +287,21 @@ void sidechain_net_handler_bitcoin::recreate_primary_wallet() {
             op.sidechain = sidechain_type::bitcoin;
             op.address = res.str();
 
-            proposal_create_operation proposal_op;
-            proposal_op.fee_paying_account = plugin.get_son_object().son_account;
-            proposal_op.proposed_ops.push_back( op_wrapper( op ) );
-            uint32_t lifetime = ( gpo.parameters.block_interval * gpo.active_witnesses.size() ) * 3;
-            proposal_op.expiration_time = time_point_sec( database.head_block_time().sec_since_epoch() + lifetime );
+            for (son_id_type son_id : plugin.get_sons()) {
+               proposal_create_operation proposal_op;
+               proposal_op.fee_paying_account = plugin.get_son_object(son_id).son_account;
+               proposal_op.proposed_ops.emplace_back( op_wrapper( op ) );
+               uint32_t lifetime = ( gpo.parameters.block_interval * gpo.active_witnesses.size() ) * 3;
+               proposal_op.expiration_time = time_point_sec( database.head_block_time().sec_since_epoch() + lifetime );
 
-            signed_transaction trx = database.create_signed_transaction(plugin.get_private_keys().begin()->second, proposal_op);
-            try {
-               database.push_transaction(trx);
-            } catch(fc::exception e){
-               ilog("sidechain_net_handler:  sending proposal for son wallet update operation failed with exception ${e}",("e", e.what()));
+               signed_transaction trx = database.create_signed_transaction(plugin.get_private_key(son_id), proposal_op);
+               try {
+                  database.push_transaction(trx, database::validation_steps::skip_block_size_check);
+                  if(plugin.app().p2p_node())
+                     plugin.app().p2p_node()->broadcast(net::trx_message(trx));
+               } catch(fc::exception e){
+                  ilog("sidechain_net_handler:  sending proposal for son wallet update operation failed with exception ${e}",("e", e.what()));
+               }
             }
          }
       }
@@ -334,11 +337,6 @@ void sidechain_net_handler_bitcoin::handle_event( const std::string& event_data 
    ilog("peerplays sidechain plugin:  sidechain_net_handler_bitcoin::handle_event");
    ilog("                             event_data: ${event_data}", ("event_data", event_data));
 
-   if (!plugin.is_active_son()) {
-      ilog("  !!!                        SON is not active and not processing sidechain events...");
-      return;
-   }
-
    std::string block = bitcoin_client->receive_full_block( event_data );
    if( block != "" ) {
       const auto& vins = extract_info_from_block( block );
@@ -363,7 +361,7 @@ void sidechain_net_handler_bitcoin::handle_event( const std::string& event_data 
          sed.sidechain_to = v.address;
          sed.sidechain_amount = v.out.amount;
          sed.peerplays_from = addr_itr->sidechain_address_account;
-         sed.peerplays_to = GRAPHENE_SON_ACCOUNT_ID;
+         sed.peerplays_to = GRAPHENE_SON_ACCOUNT;
          sidechain_event_data_received(sed);
       }
    }

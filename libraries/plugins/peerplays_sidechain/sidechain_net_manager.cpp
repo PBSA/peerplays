@@ -10,15 +10,12 @@ sidechain_net_manager::sidechain_net_manager(peerplays_sidechain_plugin& _plugin
    plugin(_plugin),
    database(_plugin.database())
 {
-   ilog(__FUNCTION__);
 }
 
 sidechain_net_manager::~sidechain_net_manager() {
-   ilog(__FUNCTION__);
 }
 
 bool sidechain_net_manager::create_handler(peerplays_sidechain::sidechain_type sidechain, const boost::program_options::variables_map& options) {
-   ilog(__FUNCTION__);
 
    bool ret_val = false;
 

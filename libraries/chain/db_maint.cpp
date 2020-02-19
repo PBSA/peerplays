@@ -432,14 +432,14 @@ void database::update_active_sons()
    }
 
    // Update SON authority
-   modify( get(GRAPHENE_SON_ACCOUNT_ID), [&]( account_object& a )
+   modify( get(GRAPHENE_SON_ACCOUNT), [&]( account_object& a )
    {
       if( head_block_time() < HARDFORK_533_TIME )
       {
          uint64_t total_votes = 0;
          map<account_id_type, uint64_t> weights;
          a.active.weight_threshold = 0;
-         a.active.clear();
+         a.active.account_auths.clear();
 
          for( const son_object& son : sons )
          {

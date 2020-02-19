@@ -176,7 +176,7 @@
 ///
 #define GRAPHENE_RAKE_FEE_ACCOUNT_ID (graphene::chain::account_id_type(6))
 ///
-#define GRAPHENE_SON_ACCOUNT_ID (graphene::chain::account_id_type(7))
+#define GRAPHENE_SON_ACCOUNT (graphene::chain::account_id_type(7))
 /// Sentinel value used in the scheduler.
 #define GRAPHENE_NULL_WITNESS (graphene::chain::witness_id_type(0))
 ///@}
