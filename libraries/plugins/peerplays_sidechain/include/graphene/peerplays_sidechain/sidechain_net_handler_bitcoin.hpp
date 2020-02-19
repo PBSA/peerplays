@@ -11,6 +11,14 @@
 
 namespace graphene { namespace peerplays_sidechain {
 
+class btc_txout
+{
+public:
+   std::string txid_;
+   unsigned int out_num_;
+   double amount_;
+};
+
 class bitcoin_rpc_client {
 public:
    bitcoin_rpc_client( std::string _ip, uint32_t _rpc, std::string _user, std::string _password) ;
@@ -21,6 +29,9 @@ public:
    void send_btc_tx( const std::string& tx_hex );
    std::string add_multisig_address( const std::vector<std::string> public_keys );
    bool connection_is_not_defined() const;
+   void import_address( const std::string& address_or_script);
+   std::vector<btc_txout> list_unspent();
+   std::string prepare_tx(const std::vector<btc_txout>& ins, const fc::flat_map<std::string, double> outs);
 
 private:
 

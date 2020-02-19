@@ -173,6 +173,120 @@ bool bitcoin_rpc_client::connection_is_not_defined() const
    return ip.empty() || rpc_port == 0 || user.empty() || password.empty();
 }
 
+void bitcoin_rpc_client::import_address(const std::string &address_or_script)
+{
+   const auto body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"pp_plugin\", \"method\": \"importaddress\", \"params\": [") +
+                     std::string("\"") + address_or_script + std::string("\"") + std::string("] }");
+
+   const auto reply = send_post_request( body );
+
+   if( reply.body.empty() )
+   {
+      wlog("Failed to import address [${addr}]", ("addr", address_or_script));
+      return;
+   }
+
+   std::string reply_str( reply.body.begin(), reply.body.end() );
+
+   std::stringstream ss(reply_str);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json( ss, json );
+
+   if( reply.status == 200 ) {
+      idump((address_or_script)(reply_str));
+      return;
+   } else if( json.count( "error" ) && !json.get_child( "error" ).empty() ) {
+      wlog( "Failed to import address [${addr}]! Reply: ${msg}", ("addr", address_or_script)("msg", reply_str) );
+   }
+}
+
+std::vector<btc_txout> bitcoin_rpc_client::list_unspent()
+{
+   const auto body = std::string("{\"jsonrpc\": \"1.0\", \"id\":\"pp_plugin\", \"method\": \"listunspent\", \"params\": [] }");
+
+   const auto reply = send_post_request( body );
+
+   std::vector<btc_txout> result;
+   if( reply.body.empty() )
+   {
+      wlog("Failed to list unspent txo");
+      return result;
+   }
+
+   std::string reply_str( reply.body.begin(), reply.body.end() );
+
+   std::stringstream ss(reply_str);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json( ss, json );
+
+   if( reply.status == 200 ) {
+      idump((reply_str));
+      if( json.count( "result" ) )
+      {
+         for(auto& entry: json.get_child("result"))
+         {
+            btc_txout txo;
+            txo.txid_ = entry.second.get_child("txid").get_value<std::string>();
+            txo.out_num_ = entry.second.get_child("vout").get_value<unsigned int>();
+            txo.amount_ = entry.second.get_child("amount").get_value<double>();
+            result.push_back(txo);
+         }
+      }
+   } else if( json.count( "error" ) && !json.get_child( "error" ).empty() ) {
+      wlog( "Failed to list unspent txo! Reply: ${msg}", ("msg", reply_str) );
+   }
+   return result;
+}
+
+std::string bitcoin_rpc_client::prepare_tx(const std::vector<btc_txout> &ins, const fc::flat_map<std::string, double> outs)
+{
+   std::string body("{\"jsonrpc\": \"1.0\", \"id\":\"pp_plugin\", \"method\": \"createrawtransaction\", \"params\": [");
+   body += "[";
+   bool first = true;
+   for(const auto& entry: ins)
+   {
+      if(!first)
+         body += ",";
+      body += "{\"txid\":\"" + entry.txid_ + "\",\"vout\":\"" + fc::to_string(entry.out_num_) + "\"}";
+      first = false;
+   }
+   body += "]";
+   first = true;
+   body += "{";
+   for(const auto& entry: outs)
+   {
+      if(!first)
+         body += ",";
+      body += "\"" + entry.first + "\":\"" + fc::to_string(entry.second) + "\"";
+      first = false;
+   }
+   body += "}";
+   body += std::string("] }");
+
+   const auto reply = send_post_request( body );
+
+   if( reply.body.empty() )
+   {
+      wlog("Failed to create raw transaction: [${body}]", ("body", body));
+      return std::string();
+   }
+
+   std::string reply_str( reply.body.begin(), reply.body.end() );
+
+   std::stringstream ss(reply_str);
+   boost::property_tree::ptree json;
+   boost::property_tree::read_json( ss, json );
+
+   if( reply.status == 200 ) {
+      idump((reply_str));
+      if( json.count( "result" ) )
+         return json.get_child("result").get_value<std::string>();
+   } else if( json.count( "error" ) && !json.get_child( "error" ).empty() ) {
+      wlog( "Failed to create raw transaction: [${body}]! Reply: ${msg}", ("body", body)("msg", reply_str) );
+   }
+   return std::string();
+}
+
 fc::http::reply bitcoin_rpc_client::send_post_request( std::string body )
 {
    fc::http::connection conn;

@@ -18,7 +18,7 @@ enum class sidechain_type {
    peerplays
 };
 
-using bytes = std::vector<char>;
+using bytes = std::vector<unsigned char>;
 
 struct prev_out
 {
