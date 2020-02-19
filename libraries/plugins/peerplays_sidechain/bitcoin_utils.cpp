@@ -586,7 +586,7 @@ bytes der_sign(const fc::ecc::private_key& priv_key, const fc::sha256& digest)
    return bytes(result.begin(), result.begin() + size);
 }
 
-std::vector<bytes> signature_for_raw_transaction(const bytes& unsigned_tx,
+std::vector<bytes> signatures_for_raw_transaction(const bytes& unsigned_tx,
                                                  std::vector<uint64_t> in_amounts,
                                                  const bytes& redeem_script,
                                                  const fc::ecc::private_key& priv_key)
@@ -645,7 +645,7 @@ bytes sign_pw_transfer_transaction(const bytes &unsigned_tx, std::vector<uint64_
    {
       if(key)
       {
-         std::vector<bytes> signatures = signature_for_raw_transaction(unsigned_tx, in_amounts, redeem_script, *key);
+         std::vector<bytes> signatures = signatures_for_raw_transaction(unsigned_tx, in_amounts, redeem_script, *key);
          FC_ASSERT(signatures.size() == tx.vin.size(), "Invalid signatures number");
          // push signatures in reverse order because script starts to check the top signature on the stack first
          for(unsigned int i = 0; i < tx.vin.size(); i++)
@@ -699,12 +699,37 @@ bytes partially_sign_pw_transfer_transaction(const bytes& partially_signed_tx,
    tx.fill_from_bytes(partially_signed_tx);
    FC_ASSERT(tx.vin.size() > 0);
    bytes redeem_script = tx.vin[0].scriptWitness.back();
-   std::vector<bytes> signatures = signature_for_raw_transaction(partially_signed_tx, in_amounts, redeem_script, priv_key);
+   std::vector<bytes> signatures = signatures_for_raw_transaction(partially_signed_tx, in_amounts, redeem_script, priv_key);
    FC_ASSERT(signatures.size() == tx.vin.size(), "Invalid signatures number");
    // push signatures in reverse order because script starts to check the top signature on the stack first
    unsigned witness_idx = tx.vin[0].scriptWitness.size() - 2 - key_idx;
    for(unsigned int i = 0; i < tx.vin.size(); i++)
       tx.vin[i].scriptWitness[witness_idx] = signatures[i];
+   bytes ret;
+   tx.to_bytes(ret);
+   return ret;
+}
+
+bytes add_signatures_to_unsigned_tx(const bytes &unsigned_tx, const std::vector<std::vector<bytes> > &signature_set, const bytes &redeem_script)
+{
+   btc_tx tx;
+   tx.fill_from_bytes(unsigned_tx);
+   bytes dummy_data;
+   for(unsigned int i = 0; i < signature_set.size(); i++)
+   {
+         std::vector<bytes> signatures = signature_set[i];
+         FC_ASSERT(signatures.size() == tx.vin.size(), "Invalid signatures number");
+         // push signatures in reverse order because script starts to check the top signature on the stack first
+         for(unsigned int i = 0; i < tx.vin.size(); i++)
+            tx.vin[i].scriptWitness.insert(tx.vin[i].scriptWitness.begin(), signatures[i]);
+   }
+
+   for(auto& in: tx.vin)
+   {
+      in.scriptWitness.push_back(redeem_script);
+   }
+
+   tx.hasWitness = true;
    bytes ret;
    tx.to_bytes(ret);
    return ret;
